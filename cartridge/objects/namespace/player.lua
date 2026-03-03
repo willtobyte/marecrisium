@@ -9,6 +9,7 @@ return {
 	on_spawn = function(self)
 		-- Called once when the object is spawned
 		self.animation = "running"
+		self.scale = 10
 	end,
 
 	on_loop = function(self, delta)
