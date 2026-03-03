@@ -1,0 +1,136 @@
+#include "engine.hpp"
+
+lua_State *L = nullptr;
+ma_engine *audioengine = nullptr;
+SDL_Renderer *renderer = nullptr;
+struct viewport viewport{};
+
+engine::engine() {
+  const auto buffer = io::read("scripts/main.lua");
+  const auto *data = reinterpret_cast<const char *>(buffer.data());
+  const auto size = buffer.size();
+
+  luaL_loadbuffer(L, data, size, "@main.lua");
+  if (lua_pcall(L, 0, 1, 0) != 0) {
+    std::string error = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    throw std::runtime_error(error);
+  }
+
+  lua_getfield(L, -1, "title");
+  const auto *title = lua_isstring(L, -1) ? lua_tostring(L, -1) : "Untitled";
+  lua_pop(L, 1);
+
+  lua_getfield(L, -1, "width");
+  const auto width = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 1920;
+  lua_pop(L, 1);
+
+  lua_getfield(L, -1, "height");
+  const auto height = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 1080;
+  lua_pop(L, 1);
+
+  lua_getfield(L, -1, "scale");
+  const auto scale = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 1.0f;
+  lua_pop(L, 1);
+
+  lua_getfield(L, -1, "fullscreen");
+  const auto fullscreen = lua_isboolean(L, -1) ? lua_toboolean(L, -1) : 0;
+  lua_pop(L, 1);
+
+  static const auto window = SDL_CreateWindow(
+    title, width, height,
+    fullscreen ? SDL_WINDOW_FULLSCREEN : 0
+  );
+
+  const auto vsync = std::getenv("NOVSYNC") ? 0 : 1;
+  const auto properties = SDL_CreateProperties();
+  SDL_SetPointerProperty(properties, SDL_PROP_RENDERER_CREATE_WINDOW_POINTER, window);
+  SDL_SetNumberProperty(properties, SDL_PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER, vsync);
+  SDL_SetStringProperty(properties, SDL_PROP_RENDERER_CREATE_NAME_STRING, nullptr);
+
+  renderer = SDL_CreateRendererWithProperties(properties);
+
+  SDL_SetRenderLogicalPresentation(renderer, width, height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
+  SDL_SetRenderScale(renderer, scale, scale);
+
+  //SDL_HideCursor();
+
+  SDL_RaiseWindow(window);
+
+  viewport = {
+    static_cast<float>(width) / scale,
+    static_cast<float>(height) / scale,
+    scale
+  };
+
+  lua_newtable(L);
+  lua_pushnumber(L, static_cast<lua_Number>(viewport.width));
+  lua_setfield(L, -2, "width");
+  lua_pushnumber(L, static_cast<lua_Number>(viewport.height));
+  lua_setfield(L, -2, "height");
+  lua_pushnumber(L, static_cast<lua_Number>(viewport.scale));
+  lua_setfield(L, -2, "scale");
+  lua_setglobal(L, "viewport");
+
+  lua_pop(L, 2);
+}
+
+void engine::run() {
+  while (_running) [[likely]] {
+    loop();
+  }
+}
+
+void engine::loop() {
+  SDL_Event event;
+  while (SDL_PollEvent(&event)) {
+    switch (event.type) {
+      case SDL_EVENT_QUIT: {
+        _running = false;
+      } break;
+
+      case SDL_EVENT_KEY_UP: {
+        switch (event.key.key) {
+          case SDLK_F11: {
+            auto *const window = SDL_GetRenderWindow(renderer);
+            const auto fullscreen = (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0;
+            SDL_SetWindowFullscreen(window, !fullscreen);
+          } break;
+
+          default:
+            break;
+        }
+      } break;
+
+      default:
+        break;
+    }
+  }
+
+  const auto now = SDL_GetPerformanceCounter();
+  static auto prior = now;
+  static const auto frequency = static_cast<double>(SDL_GetPerformanceFrequency());
+  const auto delta = std::min(static_cast<float>(static_cast<double>(now - prior) / frequency), .05f);
+  prior = now;
+
+  static auto tick = now;
+  static auto frames = 0;
+  ++frames;
+  const auto elapsed = static_cast<double>(now - tick) / frequency;
+
+  lua_gc(L, LUA_GCSTEP, 64);
+
+  if (elapsed >= 1.0) {
+    const auto fps = frames / elapsed;
+    const auto memory = lua_gc(L, LUA_GCCOUNT, 0);
+    std::println("{:.1f} {}KB", fps, memory);
+    frames = 0;
+    tick = now;
+  }
+
+  SDL_RenderClear(renderer);
+
+  SDL_RenderPresent(renderer);
+
+  SteamAPI_RunCallbacks();
+}

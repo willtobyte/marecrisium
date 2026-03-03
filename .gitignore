@@ -1,0 +1,11 @@
+# Build
+build/
+
+# Cache
+.cache/
+
+# CMake
+CMakeUserPresets.json
+
+# OS
+.DS_Store
