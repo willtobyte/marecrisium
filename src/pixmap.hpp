@@ -1,0 +1,38 @@
+#pragma once
+
+#include "common.hpp"
+
+#include "flip.hpp"
+
+class pixmap final {
+public:
+  enum class flip : int {
+    none = SDL_FLIP_NONE,
+    horizontal = SDL_FLIP_HORIZONTAL,
+    vertical = SDL_FLIP_VERTICAL,
+    both = SDL_FLIP_HORIZONTAL | SDL_FLIP_VERTICAL
+  };
+
+  pixmap() = delete;
+  explicit pixmap(std::string_view filename);
+  ~pixmap() = default;
+
+  void draw(
+    const float sx, const float sy, const float sw, const float sh,
+    const float dx, const float dy, const float dw, const float dh,
+    const double angle = .0,
+    const uint8_t alpha = 255,
+    const flip flip = flip::none
+  ) const noexcept;
+
+  operator SDL_Texture*() const noexcept;
+
+  int width() const noexcept;
+  int height() const noexcept;
+
+private:
+  int _width;
+  int _height;
+
+  std::unique_ptr<SDL_Texture, SDL_Deleter> _texture;
+};
