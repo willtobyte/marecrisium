@@ -127,8 +127,11 @@ namespace {
                 if (lua_isfunction(state, -1)) {
                   lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->self_reference);
                   lua_pushstring(state, strings->get(previous));
-                  if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]]
+                  if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]] {
+                    std::string error = lua_tostring(state, -1);
                     lua_pop(state, 1);
+                    throw std::runtime_error(error);
+                  }
                 } else {
                   lua_pop(state, 1);
                 }
@@ -140,8 +143,11 @@ namespace {
               if (lua_isfunction(state, -1)) {
                 lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->self_reference);
                 lua_pushstring(state, strings->get(hash));
-                if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]]
-                  lua_pop(state, 1);
+                if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]] {
+                    std::string error = lua_tostring(state, -1);
+                    lua_pop(state, 1);
+                    throw std::runtime_error(error);
+                  }
               } else {
                 lua_pop(state, 1);
               }

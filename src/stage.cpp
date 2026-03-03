@@ -244,8 +244,29 @@ void stage::update(float delta) {
               lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.self_reference);
               lua_pushstring(L, _strings->get(c.name));
 
-              if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]]
+              if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
+                std::string error = lua_tostring(L, -1);
                 lua_pop(L, 1);
+                throw std::runtime_error(error);
+              }
+            } else {
+              lua_pop(L, 1);
+            }
+
+            lua_pop(L, 1);
+
+            lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.object_reference);
+            lua_getfield(L, -1, "on_animation_begin");
+
+            if (lua_isfunction(L, -1)) {
+              lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.self_reference);
+              lua_pushstring(L, _strings->get(c.name));
+
+              if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
+                std::string error = lua_tostring(L, -1);
+                lua_pop(L, 1);
+                throw std::runtime_error(error);
+              }
             } else {
               lua_pop(L, 1);
             }
