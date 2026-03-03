@@ -13,6 +13,10 @@ set(SDL3_DIR "${CMAKE_BINARY_DIR}")
 file(GLOB SOURCE_FILES CONFIGURE_DEPENDS "src/*.cpp")
 file(GLOB HEADER_FILES CONFIGURE_DEPENDS "src/*.hpp")
 
+if(DEVELOPMENT)
+  add_compile_definitions(DEVELOPMENT)
+endif()
+
 add_compile_definitions(
   NOMINMAX
   WIN32_LEAN_AND_MEAN
