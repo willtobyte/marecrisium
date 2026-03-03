@@ -1,9 +1,5 @@
 #pragma once
 
-#include "common.hpp"
-
-#include "flip.hpp"
-
 class pixmap final {
 public:
   enum class flip : int {
