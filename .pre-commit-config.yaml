@@ -1,0 +1,31 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+
+  - repo: https://github.com/JohnnyMorganz/StyLua
+    rev: v2.3.1
+    hooks:
+      - id: stylua-github
+
+  - repo: https://github.com/biomejs/pre-commit
+    rev: v0.6.1
+    hooks:
+      - id: biome-format
+        types: [json]
+
+  - repo: https://github.com/rvben/rumdl-pre-commit
+    rev: v0.0.207
+    hooks:
+      - id: rumdl-fmt
+
+  - repo: https://github.com/shssoichiro/oxipng
+    rev: v10.0.0
+    hooks:
+      - id: oxipng
+        args: ["-o", "6", "--strip", "safe", "--alpha"]
