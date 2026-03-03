@@ -45,13 +45,13 @@ static int gamepad_rumble(lua_State *state) {
   return lua_pushboolean(state, SDL_RumbleGamepad(ptr.get(), low16, high16, duration)), 1;
 }
 
-static int push_axis(lua_State *state, SDL_GamepadAxis a) {
+static int push_gamepad_axis(lua_State *state, SDL_GamepadAxis a) {
   if (ptr) [[likely]]
     return lua_pushnumber(state, static_cast<double>(deadzone(SDL_GetGamepadAxis(ptr.get(), a)))), 1;
   return lua_pushnumber(state, 0), 1;
 }
 
-static int push_button(lua_State *state, SDL_GamepadButton b) {
+static int push_gamepad_button(lua_State *state, SDL_GamepadButton b) {
   if (ptr) [[likely]]
     return lua_pushboolean(state, SDL_GetGamepadButton(ptr.get(), b)), 1;
   return lua_pushboolean(state, false), 1;
@@ -69,28 +69,28 @@ static int gamepad_index(lua_State *state) {
     return lua_pushstring(state, ""), 1;
   }
 
-  if (name == "left_x")         return push_axis(state, SDL_GAMEPAD_AXIS_LEFTX);
-  if (name == "left_y")         return push_axis(state, SDL_GAMEPAD_AXIS_LEFTY);
-  if (name == "right_x")        return push_axis(state, SDL_GAMEPAD_AXIS_RIGHTX);
-  if (name == "right_y")        return push_axis(state, SDL_GAMEPAD_AXIS_RIGHTY);
-  if (name == "trigger_left")   return push_axis(state, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
-  if (name == "trigger_right")  return push_axis(state, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
+  if (name == "left_x")         return push_gamepad_axis(state, SDL_GAMEPAD_AXIS_LEFTX);
+  if (name == "left_y")         return push_gamepad_axis(state, SDL_GAMEPAD_AXIS_LEFTY);
+  if (name == "right_x")        return push_gamepad_axis(state, SDL_GAMEPAD_AXIS_RIGHTX);
+  if (name == "right_y")        return push_gamepad_axis(state, SDL_GAMEPAD_AXIS_RIGHTY);
+  if (name == "trigger_left")   return push_gamepad_axis(state, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
+  if (name == "trigger_right")  return push_gamepad_axis(state, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
 
-  if (name == "south")          return push_button(state, SDL_GAMEPAD_BUTTON_SOUTH);
-  if (name == "east")           return push_button(state, SDL_GAMEPAD_BUTTON_EAST);
-  if (name == "west")           return push_button(state, SDL_GAMEPAD_BUTTON_WEST);
-  if (name == "north")          return push_button(state, SDL_GAMEPAD_BUTTON_NORTH);
-  if (name == "back")           return push_button(state, SDL_GAMEPAD_BUTTON_BACK);
-  if (name == "guide")          return push_button(state, SDL_GAMEPAD_BUTTON_GUIDE);
-  if (name == "start")          return push_button(state, SDL_GAMEPAD_BUTTON_START);
-  if (name == "shoulder_left")  return push_button(state, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER);
-  if (name == "shoulder_right") return push_button(state, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER);
-  if (name == "stick_left")     return push_button(state, SDL_GAMEPAD_BUTTON_LEFT_STICK);
-  if (name == "stick_right")    return push_button(state, SDL_GAMEPAD_BUTTON_RIGHT_STICK);
-  if (name == "up")             return push_button(state, SDL_GAMEPAD_BUTTON_DPAD_UP);
-  if (name == "down")           return push_button(state, SDL_GAMEPAD_BUTTON_DPAD_DOWN);
-  if (name == "left")           return push_button(state, SDL_GAMEPAD_BUTTON_DPAD_LEFT);
-  if (name == "right")          return push_button(state, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
+  if (name == "south")          return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_SOUTH);
+  if (name == "east")           return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_EAST);
+  if (name == "west")           return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_WEST);
+  if (name == "north")          return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_NORTH);
+  if (name == "back")           return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_BACK);
+  if (name == "guide")          return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_GUIDE);
+  if (name == "start")          return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_START);
+  if (name == "shoulder_left")  return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER);
+  if (name == "shoulder_right") return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER);
+  if (name == "stick_left")     return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_LEFT_STICK);
+  if (name == "stick_right")    return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_RIGHT_STICK);
+  if (name == "up")             return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_DPAD_UP);
+  if (name == "down")           return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_DPAD_DOWN);
+  if (name == "left")           return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_DPAD_LEFT);
+  if (name == "right")          return push_gamepad_button(state, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
 
   return lua_pushnil(state), 1;
 }
