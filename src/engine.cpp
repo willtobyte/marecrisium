@@ -139,7 +139,9 @@ void engine::loop() {
   _director.update(delta);
 
   SDL_RenderClear(renderer);
+
   _director.draw();
+
   SDL_RenderPresent(renderer);
 
   SteamAPI_RunCallbacks();
