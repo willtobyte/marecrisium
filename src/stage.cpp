@@ -1,9 +1,11 @@
 #include "stage.hpp"
 
-stage::stage(std::string_view name) {
+stage::stage(std::string_view name) : _name(name) {
   b2WorldDef def = b2DefaultWorldDef();
   def.gravity = {.0f, .0f};
   _world = b2CreateWorld(&def);
+
+  _registry.on_destroy<objectproxy>().connect<&objectproxy::on_destroy>();
 
   const auto filename = std::format("stages/{}.lua", name);
   const auto buffer = io::read(filename);
@@ -16,6 +18,21 @@ stage::stage(std::string_view name) {
     lua_pop(L, 1);
     throw std::runtime_error(error);
   }
+
+  lua_getfield(L, -1, "objects");
+  if (lua_istable(L, -1)) {
+    const auto count = static_cast<int>(lua_objlen(L, -1));
+    for (int i = 1; i <= count; ++i) {
+      lua_rawgeti(L, -1, i);
+      const std::string_view object_name = lua_tostring(L, -1);
+      lua_pop(L, 1);
+
+      const auto entity = _registry.create();
+      _registry.emplace<transform>(entity);
+      _registry.emplace<objectproxy>(entity, _registry, entity, _name, object_name);
+    }
+  }
+  lua_pop(L, 1);
 
   _reference = luaL_ref(L, LUA_REGISTRYINDEX);
 }

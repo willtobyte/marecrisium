@@ -1,4 +1,5 @@
 return {
+	objects = { "player" },
 	on_enter = function()
 		-- Called once when the stage is entered
 	end,

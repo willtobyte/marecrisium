@@ -17,6 +17,7 @@ private:
   static constexpr float FIXED_TIMESTEP = 1.0f / 60.0f;
   static constexpr int WORLD_SUBSTEPS = 4;
 
+  std::string _name;
   entt::registry _registry;
   b2WorldId _world;
   float _accumulator = .0f;
