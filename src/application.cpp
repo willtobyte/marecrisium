@@ -7,8 +7,8 @@ int application::run() {
 
     auto se = scriptengine();
     se.run();
-  } catch (const std::exception& e) {
-    const auto* const error = e.what();
+  } catch (const std::exception& exc) {
+    const auto* const error = exc.what();
 
     std::println(stderr, "{}", error);
 

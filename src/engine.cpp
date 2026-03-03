@@ -10,16 +10,11 @@ engine::engine() {
   const auto *data = reinterpret_cast<const char *>(buffer.data());
   const auto size = buffer.size();
 
-  luaL_loadbuffer(L, data, size, "@main.lua");
-  if (lua_pcall(L, 0, 1, 0) != 0) {
+  if (luaL_loadbuffer(L, data, size, "@main.lua") != 0 || lua_pcall(L, 0, 1, 0) != 0) {
     std::string error = lua_tostring(L, -1);
     lua_pop(L, 1);
     throw std::runtime_error(error);
   }
-
-  lua_getfield(L, -1, "title");
-  const auto *title = lua_isstring(L, -1) ? lua_tostring(L, -1) : "Untitled";
-  lua_pop(L, 1);
 
   lua_getfield(L, -1, "width");
   const auto width = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 1920;
@@ -37,10 +32,11 @@ engine::engine() {
   const auto fullscreen = lua_isboolean(L, -1) ? lua_toboolean(L, -1) : 0;
   lua_pop(L, 1);
 
+  lua_getfield(L, -1, "title");
+  const std::string_view title = lua_isstring(L, -1) ? lua_tostring(L, -1) : "Untitled";
+
   static const auto window = SDL_CreateWindow(
-    title, width, height,
-    fullscreen ? SDL_WINDOW_FULLSCREEN : 0
-  );
+    title.data(), width, height, fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
 
   const auto vsync = std::getenv("NOVSYNC") ? 0 : 1;
   const auto properties = SDL_CreateProperties();

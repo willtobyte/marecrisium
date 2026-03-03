@@ -23,7 +23,7 @@ conan: ## Installs dependencies
 .PHONY: build
 build: ## Builds the project
 	cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake \
-	-DDEVELOPMENT=TRUE \
+	-DDEVELOPMENT=ON \
 	-DCMAKE_BUILD_TYPE=$(BUILDTYPE) \
 	-DCMAKE_C_FLAGS_DEBUG="$(DEBUG_COMPILER_FLAGS)" \
 	-DCMAKE_CXX_FLAGS_DEBUG="$(DEBUG_COMPILER_FLAGS)" \
@@ -35,7 +35,7 @@ build: ## Builds the project
 .PHONY: run
 run: build ## Builds and runs the project
 	clear
-	NOVSYNC=1 SCENE=$(SCENE) CARTRIDGE=$(CARTRIDGE) lldb -o run -- ./build/carimbo
+	NOVSYNC=1 SCENE=$(SCENE) CARTRIDGE=$(CARTRIDGE) lldb -o run -- ./build/nostalgia
 
 .PHONY: help
 help:

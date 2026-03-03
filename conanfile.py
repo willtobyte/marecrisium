@@ -3,7 +3,7 @@ from conan.tools.cmake import CMakeDeps, CMakeToolchain
 from pathlib import Path
 
 
-class Carimbo(ConanFile):
+class Nostalgia(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
 
     def requirements(self):
