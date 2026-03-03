@@ -113,7 +113,7 @@ stage::stage(std::string_view name)
                 lua_pop(L, 1);
 
                 lua_rawgeti(L, -1, 5);
-                fr.duration = static_cast<float>(lua_tonumber(L, -1));
+                fr.duration = static_cast<float>(lua_tonumber(L, -1)) / 1000.0f;
                 lua_pop(L, 1);
 
                 ++c.count;
@@ -212,8 +212,6 @@ void stage::update(float delta) {
     _accumulator -= FIXED_TIMESTEP;
   }
 
-  const auto delta_ms = delta * 1000.0f;
-
   for (auto&& [entity, a] : _registry.view<animation>().each()) {
     if (!a.playing || a.clip_count == 0)
       continue;
@@ -227,7 +225,7 @@ void stage::update(float delta) {
     if (fr.duration < 0.0f)
       continue;
 
-    a.elapsed += delta_ms;
+    a.elapsed += delta;
 
     while (a.elapsed >= fr.duration && fr.duration > 0.0f) {
       a.elapsed -= fr.duration;
