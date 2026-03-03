@@ -66,6 +66,8 @@ engine::engine() {
   lua_setfield(L, -2, "scale");
   lua_setglobal(L, "viewport");
 
+  _director.wire();
+
   lua_getfield(L, -2, "on_begin");
   if (lua_isfunction(L, -1)) {
     if (lua_pcall(L, 0, 0, 0) != 0) {
@@ -133,8 +135,11 @@ void engine::loop() {
     tick = now;
   }
 
-  SDL_RenderClear(renderer);
+  _director.transition();
+  _director.update(delta);
 
+  SDL_RenderClear(renderer);
+  _director.draw();
   SDL_RenderPresent(renderer);
 
   SteamAPI_RunCallbacks();

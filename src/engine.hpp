@@ -11,4 +11,5 @@ public:
 
 private:
   bool _running{true};
+  director _director;
 };

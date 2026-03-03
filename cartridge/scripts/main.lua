@@ -4,5 +4,7 @@ return {
 	title = "My Game",
 	scale = 3.0,
 	fullscreen = false,
-	on_begin = function() end,
+	on_begin = function()
+		navigate("namespace")
+	end,
 }

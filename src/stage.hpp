@@ -5,6 +5,10 @@ public:
   explicit stage(std::string_view name);
   ~stage();
 
+  void on_enter();
+
+  void on_leave();
+
   void update(float delta);
 
   void draw() const;
@@ -16,4 +20,5 @@ private:
   entt::registry _registry;
   b2WorldId _world;
   float _accumulator = .0f;
+  int _reference = LUA_NOREF;
 };
