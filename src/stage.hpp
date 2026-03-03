@@ -22,4 +22,6 @@ private:
   b2WorldId _world;
   float _accumulator = .0f;
   int _reference = LUA_NOREF;
+  int _environment_reference = LUA_NOREF;
+  int _pool_reference = LUA_NOREF;
 };

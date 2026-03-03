@@ -39,9 +39,9 @@ namespace {
       return 1;
     }
 
-    assert(proxy->object_ref != LUA_NOREF && "object must have an object ref");
+    assert(proxy->object_reference != LUA_NOREF && "object must have an object reference");
 
-    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->object_ref);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->object_reference);
     lua_getfield(state, -1, key.data());
     lua_remove(state, -2);
     if (!lua_isnil(state, -1))
@@ -91,9 +91,9 @@ namespace {
       return 0;
     }
 
-    assert(proxy->object_ref != LUA_NOREF && "object must have an object ref");
+    assert(proxy->object_reference != LUA_NOREF && "object must have an object reference");
 
-    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->object_ref);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->object_reference);
     lua_pushvalue(state, 3);
     lua_setfield(state, -2, key.data());
     lua_pop(state, 1);
@@ -102,8 +102,8 @@ namespace {
 
   int object_gc(lua_State* state) {
     auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
-    if (proxy->object_ref != LUA_NOREF)
-      luaL_unref(state, LUA_REGISTRYINDEX, proxy->object_ref);
+    if (proxy->object_reference != LUA_NOREF)
+      luaL_unref(state, LUA_REGISTRYINDEX, proxy->object_reference);
 
     proxy->~objectproxy();
     return 0;
@@ -114,19 +114,19 @@ namespace {
 void objectproxy::on_destroy(entt::registry& registry, entt::entity entity) {
   auto& proxy = registry.get<objectproxy>(entity);
 
-  if (proxy.self_ref != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.self_ref);
+  if (proxy.self_reference != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.self_reference);
     auto* ud = static_cast<objectproxy*>(lua_touserdata(L, -1));
-    if (ud && ud->object_ref != LUA_NOREF) {
-      luaL_unref(L, LUA_REGISTRYINDEX, ud->object_ref);
-      ud->object_ref = LUA_NOREF;
+    if (ud && ud->object_reference != LUA_NOREF) {
+      luaL_unref(L, LUA_REGISTRYINDEX, ud->object_reference);
+      ud->object_reference = LUA_NOREF;
     }
     lua_pop(L, 1);
-    luaL_unref(L, LUA_REGISTRYINDEX, proxy.self_ref);
+    luaL_unref(L, LUA_REGISTRYINDEX, proxy.self_reference);
   }
 }
 
-objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::string_view stage, std::string_view name)
+objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::string_view stage, std::string_view name, int environment_reference)
     : registry(&registry), entity(entity) {
   if (luaL_newmetatable(L, "Object")) {
     lua_pushcfunction(L, object_index);
@@ -146,18 +146,29 @@ objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::str
   const auto size = buffer.size();
   const auto label = std::format("@{}", filename);
 
-  if (luaL_loadbuffer(L, data, size, label.c_str()) != 0 || lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
+  if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
     std::string error = lua_tostring(L, -1);
     lua_pop(L, 1);
     throw std::runtime_error(error);
   }
 
-  object_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  if (environment_reference != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, environment_reference);
+    lua_setfenv(L, -2);
+  }
+
+  if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
+    std::string error = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    throw std::runtime_error(error);
+  }
+
+  object_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   auto* memory = lua_newuserdata(L, sizeof(objectproxy));
   std::memcpy(memory, this, sizeof(objectproxy));
   luaL_getmetatable(L, "Object");
   lua_setmetatable(L, -2);
 
-  self_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  self_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 }
