@@ -302,7 +302,7 @@ void stage::update(float delta) {
 
 void stage::draw() const {
   for (auto&& [entity, a, tf] : _registry.view<animation, transform>().each()) {
-    if (!tf.shown || !a.playing || !a.pixmap || a.clip_count == 0)
+    if (!tf.shown || !a.playing || !a.pixmap || a.clip_count == 0) [[unlikely]]
       continue;
 
     const auto& c = a.clips[a.active];
