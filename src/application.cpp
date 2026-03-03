@@ -5,8 +5,8 @@ int application::run() {
     const auto* const rom = std::getenv("CARTRIDGE");
     filesystem::mount(rom ? rom : "cartridge.rom", "/");
 
-    engine e;
-    e.run();
+    auto se = scriptengine();
+    se.run();
   } catch (const std::exception& e) {
     const auto* const error = e.what();
 
