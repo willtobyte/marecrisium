@@ -61,7 +61,7 @@ static int gamepad_index(lua_State *state) {
   const std::string_view name = luaL_checkstring(state, 2);
 
   if (name == "connected")      return lua_pushboolean(state, ptr != nullptr), 1;
-  if (name == "rumble")          return lua_pushcfunction(state, gamepad_rumble), 1;
+  if (name == "rumble")         return lua_pushcfunction(state, gamepad_rumble), 1;
 
   if (name == "name") {
     if (ptr) [[likely]]
