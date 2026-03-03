@@ -2,7 +2,7 @@ return {
 	animation = {
 		running = {
 			-- x, y, w, h on the spritesheet; duration is the frame duration in ms; cx, cy, cw, ch define the collision quad
-			{ x, y, w, h, duration, cx, cy, cw, ch },
+			{ 0, 0, 16, 16, -1 },
 		},
 	},
 

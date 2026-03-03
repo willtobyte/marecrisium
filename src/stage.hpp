@@ -19,6 +19,7 @@ private:
 
   std::string _name;
   entt::registry _registry;
+  pixmappool _pixmaps;
   b2WorldId _world;
   float _accumulator = .0f;
   int _reference = LUA_NOREF;

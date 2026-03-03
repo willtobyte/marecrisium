@@ -46,6 +46,8 @@ stage::stage(std::string_view name) : _name(name) {
       const std::string_view object_name = lua_tostring(L, -1);
       lua_pop(L, 1);
 
+      _pixmaps.load(_name, object_name);
+
       const auto entity = _registry.create();
       _registry.emplace<transform>(entity);
       auto& proxy = _registry.emplace<objectproxy>(entity, _registry, entity, _name, object_name, _environment_reference);
