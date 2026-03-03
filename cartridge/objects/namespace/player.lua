@@ -2,7 +2,7 @@ return {
 	animation = {
 		running = {
 			-- x, y, w, h on the spritesheet; duration is the frame duration in ms; cx, cy, cw, ch define the collision quad
-			{ 0, 0, 16, 16, -1 },
+			{ 0, 0, 16, 16, 100 },
 		},
 	},
 
@@ -16,10 +16,12 @@ return {
 	end,
 
 	on_animation_begin = function(self, animation)
+		print("on_animation_begin", animation)
 		-- Called when an animation begins; animation is its name
 	end,
 
 	on_animation_end = function(self, animation)
+		print("on_animation_end", animation)
 		-- Called when an animation ends; animation is its name
 	end,
 

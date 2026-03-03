@@ -39,6 +39,18 @@ namespace {
       return 1;
     }
 
+    if (key == "animation") {
+      if (registry.all_of<animation>(entity)) {
+        const auto& a = registry.get<animation>(entity);
+        if (a.playing && a.clip_count > 0) {
+          const auto* strings = registry.ctx().get<stringpool*>();
+          lua_pushstring(state, strings->get(a.clips[a.active].name));
+          return 1;
+        }
+      }
+      return lua_pushnil(state), 1;
+    }
+
     assert(proxy->object_reference != LUA_NOREF && "object must have an object reference");
 
     lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->object_reference);
@@ -88,6 +100,58 @@ namespace {
 
     if (key == "shown") {
       registry.get<transform>(entity).shown = lua_toboolean(state, 3) != 0;
+      return 0;
+    }
+
+    if (key == "animation") {
+      if (registry.all_of<animation>(entity)) {
+        const std::string_view value = luaL_checkstring(state, 3);
+        const auto hash = entt::hashed_string{value.data()}.value();
+
+        auto& a = registry.get<animation>(entity);
+
+        for (uint8_t i = 0; i < a.clip_count; ++i) {
+          if (a.clips[i].name == hash) {
+            const auto previous = a.playing ? a.clips[a.active].name : entt::id_type{};
+            a.active = i;
+            a.current = 0;
+            a.elapsed = 0.0f;
+            a.playing = true;
+
+            if (proxy->object_reference != LUA_NOREF && proxy->self_reference != LUA_NOREF) {
+              const auto* strings = registry.ctx().get<stringpool*>();
+
+              if (previous != 0 && previous != hash) {
+                lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->object_reference);
+                lua_getfield(state, -1, "on_animation_end");
+                if (lua_isfunction(state, -1)) {
+                  lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->self_reference);
+                  lua_pushstring(state, strings->get(previous));
+                  if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]]
+                    lua_pop(state, 1);
+                } else {
+                  lua_pop(state, 1);
+                }
+                lua_pop(state, 1);
+              }
+
+              lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->object_reference);
+              lua_getfield(state, -1, "on_animation_begin");
+              if (lua_isfunction(state, -1)) {
+                lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->self_reference);
+                lua_pushstring(state, strings->get(hash));
+                if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]]
+                  lua_pop(state, 1);
+              } else {
+                lua_pop(state, 1);
+              }
+              lua_pop(state, 1);
+            }
+
+            return 0;
+          }
+        }
+      }
       return 0;
     }
 

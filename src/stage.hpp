@@ -1,5 +1,8 @@
 #pragma once
 
+class pixmappool;
+class stringpool;
+
 class stage final {
 public:
   explicit stage(std::string_view name);
@@ -19,7 +22,8 @@ private:
 
   std::string _name;
   entt::registry _registry;
-  pixmappool _pixmaps;
+  std::unique_ptr<pixmappool> _pixmaps;
+  std::unique_ptr<stringpool> _strings;
   b2WorldId _world;
   float _accumulator = .0f;
   int _reference = LUA_NOREF;
