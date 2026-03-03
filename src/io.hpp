@@ -1,7 +1,5 @@
 #pragma once
 
-#include "common.hpp"
-
 class io final {
 public:
   io() = delete;

@@ -41,5 +41,3 @@ struct viewport {
 };
 
 extern struct viewport viewport;
-
-#include "helper.hpp"

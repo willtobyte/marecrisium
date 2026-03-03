@@ -30,6 +30,7 @@ void scriptengine::run() {
   lua_pop(L, 2);
 
   gamepad::wire();
+  keyboard::wire();
 
   auto e = engine();
   e.run();

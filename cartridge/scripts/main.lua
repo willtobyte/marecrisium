@@ -1,5 +1,3 @@
-require("foobar")
-
 return {
 	width = 1280,
 	height = 720,

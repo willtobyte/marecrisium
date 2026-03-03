@@ -1,7 +1,5 @@
 #pragma once
 
-#include "common.hpp"
-
 bool SteamAPI_InitSafe() noexcept;
 void SteamAPI_Shutdown() noexcept;
 void SteamAPI_RunCallbacks() noexcept;
