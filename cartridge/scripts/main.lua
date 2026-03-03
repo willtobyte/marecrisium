@@ -4,4 +4,5 @@ return {
 	title = "My Game",
 	scale = 3.0,
 	fullscreen = false,
+	on_begin = function() end,
 }

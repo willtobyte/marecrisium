@@ -68,6 +68,17 @@ engine::engine() {
   lua_setfield(L, -2, "scale");
   lua_setglobal(L, "viewport");
 
+  lua_getfield(L, -2, "on_begin");
+  if (lua_isfunction(L, -1)) {
+    if (lua_pcall(L, 0, 0, 0) != 0) {
+      std::string error = lua_tostring(L, -1);
+      lua_pop(L, 1);
+      throw std::runtime_error(error);
+    }
+  } else {
+    lua_pop(L, 1);
+  }
+
   lua_pop(L, 2);
 }
 
