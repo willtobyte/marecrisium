@@ -3,6 +3,7 @@
 stage::stage(std::string_view name)
     : _name(name),
       _pixmaps(std::make_unique<pixmappool>()),
+      _sources(std::make_unique<sourcepool>()),
       _strings(std::make_unique<stringpool>()) {
   b2WorldDef def = b2DefaultWorldDef();
   def.gravity = {.0f, .0f};
@@ -10,6 +11,7 @@ stage::stage(std::string_view name)
 
   _registry.on_destroy<objectproxy>().connect<&objectproxy::on_destroy>();
 
+  _registry.ctx().emplace<sourcepool*>(_sources.get());
   _registry.ctx().emplace<stringpool*>(_strings.get());
 
   lua_newtable(L);
@@ -52,6 +54,7 @@ stage::stage(std::string_view name)
       lua_pop(L, 1);
 
       _pixmaps->load(_name, object_name);
+      _sources->load(_name, object_name);
 
       const auto entity = _registry.create();
       _registry.emplace<transform>(entity);

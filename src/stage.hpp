@@ -1,6 +1,7 @@
 #pragma once
 
 class pixmappool;
+class sourcepool;
 class stringpool;
 
 class stage final {
@@ -23,6 +24,7 @@ private:
   std::string _name;
   entt::registry _registry;
   std::unique_ptr<pixmappool> _pixmaps;
+  std::unique_ptr<sourcepool> _sources;
   std::unique_ptr<stringpool> _strings;
   b2WorldId _world;
   float _accumulator = .0f;

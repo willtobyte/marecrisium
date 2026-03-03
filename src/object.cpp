@@ -210,17 +210,8 @@ objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::str
   }
   lua_pop(L, 1);
 
-  const auto filename = std::format("objects/{}/{}.lua", stage, name);
-  const auto buffer = io::read(filename);
-  const auto* data = reinterpret_cast<const char*>(buffer.data());
-  const auto size = buffer.size();
-  const auto label = std::format("@{}", filename);
-
-  if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
-    std::string error = lua_tostring(L, -1);
-    lua_pop(L, 1);
-    throw std::runtime_error(error);
-  }
+  const auto* sources = registry.ctx().get<sourcepool*>();
+  sources->push(stage, name);
 
   if (environment_reference != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, environment_reference);

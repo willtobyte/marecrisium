@@ -16,12 +16,10 @@ return {
 	end,
 
 	on_animation_begin = function(self, animation)
-		print("on_animation_begin", animation)
 		-- Called when an animation begins; animation is its name
 	end,
 
 	on_animation_end = function(self, animation)
-		print("on_animation_end", animation)
 		-- Called when an animation ends; animation is its name
 	end,
 
