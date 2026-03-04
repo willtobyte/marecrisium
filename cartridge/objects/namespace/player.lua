@@ -14,6 +14,16 @@ return {
 	end,
 
 	on_loop = function(self, delta)
+		if keyboard.space then
+			self.angle = self.angle + 180 * delta
+		end
+
+		if keyboard.r then
+			self.alpha = self.alpha - 255 * delta
+		else
+			self.alpha = self.alpha + 255 * delta
+		end
+
 		local hits = world.raycast(self, self.x, self.y, 0, 500)
 		for i = 1, #hits do
 			print("player: raycast hit " .. hits[i].kind)

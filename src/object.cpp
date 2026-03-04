@@ -1,3 +1,5 @@
+#include "object.hpp"
+
 namespace {
   int object_index(lua_State* state) {
     const auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
@@ -100,7 +102,8 @@ namespace {
     }
 
     if (key == "alpha") {
-      registry.get<transform>(entity).alpha = static_cast<uint8_t>(luaL_checknumber(state, 3));
+      registry.get<transform>(entity).alpha =
+        static_cast<uint8_t>(std::clamp(luaL_checknumber(state, 3), 0.0, 255.0));
       return 0;
     }
 
@@ -178,10 +181,11 @@ namespace {
 
   int object_gc(lua_State* state) {
     auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
-    if (proxy->prototype != LUA_NOREF)
+    if (proxy->prototype != LUA_NOREF) {
       luaL_unref(state, LUA_REGISTRYINDEX, proxy->prototype);
+      proxy->prototype = LUA_NOREF;
+    }
 
-    proxy->~objectproxy();
     return 0;
   }
 
@@ -208,7 +212,7 @@ objectproxy::objectproxy(
   std::string_view stage,
   std::string_view name,
   std::string_view kind,
-  int environment_reference
+  int environment
 )
     : registry(&registry), entity(entity),
       name(entt::hashed_string{name.data()}.value()),
@@ -225,13 +229,11 @@ objectproxy::objectproxy(
   }
   lua_pop(L, 1);
 
-  const auto* sources = registry.ctx().get<sourcepool*>();
-  sources->push(stage, kind);
+  auto* sources = registry.ctx().get<sourcepool*>();
+  sources->insert(stage, kind);
 
-  if (environment_reference != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, environment_reference);
-    lua_setfenv(L, -2);
-  }
+  lua_rawgeti(L, LUA_REGISTRYINDEX, environment);
+  lua_setfenv(L, -2);
 
   if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
     std::string error = lua_tostring(L, -1);

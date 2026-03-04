@@ -5,7 +5,7 @@ public:
   stringpool() = default;
   ~stringpool() = default;
 
-  void insert(entt::id_type key, std::string_view value);
+  entt::id_type insert(std::string_view value);
 
   [[nodiscard]] const char* get(entt::id_type key) const;
 

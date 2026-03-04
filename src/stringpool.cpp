@@ -1,7 +1,9 @@
 #include "stringpool.hpp"
 
-void stringpool::insert(entt::id_type key, std::string_view value) {
+entt::id_type stringpool::insert(std::string_view value) {
+  const auto key = entt::hashed_string{value.data()}.value();
   _pool.emplace(key, value);
+  return key;
 }
 
 const char* stringpool::get(entt::id_type key) const {

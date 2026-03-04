@@ -14,7 +14,7 @@ std::vector<uint8_t> io::read(std::string_view filename) {
 
   const auto amount = static_cast<std::size_t>(length);
   std::vector<uint8_t> buffer(amount);
-  const auto result = PHYSFS_readBytes(ptr.get(), buffer.data(), amount);
+  [[maybe_unused]] const auto result = PHYSFS_readBytes(ptr.get(), buffer.data(), amount);
   assert(result == length && "[PHYSFS_readBytes] failed to read expected number of bytes");
 
   return buffer;
@@ -23,7 +23,7 @@ std::vector<uint8_t> io::read(std::string_view filename) {
 std::vector<std::string> io::enumerate(std::string_view directory) {
   std::unique_ptr<char*[], PHYSFS_Deleter> ptr(PHYSFS_enumerateFiles(directory.data()));
   if (!ptr) [[unlikely]]
-    throw std::runtime_error(std::format("[PHYSFS_enumerateFiles] error while enumerating directory: {}", directory).c_str());
+    throw std::runtime_error(std::format("[PHYSFS_enumerateFiles] error while enumerating directory: {}", directory));
 
   auto* const *data = ptr.get();
 

@@ -50,7 +50,7 @@ void director::destroy(std::string_view name) {
 }
 
 void director::preload(std::string_view name) {
-  if (_stages.find(name) != _stages.end()) [[unlikely]] {
+  if (_stages.contains(name)) [[unlikely]] {
     return;
   }
 

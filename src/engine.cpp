@@ -37,6 +37,7 @@ engine::engine() {
 
   static const auto window = SDL_CreateWindow(
     title.data(), width, height, fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
+  lua_pop(L, 1);
 
   const auto vsync = std::getenv("NOVSYNC") ? 0 : 1;
   const auto properties = SDL_CreateProperties();
@@ -45,6 +46,7 @@ engine::engine() {
   SDL_SetStringProperty(properties, SDL_PROP_RENDERER_CREATE_NAME_STRING, nullptr);
 
   renderer = SDL_CreateRendererWithProperties(properties);
+  SDL_DestroyProperties(properties);
 
   SDL_SetRenderLogicalPresentation(renderer, width, height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
   SDL_SetRenderScale(renderer, scale, scale);
@@ -68,7 +70,7 @@ engine::engine() {
 
   _director.wire();
 
-  lua_getfield(L, -2, "on_begin");
+  lua_getfield(L, -1, "on_begin");
   if (lua_isfunction(L, -1)) {
     if (lua_pcall(L, 0, 0, 0) != 0) {
       std::string error = lua_tostring(L, -1);
@@ -79,7 +81,7 @@ engine::engine() {
     lua_pop(L, 1);
   }
 
-  lua_pop(L, 2);
+  lua_pop(L, 1);
 }
 
 void engine::run() {

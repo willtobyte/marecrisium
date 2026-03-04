@@ -9,7 +9,7 @@ constexpr const char* FILENAME = "cassette.tape";
 
 using value_type = std::variant<bool, double, std::string>;
 
-static std::unordered_map<std::string, value_type, transparent_hash, std::equal_to<>> data;
+std::unordered_map<std::string, value_type, transparent_hash, std::equal_to<>> data;
 
 void encode_string_to(std::string_view str, std::string& out) {
   out.reserve(out.size() + str.size());

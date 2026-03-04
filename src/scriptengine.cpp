@@ -23,9 +23,9 @@ void scriptengine::run() {
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "loaders");
 
-  const auto lenght = static_cast<int>(lua_objlen(L, -1));
+  const auto length = static_cast<int>(lua_objlen(L, -1));
   lua_pushcfunction(L, searcher);
-  lua_rawseti(L, -2, lenght + 1);
+  lua_rawseti(L, -2, length + 1);
 
   lua_pop(L, 2);
 

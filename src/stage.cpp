@@ -21,9 +21,9 @@ stage::stage(std::string_view name)
 
   _registry.on_destroy<objectproxy>().connect<&objectproxy::on_destroy>();
   _registry.on_destroy<body>().connect<[](entt::registry& registry, entt::entity entity) {
-    auto& physics_body = registry.get<body>(entity);
-    if (b2Body_IsValid(physics_body.id))
-      b2DestroyBody(physics_body.id);
+    auto& pb = registry.get<body>(entity);
+    if (b2Body_IsValid(pb.id))
+      b2DestroyBody(pb.id);
   }>();
 
   _registry.ctx().emplace<sourcepool*>(_sources.get());
@@ -84,26 +84,21 @@ stage::stage(std::string_view name)
 
       lua_pop(L, 1);
 
-      _pixmaps->load(_name, object_kind);
-      _sources->load(_name, object_kind);
-
       const auto entity = _registry.create();
       _registry.emplace<transform>(entity);
       const auto& proxy = _registry.emplace<objectproxy>(entity, _registry, entity, _name, object_name, object_kind, _environment_reference);
       const auto prototype = proxy.prototype;
       const auto handle = proxy.handle;
 
-      const auto name_hash = entt::hashed_string{object_name.data()}.value();
-      const auto kind_hash = entt::hashed_string{object_kind.data()}.value();
-      _strings->insert(name_hash, object_name);
-      _strings->insert(kind_hash, object_kind);
+      _strings->insert(object_name);
+      _strings->insert(object_kind);
 
       lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
       lua_getfield(L, -1, "animation");
 
       if (lua_istable(L, -1)) {
         auto& a = _registry.emplace<animation>(entity);
-        a.pixmap = &_pixmaps->get(kind_hash);
+        a.pixmap = &_pixmaps->get(_name, object_kind);
 
         lua_pushnil(L);
         while (lua_next(L, -2) != 0) {
@@ -113,12 +108,10 @@ stage::stage(std::string_view name)
           }
 
           const std::string_view clip_name = lua_tostring(L, -2);
-          const auto clip_hash = entt::hashed_string{clip_name.data()}.value();
-
-          _strings->insert(clip_hash, clip_name);
+          const auto cid = _strings->insert(clip_name);
 
           auto& c = a.clips[a.clip_count];
-          c.name = clip_hash;
+          c.name = cid;
           c.count = 0;
 
           if (lua_istable(L, -1)) {
@@ -183,17 +176,17 @@ stage::stage(std::string_view name)
           lua_pop(L, 1);
         }
 
-        bool needs_body = false;
-        for (uint8_t clip_index = 0; clip_index < a.clip_count && !needs_body; ++clip_index)
-          for (uint8_t frame_index = 0; frame_index < a.clips[clip_index].count && !needs_body; ++frame_index)
-            needs_body = a.clips[clip_index].frames[frame_index].collidable;
+        bool collidable = false;
+        for (uint8_t ci = 0; ci < a.clip_count && !collidable; ++ci)
+          for (uint8_t fi = 0; fi < a.clips[ci].count && !collidable; ++fi)
+            collidable = a.clips[ci].frames[fi].collidable;
 
-        if (needs_body) {
-          b2BodyDef body_definition = b2DefaultBodyDef();
-          body_definition.type = b2_kinematicBody;
-          body_definition.userData = reinterpret_cast<void*>(static_cast<uintptr_t>(entity));
-          const auto body_id = b2CreateBody(_world, &body_definition);
-          _registry.emplace<body>(entity, body_id);
+        if (collidable) {
+          b2BodyDef bdef = b2DefaultBodyDef();
+          bdef.type = b2_kinematicBody;
+          bdef.userData = reinterpret_cast<void*>(static_cast<uintptr_t>(entity));
+          const auto id = b2CreateBody(_world, &bdef);
+          _registry.emplace<body>(entity, id);
           _registry.emplace<boundary>(entity);
         }
       }
@@ -291,10 +284,10 @@ void stage::update(float delta) {
         continue;
       }
 
-      const auto& current_frame = an.clips[an.active].frames[an.current];
+      const auto& frame = an.clips[an.active].frames[an.current];
 
-      if (!current_frame.collidable || tf.alpha == 0 ||
-          current_frame.cw <= 0.0f || current_frame.ch <= 0.0f) {
+      if (!frame.collidable || tf.alpha == 0 ||
+          frame.cw <= 0.0f || frame.ch <= 0.0f) {
         if (b2Shape_IsValid(ph.shape)) {
           b2DestroyShape(ph.shape, false);
           ph.shape = b2_nullShapeId;
@@ -305,51 +298,55 @@ void stage::update(float delta) {
         continue;
       }
 
-      const auto half_width = current_frame.cw * tf.scale * 0.5f;
-      const auto half_height = current_frame.ch * tf.scale * 0.5f;
+      const auto hx = frame.cw * tf.scale * 0.5f;
+      const auto hy = frame.ch * tf.scale * 0.5f;
 
-      if (half_width != ph.cached_hx || half_height != ph.cached_hy) {
+      if (hx != ph.cached_hx || hy != ph.cached_hy) {
         if (b2Shape_IsValid(ph.shape))
           b2DestroyShape(ph.shape, false);
 
-        const auto polygon = b2MakeBox(half_width, half_height);
-        auto shape_definition = b2DefaultShapeDef();
-        shape_definition.isSensor = true;
-        shape_definition.enableSensorEvents = true;
-        shape_definition.userData =
+        const auto polygon = b2MakeBox(hx, hy);
+        auto sdef = b2DefaultShapeDef();
+        sdef.isSensor = true;
+        sdef.enableSensorEvents = true;
+        sdef.userData =
             reinterpret_cast<void*>(static_cast<uintptr_t>(en));
         ph.shape =
-            b2CreatePolygonShape(ph.id, &shape_definition, &polygon);
-        ph.cached_hx = half_width;
-        ph.cached_hy = half_height;
+            b2CreatePolygonShape(ph.id, &sdef, &polygon);
+        ph.cached_hx = hx;
+        ph.cached_hy = hy;
       }
 
-      const auto center_x = tf.x + current_frame.cx * tf.scale + half_width;
-      const auto center_y = tf.y + current_frame.cy * tf.scale + half_height;
+      const auto cx = tf.x + frame.cx * tf.scale + hx;
+      const auto cy = tf.y + frame.cy * tf.scale + hy;
       const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.0f);
-      b2Body_SetTransform(ph.id, {center_x, center_y}, b2MakeRot(radians));
+      b2Body_SetTransform(ph.id, {cx, cy}, b2MakeRot(radians));
     }
 
     b2World_Step(_world, FIXED_TIMESTEP, WORLD_SUBSTEPS);
 
-    const auto sensor_events = b2World_GetSensorEvents(_world);
+    const auto events = b2World_GetSensorEvents(_world);
 
-    for (int i = 0; i < sensor_events.beginCount; ++i) {
-      const auto& event = sensor_events.beginEvents[i];
-      const auto sensor_entity = static_cast<entt::entity>(
+    for (int i = 0; i < events.beginCount; ++i) {
+      const auto& event = events.beginEvents[i];
+      if (!b2Shape_IsValid(event.sensorShapeId) || !b2Shape_IsValid(event.visitorShapeId))
+        continue;
+      const auto sensor = static_cast<entt::entity>(
           reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.sensorShapeId)));
-      const auto visitor_entity = static_cast<entt::entity>(
+      const auto visitor = static_cast<entt::entity>(
           reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.visitorShapeId)));
-      dispatch_collision(sensor_entity, visitor_entity, "on_collision_begin");
+      dispatch_collision(sensor, visitor, "on_collision_begin");
     }
 
-    for (int i = 0; i < sensor_events.endCount; ++i) {
-      const auto& event = sensor_events.endEvents[i];
-      const auto sensor_entity = static_cast<entt::entity>(
+    for (int i = 0; i < events.endCount; ++i) {
+      const auto& event = events.endEvents[i];
+      if (!b2Shape_IsValid(event.sensorShapeId) || !b2Shape_IsValid(event.visitorShapeId))
+        continue;
+      const auto sensor = static_cast<entt::entity>(
           reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.sensorShapeId)));
-      const auto visitor_entity = static_cast<entt::entity>(
+      const auto visitor = static_cast<entt::entity>(
           reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.visitorShapeId)));
-      dispatch_collision(sensor_entity, visitor_entity, "on_collision_end");
+      dispatch_collision(sensor, visitor, "on_collision_end");
     }
 
     {
@@ -584,19 +581,19 @@ void stage::dispatch_collision(
   if (!_registry.all_of<objectproxy>(entity) ||
       !_registry.all_of<objectproxy>(other)) return;
 
-  const auto& self_proxy = _registry.get<objectproxy>(entity);
-  const auto& other_proxy = _registry.get<objectproxy>(other);
+  const auto& self = _registry.get<objectproxy>(entity);
+  const auto& target = _registry.get<objectproxy>(other);
 
-  if (self_proxy.prototype == LUA_NOREF ||
-      self_proxy.handle == LUA_NOREF) return;
+  if (self.prototype == LUA_NOREF ||
+      self.handle == LUA_NOREF) return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, self_proxy.prototype);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, self.prototype);
   lua_getfield(L, -1, callback);
 
   if (lua_isfunction(L, -1)) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, self_proxy.handle);
-    lua_pushstring(L, _strings->get(other_proxy.name));
-    lua_pushstring(L, _strings->get(other_proxy.kind));
+    lua_rawgeti(L, LUA_REGISTRYINDEX, self.handle);
+    lua_pushstring(L, _strings->get(target.name));
+    lua_pushstring(L, _strings->get(target.kind));
 
     if (lua_pcall(L, 3, 0, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);

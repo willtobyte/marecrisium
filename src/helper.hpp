@@ -2,8 +2,8 @@
 
 struct SDL_Deleter final {
   template <typename T>
-  void operator()(T* ptr) const {
-    if (!ptr) return;
+  void operator()(T* ptr) const noexcept {
+    if (!ptr) [[unlikely]] return;
 
     if constexpr (requires { SDL_CloseGamepad(ptr); }) SDL_CloseGamepad(ptr);
     else if constexpr (requires { SDL_DestroyTexture(ptr); }) SDL_DestroyTexture(ptr);
@@ -22,7 +22,7 @@ struct SPNG_Deleter final {
 struct PHYSFS_Deleter final {
   template <typename T>
   void operator()(T* ptr) const noexcept {
-    if (!ptr) return;
+    if (!ptr) [[unlikely]] return;
 
     if constexpr (std::is_same_v<T, PHYSFS_File>) {
       PHYSFS_close(ptr);

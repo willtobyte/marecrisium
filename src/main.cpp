@@ -16,10 +16,10 @@ int main(int argc, char **argv) {
   PHYSFS_init(argv[0]);
 
   ma_engine engine;
-  auto engine_config = ma_engine_config_init();
-  engine_config.channels = 2;
-  engine_config.sampleRate = 48000;
-  ma_engine_init(&engine_config, &engine);
+  auto config = ma_engine_config_init();
+  config.channels = 2;
+  config.sampleRate = 48000;
+  ma_engine_init(&config, &engine);
   audioengine = &engine;
 
   L = luaL_newstate();

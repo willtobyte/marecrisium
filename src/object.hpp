@@ -11,7 +11,7 @@ struct objectproxy final {
   objectproxy(
     entt::registry& registry, entt::entity entity,
     std::string_view stage, std::string_view name,
-    std::string_view kind, int environment_reference
+    std::string_view kind, int environment
   );
 
   static void on_destroy(entt::registry& registry, entt::entity entity);
