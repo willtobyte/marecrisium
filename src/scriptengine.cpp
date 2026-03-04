@@ -1,6 +1,6 @@
 #include "scriptengine.hpp"
 
-static int searcher(lua_State *state) {
+static int loader(lua_State *state) {
   const auto *module = luaL_checkstring(state, 1);
   const auto filename = std::format("scripts/{}.lua", module);
 
@@ -24,7 +24,7 @@ void scriptengine::run() {
   lua_getfield(L, -1, "loaders");
 
   const auto length = static_cast<int>(lua_objlen(L, -1));
-  lua_pushcfunction(L, searcher);
+  lua_pushcfunction(L, loader);
   lua_rawseti(L, -2, length + 1);
 
   lua_pop(L, 2);
