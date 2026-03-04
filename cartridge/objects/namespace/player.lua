@@ -24,4 +24,12 @@ return {
 	on_collision_end = function(self, name, kind)
 		print("player: collision END with " .. name .. " (" .. kind .. ")")
 	end,
+
+	on_screen_exit = function(self, direction)
+		print("player: screen EXIT " .. direction)
+	end,
+
+	on_screen_enter = function(self, direction)
+		print("player: screen ENTER " .. direction)
+	end,
 }

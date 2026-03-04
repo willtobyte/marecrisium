@@ -176,6 +176,7 @@ stage::stage(std::string_view name)
           body_definition.userData = reinterpret_cast<void*>(static_cast<uintptr_t>(entity));
           const auto body_id = b2CreateBody(_world, &body_definition);
           _registry.emplace<body>(entity, body_id);
+          _registry.emplace<boundary>(entity);
         }
       }
 
@@ -333,6 +334,41 @@ void stage::update(float delta) {
       dispatch_collision(sensor_entity, visitor_entity, "on_collision_end");
     }
 
+    {
+      static constexpr std::string_view directions[] = {"left", "right", "top", "bottom"};
+
+      for (auto&& [entity, sb, ph, proxy] :
+           _registry.view<boundary, const body, const objectproxy>().each()) {
+        if (!b2Shape_IsValid(ph.shape))
+          continue;
+
+        const auto aabb = b2Shape_GetAABB(ph.shape);
+
+        uint8_t current = 0;
+        if (aabb.upperBound.x < 0.0f)
+          current |= boundary::left;
+        if (aabb.lowerBound.x > viewport.width)
+          current |= boundary::right;
+        if (aabb.upperBound.y < 0.0f)
+          current |= boundary::top;
+        if (aabb.lowerBound.y > viewport.height)
+          current |= boundary::bottom;
+
+        const auto exited = static_cast<uint8_t>(current & ~sb.previous);
+        const auto entered = static_cast<uint8_t>(sb.previous & ~current);
+
+        for (uint8_t bit = 0; bit < 4; ++bit) {
+          const auto mask = static_cast<uint8_t>(1u << bit);
+          if (exited & mask)
+            dispatch_screen_event(proxy, "on_screen_exit", directions[bit]);
+          if (entered & mask)
+            dispatch_screen_event(proxy, "on_screen_enter", directions[bit]);
+        }
+
+        sb.previous = current;
+      }
+    }
+
     _accumulator -= FIXED_TIMESTEP;
   }
 
@@ -468,6 +504,34 @@ void stage::draw() const {
 
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 #endif
+}
+
+void stage::dispatch_screen_event(
+  const objectproxy& proxy,
+  const char* callback,
+  std::string_view direction
+) {
+  if (proxy.object_reference == LUA_NOREF ||
+      proxy.self_reference == LUA_NOREF)
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.object_reference);
+  lua_getfield(L, -1, callback);
+
+  if (lua_isfunction(L, -1)) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.self_reference);
+    lua_pushlstring(L, direction.data(), direction.size());
+
+    if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
+      std::string error = lua_tostring(L, -1);
+      lua_pop(L, 1);
+      throw std::runtime_error(error);
+    }
+  } else {
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
 }
 
 void stage::dispatch_collision(
