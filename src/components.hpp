@@ -19,6 +19,11 @@ struct frame final {
   float w{};
   float h{};
   float duration{};
+  float cx{};
+  float cy{};
+  float cw{};
+  float ch{};
+  bool collidable{};
 };
 
 static_assert(std::is_trivially_copyable_v<frame>);
@@ -42,3 +47,12 @@ struct animation final {
 };
 
 static_assert(std::is_trivially_copyable_v<animation>);
+
+struct body final {
+  b2BodyId id{b2_nullBodyId};
+  b2ShapeId shape{b2_nullShapeId};
+  float cached_hx{};
+  float cached_hy{};
+};
+
+static_assert(std::is_trivially_copyable_v<body>);

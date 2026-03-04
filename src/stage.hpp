@@ -31,4 +31,6 @@ private:
   int _reference = LUA_NOREF;
   int _environment_reference = LUA_NOREF;
   int _pool_reference = LUA_NOREF;
+
+  void dispatch_collision(entt::entity entity, entt::entity other_entity, const char* callback_name);
 };

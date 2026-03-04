@@ -1,46 +1,27 @@
 return {
 	animation = {
 		running = {
-			-- x, y, w, h on the spritesheet; duration in ms; cx, cy, cw, ch define the collision quad
-			{ 0, 0, 16, 16, 100 },
+			{ 0, 0, 16, 16, 100, 0, 0, 16, 16 },
 		},
 	},
 
 	on_spawn = function(self)
-		-- Called once when the object is spawned
 		self.animation = "running"
-		self.scale = 10
+		self.scale = 3
+		self.x = 100
+		self.y = 100
 	end,
 
-	on_loop = function(self, delta)
-		-- Called every frame with the elapsed time since the last frame
-	end,
+	on_loop = function(self, delta) end,
 
-	on_animation_begin = function(self, animation)
-		-- Called when an animation begins; animation is its name
-	end,
-
-	on_animation_end = function(self, animation)
-		-- Called when an animation ends; animation is its name
-	end,
+	on_animation_begin = function(self, animation) end,
+	on_animation_end = function(self, animation) end,
 
 	on_collision_begin = function(self, name, kind)
-		-- Called when a collision begins; name is the other object's name and kind is the other object's kind
+		print("player: collision BEGIN with " .. name .. " (" .. kind .. ")")
 	end,
 
 	on_collision_end = function(self, name, kind)
-		-- Called when a collision ends; name is the other object's name and kind is the other object's kind
-	end,
-
-	on_screen_exit = function(self, direction)
-		-- Called when the object exits the screen; direction is the exit direction
-	end,
-
-	on_screen_enter = function(self, direction)
-		-- Called when the object enters the screen; direction is the entry direction
-	end,
-
-	on_damage = function(self, amount)
-		-- Called when the object takes damage, e.g. pool.player:damage(10)
+		print("player: collision END with " .. name .. " (" .. kind .. ")")
 	end,
 }

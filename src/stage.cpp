@@ -10,6 +10,11 @@ stage::stage(std::string_view name)
   _world = b2CreateWorld(&def);
 
   _registry.on_destroy<objectproxy>().connect<&objectproxy::on_destroy>();
+  _registry.on_destroy<body>().connect<[](entt::registry& registry, entt::entity entity) {
+    auto& physics_body = registry.get<body>(entity);
+    if (b2Body_IsValid(physics_body.id))
+      b2DestroyBody(physics_body.id);
+  }>();
 
   _registry.ctx().emplace<sourcepool*>(_sources.get());
   _registry.ctx().emplace<stringpool*>(_strings.get());
@@ -50,19 +55,30 @@ stage::stage(std::string_view name)
 
     for (int i = 1; i <= count; ++i) {
       lua_rawgeti(L, -2, i);
+
+      lua_getfield(L, -1, "name");
       const std::string_view object_name = lua_tostring(L, -1);
       lua_pop(L, 1);
 
-      _pixmaps->load(_name, object_name);
-      _sources->load(_name, object_name);
+      lua_getfield(L, -1, "kind");
+      const std::string_view object_kind = lua_tostring(L, -1);
+      lua_pop(L, 1);
+
+      lua_pop(L, 1);
+
+      _pixmaps->load(_name, object_kind);
+      _sources->load(_name, object_kind);
 
       const auto entity = _registry.create();
       _registry.emplace<transform>(entity);
-      const auto& proxy = _registry.emplace<objectproxy>(entity, _registry, entity, _name, object_name, _environment_reference);
+      const auto& proxy = _registry.emplace<objectproxy>(entity, _registry, entity, _name, object_name, object_kind, _environment_reference);
       const auto object_reference = proxy.object_reference;
       const auto self_reference = proxy.self_reference;
 
-      const auto kind_hash = entt::hashed_string{object_name.data()}.value();
+      const auto name_hash = entt::hashed_string{object_name.data()}.value();
+      const auto kind_hash = entt::hashed_string{object_kind.data()}.value();
+      _strings->insert(name_hash, object_name);
+      _strings->insert(kind_hash, object_kind);
 
       lua_rawgeti(L, LUA_REGISTRYINDEX, object_reference);
       lua_getfield(L, -1, "animation");
@@ -116,6 +132,28 @@ stage::stage(std::string_view name)
                 fr.duration = static_cast<float>(lua_tonumber(L, -1)) / 1000.0f;
                 lua_pop(L, 1);
 
+                lua_rawgeti(L, -1, 6);
+                if (!lua_isnil(L, -1)) {
+                  fr.cx = static_cast<float>(lua_tonumber(L, -1));
+                  lua_pop(L, 1);
+
+                  lua_rawgeti(L, -1, 7);
+                  fr.cy = static_cast<float>(lua_tonumber(L, -1));
+                  lua_pop(L, 1);
+
+                  lua_rawgeti(L, -1, 8);
+                  fr.cw = static_cast<float>(lua_tonumber(L, -1));
+                  lua_pop(L, 1);
+
+                  lua_rawgeti(L, -1, 9);
+                  fr.ch = static_cast<float>(lua_tonumber(L, -1));
+                  lua_pop(L, 1);
+
+                  fr.collidable = true;
+                } else {
+                  lua_pop(L, 1);
+                }
+
                 ++c.count;
               }
 
@@ -125,6 +163,19 @@ stage::stage(std::string_view name)
 
           ++a.clip_count;
           lua_pop(L, 1);
+        }
+
+        bool needs_body = false;
+        for (uint8_t clip_index = 0; clip_index < a.clip_count && !needs_body; ++clip_index)
+          for (uint8_t frame_index = 0; frame_index < a.clips[clip_index].count && !needs_body; ++frame_index)
+            needs_body = a.clips[clip_index].frames[frame_index].collidable;
+
+        if (needs_body) {
+          b2BodyDef body_definition = b2DefaultBodyDef();
+          body_definition.type = b2_kinematicBody;
+          body_definition.userData = reinterpret_cast<void*>(static_cast<uintptr_t>(entity));
+          const auto body_id = b2CreateBody(_world, &body_definition);
+          _registry.emplace<body>(entity, body_id);
         }
       }
 
@@ -208,7 +259,80 @@ void stage::update(float delta) {
   _accumulator += delta;
 
   while (_accumulator >= FIXED_TIMESTEP) {
+    for (auto&& [en, ph, an, tf] :
+         _registry.view<body, animation, transform>().each()) {
+      if (!an.playing || an.clip_count == 0) {
+        if (b2Shape_IsValid(ph.shape)) {
+          b2DestroyShape(ph.shape, false);
+          ph.shape = b2_nullShapeId;
+          ph.cached_hx = 0.0f;
+          ph.cached_hy = 0.0f;
+        }
+
+        continue;
+      }
+
+      const auto& current_frame = an.clips[an.active].frames[an.current];
+
+      if (!current_frame.collidable || tf.alpha == 0 ||
+          current_frame.cw <= 0.0f || current_frame.ch <= 0.0f) {
+        if (b2Shape_IsValid(ph.shape)) {
+          b2DestroyShape(ph.shape, false);
+          ph.shape = b2_nullShapeId;
+          ph.cached_hx = 0.0f;
+          ph.cached_hy = 0.0f;
+        }
+
+        continue;
+      }
+
+      const auto half_width = current_frame.cw * tf.scale * 0.5f;
+      const auto half_height = current_frame.ch * tf.scale * 0.5f;
+
+      if (half_width != ph.cached_hx || half_height != ph.cached_hy) {
+        if (b2Shape_IsValid(ph.shape))
+          b2DestroyShape(ph.shape, false);
+
+        const auto polygon = b2MakeBox(half_width, half_height);
+        auto shape_definition = b2DefaultShapeDef();
+        shape_definition.isSensor = true;
+        shape_definition.enableSensorEvents = true;
+        shape_definition.userData =
+            reinterpret_cast<void*>(static_cast<uintptr_t>(en));
+        ph.shape =
+            b2CreatePolygonShape(ph.id, &shape_definition, &polygon);
+        ph.cached_hx = half_width;
+        ph.cached_hy = half_height;
+      }
+
+      const auto center_x = tf.x + current_frame.cx * tf.scale + half_width;
+      const auto center_y = tf.y + current_frame.cy * tf.scale + half_height;
+      const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.0f);
+      b2Body_SetTransform(ph.id, {center_x, center_y}, b2MakeRot(radians));
+    }
+
     b2World_Step(_world, FIXED_TIMESTEP, WORLD_SUBSTEPS);
+
+    const auto sensor_events = b2World_GetSensorEvents(_world);
+
+    for (int i = 0; i < sensor_events.beginCount; ++i) {
+      const auto& event = sensor_events.beginEvents[i];
+      const auto sensor_entity = static_cast<entt::entity>(
+          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.sensorShapeId)));
+      const auto visitor_entity = static_cast<entt::entity>(
+          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.visitorShapeId)));
+      dispatch_collision(sensor_entity, visitor_entity, "on_collision_begin");
+    }
+
+    for (int i = 0; i < sensor_events.endCount; ++i) {
+      const auto& event = sensor_events.endEvents[i];
+      const auto sensor_entity = static_cast<entt::entity>(
+          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.sensorShapeId)));
+      const auto visitor_entity = static_cast<entt::entity>(
+          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.visitorShapeId)));
+      dispatch_collision(sensor_entity, visitor_entity, "on_collision_end");
+    }
+
     _accumulator -= FIXED_TIMESTEP;
   }
 
@@ -344,4 +468,39 @@ void stage::draw() const {
 
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 #endif
+}
+
+void stage::dispatch_collision(
+  entt::entity entity,
+  entt::entity other,
+  const char* callback
+) {
+  if (!_registry.valid(entity) || !_registry.valid(other)) return;
+  if (!_registry.all_of<objectproxy>(entity) ||
+      !_registry.all_of<objectproxy>(other)) return;
+
+  const auto& self_proxy = _registry.get<objectproxy>(entity);
+  const auto& other_proxy = _registry.get<objectproxy>(other);
+
+  if (self_proxy.object_reference == LUA_NOREF ||
+      self_proxy.self_reference == LUA_NOREF) return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, self_proxy.object_reference);
+  lua_getfield(L, -1, callback);
+
+  if (lua_isfunction(L, -1)) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, self_proxy.self_reference);
+    lua_pushstring(L, _strings->get(other_proxy.name));
+    lua_pushstring(L, _strings->get(other_proxy.kind));
+
+    if (lua_pcall(L, 3, 0, 0) != 0) [[unlikely]] {
+      std::string error = lua_tostring(L, -1);
+      lua_pop(L, 1);
+      throw std::runtime_error(error);
+    }
+  } else {
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
 }

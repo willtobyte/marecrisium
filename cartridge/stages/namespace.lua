@@ -1,15 +1,26 @@
 return {
-	objects = { "player" },
-	on_enter = function()
-		-- Called once when the stage is entered
-	end,
+	objects = {
+		{ name = "player", kind = "player" },
+		{ name = "enemy", kind = "enemy" },
+	},
+
+	on_enter = function() end,
 
 	on_loop = function(self, delta)
-		-- Called every frame with the elapsed time since the last frame
-		-- Access objects via pool, e.g. pool.player.x, pool.player.y
+		local speed = 100 * delta
+		if keyboard.w then
+			pool.player.y = pool.player.y - speed
+		end
+		if keyboard.s then
+			pool.player.y = pool.player.y + speed
+		end
+		if keyboard.a then
+			pool.player.x = pool.player.x - speed
+		end
+		if keyboard.d then
+			pool.player.x = pool.player.x + speed
+		end
 	end,
 
-	on_leave = function()
-		-- Called once when the stage is left
-	end,
+	on_leave = function() end,
 }

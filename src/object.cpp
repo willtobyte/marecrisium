@@ -196,8 +196,17 @@ void objectproxy::on_destroy(entt::registry& registry, entt::entity entity) {
   }
 }
 
-objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::string_view stage, std::string_view name, int environment_reference)
-    : registry(&registry), entity(entity) {
+objectproxy::objectproxy(
+  entt::registry& registry,
+  entt::entity entity,
+  std::string_view stage,
+  std::string_view name,
+  std::string_view kind,
+  int environment_reference
+)
+    : registry(&registry), entity(entity),
+      name(entt::hashed_string{name.data()}.value()),
+      kind(entt::hashed_string{kind.data()}.value()) {
   if (luaL_newmetatable(L, "Object")) {
     lua_pushcfunction(L, object_index);
     lua_setfield(L, -2, "__index");
@@ -211,7 +220,7 @@ objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::str
   lua_pop(L, 1);
 
   const auto* sources = registry.ctx().get<sourcepool*>();
-  sources->push(stage, name);
+  sources->push(stage, kind);
 
   if (environment_reference != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, environment_reference);
