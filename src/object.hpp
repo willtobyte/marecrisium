@@ -5,8 +5,8 @@ struct objectproxy final {
   entt::entity entity;
   entt::id_type name{};
   entt::id_type kind{};
-  int object_reference{LUA_NOREF};
-  int self_reference{LUA_NOREF};
+  int prototype{LUA_NOREF};
+  int handle{LUA_NOREF};
 
   objectproxy(
     entt::registry& registry, entt::entity entity,

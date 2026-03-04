@@ -1,5 +1,15 @@
 #include "stage.hpp"
 
+static int world_raycast(lua_State* state) {
+  auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
+  const auto* caller = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
+  const auto x = static_cast<float>(luaL_checknumber(state, 2));
+  const auto y = static_cast<float>(luaL_checknumber(state, 3));
+  const auto angle = static_cast<float>(luaL_checknumber(state, 4));
+  const auto distance = static_cast<float>(luaL_checknumber(state, 5));
+  return self->raycast(state, caller->entity, x, y, angle, distance);
+}
+
 stage::stage(std::string_view name)
     : _name(name),
       _pixmaps(std::make_unique<pixmappool>()),
@@ -25,6 +35,14 @@ stage::stage(std::string_view name)
   lua_setfield(L, -2, "__index");
   lua_setmetatable(L, -2);
   _environment_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
+  lua_newtable(L);
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_raycast, 1);
+  lua_setfield(L, -2, "raycast");
+  lua_setfield(L, -2, "world");
+  lua_pop(L, 1);
 
   const auto filename = std::format("stages/{}.lua", name);
   const auto buffer = io::read(filename);
@@ -72,15 +90,15 @@ stage::stage(std::string_view name)
       const auto entity = _registry.create();
       _registry.emplace<transform>(entity);
       const auto& proxy = _registry.emplace<objectproxy>(entity, _registry, entity, _name, object_name, object_kind, _environment_reference);
-      const auto object_reference = proxy.object_reference;
-      const auto self_reference = proxy.self_reference;
+      const auto prototype = proxy.prototype;
+      const auto handle = proxy.handle;
 
       const auto name_hash = entt::hashed_string{object_name.data()}.value();
       const auto kind_hash = entt::hashed_string{object_kind.data()}.value();
       _strings->insert(name_hash, object_name);
       _strings->insert(kind_hash, object_kind);
 
-      lua_rawgeti(L, LUA_REGISTRYINDEX, object_reference);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
       lua_getfield(L, -1, "animation");
 
       if (lua_istable(L, -1)) {
@@ -182,11 +200,11 @@ stage::stage(std::string_view name)
 
       lua_pop(L, 2);
 
-      lua_rawgeti(L, LUA_REGISTRYINDEX, object_reference);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
       lua_getfield(L, -1, "on_spawn");
 
       if (lua_isfunction(L, -1)) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, self_reference);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
 
         if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
           std::string error = lua_tostring(L, -1);
@@ -199,7 +217,7 @@ stage::stage(std::string_view name)
 
       lua_pop(L, 1);
 
-      lua_rawgeti(L, LUA_REGISTRYINDEX, self_reference);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
       lua_setfield(L, -2, object_name.data());
     }
 
@@ -397,12 +415,12 @@ void stage::update(float delta) {
         if (_registry.all_of<objectproxy>(entity)) {
           const auto& proxy = _registry.get<objectproxy>(entity);
 
-          if (proxy.object_reference != LUA_NOREF && proxy.self_reference != LUA_NOREF) {
-            lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.object_reference);
+          if (proxy.prototype != LUA_NOREF && proxy.handle != LUA_NOREF) {
+            lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
             lua_getfield(L, -1, "on_animation_end");
 
             if (lua_isfunction(L, -1)) {
-              lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.self_reference);
+              lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
               lua_pushstring(L, _strings->get(c.name));
 
               if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
@@ -416,11 +434,11 @@ void stage::update(float delta) {
 
             lua_pop(L, 1);
 
-            lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.object_reference);
+            lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
             lua_getfield(L, -1, "on_animation_begin");
 
             if (lua_isfunction(L, -1)) {
-              lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.self_reference);
+              lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
               lua_pushstring(L, _strings->get(c.name));
 
               if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
@@ -511,15 +529,15 @@ void stage::dispatch_screen_event(
   const char* callback,
   std::string_view direction
 ) {
-  if (proxy.object_reference == LUA_NOREF ||
-      proxy.self_reference == LUA_NOREF)
+  if (proxy.prototype == LUA_NOREF ||
+      proxy.handle == LUA_NOREF)
     return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.object_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
   lua_getfield(L, -1, callback);
 
   if (lua_isfunction(L, -1)) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.self_reference);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
     lua_pushlstring(L, direction.data(), direction.size());
 
     if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
@@ -546,14 +564,14 @@ void stage::dispatch_collision(
   const auto& self_proxy = _registry.get<objectproxy>(entity);
   const auto& other_proxy = _registry.get<objectproxy>(other);
 
-  if (self_proxy.object_reference == LUA_NOREF ||
-      self_proxy.self_reference == LUA_NOREF) return;
+  if (self_proxy.prototype == LUA_NOREF ||
+      self_proxy.handle == LUA_NOREF) return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, self_proxy.object_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, self_proxy.prototype);
   lua_getfield(L, -1, callback);
 
   if (lua_isfunction(L, -1)) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, self_proxy.self_reference);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, self_proxy.handle);
     lua_pushstring(L, _strings->get(other_proxy.name));
     lua_pushstring(L, _strings->get(other_proxy.kind));
 
@@ -567,4 +585,56 @@ void stage::dispatch_collision(
   }
 
   lua_pop(L, 1);
+}
+
+int stage::raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance) {
+  struct hit {
+    entt::entity entity;
+    float fraction;
+  };
+
+  std::vector<hit> hits;
+  hits.reserve(16);
+
+  const auto radians = angle * (std::numbers::pi_v<float> / 180.0f);
+  const b2Vec2 origin{x, y};
+  const b2Vec2 translation{std::cos(radians) * distance, std::sin(radians) * distance};
+  const auto filter = b2DefaultQueryFilter();
+
+  b2World_CastRay(
+    _world,
+    origin,
+    translation,
+    filter,
+    [](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void* userdata) -> float {
+      auto* results = static_cast<std::vector<hit>*>(userdata);
+      const auto entity = static_cast<entt::entity>(
+        reinterpret_cast<uintptr_t>(b2Shape_GetUserData(shape)));
+      results->push_back({entity, fraction});
+      return 1.0f;
+    },
+    &hits
+  );
+
+  std::ranges::sort(hits, {}, &hit::fraction);
+
+  lua_newtable(state);
+  int index = 1;
+
+  for (const auto& [entity, fraction] : hits) {
+    if (entity == caller)
+      continue;
+
+    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
+      continue;
+
+    const auto& proxy = _registry.get<objectproxy>(entity);
+    if (proxy.handle == LUA_NOREF)
+      continue;
+
+    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy.handle);
+    lua_rawseti(state, -2, index++);
+  }
+
+  return 1;
 }

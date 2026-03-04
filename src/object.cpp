@@ -39,6 +39,12 @@ namespace {
       return 1;
     }
 
+    if (key == "kind") {
+      const auto* strings = registry.ctx().get<stringpool*>();
+      lua_pushstring(state, strings->get(proxy->kind));
+      return 1;
+    }
+
     if (key == "animation") {
       if (registry.all_of<animation>(entity)) {
         const auto& a = registry.get<animation>(entity);
@@ -51,9 +57,9 @@ namespace {
       return lua_pushnil(state), 1;
     }
 
-    assert(proxy->object_reference != LUA_NOREF && "object must have an object reference");
+    assert(proxy->prototype != LUA_NOREF && "object must have an object reference");
 
-    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->object_reference);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->prototype);
     lua_getfield(state, -1, key.data());
     lua_remove(state, -2);
     if (!lua_isnil(state, -1))
@@ -118,14 +124,14 @@ namespace {
             a.elapsed = 0.0f;
             a.playing = true;
 
-            if (proxy->object_reference != LUA_NOREF && proxy->self_reference != LUA_NOREF) {
+            if (proxy->prototype != LUA_NOREF && proxy->handle != LUA_NOREF) {
               const auto* strings = registry.ctx().get<stringpool*>();
 
               if (previous != 0 && previous != hash) {
-                lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->object_reference);
+                lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->prototype);
                 lua_getfield(state, -1, "on_animation_end");
                 if (lua_isfunction(state, -1)) {
-                  lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->self_reference);
+                  lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
                   lua_pushstring(state, strings->get(previous));
                   if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]] {
                     std::string error = lua_tostring(state, -1);
@@ -138,10 +144,10 @@ namespace {
                 lua_pop(state, 1);
               }
 
-              lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->object_reference);
+              lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->prototype);
               lua_getfield(state, -1, "on_animation_begin");
               if (lua_isfunction(state, -1)) {
-                lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->self_reference);
+                lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
                 lua_pushstring(state, strings->get(hash));
                 if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]] {
                     std::string error = lua_tostring(state, -1);
@@ -161,9 +167,9 @@ namespace {
       return 0;
     }
 
-    assert(proxy->object_reference != LUA_NOREF && "object must have an object reference");
+    assert(proxy->prototype != LUA_NOREF && "object must have an object reference");
 
-    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->object_reference);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->prototype);
     lua_pushvalue(state, 3);
     lua_setfield(state, -2, key.data());
     lua_pop(state, 1);
@@ -172,8 +178,8 @@ namespace {
 
   int object_gc(lua_State* state) {
     auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
-    if (proxy->object_reference != LUA_NOREF)
-      luaL_unref(state, LUA_REGISTRYINDEX, proxy->object_reference);
+    if (proxy->prototype != LUA_NOREF)
+      luaL_unref(state, LUA_REGISTRYINDEX, proxy->prototype);
 
     proxy->~objectproxy();
     return 0;
@@ -184,15 +190,15 @@ namespace {
 void objectproxy::on_destroy(entt::registry& registry, entt::entity entity) {
   auto& proxy = registry.get<objectproxy>(entity);
 
-  if (proxy.self_reference != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.self_reference);
+  if (proxy.handle != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
     auto* ud = static_cast<objectproxy*>(lua_touserdata(L, -1));
-    if (ud && ud->object_reference != LUA_NOREF) {
-      luaL_unref(L, LUA_REGISTRYINDEX, ud->object_reference);
-      ud->object_reference = LUA_NOREF;
+    if (ud && ud->prototype != LUA_NOREF) {
+      luaL_unref(L, LUA_REGISTRYINDEX, ud->prototype);
+      ud->prototype = LUA_NOREF;
     }
     lua_pop(L, 1);
-    luaL_unref(L, LUA_REGISTRYINDEX, proxy.self_reference);
+    luaL_unref(L, LUA_REGISTRYINDEX, proxy.handle);
   }
 }
 
@@ -233,12 +239,12 @@ objectproxy::objectproxy(
     throw std::runtime_error(error);
   }
 
-  object_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  prototype = luaL_ref(L, LUA_REGISTRYINDEX);
 
   auto* memory = lua_newuserdata(L, sizeof(objectproxy));
   std::memcpy(memory, this, sizeof(objectproxy));
   luaL_getmetatable(L, "Object");
   lua_setmetatable(L, -2);
 
-  self_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  handle = luaL_ref(L, LUA_REGISTRYINDEX);
 }
