@@ -122,12 +122,11 @@ void engine::loop() {
   const auto delta = std::min(static_cast<float>(static_cast<double>(now - prior) / frequency), .05f);
   prior = now;
 
+#ifdef DEVELOPMENT
   static auto tick = now;
   static auto frames = 0;
   ++frames;
   const auto elapsed = static_cast<double>(now - tick) / frequency;
-
-  lua_gc(L, LUA_GCSTEP, 100);
 
   if (elapsed >= 1.0) {
     const auto fps = frames / elapsed;
@@ -136,6 +135,9 @@ void engine::loop() {
     frames = 0;
     tick = now;
   }
+#endif
+
+  lua_gc(L, LUA_GCSTEP, 100);
 
   _director.transition();
   _director.update(delta);

@@ -10,11 +10,11 @@ static int world_raycast(lua_State* state) {
   return self->raycast(state, caller->entity, x, y, angle, distance);
 }
 
-stage::stage(std::string_view name)
+stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sourcepool& sources)
     : _name(name),
-      _pixmappool(std::make_unique<pixmappool>()),
-      _soundpool(std::make_unique<soundpool>()),
-      _sourcepool(std::make_unique<sourcepool>()),
+      _pixmappool(pixmaps),
+      _soundpool(sounds),
+      _sourcepool(sources),
       _stringpool(std::make_unique<stringpool>()) {
   b2WorldDef def = b2DefaultWorldDef();
   def.gravity = {.0f, .0f};
@@ -27,7 +27,7 @@ stage::stage(std::string_view name)
       b2DestroyBody(bo.id);
   }>();
 
-  _registry.ctx().emplace<sourcepool*>(_sourcepool.get());
+  _registry.ctx().emplace<sourcepool*>(&_sourcepool);
   _registry.ctx().emplace<stringpool*>(_stringpool.get());
 
   lua_newtable(L);
@@ -89,7 +89,7 @@ stage::stage(std::string_view name)
 
       const auto entity = _registry.create();
       _registry.emplace<transform>(entity);
-      const auto& proxy = _registry.emplace<objectproxy>(entity, _registry, entity, _name, object_name, object_kind, _environment_reference);
+      const auto& proxy = _registry.emplace<objectproxy>(entity, _registry, entity, object_name, object_kind, _environment_reference);
       const auto prototype = proxy.prototype;
       const auto handle = proxy.handle;
 
@@ -101,7 +101,7 @@ stage::stage(std::string_view name)
 
       if (lua_istable(L, -1)) {
         auto& a = _registry.emplace<animation>(entity);
-        a.pixmap = &_pixmappool->get(_name, object_kind);
+        a.pixmap = &_pixmappool.get(object_kind);
 
         lua_pushnil(L);
         while (lua_next(L, -2) != 0) {
@@ -246,7 +246,7 @@ stage::stage(std::string_view name)
       if (lua_isstring(L, -1)) {
         const std::string_view sname = lua_tostring(L, -1);
 
-        auto& fx = _soundpool->get(_name, sname);
+        auto& fx = _soundpool.get(sname);
         auto** memory = static_cast<soundfx**>(lua_newuserdata(L, sizeof(soundfx*)));
         *memory = &fx;
         luaL_getmetatable(L, "Sound");
@@ -270,9 +270,6 @@ stage::stage(std::string_view name)
 }
 
 stage::~stage() {
-  for (auto* fx : _sounds)
-    fx->stop();
-
   luaL_unref(L, LUA_REGISTRYINDEX, _pool_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _environment_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);

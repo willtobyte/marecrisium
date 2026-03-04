@@ -21,6 +21,13 @@ static int preload_callback(lua_State *state) {
   return 0;
 }
 
+director::director()
+    : _pixmappool(std::make_unique<pixmappool>()),
+      _soundpool(std::make_unique<soundpool>()),
+      _sourcepool(std::make_unique<sourcepool>()) {}
+
+director::~director() = default;
+
 void director::wire() {
   lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, navigate_callback, 1);
@@ -54,7 +61,7 @@ void director::preload(std::string_view name) {
     return;
   }
 
-  _stages.emplace(std::string{name}, std::make_unique<stage>(name));
+  _stages.emplace(std::string{name}, std::make_unique<stage>(name, *_pixmappool, *_soundpool, *_sourcepool));
 }
 
 void director::transition() {
@@ -69,7 +76,7 @@ void director::transition() {
   auto it = _stages.find(*_pending);
 
   if (it == _stages.end()) {
-    auto s = std::make_unique<stage>(*_pending);
+    auto s = std::make_unique<stage>(*_pending, *_pixmappool, *_soundpool, *_sourcepool);
     auto [inserted, _] = _stages.emplace(std::move(*_pending), std::move(s));
     it = inserted;
   }

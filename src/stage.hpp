@@ -7,7 +7,7 @@ class stringpool;
 
 class stage final {
 public:
-  explicit stage(std::string_view name);
+  stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sourcepool& sources);
   ~stage();
 
   void on_enter();
@@ -26,9 +26,9 @@ private:
 
   std::string _name;
   entt::registry _registry;
-  std::unique_ptr<pixmappool> _pixmappool;
-  std::unique_ptr<soundpool> _soundpool;
-  std::unique_ptr<sourcepool> _sourcepool;
+  pixmappool& _pixmappool;
+  soundpool& _soundpool;
+  sourcepool& _sourcepool;
   std::unique_ptr<stringpool> _stringpool;
   std::vector<soundfx*> _sounds;
   b2WorldId _world;

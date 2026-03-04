@@ -9,8 +9,8 @@ namespace {
   }
 }
 
-void sourcepool::insert(std::string_view stage, std::string_view name) {
-  const auto filename = std::format("objects/{}/{}.lua", stage, name);
+void sourcepool::insert(std::string_view name) {
+  const auto filename = std::format("objects/{}.lua", name);
   const auto key = entt::hashed_string{filename.c_str()}.value();
   const auto label = std::format("@{}", filename);
 

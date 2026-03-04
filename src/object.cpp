@@ -209,7 +209,6 @@ void objectproxy::on_destroy(entt::registry& registry, entt::entity entity) {
 objectproxy::objectproxy(
   entt::registry& registry,
   entt::entity entity,
-  std::string_view stage,
   std::string_view name,
   std::string_view kind,
   int environment
@@ -230,7 +229,7 @@ objectproxy::objectproxy(
   lua_pop(L, 1);
 
   auto* sources = registry.ctx().get<sourcepool*>();
-  sources->insert(stage, kind);
+  sources->insert(kind);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, environment);
   lua_setfenv(L, -2);
