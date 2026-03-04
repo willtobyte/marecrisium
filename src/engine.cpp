@@ -125,7 +125,7 @@ void engine::loop() {
   ++frames;
   const auto elapsed = static_cast<double>(now - tick) / frequency;
 
-  lua_gc(L, LUA_GCSTEP, 64);
+  lua_gc(L, LUA_GCSTEP, 100);
 
   if (elapsed >= 1.0) {
     const auto fps = frames / elapsed;

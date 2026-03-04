@@ -10,7 +10,6 @@ class Nostalgia(ConanFile):
         for package in [
             "box2d/3.1.1",
             "entt/3.16.0",
-            "yyjson/0.12.0",
             "miniaudio/0.11.22",
             "physfs/3.2.0",
             "libspng/0.7.4",
