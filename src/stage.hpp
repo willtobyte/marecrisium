@@ -1,6 +1,7 @@
 #pragma once
 
 class pixmappool;
+class soundpool;
 class sourcepool;
 class stringpool;
 
@@ -25,9 +26,11 @@ private:
 
   std::string _name;
   entt::registry _registry;
-  std::unique_ptr<pixmappool> _pixmaps;
-  std::unique_ptr<sourcepool> _sources;
-  std::unique_ptr<stringpool> _strings;
+  std::unique_ptr<pixmappool> _pixmappool;
+  std::unique_ptr<soundpool> _soundpool;
+  std::unique_ptr<sourcepool> _sourcepool;
+  std::unique_ptr<stringpool> _stringpool;
+  std::vector<soundfx*> _sounds;
   b2WorldId _world;
   float _accumulator = .0f;
   int _reference = LUA_NOREF;

@@ -12,9 +12,10 @@ static int world_raycast(lua_State* state) {
 
 stage::stage(std::string_view name)
     : _name(name),
-      _pixmaps(std::make_unique<pixmappool>()),
-      _sources(std::make_unique<sourcepool>()),
-      _strings(std::make_unique<stringpool>()) {
+      _pixmappool(std::make_unique<pixmappool>()),
+      _soundpool(std::make_unique<soundpool>()),
+      _sourcepool(std::make_unique<sourcepool>()),
+      _stringpool(std::make_unique<stringpool>()) {
   b2WorldDef def = b2DefaultWorldDef();
   def.gravity = {.0f, .0f};
   _world = b2CreateWorld(&def);
@@ -26,8 +27,8 @@ stage::stage(std::string_view name)
       b2DestroyBody(pb.id);
   }>();
 
-  _registry.ctx().emplace<sourcepool*>(_sources.get());
-  _registry.ctx().emplace<stringpool*>(_strings.get());
+  _registry.ctx().emplace<sourcepool*>(_sourcepool.get());
+  _registry.ctx().emplace<stringpool*>(_stringpool.get());
 
   lua_newtable(L);
   lua_newtable(L);
@@ -65,6 +66,8 @@ stage::stage(std::string_view name)
     throw std::runtime_error(error);
   }
 
+  sound::wire();
+
   lua_getfield(L, -1, "objects");
   if (lua_istable(L, -1)) {
     const auto count = static_cast<int>(lua_objlen(L, -1));
@@ -90,15 +93,15 @@ stage::stage(std::string_view name)
       const auto prototype = proxy.prototype;
       const auto handle = proxy.handle;
 
-      _strings->insert(object_name);
-      _strings->insert(object_kind);
+      _stringpool->insert(object_name);
+      _stringpool->insert(object_kind);
 
       lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
       lua_getfield(L, -1, "animation");
 
       if (lua_istable(L, -1)) {
         auto& a = _registry.emplace<animation>(entity);
-        a.pixmap = &_pixmaps->get(_name, object_kind);
+        a.pixmap = &_pixmappool->get(_name, object_kind);
 
         lua_pushnil(L);
         while (lua_next(L, -2) != 0) {
@@ -108,7 +111,7 @@ stage::stage(std::string_view name)
           }
 
           const std::string_view clip_name = lua_tostring(L, -2);
-          const auto cid = _strings->insert(clip_name);
+          const auto cid = _stringpool->insert(clip_name);
 
           auto& c = a.clips[a.clip_count];
           c.name = cid;
@@ -223,10 +226,53 @@ stage::stage(std::string_view name)
   }
   lua_pop(L, 1);
 
+  lua_getfield(L, -1, "sounds");
+  if (lua_istable(L, -1)) {
+    if (_pool_reference == LUA_NOREF) {
+      lua_newtable(L);
+      _pool_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+      lua_setfield(L, -2, "pool");
+      lua_pop(L, 1);
+    }
+
+    const auto scount = static_cast<int>(lua_objlen(L, -1));
+
+    for (int s = 1; s <= scount; ++s) {
+      lua_rawgeti(L, -1, s);
+
+      if (lua_isstring(L, -1)) {
+        const std::string_view sname = lua_tostring(L, -1);
+
+        auto& fx = _soundpool->get(_name, sname);
+        auto** memory = static_cast<soundfx**>(lua_newuserdata(L, sizeof(soundfx*)));
+        *memory = &fx;
+        luaL_getmetatable(L, "Sound");
+        lua_setmetatable(L, -2);
+
+        lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+        lua_pushvalue(L, -2);
+        lua_setfield(L, -2, sname.data());
+        lua_pop(L, 1);
+
+        _sounds.emplace_back(&fx);
+        lua_pop(L, 1);
+      }
+
+      lua_pop(L, 1);
+    }
+  }
+  lua_pop(L, 1);
+
   _reference = luaL_ref(L, LUA_REGISTRYINDEX);
 }
 
 stage::~stage() {
+  for (auto* fx : _sounds)
+    fx->stop();
+
   luaL_unref(L, LUA_REGISTRYINDEX, _pool_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _environment_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
@@ -418,7 +464,7 @@ void stage::update(float delta) {
 
             if (lua_isfunction(L, -1)) {
               lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-              lua_pushstring(L, _strings->get(c.name));
+              lua_pushstring(L, _stringpool->get(c.name));
 
               if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
                 std::string error = lua_tostring(L, -1);
@@ -436,7 +482,7 @@ void stage::update(float delta) {
 
             if (lua_isfunction(L, -1)) {
               lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-              lua_pushstring(L, _strings->get(c.name));
+              lua_pushstring(L, _stringpool->get(c.name));
 
               if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
                 std::string error = lua_tostring(L, -1);
@@ -495,6 +541,10 @@ void stage::update(float delta) {
     }
 
     lua_pop(L, 1);
+  }
+
+  for (auto* fx : _sounds) {
+    fx->poll();
   }
 }
 
@@ -592,8 +642,8 @@ void stage::dispatch_collision(
 
   if (lua_isfunction(L, -1)) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, self.handle);
-    lua_pushstring(L, _strings->get(target.name));
-    lua_pushstring(L, _strings->get(target.kind));
+    lua_pushstring(L, _stringpool->get(target.name));
+    lua_pushstring(L, _stringpool->get(target.kind));
 
     if (lua_pcall(L, 3, 0, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);

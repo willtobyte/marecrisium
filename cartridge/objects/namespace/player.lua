@@ -23,11 +23,6 @@ return {
 		else
 			self.alpha = self.alpha + 255 * delta
 		end
-
-		local hits = world.raycast(self, self.x, self.y, 0, 500)
-		for i = 1, #hits do
-			print("player: raycast hit " .. hits[i].kind)
-		end
 	end,
 
 	on_animation_begin = function(self, animation) end,

@@ -4,7 +4,12 @@ return {
 		{ name = "enemy", kind = "enemy" },
 	},
 
-	on_enter = function() end,
+	-- sounds = { "theme" },
+
+	on_enter = function()
+		-- pool.theme.loop = true
+		-- pool.theme:play()
+	end,
 
 	on_loop = function(self, delta)
 		local speed = 100 * delta
