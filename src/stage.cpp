@@ -22,9 +22,9 @@ stage::stage(std::string_view name)
 
   _registry.on_destroy<objectproxy>().connect<&objectproxy::on_destroy>();
   _registry.on_destroy<body>().connect<[](entt::registry& registry, entt::entity entity) {
-    auto& pb = registry.get<body>(entity);
-    if (b2Body_IsValid(pb.id))
-      b2DestroyBody(pb.id);
+    auto& bo = registry.get<body>(entity);
+    if (b2Body_IsValid(bo.id))
+      b2DestroyBody(bo.id);
   }>();
 
   _registry.ctx().emplace<sourcepool*>(_sourcepool.get());
