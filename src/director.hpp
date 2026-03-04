@@ -11,6 +11,10 @@ public:
 
   void navigate(std::string_view name);
 
+  void destroy(std::string_view name);
+
+  void preload(std::string_view name);
+
   void transition();
 
   void update(float delta);

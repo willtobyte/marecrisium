@@ -1,7 +1,7 @@
 return {
 	animation = {
 		running = {
-			{ 0, 0, 16, 16, 100, 0, 0, 16, 16 },
+			{ 0, 0, 16, 16, 200, 0, 0, 16, 16 },
 		},
 	},
 
@@ -15,6 +15,7 @@ return {
 	on_loop = function(self, delta) end,
 
 	on_animation_begin = function(self, animation) end,
+
 	on_animation_end = function(self, animation) end,
 
 	on_collision_begin = function(self, name, kind)

@@ -9,3 +9,6 @@ CMakeUserPresets.json
 
 # OS
 .DS_Store
+
+# Engine
+cassette.tape

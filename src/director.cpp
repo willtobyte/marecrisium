@@ -7,14 +7,54 @@ static int navigate_callback(lua_State *state) {
   return 0;
 }
 
+static int destroy_callback(lua_State *state) {
+  const auto *name = luaL_checkstring(state, 1);
+  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
+  self->destroy(name);
+  return 0;
+}
+
+static int preload_callback(lua_State *state) {
+  const auto *name = luaL_checkstring(state, 1);
+  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
+  self->preload(name);
+  return 0;
+}
+
 void director::wire() {
   lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, navigate_callback, 1);
   lua_setglobal(L, "navigate");
+
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, destroy_callback, 1);
+  lua_setglobal(L, "destroy");
+
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, preload_callback, 1);
+  lua_setglobal(L, "preload");
 }
 
 void director::navigate(std::string_view name) {
   _pending = name;
+}
+
+void director::destroy(std::string_view name) {
+  auto it = _stages.find(name);
+
+  if (it == _stages.end() || it->second.get() == _current) [[unlikely]] {
+    return;
+  }
+
+  _stages.erase(it);
+}
+
+void director::preload(std::string_view name) {
+  if (_stages.find(name) != _stages.end()) [[unlikely]] {
+    return;
+  }
+
+  _stages.emplace(std::string{name}, std::make_unique<stage>(name));
 }
 
 void director::transition() {
