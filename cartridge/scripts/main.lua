@@ -3,7 +3,7 @@ return {
 	height = 720,
 	title = "My Game",
 	scale = 3.0,
-	fullscreen = false,
+	fullscreen = true,
 	on_begin = function()
 		navigate("namespace")
 	end,
