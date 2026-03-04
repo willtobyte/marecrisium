@@ -5,6 +5,6 @@ return {
 	scale = 3.0,
 	fullscreen = false,
 	on_begin = function()
-		navigate("mainmenu")
+		director.navigate("mainmenu")
 	end,
 }

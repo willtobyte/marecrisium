@@ -43,3 +43,7 @@ void sourcepool::insert(std::string_view name) {
 
   _pool.emplace(key, std::move(bytecode));
 }
+
+void sourcepool::clear() {
+  _pool.clear();
+}

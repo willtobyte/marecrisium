@@ -18,6 +18,8 @@ public:
 
   void preload(std::string_view name);
 
+  void flush();
+
   void transition();
 
   void update(float delta);

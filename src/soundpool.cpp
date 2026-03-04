@@ -10,3 +10,7 @@ soundfx& soundpool::get(std::string_view name) {
 
   return *it->second;
 }
+
+void soundpool::clear() {
+  _pool.clear();
+}

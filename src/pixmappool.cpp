@@ -6,3 +6,7 @@ const pixmap& pixmappool::get(std::string_view name) {
   const auto [it, _] = _pool.try_emplace(key, filename);
   return it->second;
 }
+
+void pixmappool::clear() {
+  _pool.clear();
+}

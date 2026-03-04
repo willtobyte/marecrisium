@@ -21,6 +21,12 @@ static int preload_callback(lua_State *state) {
   return 0;
 }
 
+static int flush_callback(lua_State *state) {
+  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
+  self->flush();
+  return 0;
+}
+
 director::director()
     : _pixmappool(std::make_unique<pixmappool>()),
       _soundpool(std::make_unique<soundpool>()),
@@ -29,17 +35,25 @@ director::director()
 director::~director() = default;
 
 void director::wire() {
+  lua_newtable(L);
+
   lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, navigate_callback, 1);
-  lua_setglobal(L, "navigate");
+  lua_setfield(L, -2, "navigate");
 
   lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, destroy_callback, 1);
-  lua_setglobal(L, "destroy");
+  lua_setfield(L, -2, "destroy");
 
   lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, preload_callback, 1);
-  lua_setglobal(L, "preload");
+  lua_setfield(L, -2, "preload");
+
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, flush_callback, 1);
+  lua_setfield(L, -2, "flush");
+
+  lua_setglobal(L, "director");
 }
 
 void director::navigate(std::string_view name) {
@@ -54,6 +68,14 @@ void director::destroy(std::string_view name) {
   }
 
   _stages.erase(it);
+}
+
+void director::flush() {
+  _current = nullptr;
+  _stages.clear();
+  _sourcepool->clear();
+  _soundpool->clear();
+  _pixmappool->clear();
 }
 
 void director::preload(std::string_view name) {
