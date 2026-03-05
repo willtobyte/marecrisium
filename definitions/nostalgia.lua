@@ -299,6 +299,12 @@ function Sound:play() end
 ---Stop playback.
 function Sound:stop() end
 
+---Fade the sound volume over time.
+---@param from number Starting volume (0.0 to 1.0, or -1 to use current volume).
+---@param to number Target volume (0.0 to 1.0).
+---@param ms integer Fade duration in milliseconds.
+function Sound:fade(from, to, ms) end
+
 ---Register a callback for when playback starts.
 ---@param fn fun()
 function Sound:on_begin(fn) end

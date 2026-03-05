@@ -2,7 +2,7 @@
 
 namespace {
   int sound_play(lua_State* state) {
-    auto** ptr = static_cast<soundfx**>(luaL_checkudata(state, 1, "Sound"));
+    auto** ptr = static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     auto* fx = *ptr;
     fx->play();
 
@@ -20,13 +20,13 @@ namespace {
   }
 
   int sound_stop(lua_State* state) {
-    auto** ptr = static_cast<soundfx**>(luaL_checkudata(state, 1, "Sound"));
+    auto** ptr = static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     (*ptr)->stop();
     return 0;
   }
 
   int sound_on_begin(lua_State* state) {
-    auto** ptr = static_cast<soundfx**>(luaL_checkudata(state, 1, "Sound"));
+    auto** ptr = static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     auto* fx = *ptr;
     luaL_checktype(state, 2, LUA_TFUNCTION);
 
@@ -38,8 +38,17 @@ namespace {
     return 0;
   }
 
+  int sound_fade(lua_State* state) {
+    auto** ptr = static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+    const auto from = static_cast<float>(luaL_checknumber(state, 2));
+    const auto to = static_cast<float>(luaL_checknumber(state, 3));
+    const auto ms = static_cast<uint64_t>(luaL_checkinteger(state, 4));
+    (*ptr)->fade(from, to, ms);
+    return 0;
+  }
+
   int sound_on_end(lua_State* state) {
-    auto** ptr = static_cast<soundfx**>(luaL_checkudata(state, 1, "Sound"));
+    auto** ptr = static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     auto* fx = *ptr;
     luaL_checktype(state, 2, LUA_TFUNCTION);
 
@@ -52,7 +61,7 @@ namespace {
   }
 
   int sound_index(lua_State* state) {
-    auto** ptr = static_cast<soundfx**>(luaL_checkudata(state, 1, "Sound"));
+    auto** ptr = static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     auto* fx = *ptr;
     const std::string_view key = luaL_checkstring(state, 2);
 
@@ -76,6 +85,11 @@ namespace {
       return 1;
     }
 
+    if (key == "fade") {
+      lua_pushcfunction(state, sound_fade);
+      return 1;
+    }
+
     if (key == "on_begin") {
       lua_pushcfunction(state, sound_on_begin);
       return 1;
@@ -90,7 +104,7 @@ namespace {
   }
 
   int sound_newindex(lua_State* state) {
-    auto** ptr = static_cast<soundfx**>(luaL_checkudata(state, 1, "Sound"));
+    auto** ptr = static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     auto* fx = *ptr;
     const std::string_view key = luaL_checkstring(state, 2);
 
@@ -108,7 +122,16 @@ namespace {
   }
 }
 
-soundfx::soundfx(std::string_view filename) {
+sound::sound(std::string_view filename) {
+  if (luaL_newmetatable(L, "Sound")) {
+    lua_pushcfunction(L, sound_index);
+    lua_setfield(L, -2, "__index");
+
+    lua_pushcfunction(L, sound_newindex);
+    lua_setfield(L, -2, "__newindex");
+  }
+  lua_pop(L, 1);
+
   const auto buffer = io::read(filename);
 
   auto error = 0;
@@ -167,11 +190,11 @@ soundfx::soundfx(std::string_view filename) {
   );
 
   ma_sound_set_end_callback(&_sound, [](void* ptr, ma_sound*) {
-    static_cast<soundfx*>(ptr)->_ended.store(true, std::memory_order_release);
+    static_cast<sound*>(ptr)->_ended.store(true, std::memory_order_release);
   }, this);
 }
 
-soundfx::~soundfx() {
+sound::~sound() {
   if (on_begin != LUA_NOREF)
     luaL_unref(L, LUA_REGISTRYINDEX, on_begin);
 
@@ -182,32 +205,36 @@ soundfx::~soundfx() {
   ma_audio_buffer_uninit(&_buffer);
 }
 
-void soundfx::play() {
+void sound::play() {
   ma_sound_seek_to_pcm_frame(&_sound, 0);
   ma_sound_start(&_sound);
 }
 
-void soundfx::stop() noexcept {
+void sound::stop() noexcept {
   ma_sound_stop(&_sound);
 }
 
-void soundfx::set_volume(float gain) noexcept {
+void sound::set_volume(float gain) noexcept {
   ma_sound_set_volume(&_sound, std::clamp(gain, .0f, 1.0f));
 }
 
-float soundfx::volume() const noexcept {
+float sound::volume() const noexcept {
   return ma_sound_get_volume(&_sound);
 }
 
-void soundfx::set_loop(bool loop) noexcept {
+void sound::set_loop(bool loop) noexcept {
   ma_sound_set_looping(&_sound, loop ? MA_TRUE : MA_FALSE);
 }
 
-bool soundfx::loop() const noexcept {
+bool sound::loop() const noexcept {
   return ma_sound_is_looping(&_sound) == MA_TRUE;
 }
 
-void soundfx::poll() {
+void sound::fade(float from, float to, uint64_t ms) noexcept {
+  ma_sound_set_fade_in_milliseconds(&_sound, from, to, ms);
+}
+
+void sound::poll() {
   if (ended() && on_end != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, on_end);
 
@@ -219,18 +246,6 @@ void soundfx::poll() {
   }
 }
 
-bool soundfx::ended() {
+bool sound::ended() {
   return _ended.exchange(false, std::memory_order_acquire);
-}
-
-void sound::wire() {
-  if (luaL_newmetatable(L, "Sound")) {
-    lua_pushcfunction(L, sound_index);
-    lua_setfield(L, -2, "__index");
-
-    lua_pushcfunction(L, sound_newindex);
-    lua_setfield(L, -2, "__newindex");
-  }
-
-  lua_pop(L, 1);
 }

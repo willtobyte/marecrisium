@@ -66,8 +66,6 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
     throw std::runtime_error(error);
   }
 
-  sound::wire();
-
   lua_getfield(L, -1, "objects");
   if (lua_istable(L, -1)) {
     const auto count = static_cast<int>(lua_objlen(L, -1));
@@ -247,7 +245,7 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
         const std::string_view sname = lua_tostring(L, -1);
 
         auto& fx = _soundpool.get(sname);
-        auto** memory = static_cast<soundfx**>(lua_newuserdata(L, sizeof(soundfx*)));
+        auto** memory = static_cast<sound**>(lua_newuserdata(L, sizeof(sound*)));
         *memory = &fx;
         luaL_getmetatable(L, "Sound");
         lua_setmetatable(L, -2);

@@ -30,7 +30,7 @@ private:
   soundpool& _soundpool;
   sourcepool& _sourcepool;
   std::unique_ptr<stringpool> _stringpool;
-  std::vector<soundfx*> _sounds;
+  std::vector<sound*> _sounds;
   b2WorldId _world;
   float _accumulator = .0f;
   int _reference = LUA_NOREF;

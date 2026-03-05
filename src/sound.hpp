@@ -1,14 +1,14 @@
 #pragma once
 
-class soundfx final {
+class sound final {
 public:
-  explicit soundfx(std::string_view filename);
-  ~soundfx();
+  explicit sound(std::string_view filename);
+  ~sound();
 
-  soundfx(const soundfx&) = delete;
-  soundfx& operator=(const soundfx&) = delete;
-  soundfx(soundfx&&) = delete;
-  soundfx& operator=(soundfx&&) = delete;
+  sound(const sound&) = delete;
+  sound& operator=(const sound&) = delete;
+  sound(sound&&) = delete;
+  sound& operator=(sound&&) = delete;
 
   void play();
   void stop() noexcept;
@@ -18,6 +18,8 @@ public:
 
   void set_loop(bool loop) noexcept;
   [[nodiscard]] bool loop() const noexcept;
+
+  void fade(float from, float to, uint64_t ms) noexcept;
 
   void poll();
 
@@ -30,7 +32,3 @@ private:
   ma_sound _sound{};
   std::atomic<bool> _ended{false};
 };
-
-namespace sound {
-  void wire();
-}
