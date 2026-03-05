@@ -565,7 +565,7 @@ void stage::draw() const {
     );
   }
 
-#ifdef DEVELOPMENT
+#ifdef DEBUG
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
 
   const b2AABB aabb = {{0, 0}, {viewport.width, viewport.height}};
