@@ -195,10 +195,10 @@ void objectproxy::on_destroy(entt::registry& registry, entt::entity entity) {
 
   if (proxy.handle != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-    auto* ud = static_cast<objectproxy*>(lua_touserdata(L, -1));
-    if (ud && ud->prototype != LUA_NOREF) {
+    auto* userdata = static_cast<objectproxy*>(lua_touserdata(L, -1));
+    if (userdata && userdata->prototype != LUA_NOREF) {
       luaL_unref(L, LUA_REGISTRYINDEX, ud->prototype);
-      ud->prototype = LUA_NOREF;
+      userdata->prototype = LUA_NOREF;
     }
     lua_pop(L, 1);
     luaL_unref(L, LUA_REGISTRYINDEX, proxy.handle);
