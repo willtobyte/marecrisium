@@ -177,6 +177,7 @@ sound::sound(std::string_view filename) {
     samples.get(),
     nullptr
   );
+
   config.sampleRate = 48000;
 
   ma_audio_buffer_init_copy(&config, &_buffer);
