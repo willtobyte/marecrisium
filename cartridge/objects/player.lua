@@ -14,6 +14,7 @@ return {
 
 	on_loop = function(self, delta)
 		local speed = 100 * delta
+
 		if keyboard.w then
 			self.y = self.y - speed
 		end
@@ -27,11 +28,16 @@ return {
 			self.x = self.x + speed
 		end
 
-		if keyboard.space then
+		if gamepad.connected then
+			self.x = self.x + gamepad.left_x * speed
+			self.y = self.y + gamepad.left_y * speed
+		end
+
+		if keyboard.space or gamepad.south then
 			self.angle = self.angle + 180 * delta
 		end
 
-		if keyboard.r then
+		if keyboard.r or gamepad.east then
 			self.alpha = self.alpha - 255 * delta
 		else
 			self.alpha = self.alpha + 255 * delta
