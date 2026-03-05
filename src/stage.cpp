@@ -327,7 +327,7 @@ void stage::update(float delta) {
 
       const auto& frame = an.clips[an.active].frames[an.current];
 
-      if (!frame.collidable || tf.alpha == 0 ||
+      if (!frame.collidable || tf.alpha <= .0f ||
           frame.cw <= 0.0f || frame.ch <= 0.0f) {
         if (b2Shape_IsValid(ph.shape)) {
           b2DestroyShape(ph.shape, false);
@@ -561,7 +561,7 @@ void stage::draw() const {
       fr.x, fr.y, fr.w, fr.h,
       tf.x, tf.y, dw, dh,
       static_cast<double>(tf.angle),
-      tf.alpha
+      static_cast<uint8_t>(std::clamp(tf.alpha, .0f, 255.0f))
     );
   }
 

@@ -7,7 +7,7 @@ struct transform final {
   float y{};
   float scale{1.0f};
   float angle{};
-  uint8_t alpha{255};
+  float alpha{255.0f};
   bool shown{true};
 };
 

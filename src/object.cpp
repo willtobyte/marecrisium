@@ -126,7 +126,7 @@ namespace {
 
     if (key == "alpha") {
       registry.get<transform>(entity).alpha =
-        static_cast<uint8_t>(std::clamp(luaL_checknumber(state, 3), 0.0, 255.0));
+        static_cast<float>(std::clamp(luaL_checknumber(state, 3), .0, 255.0));
       return 0;
     }
 
