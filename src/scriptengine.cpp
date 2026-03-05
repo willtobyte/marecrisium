@@ -34,7 +34,9 @@ void scriptengine::run() {
   gamepad::wire();
   keyboard::wire();
   mouse::wire();
+  platform::wire();
   user::wire();
+  web::wire();
 
   auto e = engine();
   e.run();

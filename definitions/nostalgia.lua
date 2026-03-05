@@ -378,3 +378,27 @@ User.friends = {}
 ---Global user interface.
 ---@type User
 user = {}
+
+--------------------------------------------------------------------------------
+-- Platform (system information)
+--------------------------------------------------------------------------------
+
+---@class Platform
+---@field name string Operating system name, e.g. "macOS", "Windows", "Linux" (read-only).
+---@field cores integer Number of logical CPU cores (read-only).
+---@field memory integer System RAM in megabytes (read-only).
+---@field locale string Preferred locale, e.g. "pt-BR" or "en" (read-only).
+---@field clipboard string System clipboard text (read/write).
+
+---Global platform information.
+---@type Platform
+platform = {}
+
+--------------------------------------------------------------------------------
+-- Open URL
+--------------------------------------------------------------------------------
+
+---Open a URL in the system's default browser or handler.
+---@param url string The URL to open.
+---@return boolean success Whether the operation succeeded.
+function openurl(url) end
