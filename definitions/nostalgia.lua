@@ -156,6 +156,38 @@ function Cassette:clear() end
 cassette = {}
 
 --------------------------------------------------------------------------------
+-- Main Script (scripts/main.lua return table)
+--------------------------------------------------------------------------------
+
+---@class MainConfig
+---@field width number Viewport width in logical pixels.
+---@field height number Viewport height in logical pixels.
+---@field title string Window title.
+---@field scale number Render scale factor.
+---@field fullscreen boolean Whether to start in fullscreen mode.
+---@field on_begin fun() Called once after the engine is fully initialized.
+
+--------------------------------------------------------------------------------
+-- Stage (scripts returned by stages/<name>.lua)
+--------------------------------------------------------------------------------
+
+---@class Stage
+---A stage script (`stages/<name>.lua`) returns a table that may contain
+---these lifecycle callbacks plus an `objects` table defining the stage's entities.
+local Stage = {}
+
+---Called when the director navigates to this stage.
+function Stage.on_enter() end
+
+---Called when the director navigates away from this stage.
+function Stage.on_leave() end
+
+---Called every frame while this stage is active.
+---@param self table The stage table itself.
+---@param delta number Frame delta time in seconds.
+function Stage.on_loop(self, delta) end
+
+--------------------------------------------------------------------------------
 -- Director (stage navigation)
 --------------------------------------------------------------------------------
 
@@ -209,6 +241,48 @@ viewport = {}
 ---@field kind string The kind/type string of this object (read-only).
 ---@field animation string|nil Currently playing animation clip name. Assign to switch clips.
 ---@field [string] any Custom properties from the prototype table.
+local Object = {}
+
+---Called once when the object is created during stage construction.
+---@param self Object
+function Object.on_spawn(self) end
+
+---Called every frame. Use for movement, AI, input handling, etc.
+---@param self Object
+---@param delta number Frame delta time in seconds.
+function Object.on_loop(self, delta) end
+
+---Called when a physics sensor overlap begins with another object.
+---@param self Object
+---@param other_name string Name of the other object.
+---@param other_kind string Kind/type of the other object.
+function Object.on_collision_begin(self, other_name, other_kind) end
+
+---Called when a physics sensor overlap ends with another object.
+---@param self Object
+---@param other_name string Name of the other object.
+---@param other_kind string Kind/type of the other object.
+function Object.on_collision_end(self, other_name, other_kind) end
+
+---Called when the object moves fully outside a screen edge.
+---@param self Object
+---@param direction "left"|"right"|"top"|"bottom" Which edge was crossed.
+function Object.on_screen_exit(self, direction) end
+
+---Called when the object returns inside a screen edge it had previously exited.
+---@param self Object
+---@param direction "left"|"right"|"top"|"bottom" Which edge was crossed.
+function Object.on_screen_enter(self, direction) end
+
+---Called when an animation clip finishes (loops or is replaced).
+---@param self Object
+---@param clip_name string Name of the clip that ended.
+function Object.on_animation_end(self, clip_name) end
+
+---Called when a new animation clip starts playing.
+---@param self Object
+---@param clip_name string Name of the clip that started.
+function Object.on_animation_begin(self, clip_name) end
 
 --------------------------------------------------------------------------------
 -- Sound (audio handle userdata, available in `pool`)
