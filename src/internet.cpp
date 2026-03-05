@@ -1,4 +1,4 @@
-#include "web.hpp"
+#include "internet.hpp"
 
 static int openurl_call(lua_State *state) noexcept {
   const auto *url = luaL_checkstring(state, 1);
@@ -6,7 +6,7 @@ static int openurl_call(lua_State *state) noexcept {
   return 1;
 }
 
-void web::wire() {
+void internet::wire() {
   lua_pushcfunction(L, openurl_call);
   lua_setglobal(L, "openurl");
 }

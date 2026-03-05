@@ -36,7 +36,7 @@ void scriptengine::run() {
   mouse::wire();
   platform::wire();
   user::wire();
-  web::wire();
+  internet::wire();
 
   auto e = engine();
   e.run();

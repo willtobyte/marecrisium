@@ -1,5 +1,5 @@
 #pragma once
 
-namespace web {
+namespace internet {
   void wire();
 }
