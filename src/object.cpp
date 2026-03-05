@@ -188,7 +188,6 @@ namespace {
 
     return 0;
   }
-
 }
 
 void objectproxy::on_destroy(entt::registry& registry, entt::entity entity) {
