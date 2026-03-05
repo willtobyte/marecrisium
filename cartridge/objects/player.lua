@@ -13,6 +13,20 @@ return {
 	end,
 
 	on_loop = function(self, delta)
+		local speed = 100 * delta
+		if keyboard.w then
+			self.y = self.y - speed
+		end
+		if keyboard.s then
+			self.y = self.y + speed
+		end
+		if keyboard.a then
+			self.x = self.x - speed
+		end
+		if keyboard.d then
+			self.x = self.x + speed
+		end
+
 		if keyboard.space then
 			self.angle = self.angle + 180 * delta
 		end
