@@ -238,10 +238,15 @@ viewport = {}
 ---@field angle number Rotation angle in degrees.
 ---@field alpha number Opacity (0-255).
 ---@field shown boolean Whether the object is visible.
+---@field name string The object's name (read-only).
 ---@field kind string The kind/type string of this object (read-only).
+---@field alive boolean Whether the object is still alive (read-only).
 ---@field animation string|nil Currently playing animation clip name. Assign to switch clips.
 ---@field [string] any Custom properties from the prototype table.
 local Object = {}
+
+---Destroy this object. After calling, `alive` returns false and all property access returns nil.
+function Object:die() end
 
 ---Called once when the object is created during stage construction.
 ---@param self Object

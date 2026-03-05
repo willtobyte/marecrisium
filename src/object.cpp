@@ -1,15 +1,33 @@
 #include "object.hpp"
 
 namespace {
+  int object_die(lua_State* state) {
+    auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
+    if (proxy->registry->valid(proxy->entity))
+      proxy->registry->destroy(proxy->entity);
+    return 0;
+  }
+
   int object_index(lua_State* state) {
     const auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
     const std::string_view key = luaL_checkstring(state, 2);
 
-    if (!proxy->registry->valid(proxy->entity))
+    if (key == "alive") {
+      lua_pushboolean(state, proxy->registry->valid(proxy->entity));
+      return 1;
+    }
+
+    if (!proxy->registry->valid(proxy->entity)) [[unlikely]]
       return lua_pushnil(state), 1;
 
     auto& registry = *proxy->registry;
     const auto entity = proxy->entity;
+
+    if (key == "name") {
+      const auto* strings = registry.ctx().get<stringpool*>();
+      lua_pushstring(state, strings->get(proxy->name));
+      return 1;
+    }
 
     if (key == "x") {
       lua_pushnumber(state, static_cast<double>(registry.get<transform>(entity).x));
@@ -44,6 +62,11 @@ namespace {
     if (key == "kind") {
       const auto* strings = registry.ctx().get<stringpool*>();
       lua_pushstring(state, strings->get(proxy->kind));
+      return 1;
+    }
+
+    if (key == "die") {
+      lua_pushcfunction(state, object_die);
       return 1;
     }
 
