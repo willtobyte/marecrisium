@@ -29,10 +29,12 @@ void scriptengine::run() {
 
   lua_pop(L, 2);
 
+  achievement::wire();
   cassette::wire();
   gamepad::wire();
   keyboard::wire();
   mouse::wire();
+  user::wire();
 
   auto e = engine();
   e.run();

@@ -338,3 +338,43 @@ world = {}
 ---Resource pool (available inside stage scripts).
 ---@type Pool
 pool = {}
+
+--------------------------------------------------------------------------------
+-- Achievement (Steam achievements)
+--------------------------------------------------------------------------------
+
+---@class Achievement
+local Achievement = {}
+
+---Unlock a Steam achievement by its API name.
+---No-op if Steam is unavailable or the achievement is already unlocked.
+---@param id string The achievement API name (e.g., "ACH_FIRST_BLOOD").
+---@return boolean success Whether the unlock succeeded.
+function Achievement:unlock(id) end
+
+---Global achievement interface.
+---@type Achievement
+achievement = {}
+
+--------------------------------------------------------------------------------
+-- User (Steam user info)
+--------------------------------------------------------------------------------
+
+---@class Friend
+---@field id number The friend's Steam ID (read-only).
+---@field name string The friend's display name (read-only).
+
+---@class User
+local User = {}
+
+---The local user's Steam display name. Empty string if Steam is unavailable.
+---@type string
+User.persona = ""
+
+---List of Steam friends. Empty table if Steam is unavailable.
+---@type Friend[]
+User.friends = {}
+
+---Global user interface.
+---@type User
+user = {}
