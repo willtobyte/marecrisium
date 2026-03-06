@@ -171,18 +171,9 @@ cassette = {}
 -- Stage (scripts returned by stages/<name>.lua)
 --------------------------------------------------------------------------------
 
----@class ParticleEntry
----@field name string Unique name for pool access.
----@field kind string Particle definition (particles/<kind>.lua).
----@field x number Initial emitter X position.
----@field y number Initial emitter Y position.
----@field spawning boolean? Whether spawning starts enabled (default true).
----@field shown boolean? Whether the group starts visible (default true).
-
 ---@class Stage
 ---A stage script (`stages/<name>.lua`) returns a table that may contain
----these lifecycle callbacks plus `objects`, `sounds` and `particles` tables.
----@field particles ParticleEntry[]? Particle emitter groups for this stage.
+---these lifecycle callbacks plus `objects` and `sounds` tables.
 local Stage = {}
 
 ---Called when the director navigates to this stage.
@@ -372,23 +363,12 @@ function World.raycast(caller, x, y, angle, distance) end
 world = {}
 
 --------------------------------------------------------------------------------
--- Particles (particle emitter group, available in `pool`)
---------------------------------------------------------------------------------
-
----@class Particles
----@field x number Emitter X position.
----@field y number Emitter Y position.
----@field spawning boolean Whether new particles spawn when old ones die.
----@field shown boolean Whether this group updates and draws.
----@field position table Write-only. Set emitter position as `{x, y}` or `{x = x, y = y}`.
-
---------------------------------------------------------------------------------
--- Pool (named collection of objects, sounds and particles, available per-stage)
+-- Pool (named collection of objects and sounds, available per-stage)
 --------------------------------------------------------------------------------
 
 ---@class Pool
----Access objects, sounds and particles by name.
----@field [string] Object|Sound|Particles
+---Access objects and sounds by name.
+---@field [string] Object|Sound
 
 ---Resource pool (available inside stage scripts).
 ---@type Pool

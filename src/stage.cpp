@@ -1,5 +1,4 @@
 #include "stage.hpp"
-#include "particle.hpp"
 
 static int world_raycast(lua_State* state) {
   auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
@@ -265,195 +264,10 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
   }
   lua_pop(L, 1);
 
-  lua_getfield(L, -1, "particles");
-  if (lua_istable(L, -1)) {
-    if (_pool_reference == LUA_NOREF) {
-      lua_newtable(L);
-      _pool_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
-      lua_setfield(L, -2, "pool");
-      lua_pop(L, 1);
-    }
-
-    const auto pcount = static_cast<int>(lua_objlen(L, -1));
-
-    for (int p = 1; p <= pcount; ++p) {
-      lua_rawgeti(L, -1, p);
-
-      if (!lua_istable(L, -1)) {
-        lua_pop(L, 1);
-        continue;
-      }
-
-      lua_getfield(L, -1, "name");
-      const std::string_view particle_name = lua_tostring(L, -1);
-      lua_pop(L, 1);
-
-      lua_getfield(L, -1, "kind");
-      const std::string_view particle_kind = lua_tostring(L, -1);
-      lua_pop(L, 1);
-
-      lua_getfield(L, -1, "x");
-      const auto particle_x = static_cast<float>(lua_tonumber(L, -1));
-      lua_pop(L, 1);
-
-      lua_getfield(L, -1, "y");
-      const auto particle_y = static_cast<float>(lua_tonumber(L, -1));
-      lua_pop(L, 1);
-
-      lua_getfield(L, -1, "spawning");
-      const auto particle_spawning = lua_isnil(L, -1) ? true : (lua_toboolean(L, -1) != 0);
-      lua_pop(L, 1);
-
-      lua_getfield(L, -1, "shown");
-      const auto particle_shown = lua_isnil(L, -1) ? true : (lua_toboolean(L, -1) != 0);
-      lua_pop(L, 1);
-
-      lua_pop(L, 1);
-
-      const auto config_filename = std::format("particles/{}.lua", particle_kind);
-      const auto config_buffer = io::read(config_filename);
-      const auto* config_data = reinterpret_cast<const char*>(config_buffer.data());
-      const auto config_size = config_buffer.size();
-      const auto config_label = std::format("@{}", config_filename);
-
-      if (luaL_loadbuffer(L, config_data, config_size, config_label.c_str()) != 0) [[unlikely]] {
-        std::string error = lua_tostring(L, -1);
-        lua_pop(L, 1);
-        throw std::runtime_error(error);
-      }
-
-      if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
-        std::string error = lua_tostring(L, -1);
-        lua_pop(L, 1);
-        throw std::runtime_error(error);
-      }
-
-      lua_getfield(L, -1, "count");
-      const auto particle_count = static_cast<size_t>(lua_tointeger(L, -1));
-      lua_pop(L, 1);
-
-      std::pair<float, float> xspawn{.0f, .0f}, yspawn{.0f, .0f};
-      std::pair<float, float> radius{.0f, .0f}, angle{.0f, .0f};
-      std::pair<float, float> pscale{1.f, 1.f}, life{1.f, 1.f};
-      std::pair<float, float> xvel{.0f, .0f}, yvel{.0f, .0f};
-      std::pair<float, float> pgx{.0f, .0f}, pgy{.0f, .0f};
-      std::pair<float, float> rforce{.0f, .0f}, rvel{.0f, .0f};
-
-      lua_getfield(L, -1, "spawn");
-      if (lua_istable(L, -1)) {
-        lua_getfield(L, -1, "x");
-        xspawn = particle::range(L);
-        lua_pop(L, 1);
-
-        lua_getfield(L, -1, "y");
-        yspawn = particle::range(L);
-        lua_pop(L, 1);
-
-        lua_getfield(L, -1, "radius");
-        radius = particle::range(L);
-        lua_pop(L, 1);
-
-        lua_getfield(L, -1, "angle");
-        angle = particle::range(L);
-        lua_pop(L, 1);
-
-        lua_getfield(L, -1, "scale");
-        pscale = particle::range(L);
-        lua_pop(L, 1);
-
-        lua_getfield(L, -1, "life");
-        life = particle::range(L);
-        lua_pop(L, 1);
-      }
-      lua_pop(L, 1);
-
-      lua_getfield(L, -1, "velocity");
-      if (lua_istable(L, -1)) {
-        lua_getfield(L, -1, "x");
-        xvel = particle::range(L);
-        lua_pop(L, 1);
-
-        lua_getfield(L, -1, "y");
-        yvel = particle::range(L);
-        lua_pop(L, 1);
-      }
-      lua_pop(L, 1);
-
-      lua_getfield(L, -1, "gravity");
-      if (lua_istable(L, -1)) {
-        lua_getfield(L, -1, "x");
-        pgx = particle::range(L);
-        lua_pop(L, 1);
-
-        lua_getfield(L, -1, "y");
-        pgy = particle::range(L);
-        lua_pop(L, 1);
-      }
-      lua_pop(L, 1);
-
-      lua_getfield(L, -1, "rotation");
-      if (lua_istable(L, -1)) {
-        lua_getfield(L, -1, "force");
-        rforce = particle::range(L);
-        lua_pop(L, 1);
-
-        lua_getfield(L, -1, "velocity");
-        rvel = particle::range(L);
-        lua_pop(L, 1);
-      }
-      lua_pop(L, 1);
-
-      lua_pop(L, 1);
-
-      const auto& pm = _pixmappool.get(std::format("particles/{}", particle_kind));
-
-      auto batch = std::make_unique<particlebatch>(pm, particle_count);
-      batch->emitter.x = particle_x;
-      batch->emitter.y = particle_y;
-      batch->emitter.spawning = particle_spawning;
-      batch->emitter.shown = particle_shown;
-      batch->emitter.xspawnd = std::uniform_real_distribution<float>(xspawn.first, xspawn.second);
-      batch->emitter.yspawnd = std::uniform_real_distribution<float>(yspawn.first, yspawn.second);
-      batch->emitter.radiusd = std::uniform_real_distribution<float>(radius.first, radius.second);
-      batch->emitter.angled = std::uniform_real_distribution<float>(angle.first, angle.second);
-      batch->emitter.xveld = std::uniform_real_distribution<float>(xvel.first, xvel.second);
-      batch->emitter.yveld = std::uniform_real_distribution<float>(yvel.first, yvel.second);
-      batch->emitter.gxd = std::uniform_real_distribution<float>(pgx.first, pgx.second);
-      batch->emitter.gyd = std::uniform_real_distribution<float>(pgy.first, pgy.second);
-      batch->emitter.scaled = std::uniform_real_distribution<float>(pscale.first, pscale.second);
-      batch->emitter.lifed = std::uniform_real_distribution<float>(life.first, life.second);
-      batch->emitter.rotforced = std::uniform_real_distribution<float>(rforce.first, rforce.second);
-      batch->emitter.rotveld = std::uniform_real_distribution<float>(rvel.first, rvel.second);
-
-      auto** memory = static_cast<particleemitter**>(lua_newuserdata(L, sizeof(particleemitter*)));
-      *memory = &batch->emitter;
-      luaL_getmetatable(L, "Particles");
-      lua_setmetatable(L, -2);
-
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
-      lua_pushvalue(L, -2);
-      lua_setfield(L, -2, particle_name.data());
-      lua_pop(L, 1);
-
-      batch->handle = luaL_ref(L, LUA_REGISTRYINDEX);
-
-      _particles.emplace_back(std::move(batch));
-    }
-  }
-  lua_pop(L, 1);
-
   _reference = luaL_ref(L, LUA_REGISTRYINDEX);
 }
 
 stage::~stage() {
-  for (auto& batch : _particles) {
-    if (batch->handle != LUA_NOREF)
-      luaL_unref(L, LUA_REGISTRYINDEX, batch->handle);
-  }
-
   luaL_unref(L, LUA_REGISTRYINDEX, _pool_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _environment_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
@@ -740,11 +554,6 @@ void stage::update(float delta) {
     }
   }
 
-  for (auto& batch : _particles) {
-    if (batch->emitter.shown)
-      particle::update(*batch, delta);
-  }
-
   for (auto* fx : _sounds) {
     fx->poll();
   }
@@ -774,11 +583,6 @@ void stage::draw() const {
       static_cast<double>(tf.angle),
       static_cast<uint8_t>(std::clamp(tf.alpha, .0f, 255.0f))
     );
-  }
-
-  for (const auto& batch : _particles) {
-    if (batch->emitter.shown)
-      particle::draw(*batch);
   }
 
 #ifdef DEBUG

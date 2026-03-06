@@ -4,7 +4,6 @@ class pixmappool;
 class soundpool;
 class sourcepool;
 class stringpool;
-struct particlebatch;
 
 class stage final {
 public:
@@ -32,7 +31,6 @@ private:
   sourcepool& _sourcepool;
   std::unique_ptr<stringpool> _stringpool;
   std::vector<sound*> _sounds;
-  std::vector<std::unique_ptr<particlebatch>> _particles;
   b2WorldId _world;
   float _accumulator = .0f;
   uint32_t _mouse_previous_buttons{};
