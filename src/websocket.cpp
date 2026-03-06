@@ -351,7 +351,7 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
 namespace {
 
 static const struct lws_protocols protocols[] = {
-  {"nostalgia", lws_callback, 0, 4096, 0, nullptr, 0},
+  {"carimbo", lws_callback, 0, 4096, 0, nullptr, 0},
   {nullptr, nullptr, 0, 0, 0, nullptr, 0}
 };
 }

@@ -35,7 +35,7 @@ build: ## Builds the project
 .PHONY: run
 run: build ## Builds and runs the project
 	clear
-	NOVSYNC=1 SCENE=$(SCENE) CARTRIDGE=$(CARTRIDGE) lldb -o run -- ./build/nostalgia
+	NOVSYNC=1 SCENE=$(SCENE) CARTRIDGE=$(CARTRIDGE) lldb -o run -- ./build/carimbo
 
 .PHONY: help
 help:

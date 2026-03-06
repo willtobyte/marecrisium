@@ -1,6 +1,6 @@
 ---@meta
 
--- Nostalgia Engine API definitions
+-- Carimbo Engine API definitions
 -- Auto-generated EmmyLua annotations for the Lua Language Server
 
 --------------------------------------------------------------------------------

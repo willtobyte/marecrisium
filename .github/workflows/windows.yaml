@@ -57,10 +57,13 @@ jobs:
         working-directory: cartridge
         run: 7z a -tzip ../build/cartridge.rom .
 
+      - name: Collect artifacts
+        run: cp build/Release/carimbo.exe build/carimbo.exe
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: nostalgia-windows
+          name: build
           path: |
-            build/Release/nostalgia.exe
+            build/carimbo.exe
             build/cartridge.rom
