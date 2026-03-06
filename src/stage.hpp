@@ -33,9 +33,12 @@ private:
   std::vector<sound*> _sounds;
   b2WorldId _world;
   float _accumulator = .0f;
+  uint32_t _mouse_previous_buttons{};
   int _reference = LUA_NOREF;
   int _environment_reference = LUA_NOREF;
   int _pool_reference = LUA_NOREF;
+
+  void dispatch_click(float x, float y, const char* button);
 
   void dispatch_collision(entt::entity entity, entt::entity other_entity, const char* callback_name);
 

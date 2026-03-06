@@ -12,6 +12,10 @@ return {
 		self.y = 100
 	end,
 
+	on_click = function(self, x, y, button)
+		print(button)
+	end,
+
 	on_loop = function(self, delta)
 		local speed = 300 * delta
 

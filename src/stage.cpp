@@ -309,6 +309,20 @@ void stage::on_leave() {
 }
 
 void stage::update(float delta) {
+  float wx, wy;
+  const auto buttons = SDL_GetMouseState(&wx, &wy);
+  SDL_RenderCoordinatesFromWindow(renderer, wx, wy, &wx, &wy);
+
+  const auto released = _mouse_previous_buttons & ~buttons;
+  _mouse_previous_buttons = buttons;
+
+  if (released & SDL_BUTTON_LMASK) [[unlikely]]
+    dispatch_click(wx, wy, "left");
+  else if (released & SDL_BUTTON_MMASK) [[unlikely]]
+    dispatch_click(wx, wy, "middle");
+  else if (released & SDL_BUTTON_RMASK) [[unlikely]]
+    dispatch_click(wx, wy, "right");
+
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_getfield(L, -1, "on_loop");
 
@@ -587,6 +601,100 @@ void stage::draw() const {
 
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 #endif
+}
+
+void stage::dispatch_click(float x, float y, const char* button) {
+  constexpr auto HALF = .5f;
+  const b2AABB aabb = {{x - HALF, y - HALF}, {x + HALF, y + HALF}};
+  const auto filter = b2DefaultQueryFilter();
+
+  struct context {
+    entt::entity* hits;
+    uint8_t count;
+  };
+
+  std::array<entt::entity, 32> buffer{};
+  context ctx{buffer.data(), 0};
+
+  b2World_OverlapAABB(
+    _world, aabb, filter,
+    [](b2ShapeId shape, void* userdata) -> bool {
+      auto* ctx = static_cast<context*>(userdata);
+      if (ctx->count >= 32) [[unlikely]]
+        return false;
+      const auto entity = static_cast<entt::entity>(
+        reinterpret_cast<uintptr_t>(b2Shape_GetUserData(shape)));
+      ctx->hits[ctx->count++] = entity;
+      return true;
+    },
+    &ctx);
+
+  if (ctx.count == 0) [[likely]] {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    lua_getfield(L, -1, "on_click");
+
+    if (lua_isfunction(L, -1)) {
+      lua_pushnumber(L, static_cast<lua_Number>(x));
+      lua_pushnumber(L, static_cast<lua_Number>(y));
+      lua_pushstring(L, button);
+
+      if (lua_pcall(L, 3, 0, 0) != 0) [[unlikely]] {
+        std::string error = lua_tostring(L, -1);
+        lua_pop(L, 1);
+        throw std::runtime_error(error);
+      }
+    } else {
+      lua_pop(L, 1);
+    }
+
+    lua_pop(L, 1);
+    return;
+  }
+
+  const auto span = std::span{buffer.data(), ctx.count};
+  entt::entity topmost = entt::null;
+
+  for (auto&& [entity, a, tf] : _registry.view<animation, transform>().each()) {
+    if (!tf.shown || tf.alpha <= .0f) [[unlikely]]
+      continue;
+
+    for (const auto hit : span) {
+      if (hit == entity) {
+        topmost = entity;
+        break;
+      }
+    }
+  }
+
+  if (topmost == entt::null) [[unlikely]]
+    return;
+
+  if (!_registry.all_of<objectproxy>(topmost)) [[unlikely]]
+    return;
+
+  const auto& proxy = _registry.get<objectproxy>(topmost);
+  if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF) [[unlikely]]
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+  lua_getfield(L, -1, "on_click");
+
+  if (lua_isfunction(L, -1)) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+    lua_pushnumber(L, static_cast<lua_Number>(x));
+    lua_pushnumber(L, static_cast<lua_Number>(y));
+    lua_pushstring(L, button);
+
+    if (lua_pcall(L, 4, 0, 0) != 0) [[unlikely]] {
+      std::string error = lua_tostring(L, -1);
+      lua_pop(L, 1);
+      throw std::runtime_error(error);
+    }
+  } else {
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
 }
 
 void stage::dispatch_screen_event(

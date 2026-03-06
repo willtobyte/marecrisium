@@ -187,6 +187,12 @@ function Stage.on_leave() end
 ---@param delta number Frame delta time in seconds.
 function Stage.on_loop(self, delta) end
 
+---Called when a click occurs but no collidable object is hit.
+---@param x number Click X position in world coordinates.
+---@param y number Click Y position in world coordinates.
+---@param button "left"|"middle"|"right" Which mouse button was released.
+function Stage.on_click(x, y, button) end
+
 --------------------------------------------------------------------------------
 -- Director (stage navigation)
 --------------------------------------------------------------------------------
@@ -288,6 +294,14 @@ function Object.on_animation_end(self, clip_name) end
 ---@param self Object
 ---@param clip_name string Name of the clip that started.
 function Object.on_animation_begin(self, clip_name) end
+
+---Called when the object is clicked (mouse button released over its hitbox).
+---Only triggered for collidable objects. The topmost object receives the click.
+---@param self Object
+---@param x number Click X position in world coordinates.
+---@param y number Click Y position in world coordinates.
+---@param button "left"|"middle"|"right" Which mouse button was released.
+function Object.on_click(self, x, y, button) end
 
 --------------------------------------------------------------------------------
 -- Sound (audio handle userdata, available in `pool`)
