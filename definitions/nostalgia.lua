@@ -312,6 +312,16 @@ function Object.on_animation_begin(self, clip_name) end
 ---@param button "left"|"middle"|"right" Which mouse button was released.
 function Object.on_click(self, x, y, button) end
 
+---Called when the mouse cursor enters the object's hitbox.
+---Only triggered for collidable objects.
+---@param self Object
+function Object.on_hover(self) end
+
+---Called when the mouse cursor leaves the object's hitbox.
+---Only triggered for collidable objects.
+---@param self Object
+function Object.on_unhover(self) end
+
 --------------------------------------------------------------------------------
 -- Sound (audio handle userdata, available in `pool`)
 --------------------------------------------------------------------------------

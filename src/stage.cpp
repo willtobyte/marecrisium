@@ -509,6 +509,8 @@ void stage::update(float delta) {
   else if (released & SDL_BUTTON_RMASK) [[unlikely]]
     dispatch_click(wx, wy, "right");
 
+  dispatch_hover(wx, wy);
+
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_getfield(L, -1, "on_loop");
 
@@ -895,6 +897,85 @@ void stage::dispatch_click(float x, float y, const char* button) {
   }
 
   lua_pop(L, 1);
+}
+
+void stage::dispatch_hover(float x, float y) {
+  constexpr auto HALF = .5f;
+  const b2AABB aabb = {{x - HALF, y - HALF}, {x + HALF, y + HALF}};
+  const auto filter = b2DefaultQueryFilter();
+
+  _hits.clear();
+
+  b2World_OverlapAABB(
+    _world, aabb, filter,
+    [](b2ShapeId shape, void* userdata) -> bool {
+      auto* hits = static_cast<std::unordered_set<entt::entity>*>(userdata);
+      const auto entity = static_cast<entt::entity>(
+        reinterpret_cast<uintptr_t>(b2Shape_GetUserData(shape)));
+      hits->emplace(entity);
+      return true;
+    },
+    &_hits);
+
+  for (const auto entity : _hovering) {
+    if (_hits.contains(entity))
+      continue;
+
+    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
+      continue;
+
+    const auto& proxy = _registry.get<objectproxy>(entity);
+    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
+      continue;
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+    lua_getfield(L, -1, "on_unhover");
+
+    if (lua_isfunction(L, -1)) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+
+      if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
+        std::string error = lua_tostring(L, -1);
+        lua_pop(L, 1);
+        throw std::runtime_error(error);
+      }
+    } else {
+      lua_pop(L, 1);
+    }
+
+    lua_pop(L, 1);
+  }
+
+  for (const auto entity : _hits) {
+    if (_hovering.contains(entity))
+      continue;
+
+    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
+      continue;
+
+    const auto& proxy = _registry.get<objectproxy>(entity);
+    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
+      continue;
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+    lua_getfield(L, -1, "on_hover");
+
+    if (lua_isfunction(L, -1)) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+
+      if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
+        std::string error = lua_tostring(L, -1);
+        lua_pop(L, 1);
+        throw std::runtime_error(error);
+      }
+    } else {
+      lua_pop(L, 1);
+    }
+
+    lua_pop(L, 1);
+  }
+
+  _hovering.swap(_hits);
 }
 
 void stage::dispatch_screen_event(

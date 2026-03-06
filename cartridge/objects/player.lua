@@ -16,6 +16,14 @@ return {
 		print(x, y, button)
 	end,
 
+	on_hover = function(self)
+		print("hover")
+	end,
+
+	on_unhover = function(self)
+		print("unhover")
+	end,
+
 	on_loop = function(self, delta)
 		local speed = 300 * delta
 
