@@ -113,8 +113,8 @@ int particle_newindex(lua_State* state) {
 
 }
 
-particlebatch::particlebatch(const class pixmap& pm, size_t count)
-    : pixmap(&pm), count(count) {
+particlebatch::particlebatch(const class pixmap& pixmap, size_t count)
+    : pixmap(&pixmap), count(count) {
   if (luaL_newmetatable(L, "Particles")) {
     lua_pushcfunction(L, particle_index);
     lua_setfield(L, -2, "__index");
@@ -124,8 +124,8 @@ particlebatch::particlebatch(const class pixmap& pm, size_t count)
   }
   lua_pop(L, 1);
 
-  emitter.hw = static_cast<float>(pm.width()) * .5f;
-  emitter.hh = static_cast<float>(pm.height()) * .5f;
+  emitter.hw = static_cast<float>(pixmap.width()) * .5f;
+  emitter.hh = static_cast<float>(pixmap.height()) * .5f;
 
   x.resize(count);
   y.resize(count);
