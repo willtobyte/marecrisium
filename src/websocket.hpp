@@ -58,7 +58,7 @@ private:
 
   void run(std::stop_token token);
   void connect();
-  void resubscribe_all();
+  void resubscribe();
 
   std::string _url;
   std::string _host;

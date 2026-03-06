@@ -295,7 +295,7 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
   switch (reason) {
     case LWS_CALLBACK_CLIENT_ESTABLISHED: {
       ws->_connected = true;
-      ws->resubscribe_all();
+      ws->resubscribe();
       lws_callback_on_writable(wsi);
     } break;
 
@@ -480,7 +480,7 @@ void socketconn::remove_subscription(subscription* subscription) {
   std::erase(_subscriptions, subscription);
 }
 
-void socketconn::resubscribe_all() {
+void socketconn::resubscribe() {
   for (auto* subscription : _subscriptions) {
     if (!subscription->active()) [[unlikely]] continue;
     auto payload = build_action_json("subscribe", subscription->topic().c_str());
