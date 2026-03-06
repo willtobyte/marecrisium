@@ -12,6 +12,7 @@
 #include <numbers>
 #include <optional>
 #include <print>
+#include <random>
 #include <string>
 #include <string_view>
 #include <thread>
