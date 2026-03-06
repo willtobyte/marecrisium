@@ -31,6 +31,7 @@
 #include <opusfile.h>
 #include <physfs.h>
 #include <SDL3/SDL.h>
+#include <sqlite3.h>
 #include <spng.h>
 #include <yyjson.h>
 

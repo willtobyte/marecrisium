@@ -15,6 +15,7 @@ class Nostalgia(ConanFile):
             "physfs/3.2.0",
             "libspng/0.7.4",
             "sdl/3.4.0",
+            "sqlite3/3.51.0",
             "luajit/2.1.0-beta3",
             "opusfile/0.12",
             "yyjson/0.12.0",

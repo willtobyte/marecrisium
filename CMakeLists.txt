@@ -41,6 +41,7 @@ find_package(SPNG CONFIG REQUIRED)
 find_package(luajit CONFIG REQUIRED)
 find_package(miniaudio CONFIG REQUIRED)
 find_package(opusfile CONFIG REQUIRED)
+find_package(SQLite3 CONFIG REQUIRED)
 find_package(yyjson CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -53,6 +54,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   opusfile::opusfile
   luajit::luajit
   websockets
+  SQLite::SQLite3
   yyjson::yyjson
 )
 
