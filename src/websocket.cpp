@@ -359,7 +359,7 @@ static const struct lws_protocols protocols[] = {
 socketconn::socketconn(std::string url) : _url(std::move(url)) {
   parse_url(_url, _host, _path, _port, _ssl);
   _sendbuf.reserve(LWS_PRE + 4096);
-  _thread = std::jthread([this](std::stop_token token) { run(token); });
+  _thread = std::thread([this] { run(); });
 }
 
 socketconn::~socketconn() {
@@ -371,10 +371,13 @@ socketconn::~socketconn() {
   }
   _subscriptions.clear();
 
-  _thread.request_stop();
+  _stop.store(true, std::memory_order_release);
+
   if (_context) [[likely]]
     lws_cancel_service(_context);
-  _thread.join();
+
+  if (_thread.joinable()) [[likely]]
+    _thread.join();
 }
 
 void socketconn::connect() {
@@ -399,10 +402,10 @@ void socketconn::connect() {
   _wsi = lws_client_connect_via_info(&ccinfo);
 }
 
-void socketconn::run(std::stop_token token) {
+void socketconn::run() {
   connect();
 
-  while (!token.stop_requested()) {
+  while (!_stop.load(std::memory_order_acquire)) {
     if (!_context) [[unlikely]] {
       std::this_thread::sleep_for(std::chrono::seconds(1));
       connect();

@@ -56,7 +56,7 @@ public:
 private:
   friend int lws_callback(struct lws*, enum lws_callback_reasons, void*, void*, size_t);
 
-  void run(std::stop_token token);
+  void run();
   void connect();
   void resubscribe();
 
@@ -76,7 +76,8 @@ private:
   std::vector<subscription*> _subscriptions;
   std::vector<uint8_t> _sendbuf;
 
-  std::jthread _thread;
+  std::atomic<bool> _stop{false};
+  std::thread _thread;
 };
 
 class subscription final {
