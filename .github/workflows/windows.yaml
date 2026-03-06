@@ -53,8 +53,13 @@ jobs:
           cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release --verbose
 
+      - name: Package cartridge
+        run: cd cartridge && zip -r ../build/cartridge.rom .
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: nostalgia-windows
-          path: build/Release/nostalgia.exe
+          path: |
+            build/Release/nostalgia.exe
+            build/cartridge.rom
