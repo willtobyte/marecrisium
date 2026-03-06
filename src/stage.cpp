@@ -309,6 +309,47 @@ void stage::on_leave() {
 }
 
 void stage::update(float delta) {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_getfield(L, -1, "on_loop");
+
+  if (lua_isfunction(L, -1)) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    lua_pushnumber(L, static_cast<lua_Number>(delta));
+
+    if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
+      std::string error = lua_tostring(L, -1);
+      lua_pop(L, 2);
+      throw std::runtime_error(error);
+    }
+  } else {
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
+
+  for (auto&& [entity, proxy] : _registry.view<objectproxy>().each()) {
+    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
+      continue;
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+    lua_getfield(L, -1, "on_loop");
+
+    if (lua_isfunction(L, -1)) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+      lua_pushnumber(L, static_cast<lua_Number>(delta));
+
+      if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
+        std::string error = lua_tostring(L, -1);
+        lua_pop(L, 2);
+        throw std::runtime_error(error);
+      }
+    } else {
+      lua_pop(L, 1);
+    }
+
+    lua_pop(L, 1);
+  }
+
   _accumulator += delta;
 
   while (_accumulator >= FIXED_TIMESTEP) {
@@ -495,47 +536,6 @@ void stage::update(float delta) {
 
       break;
     }
-  }
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  lua_getfield(L, -1, "on_loop");
-
-  if (lua_isfunction(L, -1)) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    lua_pushnumber(L, static_cast<lua_Number>(delta));
-
-    if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-      std::string error = lua_tostring(L, -1);
-      lua_pop(L, 2);
-      throw std::runtime_error(error);
-    }
-  } else {
-    lua_pop(L, 1);
-  }
-
-  lua_pop(L, 1);
-
-  for (auto&& [entity, proxy] : _registry.view<objectproxy>().each()) {
-    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
-      continue;
-
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-    lua_getfield(L, -1, "on_loop");
-
-    if (lua_isfunction(L, -1)) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-      lua_pushnumber(L, static_cast<lua_Number>(delta));
-
-      if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-        std::string error = lua_tostring(L, -1);
-        lua_pop(L, 2);
-        throw std::runtime_error(error);
-      }
-    } else {
-      lua_pop(L, 1);
-    }
-
-    lua_pop(L, 1);
   }
 
   for (auto* fx : _sounds) {

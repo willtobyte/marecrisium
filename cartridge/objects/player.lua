@@ -13,7 +13,7 @@ return {
 	end,
 
 	on_loop = function(self, delta)
-		local speed = 100 * delta
+		local speed = 300 * delta
 
 		if keyboard.w then
 			self.y = self.y - speed
