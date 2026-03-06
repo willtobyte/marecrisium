@@ -27,14 +27,14 @@ namespace {
 
   int sound_on_begin(lua_State* state) {
     auto** ptr = static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    auto* fx = *ptr;
+    auto* s = *ptr;
     luaL_checktype(state, 2, LUA_TFUNCTION);
 
-    if (fx->on_begin != LUA_NOREF)
-      luaL_unref(state, LUA_REGISTRYINDEX, fx->on_begin);
+    if (s->on_begin != LUA_NOREF)
+      luaL_unref(state, LUA_REGISTRYINDEX, s->on_begin);
 
     lua_pushvalue(state, 2);
-    fx->on_begin = luaL_ref(state, LUA_REGISTRYINDEX);
+    s->on_begin = luaL_ref(state, LUA_REGISTRYINDEX);
     return 0;
   }
 
