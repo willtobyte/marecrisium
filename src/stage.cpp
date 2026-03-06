@@ -571,6 +571,10 @@ void stage::draw() const {
     const auto dw = fr.w * tf.scale;
     const auto dh = fr.h * tf.scale;
 
+    if (tf.x + dw < .0f || tf.x > viewport.width ||
+        tf.y + dh < .0f || tf.y > viewport.height)
+      continue;
+
     a.pixmap->draw(
       fr.x, fr.y, fr.w, fr.h,
       tf.x, tf.y, dw, dh,
