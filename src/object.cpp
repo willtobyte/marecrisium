@@ -147,7 +147,7 @@ namespace {
             const auto previous = a.playing ? a.clips[a.active].name : entt::id_type{};
             a.active = i;
             a.current = 0;
-            a.elapsed = 0.0f;
+            a.elapsed = .0f;
             a.playing = true;
 
             if (proxy->prototype != LUA_NOREF && proxy->handle != LUA_NOREF) {

@@ -141,7 +141,7 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
                 lua_pop(L, 1);
 
                 lua_rawgeti(L, -1, 5);
-                fr.duration = static_cast<float>(lua_tonumber(L, -1)) / 1000.0f;
+                fr.duration = static_cast<float>(lua_tonumber(L, -1)) / 1000.f;
                 lua_pop(L, 1);
 
                 lua_rawgeti(L, -1, 6);
@@ -359,8 +359,8 @@ void stage::update(float delta) {
         if (b2Shape_IsValid(ph.shape)) {
           b2DestroyShape(ph.shape, false);
           ph.shape = b2_nullShapeId;
-          ph.cached_hx = 0.0f;
-          ph.cached_hy = 0.0f;
+          ph.cached_hx = .0f;
+          ph.cached_hy = .0f;
         }
 
         continue;
@@ -369,12 +369,12 @@ void stage::update(float delta) {
       const auto& frame = an.clips[an.active].frames[an.current];
 
       if (!frame.collidable || tf.alpha <= .0f ||
-          frame.cw <= 0.0f || frame.ch <= 0.0f) {
+          frame.cw <= .0f || frame.ch <= .0f) {
         if (b2Shape_IsValid(ph.shape)) {
           b2DestroyShape(ph.shape, false);
           ph.shape = b2_nullShapeId;
-          ph.cached_hx = 0.0f;
-          ph.cached_hy = 0.0f;
+          ph.cached_hx = .0f;
+          ph.cached_hy = .0f;
         }
 
         continue;
@@ -401,7 +401,7 @@ void stage::update(float delta) {
 
       const auto cx = tf.x + frame.cx * tf.scale + hx;
       const auto cy = tf.y + frame.cy * tf.scale + hy;
-      const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.0f);
+      const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
       b2Body_SetTransform(ph.id, {cx, cy}, b2MakeRot(radians));
     }
 
@@ -442,11 +442,11 @@ void stage::update(float delta) {
         const auto aabb = b2Shape_GetAABB(ph.shape);
 
         uint8_t current = 0;
-        if (aabb.upperBound.x < 0.0f)
+        if (aabb.upperBound.x < .0f)
           current |= boundary::left;
         if (aabb.lowerBound.x > viewport.width)
           current |= boundary::right;
-        if (aabb.upperBound.y < 0.0f)
+        if (aabb.upperBound.y < .0f)
           current |= boundary::top;
         if (aabb.lowerBound.y > viewport.height)
           current |= boundary::bottom;
@@ -479,12 +479,12 @@ void stage::update(float delta) {
 
     const auto& fr = c.frames[a.current];
 
-    if (fr.duration < 0.0f)
+    if (fr.duration < .0f)
       continue;
 
     a.elapsed += delta;
 
-    while (a.elapsed >= fr.duration && fr.duration > 0.0f) {
+    while (a.elapsed >= fr.duration && fr.duration > .0f) {
       a.elapsed -= fr.duration;
       ++a.current;
 
@@ -661,7 +661,7 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
   std::vector<hit> hits;
   hits.reserve(16);
 
-  const auto radians = angle * (std::numbers::pi_v<float> / 180.0f);
+  const auto radians = angle * (std::numbers::pi_v<float> / 180.f);
   const b2Vec2 origin{x, y};
   const b2Vec2 translation{std::cos(radians) * distance, std::sin(radians) * distance};
   const auto filter = b2DefaultQueryFilter();
