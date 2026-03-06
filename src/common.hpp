@@ -14,6 +14,7 @@
 #include <print>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <type_traits>
 #include <unordered_map>
 #include <variant>
@@ -21,6 +22,7 @@
 
 #include <box2d/box2d.h>
 #include <entt/entt.hpp>
+#include <libwebsockets.h>
 #include <lua.hpp>
 #include <lauxlib.h>
 #include <miniaudio.h>
@@ -28,6 +30,7 @@
 #include <physfs.h>
 #include <SDL3/SDL.h>
 #include <spng.h>
+#include <yyjson.h>
 
 extern lua_State* L;
 extern SDL_Renderer* renderer;

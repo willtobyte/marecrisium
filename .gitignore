@@ -12,3 +12,6 @@ CMakeUserPresets.json
 
 # Engine
 cassette.tape
+
+# Python
+.venv

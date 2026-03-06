@@ -10,12 +10,14 @@ class Nostalgia(ConanFile):
         for package in [
             "box2d/3.1.1",
             "entt/3.16.0",
+            "libwebsockets/4.3.5",
             "miniaudio/0.11.22",
             "physfs/3.2.0",
             "libspng/0.7.4",
             "sdl/3.4.0",
             "luajit/2.1.0-beta3",
             "opusfile/0.12",
+            "yyjson/0.12.0",
         ]:
             self.requires(package)
 

@@ -37,6 +37,7 @@ void scriptengine::run() {
   platform::wire();
   user::wire();
   internet::wire();
+  websocket::wire();
 
   auto e = engine();
   e.run();

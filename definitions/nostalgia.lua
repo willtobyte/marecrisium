@@ -413,3 +413,40 @@ platform = {}
 ---@param url string The URL to open.
 ---@return boolean success Whether the operation succeeded.
 function openurl(url) end
+
+--------------------------------------------------------------------------------
+-- WebSocket (WebSocket connection)
+--------------------------------------------------------------------------------
+
+---@class WebSocket
+---A WebSocket connection. Supports pub/sub messaging with JSON payloads.
+local WebSocket = {}
+
+---Subscribe to a topic. The callback receives decoded JSON data as a Lua table
+---whenever a message arrives on this topic.
+---@param topic string The topic name to subscribe to.
+---@param callback fun(data: table) Called with the decoded message data.
+---@return Subscription subscription Handle to publish or unsubscribe.
+function WebSocket:subscribe(topic, callback) end
+
+---@class Subscription
+---A subscription to a topic on a WebSocket connection.
+---Automatically unsubscribes on garbage collection.
+local Subscription = {}
+
+---Publish a table as JSON to this subscription's topic.
+---@param data table The data to send (encoded as JSON).
+function Subscription:publish(data) end
+
+---Unsubscribe from this topic. Also called automatically on garbage collection.
+function Subscription:unsubscribe() end
+
+---The topic name of this subscription (read-only).
+---@type string
+Subscription.topic = ""
+
+---Create a WebSocket connection to the given URL.
+---Only one connection can exist at a time; calling again replaces the previous one.
+---@param url string The WebSocket URL (wss:// or ws://).
+---@return WebSocket
+function WebSocket.new(url) end

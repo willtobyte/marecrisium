@@ -1,0 +1,110 @@
+#pragma once
+
+struct message {
+  std::string topic;
+  std::string payload;
+};
+
+template <typename T, size_t N = 64>
+class ringbuffer final {
+  static_assert((N & (N - 1)) == 0, "N must be a power of two");
+
+public:
+  void push(T item) noexcept {
+    const auto head = _head.load(std::memory_order_relaxed);
+    const auto tail = _tail.load(std::memory_order_acquire);
+    if (head - tail == N)
+      _tail.store(tail + 1, std::memory_order_release);
+    _data[head & MASK] = std::move(item);
+    _head.store(head + 1, std::memory_order_release);
+  }
+
+  bool try_pop(T& out) noexcept {
+    const auto tail = _tail.load(std::memory_order_relaxed);
+    const auto head = _head.load(std::memory_order_acquire);
+    if (tail == head) return false;
+    out = std::move(_data[tail & MASK]);
+    _tail.store(tail + 1, std::memory_order_release);
+    return true;
+  }
+
+private:
+  static constexpr size_t MASK = N - 1;
+  std::array<T, N> _data{};
+  alignas(64) std::atomic<size_t> _head{0};
+  alignas(64) std::atomic<size_t> _tail{0};
+};
+
+class subscription;
+
+class socketconn final {
+public:
+  explicit socketconn(std::string url);
+  ~socketconn();
+
+  socketconn(const socketconn&) = delete;
+  socketconn& operator=(const socketconn&) = delete;
+  socketconn(socketconn&&) = delete;
+  socketconn& operator=(socketconn&&) = delete;
+
+  void send(message msg) noexcept;
+  void poll();
+
+  void add_subscription(subscription* subscription);
+  void remove_subscription(subscription* subscription);
+
+private:
+  friend int lws_callback(struct lws*, enum lws_callback_reasons, void*, void*, size_t);
+
+  void run(std::stop_token token);
+  void connect();
+  void resubscribe_all();
+
+  std::string _url;
+  std::string _host;
+  std::string _path;
+  int _port{443};
+  bool _ssl{true};
+
+  struct lws_context* _context{nullptr};
+  struct lws* _wsi{nullptr};
+  bool _connected{false};
+
+  ringbuffer<message> _inbound;
+  ringbuffer<message> _outbound;
+
+  std::vector<subscription*> _subscriptions;
+  std::vector<uint8_t> _sendbuf;
+
+  std::jthread _thread;
+};
+
+class subscription final {
+public:
+  subscription(socketconn* owner, std::string topic, int callback_ref);
+  ~subscription();
+
+  subscription(const subscription&) = delete;
+  subscription& operator=(const subscription&) = delete;
+  subscription(subscription&&) = delete;
+  subscription& operator=(subscription&&) = delete;
+
+  void publish(lua_State* state, int idx);
+  void unsubscribe();
+
+  [[nodiscard]] const std::string& topic() const noexcept;
+  [[nodiscard]] int callback() const noexcept;
+  [[nodiscard]] bool active() const noexcept;
+
+private:
+  friend class socketconn;
+  socketconn* _owner;
+  std::string _topic;
+  int _callback{LUA_NOREF};
+  bool _active{true};
+};
+
+namespace websocket {
+  void wire();
+  void poll();
+}
