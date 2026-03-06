@@ -13,7 +13,7 @@ return {
 	end,
 
 	on_click = function(self, x, y, button)
-		print(button)
+		print(x, y, button)
 	end,
 
 	on_loop = function(self, delta)
