@@ -917,34 +917,7 @@ void stage::dispatch_hover(float x, float y) {
     },
     &_hits);
 
-  for (const auto entity : _hovering) {
-    if (_hits.contains(entity))
-      continue;
-
-    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
-      continue;
-
-    const auto& proxy = _registry.get<objectproxy>(entity);
-    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
-      continue;
-
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-    lua_getfield(L, -1, "on_unhover");
-
-    if (lua_isfunction(L, -1)) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-
-      if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-        std::string error = lua_tostring(L, -1);
-        lua_pop(L, 1);
-        throw std::runtime_error(error);
-      }
-    } else {
-      lua_pop(L, 1);
-    }
-
-    lua_pop(L, 1);
-  }
+  dispatch_unhover();
 
   for (const auto entity : _hits) {
     if (_hovering.contains(entity))
@@ -976,6 +949,37 @@ void stage::dispatch_hover(float x, float y) {
   }
 
   _hovering.swap(_hits);
+}
+
+void stage::dispatch_unhover() {
+  for (const auto entity : _hovering) {
+    if (_hits.contains(entity))
+      continue;
+
+    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
+      continue;
+
+    const auto& proxy = _registry.get<objectproxy>(entity);
+    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
+      continue;
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+    lua_getfield(L, -1, "on_unhover");
+
+    if (lua_isfunction(L, -1)) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+
+      if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
+        std::string error = lua_tostring(L, -1);
+        lua_pop(L, 1);
+        throw std::runtime_error(error);
+      }
+    } else {
+      lua_pop(L, 1);
+    }
+
+    lua_pop(L, 1);
+  }
 }
 
 void stage::dispatch_screen_event(

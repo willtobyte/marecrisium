@@ -46,6 +46,8 @@ private:
 
   void dispatch_hover(float x, float y);
 
+  void dispatch_unhover();
+
   void dispatch_collision(entt::entity entity, entt::entity other_entity, const char* callback_name);
 
   void dispatch_screen_event(const objectproxy& proxy, const char* callback_name, std::string_view direction);
