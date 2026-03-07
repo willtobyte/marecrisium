@@ -240,20 +240,20 @@ void tilemap::draw_layer(
   const auto sx = viewport.width / camera.w;
   const auto sy = viewport.height / camera.h;
 
-  thread_local std::vector<SDL_Vertex> transformed;
-  transformed.resize(vertices.size());
+  static std::vector<SDL_Vertex> buffer;
+  buffer.resize(vertices.size());
 
   for (auto i = 0uz; i < vertices.size(); ++i) {
-    transformed[i] = vertices[i];
-    transformed[i].position.x = (vertices[i].position.x - camera.x) * sx;
-    transformed[i].position.y = (vertices[i].position.y - camera.y) * sy;
+    buffer[i] = vertices[i];
+    buffer[i].position.x = (vertices[i].position.x - camera.x) * sx;
+    buffer[i].position.y = (vertices[i].position.y - camera.y) * sy;
   }
 
   SDL_RenderGeometry(
     renderer,
     static_cast<SDL_Texture*>(*tileset),
-    transformed.data(),
-    static_cast<int>(transformed.size()),
+    buffer.data(),
+    static_cast<int>(buffer.size()),
     indices.data(),
     static_cast<int>(indices.size())
   );
