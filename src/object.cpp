@@ -186,7 +186,15 @@ namespace {
     }
 
     if (key == "angle") {
-      registry.get<transform>(entity).angle = static_cast<float>(luaL_checknumber(state, 3));
+      auto& tf = registry.get<transform>(entity);
+      tf.angle = static_cast<float>(luaL_checknumber(state, 3));
+
+      auto* bd = registry.try_get<body>(entity);
+      if (bd && bd->type != body_type::kinematic && b2Body_IsValid(bd->id)) {
+        const auto position = b2Body_GetPosition(bd->id);
+        b2Body_SetTransform(bd->id, position, b2MakeRot(tf.angle * (std::numbers::pi_v<float> / 180.f)));
+      }
+
       return 0;
     }
 

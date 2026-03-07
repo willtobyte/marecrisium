@@ -427,53 +427,85 @@ void stage::update(float delta) {
       const auto hy = frame.ch * tf.scale * 0.5f;
 
       if (hx != bd.cached_hx || hy != bd.cached_hy) {
-        if (b2Shape_IsValid(bd.shape))
-          b2DestroyShape(bd.shape, false);
-
         const auto polygon = b2MakeBox(hx, hy);
-        auto sdef = b2DefaultShapeDef();
-        sdef.userData =
-            reinterpret_cast<void*>(static_cast<uintptr_t>(en));
 
-        if (bd.type == body_type::kinematic) {
-          sdef.isSensor = true;
-          sdef.enableSensorEvents = true;
+        if (b2Shape_IsValid(bd.shape)) {
+          b2Shape_SetPolygon(bd.shape, &polygon);
+
+          if (bd.type == body_type::dynamic)
+            b2Body_ApplyMassFromShapes(bd.id);
         } else {
-          sdef.isSensor = false;
-          sdef.enableContactEvents = true;
-          sdef.enableSensorEvents = true;
-          if (bd.type == body_type::dynamic) {
-            sdef.density = 1.f;
+          auto sdef = b2DefaultShapeDef();
+          sdef.userData =
+              reinterpret_cast<void*>(static_cast<uintptr_t>(en));
+
+          switch (bd.type) {
+            case body_type::kinematic: {
+              sdef.isSensor = true;
+              sdef.enableSensorEvents = true;
+            } break;
+            case body_type::dynamic: {
+              sdef.enableContactEvents = true;
+              sdef.enableSensorEvents = true;
+              sdef.density = 1.f;
+            } break;
+            case body_type::fixed: {
+              sdef.enableContactEvents = true;
+              sdef.enableSensorEvents = true;
+            } break;
           }
+
+          bd.shape =
+              b2CreatePolygonShape(bd.id, &sdef, &polygon);
         }
 
-        bd.shape =
-            b2CreatePolygonShape(bd.id, &sdef, &polygon);
         bd.cached_hx = hx;
         bd.cached_hy = hy;
       }
 
-      if (bd.type != body_type::dynamic) {
-        const auto cx = tf.x + frame.cx * tf.scale + hx;
-        const auto cy = tf.y + frame.cy * tf.scale + hy;
-        const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
-        b2Body_SetTransform(bd.id, {cx, cy}, b2MakeRot(radians));
+      switch (bd.type) {
+        case body_type::kinematic: {
+          const auto cx = tf.x + frame.cx * tf.scale + hx;
+          const auto cy = tf.y + frame.cy * tf.scale + hy;
+          const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
+          b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(radians)}, FIXED_TIMESTEP);
+        } break;
+        case body_type::fixed: {
+          const auto cx = tf.x + frame.cx * tf.scale + hx;
+          const auto cy = tf.y + frame.cy * tf.scale + hy;
+          const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
+          b2Body_SetTransform(bd.id, {cx, cy}, b2MakeRot(radians));
+        } break;
+        case body_type::dynamic:
+          break;
       }
     }
 
     b2World_Step(_world, FIXED_TIMESTEP, WORLD_SUBSTEPS);
 
-    for (auto&& [en, bd, an, tf] :
-         _registry.view<body, animation, transform>().each()) {
-      if (bd.type != body_type::dynamic || !an.playing || an.clip_count == 0)
+    const auto body_events = b2World_GetBodyEvents(_world);
+
+    for (int i = 0; i < body_events.moveCount; ++i) {
+      const auto& event = body_events.moveEvents[i];
+      const auto entity = static_cast<entt::entity>(
+          reinterpret_cast<uintptr_t>(event.userData));
+
+      if (!_registry.valid(entity)) [[unlikely]]
         continue;
 
-      const auto& frame = an.clips[an.active].frames[an.current];
-      const auto position = b2Body_GetPosition(bd.id);
-      const auto hx = bd.cached_hx;
-      const auto hy = bd.cached_hy;
-      tf.x = position.x - frame.cx * tf.scale - hx;
-      tf.y = position.y - frame.cy * tf.scale - hy;
+      const auto* bd = _registry.try_get<body>(entity);
+      if (!bd || bd->type != body_type::dynamic)
+        continue;
+
+      const auto* an = _registry.try_get<animation>(entity);
+      if (!an || !an->playing || an->clip_count == 0)
+        continue;
+
+      auto& tf = _registry.get<transform>(entity);
+      const auto& frame = an->clips[an->active].frames[an->current];
+      const auto position = event.transform.p;
+      tf.x = position.x - frame.cx * tf.scale - bd->cached_hx;
+      tf.y = position.y - frame.cy * tf.scale - bd->cached_hy;
     }
 
     const auto sensor_events = b2World_GetSensorEvents(_world);
