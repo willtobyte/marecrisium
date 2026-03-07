@@ -188,6 +188,11 @@ function Stage.on_leave() end
 ---@param delta number Frame delta time in seconds.
 function Stage.on_loop(self, delta) end
 
+---Called every frame to determine the camera view rect.
+---If not defined, defaults to 0, 0, viewport.width, viewport.height.
+---@return number x, number y, number w, number h
+function Stage.on_camera() end
+
 ---Called when a click occurs but no collidable object is hit.
 ---@param x number Click X position in world coordinates.
 ---@param y number Click Y position in world coordinates.

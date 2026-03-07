@@ -33,6 +33,7 @@ private:
   std::vector<sound*> _sounds;
   b2WorldId _world;
   float _accumulator = .0f;
+  camera _camera;
   uint32_t _mouse_previous_buttons{};
   std::unordered_set<entt::entity> _hovering;
   std::unordered_set<entt::entity> _hits;

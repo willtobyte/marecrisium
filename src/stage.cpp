@@ -291,6 +291,8 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
   }
   lua_pop(L, 1);
 
+  _camera = {.0f, .0f, viewport.width, viewport.height};
+
   _reference = luaL_ref(L, LUA_REGISTRYINDEX);
 }
 
@@ -336,9 +338,34 @@ void stage::on_leave() {
 }
 
 void stage::update(float delta) {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_getfield(L, -1, "on_camera");
+
+  if (lua_isfunction(L, -1)) {
+    if (lua_pcall(L, 0, 4, 0) != 0) [[unlikely]] {
+      std::string error = lua_tostring(L, -1);
+      lua_pop(L, 2);
+      throw std::runtime_error(error);
+    }
+
+    _camera.x = static_cast<float>(lua_tonumber(L, -4));
+    _camera.y = static_cast<float>(lua_tonumber(L, -3));
+    _camera.w = static_cast<float>(lua_tonumber(L, -2));
+    _camera.h = static_cast<float>(lua_tonumber(L, -1));
+    lua_pop(L, 4);
+  } else {
+    lua_pop(L, 1);
+    _camera = {.0f, .0f, viewport.width, viewport.height};
+  }
+
+  lua_pop(L, 1);
+
   float wx, wy;
   const auto buttons = SDL_GetMouseState(&wx, &wy);
   SDL_RenderCoordinatesFromWindow(renderer, wx, wy, &wx, &wy);
+
+  wx = _camera.x + (wx / viewport.width) * _camera.w;
+  wy = _camera.y + (wy / viewport.height) * _camera.h;
 
   const auto released = _mouse_previous_buttons & ~buttons;
   _mouse_previous_buttons = buttons;
@@ -569,13 +596,13 @@ void stage::update(float delta) {
         const auto aabb = b2Shape_GetAABB(bd.shape);
 
         uint8_t current = 0;
-        if (aabb.upperBound.x < .0f)
+        if (aabb.upperBound.x < _camera.x)
           current |= boundary::left;
-        if (aabb.lowerBound.x > viewport.width)
+        if (aabb.lowerBound.x > _camera.x + _camera.w)
           current |= boundary::right;
-        if (aabb.upperBound.y < .0f)
+        if (aabb.upperBound.y < _camera.y)
           current |= boundary::top;
-        if (aabb.lowerBound.y > viewport.height)
+        if (aabb.lowerBound.y > _camera.y + _camera.h)
           current |= boundary::bottom;
 
         const auto exited = static_cast<uint8_t>(current & ~sb.previous);
@@ -684,13 +711,16 @@ void stage::draw() const {
     const auto dw = fr.w * tf.scale;
     const auto dh = fr.h * tf.scale;
 
-    if (tf.x + dw < .0f || tf.x > viewport.width ||
-        tf.y + dh < .0f || tf.y > viewport.height)
+    if (tf.x + dw < _camera.x || tf.x > _camera.x + _camera.w ||
+        tf.y + dh < _camera.y || tf.y > _camera.y + _camera.h)
       continue;
+
+    const auto sx = viewport.width / _camera.w;
+    const auto sy = viewport.height / _camera.h;
 
     a.pixmap->draw(
       fr.x, fr.y, fr.w, fr.h,
-      tf.x, tf.y, dw, dh,
+      (tf.x - _camera.x) * sx, (tf.y - _camera.y) * sy, dw * sx, dh * sy,
       static_cast<double>(tf.angle),
       static_cast<uint8_t>(std::clamp(tf.alpha, .0f, 255.0f))
     );
@@ -699,10 +729,14 @@ void stage::draw() const {
 #ifdef DEBUG
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
 
-  const b2AABB aabb = {{0, 0}, {viewport.width, viewport.height}};
+  const b2AABB aabb = {{_camera.x, _camera.y}, {_camera.x + _camera.w, _camera.y + _camera.h}};
   const b2QueryFilter filter = b2DefaultQueryFilter();
 
-  b2World_OverlapAABB(_world, aabb, filter, [](b2ShapeId shape, void*) -> bool {
+  const auto* cam = &_camera;
+  b2World_OverlapAABB(_world, aabb, filter, [](b2ShapeId shape, void* userdata) -> bool {
+    const auto* cam = static_cast<const camera*>(userdata);
+    const auto sx = viewport.width / cam->w;
+    const auto sy = viewport.height / cam->h;
     const auto body_id = b2Shape_GetBody(shape);
     const auto xf = b2Body_GetTransform(body_id);
     const auto polygon = b2Shape_GetPolygon(shape);
@@ -710,11 +744,13 @@ void stage::draw() const {
     for (int i = 0; i < polygon.count; ++i) {
       const auto a = b2TransformPoint(xf, polygon.vertices[i]);
       const auto b = b2TransformPoint(xf, polygon.vertices[(i + 1) % polygon.count]);
-      SDL_RenderLine(renderer, a.x, a.y, b.x, b.y);
+      SDL_RenderLine(renderer,
+        (a.x - cam->x) * sx, (a.y - cam->y) * sy,
+        (b.x - cam->x) * sx, (b.y - cam->y) * sy);
     }
 
     return true;
-  }, nullptr);
+  }, const_cast<camera*>(cam));
 
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 #endif

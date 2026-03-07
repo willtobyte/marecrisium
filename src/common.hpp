@@ -48,6 +48,13 @@ struct viewport {
 extern struct viewport viewport;
 extern b2Vec2 gravity;
 
+struct camera final {
+  float x{};
+  float y{};
+  float w{};
+  float h{};
+};
+
 struct SDL_Deleter final {
   template <typename T>
   void operator()(T* ptr) const noexcept {
