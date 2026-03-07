@@ -306,6 +306,15 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
   if (lua_isstring(L, -1)) {
     const std::string_view tilemap_name = lua_tostring(L, -1);
     _tilemap = std::make_unique<tilemap>(tilemap_name, _pixmappool, _world);
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
+    lua_newtable(L);
+    lua_pushnumber(L, static_cast<lua_Number>(_tilemap->width()));
+    lua_setfield(L, -2, "width");
+    lua_pushnumber(L, static_cast<lua_Number>(_tilemap->height()));
+    lua_setfield(L, -2, "height");
+    lua_setfield(L, -2, "tilemap");
+    lua_pop(L, 1);
   }
   lua_pop(L, 1);
 
@@ -380,7 +389,10 @@ void stage::update(float delta) {
   lua_getfield(L, -1, "on_camera");
 
   if (lua_isfunction(L, -1)) {
-    if (lua_pcall(L, 0, 4, 0) != 0) [[unlikely]] {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    lua_pushnumber(L, static_cast<lua_Number>(delta));
+
+    if (lua_pcall(L, 2, 4, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
       lua_pop(L, 2);
       throw std::runtime_error(error);

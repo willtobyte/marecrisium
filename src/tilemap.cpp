@@ -220,6 +220,14 @@ void tilemap::build_collision(const std::vector<uint8_t>& collision, b2WorldId w
   }
 }
 
+int tilemap::width() const noexcept {
+  return _columns * _tile;
+}
+
+int tilemap::height() const noexcept {
+  return _rows * _tile;
+}
+
 void tilemap::draw_background(const camera& camera) const noexcept {
   draw_layer(_tileset, _background_vertices, _background_indices, camera);
 }

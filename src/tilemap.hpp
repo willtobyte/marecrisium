@@ -7,6 +7,9 @@ public:
   tilemap(std::string_view name, pixmappool& pixmaps, b2WorldId world);
   ~tilemap();
 
+  [[nodiscard]] int width() const noexcept;
+  [[nodiscard]] int height() const noexcept;
+
   void draw_background(const camera& camera) const noexcept;
 
   void draw_foreground(const camera& camera) const noexcept;

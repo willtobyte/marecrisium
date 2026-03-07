@@ -173,6 +173,15 @@ cassette = {}
 -- Stage (scripts returned by stages/<name>.lua)
 --------------------------------------------------------------------------------
 
+---@class Tilemap
+---Available as a stage environment global (`tilemap`) after a stage with a tilemap is loaded.
+---Each stage has its own isolated `tilemap` global.
+---@field width number Total tilemap width in pixels (columns * tile size).
+---@field height number Total tilemap height in pixels (rows * tile size).
+
+---@type Tilemap
+tilemap = {}
+
 ---@class Stage
 ---A stage script (`stages/<name>.lua`) returns a table that may contain
 ---these lifecycle callbacks plus `objects` and `sounds` tables.
@@ -199,8 +208,10 @@ function Stage.on_loop(self, delta) end
 
 ---Called every frame to determine the camera view rect.
 ---If not defined, defaults to 0, 0, viewport.width, viewport.height.
+---@param self table The stage table itself.
+---@param delta number Frame delta time in seconds.
 ---@return number x, number y, number w, number h
-function Stage.on_camera() end
+function Stage.on_camera(self, delta) end
 
 ---Called when a click occurs but no collidable object is hit.
 ---@param x number Click X position in world coordinates.
