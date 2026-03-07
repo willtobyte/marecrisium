@@ -291,6 +291,20 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
   }
   lua_pop(L, 1);
 
+  lua_getfield(L, -1, "background");
+  if (lua_isstring(L, -1)) {
+    const std::string_view background_name = lua_tostring(L, -1);
+    _background = &_pixmappool.get(std::format("backgrounds/{}", background_name));
+  }
+  lua_pop(L, 1);
+
+  lua_getfield(L, -1, "tilemap");
+  if (lua_isstring(L, -1)) {
+    const std::string_view tilemap_name = lua_tostring(L, -1);
+    _tilemap = std::make_unique<tilemap>(tilemap_name, _pixmappool, _world);
+  }
+  lua_pop(L, 1);
+
   _camera = {.0f, .0f, viewport.width, viewport.height};
 
   _reference = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -698,6 +712,14 @@ void stage::update(float delta) {
 }
 
 void stage::draw() const {
+  if (_background) {
+    const SDL_FRect destination{.0f, .0f, viewport.width, viewport.height};
+    SDL_RenderTexture(renderer, static_cast<SDL_Texture*>(*_background), nullptr, &destination);
+  }
+
+  if (_tilemap)
+    _tilemap->draw_background(_camera);
+
   for (auto&& [entity, a, tf] : _registry.view<animation, transform>().each()) {
     if (!tf.shown || !a.playing || !a.pixmap || a.clip_count == 0) [[unlikely]]
       continue;
@@ -725,6 +747,9 @@ void stage::draw() const {
       static_cast<uint8_t>(std::clamp(tf.alpha, .0f, 255.0f))
     );
   }
+
+  if (_tilemap)
+    _tilemap->draw_foreground(_camera);
 
 #ifdef DEBUG
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);

@@ -175,6 +175,8 @@ cassette = {}
 ---@class Stage
 ---A stage script (`stages/<name>.lua`) returns a table that may contain
 ---these lifecycle callbacks plus `objects` and `sounds` tables.
+---@field background string|nil Background image name. Renders full-screen behind everything. Loads from `blobs/backgrounds/<name>.png`.
+---@field tilemap string|nil Tilemap name. Loads data from `tilemaps/<name>.lua` and tileset from `blobs/tilemaps/<tileset>.png`.
 local Stage = {}
 
 ---Called when the director navigates to this stage.
@@ -482,3 +484,20 @@ Subscription.topic = ""
 ---@param url string The WebSocket URL (wss:// or ws://).
 ---@return WebSocket
 function WebSocket.new(url) end
+
+--------------------------------------------------------------------------------
+-- Tilemap (data returned by tilemaps/<name>.lua)
+--------------------------------------------------------------------------------
+
+---@class TilemapData
+---A tilemap data file (`tilemaps/<name>.lua`) returns a table describing
+---the tile layout, collision, and tileset reference.
+---Tile IDs are 1-based (0 = empty). The tileset PNG is organized in a grid
+---where ID 1 = first tile (top-left), ID 2 = second tile, etc.
+---@field tileset string Tileset name. Loads PNG from `blobs/tilemaps/<tileset>.png`.
+---@field tile integer Tile size in pixels (square).
+---@field columns integer Map width in tiles.
+---@field rows integer Map height in tiles.
+---@field background integer[] Background layer tile IDs (columns * rows). Drawn behind objects.
+---@field foreground integer[] Foreground layer tile IDs (columns * rows). Drawn in front of objects.
+---@field collision integer[] Collision grid (columns * rows). 1 = solid, 0 = passable.

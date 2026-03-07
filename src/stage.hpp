@@ -4,6 +4,7 @@ class pixmappool;
 class soundpool;
 class sourcepool;
 class stringpool;
+class tilemap;
 
 class stage final {
 public:
@@ -40,6 +41,8 @@ private:
   int _reference = LUA_NOREF;
   int _environment_reference = LUA_NOREF;
   int _pool_reference = LUA_NOREF;
+  std::unique_ptr<tilemap> _tilemap;
+  const pixmap* _background{};
 
   void dispatch_click(float x, float y, const char* button);
 
