@@ -166,6 +166,7 @@ cassette = {}
 ---@field scale number Render scale factor.
 ---@field fullscreen boolean Whether to start in fullscreen mode.
 ---@field gravity number[]|nil World gravity as {gx, gy}. Default is {0, 0} (no gravity). Set to e.g. {0, 980} for a platformer.
+---@field ticks integer|nil Fixed tick rate (ticks per second). Default is 0 (disabled). Set to e.g. 10 for 10 ticks/second.
 ---@field on_begin fun() Called once after the engine is fully initialized.
 
 --------------------------------------------------------------------------------
@@ -184,6 +185,12 @@ function Stage.on_enter() end
 
 ---Called when the director navigates away from this stage.
 function Stage.on_leave() end
+
+---Called at fixed tick rate while this stage is active.
+---Only fires when `ticks` is set in MainConfig.
+---@param self table The stage table itself.
+---@param tick number Monotonically increasing tick counter (starts at 1).
+function Stage.on_tick(self, tick) end
 
 ---Called every frame while this stage is active.
 ---@param self table The stage table itself.
@@ -502,3 +509,61 @@ function WebSocket.new(url) end
 ---@field background integer[] Background layer tile IDs (columns * rows). Drawn behind objects.
 ---@field foreground integer[] Foreground layer tile IDs (columns * rows). Drawn in front of objects.
 ---@field collision integer[] Collision grid (columns * rows). 1 = solid, 0 = passable.
+
+--------------------------------------------------------------------------------
+-- Moment (time)
+--------------------------------------------------------------------------------
+
+---Returns the current time in milliseconds since engine initialization.
+---Useful for absolute timestamps, countdowns, and sub-tick timing.
+---@return number milliseconds
+function moment() end
+
+--------------------------------------------------------------------------------
+-- Ticker (Lua-side tick-based timer system)
+--------------------------------------------------------------------------------
+
+---@class Ticker
+---Pure Lua timer system driven by the engine's fixed tick rate.
+---Require via `require("helpers/ticker")`.
+---
+---Usage:
+---```lua
+---local ticker = require("helpers/ticker")
+---
+----- One-shot: fire after 30 ticks
+---ticker.after(30, function() print("done") end)
+---
+----- Repeating: fire every 10 ticks
+---local timer = ticker.every(10, function() print("tick") end)
+---ticker.cancel(timer)
+---
+----- Wrap a stage to auto-advance and auto-clear on leave
+---ticker.wrap(stage)
+---```
+local Ticker = {}
+
+---Schedule a one-shot callback after a number of ticks.
+---@param ticks integer Number of ticks to wait.
+---@param callback fun() Function to call when ticks elapse.
+---@return table timer Timer handle for cancellation.
+function Ticker.after(ticks, callback) end
+
+---Schedule a repeating callback every N ticks.
+---@param ticks integer Interval in ticks.
+---@param callback fun() Function to call each interval.
+---@return table timer Timer handle for cancellation.
+function Ticker.every(ticks, callback) end
+
+---Cancel a timer by its handle.
+---@param timer table The handle returned by `after` or `every`.
+function Ticker.cancel(timer) end
+
+---Cancel all active timers.
+function Ticker.clear() end
+
+---Decorate a stage table to auto-advance timers on `on_tick`
+---and auto-clear on `on_leave`. Chains with existing callbacks.
+---@param stage Stage The stage table to wrap.
+---@return Stage stage The same table, modified in place.
+function Ticker.wrap(stage) end

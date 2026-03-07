@@ -108,6 +108,12 @@ void director::transition() {
   _current->on_enter();
 }
 
+void director::on_tick(uint64_t tick) {
+  if (_current) [[likely]] {
+    _current->on_tick(tick);
+  }
+}
+
 void director::update(float delta) {
   if (_current) [[likely]] {
     _current->update(delta);

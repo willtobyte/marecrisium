@@ -35,6 +35,7 @@ void scriptengine::run() {
   keyboard::wire();
   mouse::wire();
   platform::wire();
+  runtime::wire();
   user::wire();
   internet::wire();
   websocket::wire();

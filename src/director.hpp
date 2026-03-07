@@ -22,6 +22,8 @@ public:
 
   void transition();
 
+  void on_tick(uint64_t tick);
+
   void update(float delta);
 
   void draw() const;

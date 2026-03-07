@@ -45,6 +45,14 @@ engine::engine() {
   }
   lua_pop(L, 1);
 
+  lua_getfield(L, -1, "ticks");
+  if (lua_isnumber(L, -1)) {
+    const auto ticks = static_cast<int>(lua_tonumber(L, -1));
+    if (ticks > 0)
+      _tick_interval = 1.f / static_cast<float>(ticks);
+  }
+  lua_pop(L, 1);
+
   lua_getfield(L, -1, "title");
   const std::string_view title = lua_isstring(L, -1) ? lua_tostring(L, -1) : "Untitled";
 
@@ -132,7 +140,7 @@ void engine::loop() {
   const auto now = SDL_GetPerformanceCounter();
   static auto prior = now;
   static const auto frequency = static_cast<double>(SDL_GetPerformanceFrequency());
-  const auto delta = std::min(static_cast<float>(static_cast<double>(now - prior) / frequency), .05f);
+  const auto delta = std::min(static_cast<float>(static_cast<double>(now - prior) / frequency), 1.f / 30.f);
   prior = now;
 
 #ifdef DEVELOPMENT
@@ -155,6 +163,16 @@ void engine::loop() {
   websocket::poll();
 
   _director.transition();
+
+  if (_tick_interval > .0f) {
+    _tick_accumulator += delta;
+
+    while (_tick_accumulator >= _tick_interval) {
+      _tick_accumulator -= _tick_interval;
+      _director.on_tick(++_tick);
+    }
+  }
+
   _director.update(delta);
 
   SDL_RenderClear(renderer);

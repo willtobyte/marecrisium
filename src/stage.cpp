@@ -351,6 +351,26 @@ void stage::on_leave() {
   lua_pop(L, 1);
 }
 
+void stage::on_tick(uint64_t tick) {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_getfield(L, -1, "on_tick");
+
+  if (lua_isfunction(L, -1)) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    lua_pushnumber(L, static_cast<lua_Number>(tick));
+
+    if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
+      std::string error = lua_tostring(L, -1);
+      lua_pop(L, 2);
+      throw std::runtime_error(error);
+    }
+  } else {
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
+}
+
 void stage::update(float delta) {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_getfield(L, -1, "on_camera");
