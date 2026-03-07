@@ -439,85 +439,75 @@ void stage::update(float delta) {
   while (_accumulator >= FIXED_TIMESTEP) {
     for (auto&& [en, bd, an, tf] :
          _registry.view<body, animation, transform>().each()) {
-      if (!an.playing || an.clip_count == 0) {
-        if (b2Shape_IsValid(bd.shape)) {
-          b2DestroyShape(bd.shape, false);
-          bd.shape = b2_nullShapeId;
-          bd.cached_hx = .0f;
-          bd.cached_hy = .0f;
-        }
-
-        continue;
-      }
-
+      const auto active = an.playing && an.clip_count > 0;
       const auto& frame = an.clips[an.active].frames[an.current];
+      const auto visible = active && frame.collidable &&
+                           tf.alpha > .0f && frame.cw > .0f && frame.ch > .0f;
 
-      if (!frame.collidable || tf.alpha <= .0f ||
-          frame.cw <= .0f || frame.ch <= .0f) {
+      if (!visible) {
         if (b2Shape_IsValid(bd.shape)) {
           b2DestroyShape(bd.shape, false);
           bd.shape = b2_nullShapeId;
           bd.cached_hx = .0f;
           bd.cached_hy = .0f;
         }
-
         continue;
       }
 
-      const auto hx = frame.cw * tf.scale * 0.5f;
-      const auto hy = frame.ch * tf.scale * 0.5f;
-
-      if (hx != bd.cached_hx || hy != bd.cached_hy) {
+      if (!b2Shape_IsValid(bd.shape)) {
+        const auto hx = frame.cw * tf.scale * .5f;
+        const auto hy = frame.ch * tf.scale * .5f;
         const auto polygon = b2MakeBox(hx, hy);
 
-        if (b2Shape_IsValid(bd.shape)) {
-          b2Shape_SetPolygon(bd.shape, &polygon);
+        auto sdef = b2DefaultShapeDef();
+        sdef.userData = reinterpret_cast<void*>(static_cast<uintptr_t>(en));
 
-          if (bd.type == body_type::dynamic)
-            b2Body_ApplyMassFromShapes(bd.id);
-        } else {
-          auto sdef = b2DefaultShapeDef();
-          sdef.userData =
-              reinterpret_cast<void*>(static_cast<uintptr_t>(en));
-
-          switch (bd.type) {
-            case body_type::kinematic: {
-              sdef.isSensor = true;
-              sdef.enableSensorEvents = true;
-            } break;
-            case body_type::dynamic: {
-              sdef.enableContactEvents = true;
-              sdef.enableSensorEvents = true;
-              sdef.density = 1.f;
-            } break;
-            case body_type::fixed: {
-              sdef.enableContactEvents = true;
-              sdef.enableSensorEvents = true;
-            } break;
-          }
-
-          bd.shape =
-              b2CreatePolygonShape(bd.id, &sdef, &polygon);
+        switch (bd.type) {
+          case body_type::kinematic: {
+            sdef.isSensor = true;
+            sdef.enableSensorEvents = true;
+          } break;
+          case body_type::dynamic: {
+            sdef.enableContactEvents = true;
+            sdef.enableSensorEvents = true;
+            sdef.density = 1.f;
+          } break;
+          case body_type::fixed: {
+            sdef.enableContactEvents = true;
+            sdef.enableSensorEvents = true;
+          } break;
         }
 
+        bd.shape = b2CreatePolygonShape(bd.id, &sdef, &polygon);
         bd.cached_hx = hx;
         bd.cached_hy = hy;
+
+        const auto cx = tf.x + frame.cx * tf.scale + hx;
+        const auto cy = tf.y + frame.cy * tf.scale + hy;
+        const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
+
+        switch (bd.type) {
+          case body_type::kinematic: {
+            b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(radians)}, FIXED_TIMESTEP);
+          } break;
+          case body_type::dynamic:
+          case body_type::fixed: {
+            b2Body_SetTransform(bd.id, {cx, cy}, b2MakeRot(radians));
+          } break;
+        }
+
+        continue;
       }
 
       switch (bd.type) {
         case body_type::kinematic: {
-          const auto cx = tf.x + frame.cx * tf.scale + hx;
-          const auto cy = tf.y + frame.cy * tf.scale + hy;
+          const auto cx = tf.x + frame.cx * tf.scale + bd.cached_hx;
+          const auto cy = tf.y + frame.cy * tf.scale + bd.cached_hy;
           const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
           b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(radians)}, FIXED_TIMESTEP);
         } break;
-        case body_type::fixed: {
-          const auto cx = tf.x + frame.cx * tf.scale + hx;
-          const auto cy = tf.y + frame.cy * tf.scale + hy;
-          const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
-          b2Body_SetTransform(bd.id, {cx, cy}, b2MakeRot(radians));
-        } break;
         case body_type::dynamic:
+        case body_type::fixed:
           break;
       }
     }
