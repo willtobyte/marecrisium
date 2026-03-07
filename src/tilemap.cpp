@@ -19,10 +19,7 @@ tilemap::tilemap(std::string_view name, pixmappool& pixmaps, b2WorldId world) {
     throw std::runtime_error(error);
   }
 
-  lua_getfield(L, -1, "tileset");
-  const std::string_view tileset_name = lua_tostring(L, -1);
-  _tileset = &pixmaps.get(std::format("tilemaps/{}", tileset_name));
-  lua_pop(L, 1);
+  _tileset = &pixmaps.get(std::format("tilemaps/{}", name));
 
   lua_getfield(L, -1, "tile");
   _tile = static_cast<int>(lua_tonumber(L, -1));

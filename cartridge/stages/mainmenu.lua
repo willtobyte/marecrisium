@@ -6,8 +6,7 @@ local camera_y = 0
 local LERP = 5
 
 return ticker.wrap({
-	background = "forest_sky",
-	tilemap = "forest",
+	tilemap = "brownhill",
 
 	objects = {
 		{ name = "player", kind = "player" },
