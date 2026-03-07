@@ -85,7 +85,7 @@ void director::preload(std::string_view name) {
     return;
   }
 
-  _stages.emplace(std::string{name}, std::make_unique<stage>(name, *_pixmappool, *_soundpool, *_sourcepool));
+  _stages.emplace(name, std::make_unique<stage>(name, *_pixmappool, *_soundpool, *_sourcepool));
 }
 
 void director::transition() {
