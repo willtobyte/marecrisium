@@ -295,14 +295,14 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
   }
   lua_pop(L, 1);
 
-  lua_getfield(L, -1, "pixmaps");
+  lua_getfield(L, -1, "atlas");
   if (lua_istable(L, -1)) {
-    const auto pixmap_count = static_cast<int>(lua_objlen(L, -1));
-    for (int i = 1; i <= pixmap_count; ++i) {
+    const auto count = static_cast<int>(lua_objlen(L, -1));
+    for (int i = 1; i <= count; ++i) {
       lua_rawgeti(L, -1, i);
-      const auto* pixmap_name = lua_tostring(L, -1);
-      if (pixmap_name) [[likely]]
-        static_cast<void>(_pixmappool.get(pixmap_name));
+      const auto* atlas = lua_tostring(L, -1);
+      if (atlas) [[likely]]
+        static_cast<void>(_pixmappool.get(std::format("atlas/{}", atlas)));
       lua_pop(L, 1);
     }
   }

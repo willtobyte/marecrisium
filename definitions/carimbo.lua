@@ -182,7 +182,7 @@ cassette = {}
 ---these fields, lifecycle callbacks, and entity/sound declarations.
 ---@field objects StageObject[]|nil Objects to spawn when the stage is created.
 ---@field sounds string[]|nil Sound names to preload. Each `"foo"` loads `sounds/foo` and is accessible as `pool.foo`.
----@field pixmaps string[]|nil Pixmap names to preload (without .png). Loaded from `blobs/<name>.png`.
+---@field atlas string[]|nil Atlas names to preload. Loaded from `blobs/atlas/<name>.png`.
 local Stage = {}
 
 ---Called when the director navigates to this stage.
