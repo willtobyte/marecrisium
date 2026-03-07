@@ -2,13 +2,6 @@
 
 class pixmap final {
 public:
-  enum class flip : int {
-    none = SDL_FLIP_NONE,
-    horizontal = SDL_FLIP_HORIZONTAL,
-    vertical = SDL_FLIP_VERTICAL,
-    both = SDL_FLIP_HORIZONTAL | SDL_FLIP_VERTICAL
-  };
-
   pixmap() = delete;
   explicit pixmap(std::string_view filename);
   ~pixmap() = default;
@@ -18,7 +11,7 @@ public:
     const float dx, const float dy, const float dw, const float dh,
     const double angle = .0,
     const uint8_t alpha = 255,
-    const flip flip = flip::none
+    const SDL_FlipMode flip = SDL_FlipMode::SDL_FLIP_NONE
   ) const noexcept;
 
   operator SDL_Texture*() const noexcept;

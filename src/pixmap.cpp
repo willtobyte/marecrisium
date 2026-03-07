@@ -34,13 +34,13 @@ void pixmap::draw(
     const float dx, const float dy, const float dw, const float dh,
     const double angle,
     const uint8_t alpha,
-    const flip flip
+    const SDL_FlipMode flip
 ) const noexcept {
   const SDL_FRect source{ sx, sy, sw, sh };
   const SDL_FRect destination{ dx, dy, dw, dh };
 
   SDL_SetTextureAlphaMod(_texture.get(), alpha);
-  SDL_RenderTextureRotated(renderer, _texture.get(), &source, &destination, angle, nullptr, static_cast<SDL_FlipMode>(flip));
+  SDL_RenderTextureRotated(renderer, _texture.get(), &source, &destination, angle, nullptr, flip);
 }
 
 pixmap::operator SDL_Texture*() const noexcept {
