@@ -29,3 +29,9 @@ repos:
     hooks:
       - id: oxipng
         args: ["-o", "6", "--strip", "safe", "--alpha"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.5
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
