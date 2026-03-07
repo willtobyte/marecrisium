@@ -24,9 +24,6 @@ public:
   int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
 
 private:
-  static constexpr float FIXED_TIMESTEP = 1.f / 60.f;
-  static constexpr int WORLD_SUBSTEPS = 4;
-
   std::string _name;
   entt::registry _registry;
   pixmappool& _pixmappool;
