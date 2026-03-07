@@ -4,7 +4,6 @@ class pixmappool;
 class soundpool;
 class sourcepool;
 class stringpool;
-class tilemap;
 
 class stage final {
 public:
@@ -33,14 +32,12 @@ private:
   std::vector<sound*> _sounds;
   b2WorldId _world;
   float _accumulator = .0f;
-  camera _camera;
   uint32_t _mouse_previous_buttons{};
   std::unordered_set<entt::entity> _hovering;
   std::unordered_set<entt::entity> _hits;
   int _reference = LUA_NOREF;
   int _environment_reference = LUA_NOREF;
   int _pool_reference = LUA_NOREF;
-  std::unique_ptr<tilemap> _tilemap;
   const pixmap* _background{};
 
   void dispatch_click(float x, float y, const char* button);

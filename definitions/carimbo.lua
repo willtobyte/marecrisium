@@ -173,20 +173,10 @@ cassette = {}
 -- Stage (scripts returned by stages/<name>.lua)
 --------------------------------------------------------------------------------
 
----@class Tilemap
----Available as a stage environment global (`tilemap`) after a stage with a tilemap is loaded.
----Each stage has its own isolated `tilemap` global.
----@field width number Total tilemap width in pixels (columns * tile size).
----@field height number Total tilemap height in pixels (rows * tile size).
-
----@type Tilemap
-tilemap = {}
-
 ---@class Stage
 ---A stage script (`stages/<name>.lua`) returns a table that may contain
 ---these lifecycle callbacks plus `objects` and `sounds` tables.
 ---@field background string|nil Background image name. Renders full-screen behind everything. Loads from `blobs/backgrounds/<name>.png`.
----@field tilemap string|nil Tilemap name. Loads data from `tilemaps/<name>.lua` and tileset from `blobs/tilemaps/<name>.png`.
 local Stage = {}
 
 ---Called when the director navigates to this stage.
@@ -205,13 +195,6 @@ function Stage.on_tick(self, tick) end
 ---@param self table The stage table itself.
 ---@param delta number Frame delta time in seconds.
 function Stage.on_loop(self, delta) end
-
----Called every frame to determine the camera view rect.
----If not defined, defaults to 0, 0, viewport.width, viewport.height.
----@param self table The stage table itself.
----@param delta number Frame delta time in seconds.
----@return number x, number y, number w, number h
-function Stage.on_camera(self, delta) end
 
 ---Called when a click occurs but no collidable object is hit.
 ---@param x number Click X position in world coordinates.
@@ -503,23 +486,6 @@ Subscription.topic = ""
 ---@param url string The WebSocket URL (wss:// or ws://).
 ---@return WebSocket
 function WebSocket.new(url) end
-
---------------------------------------------------------------------------------
--- Tilemap (data returned by tilemaps/<name>.lua)
---------------------------------------------------------------------------------
-
----@class TilemapData
----A tilemap data file (`tilemaps/<name>.lua`) returns a table describing
----the tile layout and collision. The tileset PNG is inferred from the
----tilemap name and loaded from `blobs/tilemaps/<name>.png`.
----Tile IDs are 1-based (0 = empty). The tileset PNG is organized in a grid
----where ID 1 = first tile (top-left), ID 2 = second tile, etc.
----@field tile integer Tile size in pixels (square).
----@field columns integer Map width in tiles.
----@field rows integer Map height in tiles.
----@field background integer[] Background layer tile IDs (columns * rows). Drawn behind objects.
----@field foreground integer[] Foreground layer tile IDs (columns * rows). Drawn in front of objects.
----@field collision integer[] Collision grid (columns * rows). 1 = solid, 0 = passable.
 
 --------------------------------------------------------------------------------
 -- Moment (time)

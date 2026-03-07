@@ -43,5 +43,13 @@ return {
 		if (keyboard.space or keyboard.w or keyboard.up) and self.grounded then
 			self.vy = -400
 		end
+
+		if keyboard.space then
+			self.angle = self.angle + 360 * delta
+		end
+
+		if keyboard.r then
+			self.shown = false
+		end
 	end,
 }

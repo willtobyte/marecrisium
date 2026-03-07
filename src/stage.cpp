@@ -1,5 +1,3 @@
-#include "stage.hpp"
-
 static constexpr float FIXED_TIMESTEP = 1.f / 60.f;
 
 static constexpr int WORLD_SUBSTEPS = 4;
@@ -304,24 +302,6 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
   }
   lua_pop(L, 1);
 
-  lua_getfield(L, -1, "tilemap");
-  if (lua_isstring(L, -1)) {
-    const std::string_view tilemap_name = lua_tostring(L, -1);
-    _tilemap = std::make_unique<tilemap>(tilemap_name, _pixmappool, _world);
-
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
-    lua_newtable(L);
-    lua_pushnumber(L, static_cast<lua_Number>(_tilemap->width()));
-    lua_setfield(L, -2, "width");
-    lua_pushnumber(L, static_cast<lua_Number>(_tilemap->height()));
-    lua_setfield(L, -2, "height");
-    lua_setfield(L, -2, "tilemap");
-    lua_pop(L, 1);
-  }
-  lua_pop(L, 1);
-
-  _camera = {.0f, .0f, viewport.width, viewport.height};
-
   _reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   const auto end = SDL_GetPerformanceCounter();
@@ -391,37 +371,9 @@ void stage::on_tick(uint64_t tick) {
 }
 
 void stage::update(float delta) {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  lua_getfield(L, -1, "on_camera");
-
-  if (lua_isfunction(L, -1)) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    lua_pushnumber(L, static_cast<lua_Number>(delta));
-
-    if (lua_pcall(L, 2, 4, 0) != 0) [[unlikely]] {
-      std::string error = lua_tostring(L, -1);
-      lua_pop(L, 2);
-      throw std::runtime_error(error);
-    }
-
-    _camera.x = static_cast<float>(lua_tonumber(L, -4));
-    _camera.y = static_cast<float>(lua_tonumber(L, -3));
-    _camera.w = static_cast<float>(lua_tonumber(L, -2));
-    _camera.h = static_cast<float>(lua_tonumber(L, -1));
-    lua_pop(L, 4);
-  } else {
-    lua_pop(L, 1);
-    _camera = {.0f, .0f, viewport.width, viewport.height};
-  }
-
-  lua_pop(L, 1);
-
   float wx, wy;
   const auto buttons = SDL_GetMouseState(&wx, &wy);
   SDL_RenderCoordinatesFromWindow(renderer, wx, wy, &wx, &wy);
-
-  wx = _camera.x + (wx / viewport.width) * _camera.w;
-  wy = _camera.y + (wy / viewport.height) * _camera.h;
 
   const auto released = _mouse_previous_buttons & ~buttons;
   _mouse_previous_buttons = buttons;
@@ -652,13 +604,13 @@ void stage::update(float delta) {
         const auto aabb = b2Shape_GetAABB(bd.shape);
 
         uint8_t current = 0;
-        if (aabb.upperBound.x < _camera.x)
+        if (aabb.upperBound.x < .0f)
           current |= boundary::left;
-        if (aabb.lowerBound.x > _camera.x + _camera.w)
+        if (aabb.lowerBound.x > viewport.width)
           current |= boundary::right;
-        if (aabb.upperBound.y < _camera.y)
+        if (aabb.upperBound.y < .0f)
           current |= boundary::top;
-        if (aabb.lowerBound.y > _camera.y + _camera.h)
+        if (aabb.lowerBound.y > viewport.height)
           current |= boundary::bottom;
 
         const auto exited = static_cast<uint8_t>(current & ~sb.previous);
@@ -759,9 +711,6 @@ void stage::draw() const {
     SDL_RenderTexture(renderer, static_cast<SDL_Texture*>(*_background), nullptr, &destination);
   }
 
-  if (_tilemap)
-    _tilemap->draw_background(_camera);
-
   for (auto&& [entity, a, tf] : _registry.view<animation, transform>().each()) {
     if (!tf.shown || !a.playing || !a.pixmap || a.clip_count == 0) [[unlikely]]
       continue;
@@ -775,35 +724,26 @@ void stage::draw() const {
     const auto dw = fr.w * tf.scale;
     const auto dh = fr.h * tf.scale;
 
-    if (tf.x + dw < _camera.x || tf.x > _camera.x + _camera.w ||
-        tf.y + dh < _camera.y || tf.y > _camera.y + _camera.h)
+    if (tf.x + dw < .0f || tf.x > viewport.width ||
+        tf.y + dh < .0f || tf.y > viewport.height)
       continue;
-
-    const auto sx = viewport.width / _camera.w;
-    const auto sy = viewport.height / _camera.h;
 
     a.pixmap->draw(
       fr.x, fr.y, fr.w, fr.h,
-      (tf.x - _camera.x) * sx, (tf.y - _camera.y) * sy, dw * sx, dh * sy,
+      tf.x, tf.y, dw, dh,
       static_cast<double>(tf.angle),
       static_cast<uint8_t>(std::clamp(tf.alpha, .0f, 255.0f)),
       tf.flip
     );
   }
 
-  if (_tilemap)
-    _tilemap->draw_foreground(_camera);
-
 #ifdef DEBUG
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
 
-  const b2AABB aabb = {{_camera.x, _camera.y}, {_camera.x + _camera.w, _camera.y + _camera.h}};
+  const b2AABB aabb = {{.0f, .0f}, {viewport.width, viewport.height}};
   const b2QueryFilter filter = b2DefaultQueryFilter();
 
-  b2World_OverlapAABB(_world, aabb, filter, [](b2ShapeId shape, void* userdata) -> bool {
-    const auto* instance = static_cast<const camera*>(userdata);
-    const auto sx = viewport.width / instance->w;
-    const auto sy = viewport.height / instance->h;
+  b2World_OverlapAABB(_world, aabb, filter, [](b2ShapeId shape, void*) -> bool {
     const auto body_id = b2Shape_GetBody(shape);
     const auto xf = b2Body_GetTransform(body_id);
     const auto polygon = b2Shape_GetPolygon(shape);
@@ -812,15 +752,11 @@ void stage::draw() const {
       const auto a = b2TransformPoint(xf, polygon.vertices[i]);
       const auto b = b2TransformPoint(xf, polygon.vertices[(i + 1) % polygon.count]);
 
-      SDL_RenderLine(
-        renderer,
-        (a.x - instance->x) * sx, (a.y - instance->y) * sy,
-        (b.x - instance->x) * sx, (b.y - instance->y) * sy
-      );
+      SDL_RenderLine(renderer, a.x, a.y, b.x, b.y);
     }
 
     return true;
-  }, const_cast<camera*>(&_camera));
+  }, nullptr);
 
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 #endif
