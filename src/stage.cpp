@@ -744,7 +744,8 @@ void stage::draw() const {
       fr.x, fr.y, fr.w, fr.h,
       (tf.x - _camera.x) * sx, (tf.y - _camera.y) * sy, dw * sx, dh * sy,
       static_cast<double>(tf.angle),
-      static_cast<uint8_t>(std::clamp(tf.alpha, .0f, 255.0f))
+      static_cast<uint8_t>(std::clamp(tf.alpha, .0f, 255.0f)),
+      tf.flip
     );
   }
 

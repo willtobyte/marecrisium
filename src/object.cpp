@@ -59,6 +59,24 @@ namespace {
       return 1;
     }
 
+    if (key == "flip") {
+      switch (registry.get<transform>(entity).flip) {
+        case flipmode::horizontal: {
+          lua_pushstring(state, "horizontal");
+        } break;
+        case flipmode::vertical: {
+          lua_pushstring(state, "vertical");
+        } break;
+        case flipmode::both: {
+          lua_pushstring(state, "both");
+        } break;
+        default: {
+          lua_pushstring(state, "none");
+        } break;
+      }
+      return 1;
+    }
+
     if (key == "vx") {
       const auto* bd = registry.try_get<body>(entity);
       if (bd && bd->type == body_type::dynamic && b2Body_IsValid(bd->id)) {
@@ -206,6 +224,23 @@ namespace {
 
     if (key == "shown") {
       registry.get<transform>(entity).shown = lua_toboolean(state, 3) != 0;
+      return 0;
+    }
+
+    if (key == "flip") {
+      const std::string_view value = luaL_checkstring(state, 3);
+      auto& tf = registry.get<transform>(entity);
+      if (value == "horizontal") {
+        tf.flip = flipmode::horizontal;
+      } else if (value == "vertical") {
+        tf.flip = flipmode::vertical;
+      } else if (value == "both") {
+        tf.flip = flipmode::both;
+      } else if (value == "none") {
+        tf.flip = flipmode::none;
+      } else {
+        return luaL_error(state, "invalid flip value: %s", value.data());
+      }
       return 0;
     }
 

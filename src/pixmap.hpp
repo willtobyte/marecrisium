@@ -11,7 +11,7 @@ public:
     const float dx, const float dy, const float dw, const float dh,
     const double angle = .0,
     const uint8_t alpha = 255,
-    const SDL_FlipMode flip = SDL_FlipMode::SDL_FLIP_NONE
+    const flipmode flip = flipmode::none
   ) const noexcept;
 
   operator SDL_Texture*() const noexcept;

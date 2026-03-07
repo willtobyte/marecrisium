@@ -254,6 +254,7 @@ viewport = {}
 ---@field angle number Rotation angle in degrees.
 ---@field alpha number Opacity (0-255).
 ---@field shown boolean Whether the object is visible.
+---@field flip "none"|"horizontal"|"vertical"|"both" Flip mode for rendering.
 ---@field name string The object's name (read-only).
 ---@field kind string The kind/type string of this object (read-only).
 ---@field alive boolean Whether the object is still alive (read-only).

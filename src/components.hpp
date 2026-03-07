@@ -2,6 +2,13 @@
 
 class pixmap;
 
+enum class flipmode : uint8_t {
+  none = SDL_FLIP_NONE,
+  horizontal = SDL_FLIP_HORIZONTAL,
+  vertical = SDL_FLIP_VERTICAL,
+  both = SDL_FLIP_HORIZONTAL | SDL_FLIP_VERTICAL,
+};
+
 struct transform final {
   float x{};
   float y{};
@@ -9,6 +16,7 @@ struct transform final {
   float angle{};
   float alpha{255.0f};
   bool shown{true};
+  flipmode flip{flipmode::none};
 };
 
 static_assert(std::is_trivially_copyable_v<transform>);
