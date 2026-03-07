@@ -713,7 +713,7 @@ void stage::update(float delta) {
 
 void stage::draw() const {
   if (_background) {
-    const SDL_FRect destination{.0f, .0f, viewport.width, viewport.height};
+    static const SDL_FRect destination{.0f, .0f, viewport.width, viewport.height};
     SDL_RenderTexture(renderer, static_cast<SDL_Texture*>(*_background), nullptr, &destination);
   }
 
@@ -757,11 +757,10 @@ void stage::draw() const {
   const b2AABB aabb = {{_camera.x, _camera.y}, {_camera.x + _camera.w, _camera.y + _camera.h}};
   const b2QueryFilter filter = b2DefaultQueryFilter();
 
-  const auto* cam = &_camera;
   b2World_OverlapAABB(_world, aabb, filter, [](b2ShapeId shape, void* userdata) -> bool {
-    const auto* cam = static_cast<const camera*>(userdata);
-    const auto sx = viewport.width / cam->w;
-    const auto sy = viewport.height / cam->h;
+    const auto* instance = static_cast<const camera*>(userdata);
+    const auto sx = viewport.width / instance->w;
+    const auto sy = viewport.height / instance->h;
     const auto body_id = b2Shape_GetBody(shape);
     const auto xf = b2Body_GetTransform(body_id);
     const auto polygon = b2Shape_GetPolygon(shape);
@@ -769,13 +768,16 @@ void stage::draw() const {
     for (int i = 0; i < polygon.count; ++i) {
       const auto a = b2TransformPoint(xf, polygon.vertices[i]);
       const auto b = b2TransformPoint(xf, polygon.vertices[(i + 1) % polygon.count]);
-      SDL_RenderLine(renderer,
-        (a.x - cam->x) * sx, (a.y - cam->y) * sy,
-        (b.x - cam->x) * sx, (b.y - cam->y) * sy);
+
+      SDL_RenderLine(
+        renderer,
+        (a.x - instance->x) * sx, (a.y - instance->y) * sy,
+        (b.x - instance->x) * sx, (b.y - instance->y) * sy
+      );
     }
 
     return true;
-  }, const_cast<camera*>(cam));
+  }, const_cast<camera*>(&_camera));
 
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 #endif
