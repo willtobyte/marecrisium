@@ -43,7 +43,12 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
   lua_setmetatable(L, -2);
   _environment_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
+  lua_newtable(L);
+  _pool_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+
   lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+  lua_setfield(L, -2, "pool");
   lua_newtable(L);
   lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, world_raycast, 1);
@@ -76,10 +81,8 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
   if (lua_istable(L, -1)) {
     const auto count = static_cast<int>(lua_objlen(L, -1));
 
-    lua_newtable(L);
-
     for (int i = 1; i <= count; ++i) {
-      lua_rawgeti(L, -2, i);
+      lua_rawgeti(L, -1, i);
 
       lua_getfield(L, -1, "name");
       const std::string_view object_name = lua_tostring(L, -1);
@@ -242,31 +245,16 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
 
       lua_pop(L, 1);
 
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
       lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
       lua_setfield(L, -2, object_name.data());
+      lua_pop(L, 1);
     }
-
-    _pool_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
-    lua_setfield(L, -2, "pool");
-    lua_pop(L, 1);
   }
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "sounds");
   if (lua_istable(L, -1)) {
-    if (_pool_reference == LUA_NOREF) {
-      lua_newtable(L);
-      _pool_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
-      lua_setfield(L, -2, "pool");
-      lua_pop(L, 1);
-    }
-
     const auto scount = static_cast<int>(lua_objlen(L, -1));
 
     for (int s = 1; s <= scount; ++s) {
@@ -300,9 +288,19 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
     const auto count = static_cast<int>(lua_objlen(L, -1));
     for (int i = 1; i <= count; ++i) {
       lua_rawgeti(L, -1, i);
-      const auto* atlas = lua_tostring(L, -1);
-      if (atlas) [[likely]]
-        static_cast<void>(_pixmappool.get(std::format("atlas/{}", atlas)));
+      const auto* atlas_name = lua_tostring(L, -1);
+      if (atlas_name) [[likely]] {
+        const auto& pix = _pixmappool.get(std::format("atlas/{}", atlas_name));
+        auto** memory = static_cast<const pixmap**>(lua_newuserdata(L, sizeof(const pixmap*)));
+        *memory = &pix;
+        luaL_getmetatable(L, "Atlas");
+        lua_setmetatable(L, -2);
+
+        lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+        lua_pushvalue(L, -2);
+        lua_setfield(L, -2, atlas_name);
+        lua_pop(L, 2);
+      }
       lua_pop(L, 1);
     }
   }

@@ -182,7 +182,7 @@ cassette = {}
 ---these fields, lifecycle callbacks, and entity/sound declarations.
 ---@field objects StageObject[]|nil Objects to spawn when the stage is created.
 ---@field sounds string[]|nil Sound names to preload. Each `"foo"` loads `sounds/foo` and is accessible as `pool.foo`.
----@field atlas string[]|nil Atlas names to preload. Loaded from `blobs/atlas/<name>.png`.
+---@field atlas string[]|nil Atlas names to preload. Each `"foo"` loads `blobs/atlas/foo.png` and is accessible as `pool.foo`.
 local Stage = {}
 
 ---Called when the director navigates to this stage.
@@ -203,7 +203,7 @@ function Stage.on_tick(self, tick) end
 function Stage.on_loop(self, delta) end
 
 ---Called every frame during the draw phase, after all entities are rendered.
----Use `graphics.draw()` here for custom batch rendering.
+---Use `pool.<atlas>:draw()` here for custom batch rendering.
 ---@param self table The stage table itself.
 function Stage.on_paint(self) end
 
@@ -391,8 +391,8 @@ world = {}
 --------------------------------------------------------------------------------
 
 ---@class Pool
----Access objects and sounds by name.
----@field [string] Object|Sound
+---Access objects, sounds, and atlases by name.
+---@field [string] Object|Sound|Atlas
 
 ---Resource pool (available inside stage scripts).
 ---@type Pool
@@ -463,27 +463,24 @@ platform = {}
 function openurl(url) end
 
 --------------------------------------------------------------------------------
--- Graphics (batch rendering)
+-- Atlas (batch rendering userdata, available in `pool`)
 --------------------------------------------------------------------------------
 
----@class Graphics
-local Graphics = {}
+---@class Atlas
+---@field width number Atlas texture width in pixels (read-only).
+---@field height number Atlas texture height in pixels (read-only).
+local Atlas = {}
 
 ---Draw textured geometry in batch using vertex and index data.
 ---Vertices are a LuaJIT FFI `float` array with 8 values per vertex
 ---in SDL_Vertex layout: x, y, r, g, b, a, u, v.
 ---Colors are 0.0-1.0 floats. UVs are normalized 0.0-1.0.
 ---Indices are a LuaJIT FFI `int` array of 0-based triangle indices.
----@param name string Pixmap name (without .png extension). Resolves to `blobs/<name>.png`.
 ---@param vertices ffi.cdata* FFI float array: {x, y, r, g, b, a, u, v, ...}.
 ---@param count integer Number of vertices.
 ---@param indices ffi.cdata* FFI int array of 0-based triangle indices.
 ---@param index_count integer Number of indices.
-function Graphics.draw(name, vertices, count, indices, index_count) end
-
----Global graphics interface for batch rendering.
----@type Graphics
-graphics = {}
+function Atlas:draw(vertices, count, indices, index_count) end
 
 --------------------------------------------------------------------------------
 -- WebSocket (WebSocket connection)

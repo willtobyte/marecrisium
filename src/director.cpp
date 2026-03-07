@@ -55,7 +55,7 @@ void director::wire() {
 
   lua_setglobal(L, "director");
 
-  graphics::wire(_pixmappool.get());
+  atlas::wire();
 }
 
 void director::navigate(std::string_view name) {
