@@ -48,11 +48,18 @@ struct animation final {
 
 static_assert(std::is_trivially_copyable_v<animation>);
 
+enum class body_type : uint8_t {
+  kinematic,
+  dynamic,
+  fixed,
+};
+
 struct body final {
   b2BodyId id{b2_nullBodyId};
   b2ShapeId shape{b2_nullShapeId};
   float cached_hx{};
   float cached_hy{};
+  body_type type{body_type::kinematic};
 };
 
 static_assert(std::is_trivially_copyable_v<body>);

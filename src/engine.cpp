@@ -4,6 +4,7 @@ lua_State *L = nullptr;
 ma_engine *audioengine = nullptr;
 SDL_Renderer *renderer = nullptr;
 struct viewport viewport{};
+b2Vec2 gravity{.0f, .0f};
 
 engine::engine() {
   const auto buffer = io::read("scripts/main.lua");
@@ -30,6 +31,18 @@ engine::engine() {
 
   lua_getfield(L, -1, "fullscreen");
   const auto fullscreen = lua_isboolean(L, -1) ? lua_toboolean(L, -1) : 0;
+  lua_pop(L, 1);
+
+  lua_getfield(L, -1, "gravity");
+  if (lua_istable(L, -1)) {
+    lua_rawgeti(L, -1, 1);
+    gravity.x = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
+    lua_pop(L, 1);
+
+    lua_rawgeti(L, -1, 2);
+    gravity.y = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
+    lua_pop(L, 1);
+  }
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "title");

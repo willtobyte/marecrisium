@@ -16,8 +16,10 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
       _soundpool(sounds),
       _sourcepool(sources),
       _stringpool(std::make_unique<stringpool>()) {
+  b2SetLengthUnitsPerMeter(100.f);
+
   b2WorldDef def = b2DefaultWorldDef();
-  def.gravity = {.0f, .0f};
+  def.gravity = gravity;
   _world = b2CreateWorld(&def);
 
   _registry.on_destroy<objectproxy>().connect<&objectproxy::on_destroy>();
@@ -183,11 +185,36 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
             collidable = a.clips[ci].frames[fi].collidable;
 
         if (collidable) {
+          lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
+          lua_getfield(L, -1, "body");
+          const auto str = lua_isstring(L, -1)
+            ? std::string_view{lua_tostring(L, -1)}
+            : std::string_view{};
+          lua_pop(L, 2);
+
+          const auto bt = str == "dynamic" ? body_type::dynamic
+                        : str == "static"  ? body_type::fixed
+                                           : body_type::kinematic;
+
           b2BodyDef bdef = b2DefaultBodyDef();
-          bdef.type = b2_kinematicBody;
           bdef.userData = reinterpret_cast<void*>(static_cast<uintptr_t>(entity));
+
+          switch (bt) {
+            case body_type::dynamic: {
+              bdef.type = b2_dynamicBody;
+              bdef.isBullet = true;
+              bdef.fixedRotation = true;
+            } break;
+            case body_type::fixed: {
+              bdef.type = b2_staticBody;
+            } break;
+            case body_type::kinematic: {
+              bdef.type = b2_kinematicBody;
+            } break;
+          }
+
           const auto id = b2CreateBody(_world, &bdef);
-          _registry.emplace<body>(entity, id);
+          _registry.emplace<body>(entity, id, b2_nullShapeId, .0f, .0f, bt);
           _registry.emplace<boundary>(entity);
         }
       }
@@ -369,14 +396,14 @@ void stage::update(float delta) {
   _accumulator += delta;
 
   while (_accumulator >= FIXED_TIMESTEP) {
-    for (auto&& [en, ph, an, tf] :
+    for (auto&& [en, bd, an, tf] :
          _registry.view<body, animation, transform>().each()) {
       if (!an.playing || an.clip_count == 0) {
-        if (b2Shape_IsValid(ph.shape)) {
-          b2DestroyShape(ph.shape, false);
-          ph.shape = b2_nullShapeId;
-          ph.cached_hx = .0f;
-          ph.cached_hy = .0f;
+        if (b2Shape_IsValid(bd.shape)) {
+          b2DestroyShape(bd.shape, false);
+          bd.shape = b2_nullShapeId;
+          bd.cached_hx = .0f;
+          bd.cached_hy = .0f;
         }
 
         continue;
@@ -386,11 +413,11 @@ void stage::update(float delta) {
 
       if (!frame.collidable || tf.alpha <= .0f ||
           frame.cw <= .0f || frame.ch <= .0f) {
-        if (b2Shape_IsValid(ph.shape)) {
-          b2DestroyShape(ph.shape, false);
-          ph.shape = b2_nullShapeId;
-          ph.cached_hx = .0f;
-          ph.cached_hy = .0f;
+        if (b2Shape_IsValid(bd.shape)) {
+          b2DestroyShape(bd.shape, false);
+          bd.shape = b2_nullShapeId;
+          bd.cached_hx = .0f;
+          bd.cached_hy = .0f;
         }
 
         continue;
@@ -399,34 +426,60 @@ void stage::update(float delta) {
       const auto hx = frame.cw * tf.scale * 0.5f;
       const auto hy = frame.ch * tf.scale * 0.5f;
 
-      if (hx != ph.cached_hx || hy != ph.cached_hy) {
-        if (b2Shape_IsValid(ph.shape))
-          b2DestroyShape(ph.shape, false);
+      if (hx != bd.cached_hx || hy != bd.cached_hy) {
+        if (b2Shape_IsValid(bd.shape))
+          b2DestroyShape(bd.shape, false);
 
         const auto polygon = b2MakeBox(hx, hy);
         auto sdef = b2DefaultShapeDef();
-        sdef.isSensor = true;
-        sdef.enableSensorEvents = true;
         sdef.userData =
             reinterpret_cast<void*>(static_cast<uintptr_t>(en));
-        ph.shape =
-            b2CreatePolygonShape(ph.id, &sdef, &polygon);
-        ph.cached_hx = hx;
-        ph.cached_hy = hy;
+
+        if (bd.type == body_type::kinematic) {
+          sdef.isSensor = true;
+          sdef.enableSensorEvents = true;
+        } else {
+          sdef.isSensor = false;
+          sdef.enableContactEvents = true;
+          sdef.enableSensorEvents = true;
+          if (bd.type == body_type::dynamic) {
+            sdef.density = 1.f;
+          }
+        }
+
+        bd.shape =
+            b2CreatePolygonShape(bd.id, &sdef, &polygon);
+        bd.cached_hx = hx;
+        bd.cached_hy = hy;
       }
 
-      const auto cx = tf.x + frame.cx * tf.scale + hx;
-      const auto cy = tf.y + frame.cy * tf.scale + hy;
-      const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
-      b2Body_SetTransform(ph.id, {cx, cy}, b2MakeRot(radians));
+      if (bd.type != body_type::dynamic) {
+        const auto cx = tf.x + frame.cx * tf.scale + hx;
+        const auto cy = tf.y + frame.cy * tf.scale + hy;
+        const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
+        b2Body_SetTransform(bd.id, {cx, cy}, b2MakeRot(radians));
+      }
     }
 
     b2World_Step(_world, FIXED_TIMESTEP, WORLD_SUBSTEPS);
 
-    const auto events = b2World_GetSensorEvents(_world);
+    for (auto&& [en, bd, an, tf] :
+         _registry.view<body, animation, transform>().each()) {
+      if (bd.type != body_type::dynamic || !an.playing || an.clip_count == 0)
+        continue;
 
-    for (int i = 0; i < events.beginCount; ++i) {
-      const auto& event = events.beginEvents[i];
+      const auto& frame = an.clips[an.active].frames[an.current];
+      const auto position = b2Body_GetPosition(bd.id);
+      const auto hx = bd.cached_hx;
+      const auto hy = bd.cached_hy;
+      tf.x = position.x - frame.cx * tf.scale - hx;
+      tf.y = position.y - frame.cy * tf.scale - hy;
+    }
+
+    const auto sensor_events = b2World_GetSensorEvents(_world);
+
+    for (int i = 0; i < sensor_events.beginCount; ++i) {
+      const auto& event = sensor_events.beginEvents[i];
       if (!b2Shape_IsValid(event.sensorShapeId) || !b2Shape_IsValid(event.visitorShapeId))
         continue;
       const auto sensor = static_cast<entt::entity>(
@@ -436,8 +489,8 @@ void stage::update(float delta) {
       dispatch_collision(sensor, visitor, "on_collision_begin");
     }
 
-    for (int i = 0; i < events.endCount; ++i) {
-      const auto& event = events.endEvents[i];
+    for (int i = 0; i < sensor_events.endCount; ++i) {
+      const auto& event = sensor_events.endEvents[i];
       if (!b2Shape_IsValid(event.sensorShapeId) || !b2Shape_IsValid(event.visitorShapeId))
         continue;
       const auto sensor = static_cast<entt::entity>(
@@ -447,15 +500,41 @@ void stage::update(float delta) {
       dispatch_collision(sensor, visitor, "on_collision_end");
     }
 
+    const auto contact_events = b2World_GetContactEvents(_world);
+
+    for (int i = 0; i < contact_events.beginCount; ++i) {
+      const auto& event = contact_events.beginEvents[i];
+      if (!b2Shape_IsValid(event.shapeIdA) || !b2Shape_IsValid(event.shapeIdB))
+        continue;
+      const auto entity_a = static_cast<entt::entity>(
+          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.shapeIdA)));
+      const auto entity_b = static_cast<entt::entity>(
+          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.shapeIdB)));
+      dispatch_collision(entity_a, entity_b, "on_collision_begin");
+      dispatch_collision(entity_b, entity_a, "on_collision_begin");
+    }
+
+    for (int i = 0; i < contact_events.endCount; ++i) {
+      const auto& event = contact_events.endEvents[i];
+      if (!b2Shape_IsValid(event.shapeIdA) || !b2Shape_IsValid(event.shapeIdB))
+        continue;
+      const auto entity_a = static_cast<entt::entity>(
+          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.shapeIdA)));
+      const auto entity_b = static_cast<entt::entity>(
+          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.shapeIdB)));
+      dispatch_collision(entity_a, entity_b, "on_collision_end");
+      dispatch_collision(entity_b, entity_a, "on_collision_end");
+    }
+
     {
       static constexpr std::string_view directions[] = {"left", "right", "top", "bottom"};
 
-      for (auto&& [entity, sb, ph, proxy] :
+      for (auto&& [entity, sb, bd, proxy] :
            _registry.view<boundary, const body, const objectproxy>().each()) {
-        if (!b2Shape_IsValid(ph.shape))
+        if (!b2Shape_IsValid(bd.shape))
           continue;
 
-        const auto aabb = b2Shape_GetAABB(ph.shape);
+        const auto aabb = b2Shape_GetAABB(bd.shape);
 
         uint8_t current = 0;
         if (aabb.upperBound.x < .0f)
@@ -592,15 +671,15 @@ void stage::draw() const {
   const b2QueryFilter filter = b2DefaultQueryFilter();
 
   b2World_OverlapAABB(_world, aabb, filter, [](b2ShapeId shape, void*) -> bool {
-    const auto box = b2Shape_GetAABB(shape);
-    const SDL_FRect r{
-      box.lowerBound.x,
-      box.lowerBound.y,
-      box.upperBound.x - box.lowerBound.x,
-      box.upperBound.y - box.lowerBound.y
-    };
+    const auto body_id = b2Shape_GetBody(shape);
+    const auto xf = b2Body_GetTransform(body_id);
+    const auto polygon = b2Shape_GetPolygon(shape);
 
-    SDL_RenderRect(renderer, &r);
+    for (int i = 0; i < polygon.count; ++i) {
+      const auto a = b2TransformPoint(xf, polygon.vertices[i]);
+      const auto b = b2TransformPoint(xf, polygon.vertices[(i + 1) % polygon.count]);
+      SDL_RenderLine(renderer, a.x, a.y, b.x, b.y);
+    }
 
     return true;
   }, nullptr);

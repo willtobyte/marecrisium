@@ -1,4 +1,6 @@
 return {
+	body = "dynamic",
+
 	animation = {
 		running = {
 			{ 0, 0, 16, 16, 200, 0, 0, 16, 16 },
@@ -24,26 +26,39 @@ return {
 		print("unhover")
 	end,
 
+	on_collision_begin = function(self, other_name, other_kind)
+		print("player collision begin", other_name, other_kind)
+	end,
+
+	on_collision_end = function(self, other_name, other_kind)
+		print("player collision end", other_name, other_kind)
+	end,
+
 	on_loop = function(self, delta)
-		local speed = 300 * delta
+		local speed = 300
+		local vx = 0
+		local vy = 0
 
 		if keyboard.w then
-			self.y = self.y - speed
+			vy = vy - speed
 		end
 		if keyboard.s then
-			self.y = self.y + speed
+			vy = vy + speed
 		end
 		if keyboard.a then
-			self.x = self.x - speed
+			vx = vx - speed
 		end
 		if keyboard.d then
-			self.x = self.x + speed
+			vx = vx + speed
 		end
 
 		if gamepad.connected then
-			self.x = self.x + gamepad.left_x * speed
-			self.y = self.y + gamepad.left_y * speed
+			vx = vx + gamepad.left_x * speed
+			vy = vy + gamepad.left_y * speed
 		end
+
+		self.vx = vx
+		self.vy = vy
 
 		if keyboard.space or gamepad.south then
 			self.angle = self.angle + 180 * delta

@@ -165,6 +165,7 @@ cassette = {}
 ---@field title string Window title.
 ---@field scale number Render scale factor.
 ---@field fullscreen boolean Whether to start in fullscreen mode.
+---@field gravity number[]|nil World gravity as {gx, gy}. Default is {0, 0} (no gravity). Set to e.g. {0, 980} for a platformer.
 ---@field on_begin fun() Called once after the engine is fully initialized.
 
 --------------------------------------------------------------------------------
@@ -238,8 +239,10 @@ viewport = {}
 --------------------------------------------------------------------------------
 
 ---@class Object
----@field x number Transform X position.
----@field y number Transform Y position.
+---@field x number Transform X position. For dynamic and static bodies, setting this teleports the body.
+---@field y number Transform Y position. For dynamic and static bodies, setting this teleports the body.
+---@field vx number Linear velocity X component (read/write). Only works on dynamic bodies, returns 0 otherwise.
+---@field vy number Linear velocity Y component (read/write). Only works on dynamic bodies, returns 0 otherwise.
 ---@field scale number Transform scale factor.
 ---@field angle number Rotation angle in degrees.
 ---@field alpha number Opacity (0-255).

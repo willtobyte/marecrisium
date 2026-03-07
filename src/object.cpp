@@ -59,6 +59,26 @@ namespace {
       return 1;
     }
 
+    if (key == "vx") {
+      const auto* bd = registry.try_get<body>(entity);
+      if (bd && bd->type == body_type::dynamic && b2Body_IsValid(bd->id)) {
+        lua_pushnumber(state, static_cast<double>(b2Body_GetLinearVelocity(bd->id).x));
+        return 1;
+      }
+      lua_pushnumber(state, .0);
+      return 1;
+    }
+
+    if (key == "vy") {
+      const auto* bd = registry.try_get<body>(entity);
+      if (bd && bd->type == body_type::dynamic && b2Body_IsValid(bd->id)) {
+        lua_pushnumber(state, static_cast<double>(b2Body_GetLinearVelocity(bd->id).y));
+        return 1;
+      }
+      lua_pushnumber(state, .0);
+      return 1;
+    }
+
     if (key == "kind") {
       const auto* strings = registry.ctx().get<stringpool*>();
       lua_pushstring(state, strings->get(proxy->kind));
@@ -105,12 +125,58 @@ namespace {
     const auto entity = proxy->entity;
 
     if (key == "x") {
-      registry.get<transform>(entity).x = static_cast<float>(luaL_checknumber(state, 3));
+      auto& tf = registry.get<transform>(entity);
+      const auto value = static_cast<float>(luaL_checknumber(state, 3));
+      tf.x = value;
+
+      auto* bd = registry.try_get<body>(entity);
+      if (bd && bd->type != body_type::kinematic && b2Body_IsValid(bd->id)) {
+        auto offset = .0f;
+        const auto* an = registry.try_get<animation>(entity);
+        if (an && an->playing && an->clip_count > 0)
+          offset = an->clips[an->active].frames[an->current].cx * tf.scale;
+
+        const auto position = b2Body_GetPosition(bd->id);
+        b2Body_SetTransform(bd->id, {value + offset + bd->cached_hx, position.y}, b2MakeRot(tf.angle * (std::numbers::pi_v<float> / 180.f)));
+      }
+
       return 0;
     }
 
     if (key == "y") {
-      registry.get<transform>(entity).y = static_cast<float>(luaL_checknumber(state, 3));
+      auto& tf = registry.get<transform>(entity);
+      const auto value = static_cast<float>(luaL_checknumber(state, 3));
+      tf.y = value;
+
+      auto* bd = registry.try_get<body>(entity);
+      if (bd && bd->type != body_type::kinematic && b2Body_IsValid(bd->id)) {
+        auto offset = .0f;
+        const auto* an = registry.try_get<animation>(entity);
+        if (an && an->playing && an->clip_count > 0)
+          offset = an->clips[an->active].frames[an->current].cy * tf.scale;
+
+        const auto position = b2Body_GetPosition(bd->id);
+        b2Body_SetTransform(bd->id, {position.x, value + offset + bd->cached_hy}, b2MakeRot(tf.angle * (std::numbers::pi_v<float> / 180.f)));
+      }
+
+      return 0;
+    }
+
+    if (key == "vx") {
+      auto* bd = registry.try_get<body>(entity);
+      if (bd && bd->type == body_type::dynamic && b2Body_IsValid(bd->id)) {
+        const auto current = b2Body_GetLinearVelocity(bd->id);
+        b2Body_SetLinearVelocity(bd->id, {static_cast<float>(luaL_checknumber(state, 3)), current.y});
+      }
+      return 0;
+    }
+
+    if (key == "vy") {
+      auto* bd = registry.try_get<body>(entity);
+      if (bd && bd->type == body_type::dynamic && b2Body_IsValid(bd->id)) {
+        const auto current = b2Body_GetLinearVelocity(bd->id);
+        b2Body_SetLinearVelocity(bd->id, {current.x, static_cast<float>(luaL_checknumber(state, 3))});
+      }
       return 0;
     }
 
