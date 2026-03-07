@@ -20,6 +20,8 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
       _soundpool(sounds),
       _sourcepool(sources),
       _stringpool(std::make_unique<stringpool>()) {
+  const auto start = SDL_GetPerformanceCounter();
+
   b2SetLengthUnitsPerMeter(100.f);
 
   b2WorldDef def = b2DefaultWorldDef();
@@ -321,6 +323,10 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
   _camera = {.0f, .0f, viewport.width, viewport.height};
 
   _reference = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  const auto end = SDL_GetPerformanceCounter();
+  const auto elapsed = static_cast<double>(end - start) * 1000.0 / static_cast<double>(SDL_GetPerformanceFrequency());
+  std::println("[stage] {} took {:.3f}ms", _name, elapsed);
 }
 
 stage::~stage() {
