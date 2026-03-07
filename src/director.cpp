@@ -54,6 +54,8 @@ void director::wire() {
   lua_setfield(L, -2, "flush");
 
   lua_setglobal(L, "director");
+
+  graphics::wire(_pixmappool.get());
 }
 
 void director::navigate(std::string_view name) {

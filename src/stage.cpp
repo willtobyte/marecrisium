@@ -295,10 +295,16 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
   }
   lua_pop(L, 1);
 
-  lua_getfield(L, -1, "background");
-  if (lua_isstring(L, -1)) {
-    const std::string_view background_name = lua_tostring(L, -1);
-    _background = &_pixmappool.get(std::format("backgrounds/{}", background_name));
+  lua_getfield(L, -1, "pixmaps");
+  if (lua_istable(L, -1)) {
+    const auto pixmap_count = static_cast<int>(lua_objlen(L, -1));
+    for (int i = 1; i <= pixmap_count; ++i) {
+      lua_rawgeti(L, -1, i);
+      const auto* pixmap_name = lua_tostring(L, -1);
+      if (pixmap_name) [[likely]]
+        static_cast<void>(_pixmappool.get(pixmap_name));
+      lua_pop(L, 1);
+    }
   }
   lua_pop(L, 1);
 
@@ -706,11 +712,6 @@ void stage::update(float delta) {
 }
 
 void stage::draw() const {
-  if (_background) {
-    static const SDL_FRect destination{.0f, .0f, viewport.width, viewport.height};
-    SDL_RenderTexture(renderer, static_cast<SDL_Texture*>(*_background), nullptr, &destination);
-  }
-
   for (auto&& [entity, a, tf] : _registry.view<animation, transform>().each()) {
     if (!tf.shown || !a.playing || !a.pixmap || a.clip_count == 0) [[unlikely]]
       continue;
@@ -736,6 +737,23 @@ void stage::draw() const {
       tf.flip
     );
   }
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_getfield(L, -1, "on_paint");
+
+  if (lua_isfunction(L, -1)) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+
+    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
+      std::string error = lua_tostring(L, -1);
+      lua_pop(L, 1);
+      throw std::runtime_error(error);
+    }
+  } else {
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
 
 #ifdef DEBUG
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);

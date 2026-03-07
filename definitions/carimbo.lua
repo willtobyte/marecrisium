@@ -173,10 +173,16 @@ cassette = {}
 -- Stage (scripts returned by stages/<name>.lua)
 --------------------------------------------------------------------------------
 
+---@class StageObject
+---@field name string Unique instance name for this object. Accessible via `pool.<name>`.
+---@field kind string Object type. Maps to `objects/<kind>.lua` (prototype) and `blobs/objects/<kind>.png` (spritesheet).
+
 ---@class Stage
 ---A stage script (`stages/<name>.lua`) returns a table that may contain
----these lifecycle callbacks plus `objects` and `sounds` tables.
----@field background string|nil Background image name. Renders full-screen behind everything. Loads from `blobs/backgrounds/<name>.png`.
+---these fields, lifecycle callbacks, and entity/sound declarations.
+---@field objects StageObject[]|nil Objects to spawn when the stage is created.
+---@field sounds string[]|nil Sound names to preload. Each `"foo"` loads `sounds/foo` and is accessible as `pool.foo`.
+---@field pixmaps string[]|nil Pixmap names to preload (without .png). Loaded from `blobs/<name>.png`.
 local Stage = {}
 
 ---Called when the director navigates to this stage.
@@ -195,6 +201,11 @@ function Stage.on_tick(self, tick) end
 ---@param self table The stage table itself.
 ---@param delta number Frame delta time in seconds.
 function Stage.on_loop(self, delta) end
+
+---Called every frame during the draw phase, after all entities are rendered.
+---Use `graphics.draw()` here for custom batch rendering.
+---@param self table The stage table itself.
+function Stage.on_paint(self) end
 
 ---Called when a click occurs but no collidable object is hit.
 ---@param x number Click X position in world coordinates.
@@ -449,6 +460,29 @@ platform = {}
 ---@param url string The URL to open.
 ---@return boolean success Whether the operation succeeded.
 function openurl(url) end
+
+--------------------------------------------------------------------------------
+-- Graphics (batch rendering)
+--------------------------------------------------------------------------------
+
+---@class Graphics
+local Graphics = {}
+
+---Draw textured geometry in batch using vertex and index data.
+---Vertices are a LuaJIT FFI `float` array with 8 values per vertex
+---in SDL_Vertex layout: x, y, r, g, b, a, u, v.
+---Colors are 0.0-1.0 floats. UVs are normalized 0.0-1.0.
+---Indices are a LuaJIT FFI `int` array of 0-based triangle indices.
+---@param name string Pixmap name (without .png extension). Resolves to `blobs/<name>.png`.
+---@param vertices ffi.cdata* FFI float array: {x, y, r, g, b, a, u, v, ...}.
+---@param count integer Number of vertices.
+---@param indices ffi.cdata* FFI int array of 0-based triangle indices.
+---@param index_count integer Number of indices.
+function Graphics.draw(name, vertices, count, indices, index_count) end
+
+---Global graphics interface for batch rendering.
+---@type Graphics
+graphics = {}
 
 --------------------------------------------------------------------------------
 -- WebSocket (WebSocket connection)
