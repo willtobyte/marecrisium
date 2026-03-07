@@ -14,12 +14,12 @@ static int cassette_clear(lua_State*) {
 }
 
 static int cassette_index(lua_State* state) {
-  const auto* const key = luaL_checkstring(state, 2);
+  const std::string_view key = luaL_checkstring(state, 2);
 
-  if (std::string_view(key) == "clear")
+  if (key == "clear")
     return lua_pushcfunction(state, cassette_clear), 1;
 
-  sqlite3_bind_text(stmt_select, 1, key, -1, SQLITE_STATIC);
+  sqlite3_bind_text(stmt_select, 1, key.data(), -1, SQLITE_STATIC);
   if (sqlite3_step(stmt_select) == SQLITE_ROW) {
     const auto type = sqlite3_column_int(stmt_select, 0);
     switch (type) {
@@ -48,19 +48,19 @@ static int cassette_index(lua_State* state) {
 }
 
 static int cassette_newindex(lua_State* state) {
-  const auto* const key = luaL_checkstring(state, 2);
+  const std::string_view key = luaL_checkstring(state, 2);
 
-  if (std::string_view(key) == "clear") [[unlikely]]
+  if (key == "clear") [[unlikely]]
     return 0;
 
   if (lua_isnil(state, 3)) {
-    sqlite3_bind_text(stmt_delete, 1, key, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt_delete, 1, key.data(), -1, SQLITE_STATIC);
     sqlite3_step(stmt_delete);
     sqlite3_reset(stmt_delete);
     return 0;
   }
 
-  sqlite3_bind_text(stmt_upsert, 1, key, -1, SQLITE_STATIC);
+  sqlite3_bind_text(stmt_upsert, 1, key.data(), -1, SQLITE_STATIC);
   if (lua_isboolean(state, 3)) {
     sqlite3_bind_int(stmt_upsert, 2, 0);
     sqlite3_bind_int(stmt_upsert, 3, lua_toboolean(state, 3));
