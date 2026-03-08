@@ -14,10 +14,10 @@ public:
     const flipmode flip = flipmode::none
   ) const noexcept;
 
-  operator SDL_Texture*() const noexcept;
+  [[nodiscard]] operator SDL_Texture*() const noexcept;
 
-  int width() const noexcept;
-  int height() const noexcept;
+  [[nodiscard]] int width() const noexcept;
+  [[nodiscard]] int height() const noexcept;
 
 private:
   int _width;

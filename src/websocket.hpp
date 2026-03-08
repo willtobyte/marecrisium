@@ -19,7 +19,7 @@ public:
     _head.store(head + 1, std::memory_order_release);
   }
 
-  bool try_pop(T& out) noexcept {
+  [[nodiscard]] bool try_pop(T& out) noexcept {
     const auto tail = _tail.load(std::memory_order_relaxed);
     const auto head = _head.load(std::memory_order_acquire);
     if (tail == head) return false;

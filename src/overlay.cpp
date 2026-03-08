@@ -34,13 +34,13 @@ overlay::overlay(std::string_view name, fontpool &fonts)
   if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
     std::string error = lua_tostring(L, -1);
     lua_pop(L, 1);
-    throw std::runtime_error(error);
+    throw std::runtime_error(std::move(error));
   }
 
   if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
     std::string error = lua_tostring(L, -1);
     lua_pop(L, 1);
-    throw std::runtime_error(error);
+    throw std::runtime_error(std::move(error));
   }
 
   lua_getfield(L, -1, "fonts");
@@ -78,7 +78,7 @@ void overlay::update(float delta) {
     if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
       lua_pop(L, 2);
-      throw std::runtime_error(error);
+      throw std::runtime_error(std::move(error));
     }
   } else {
     lua_pop(L, 1);
@@ -97,7 +97,7 @@ void overlay::draw() const {
     if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
       lua_pop(L, 2);
-      throw std::runtime_error(error);
+      throw std::runtime_error(std::move(error));
     }
   } else {
     lua_pop(L, 1);

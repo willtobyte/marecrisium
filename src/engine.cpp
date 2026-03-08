@@ -14,7 +14,7 @@ engine::engine() {
   if (luaL_loadbuffer(L, data, size, "@main.lua") != 0 || lua_pcall(L, 0, 1, 0) != 0) {
     std::string error = lua_tostring(L, -1);
     lua_pop(L, 1);
-    throw std::runtime_error(error);
+    throw std::runtime_error(std::move(error));
   }
 
   lua_getfield(L, -1, "width");
@@ -96,7 +96,7 @@ engine::engine() {
     if (lua_pcall(L, 0, 0, 0) != 0) {
       std::string error = lua_tostring(L, -1);
       lua_pop(L, 1);
-      throw std::runtime_error(error);
+      throw std::runtime_error(std::move(error));
     }
   } else {
     lua_pop(L, 1);

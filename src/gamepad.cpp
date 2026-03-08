@@ -2,7 +2,7 @@
 
 static constexpr float DEADZONE_THRESHOLD = 0.1f;
 
-static float deadzone(Sint16 raw) {
+[[nodiscard]] static float deadzone(Sint16 raw) noexcept {
   const auto value = static_cast<float>(raw) / 32767.0f;
   if (std::abs(value) < DEADZONE_THRESHOLD)
     return .0f;

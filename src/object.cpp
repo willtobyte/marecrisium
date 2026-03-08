@@ -331,7 +331,7 @@ namespace {
                   if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]] {
                     std::string error = lua_tostring(state, -1);
                     lua_pop(state, 1);
-                    throw std::runtime_error(error);
+                    throw std::runtime_error(std::move(error));
                   }
                 } else {
                   lua_pop(state, 1);
@@ -347,7 +347,7 @@ namespace {
                 if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]] {
                     std::string error = lua_tostring(state, -1);
                     lua_pop(state, 1);
-                    throw std::runtime_error(error);
+                    throw std::runtime_error(std::move(error));
                   }
               } else {
                 lua_pop(state, 1);
@@ -428,7 +428,7 @@ objectproxy::objectproxy(
   if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
     std::string error = lua_tostring(L, -1);
     lua_pop(L, 1);
-    throw std::runtime_error(error);
+    throw std::runtime_error(std::move(error));
   }
 
   prototype = luaL_ref(L, LUA_REGISTRYINDEX);

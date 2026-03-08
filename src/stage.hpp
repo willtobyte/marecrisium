@@ -20,7 +20,7 @@ public:
 
   void draw() const;
 
-  int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
+  [[nodiscard]] int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
 
 private:
   std::string _name;

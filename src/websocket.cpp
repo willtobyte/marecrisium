@@ -3,7 +3,7 @@
 namespace {
 socketconn* conn{nullptr};
 
-int abs_index(lua_State* state, int idx) noexcept {
+[[nodiscard]] int abs_index(lua_State* state, int idx) noexcept {
   return (idx > 0 || idx <= LUA_REGISTRYINDEX)
     ? idx
     : lua_gettop(state) + idx + 1;
@@ -64,7 +64,7 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
   }
 }
 
-bool lua_table_is_array(lua_State* state, int idx) {
+[[nodiscard]] bool lua_table_is_array(lua_State* state, int idx) {
   const auto abs = abs_index(state, idx);
   auto count = 0;
   lua_pushnil(state);
@@ -77,7 +77,7 @@ bool lua_table_is_array(lua_State* state, int idx) {
   return len > 0 && len == count;
 }
 
-yyjson_mut_val* lua_to_yyjson(lua_State* state, int index, yyjson_mut_doc* document) {
+[[nodiscard]] yyjson_mut_val* lua_to_yyjson(lua_State* state, int index, yyjson_mut_doc* document) {
   const auto abs = abs_index(state, index);
   const auto type = lua_type(state, abs);
 
@@ -129,7 +129,7 @@ yyjson_mut_val* lua_to_yyjson(lua_State* state, int index, yyjson_mut_doc* docum
   }
 }
 
-std::string build_action_json(const char* action, const char* topic) {
+[[nodiscard]] std::string build_action_json(const char* action, const char* topic) {
   auto* doc = yyjson_mut_doc_new(nullptr);
   auto* root = yyjson_mut_obj(doc);
   yyjson_mut_doc_set_root(doc, root);
@@ -464,7 +464,7 @@ void socketconn::poll() {
         if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
           std::string error = lua_tostring(L, -1);
           lua_pop(L, 1);
-          throw std::runtime_error(error);
+          throw std::runtime_error(std::move(error));
         }
       }
     }
