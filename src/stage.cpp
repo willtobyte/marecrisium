@@ -283,29 +283,6 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
   }
   lua_pop(L, 1);
 
-  lua_getfield(L, -1, "atlas");
-  if (lua_istable(L, -1)) {
-    const auto count = static_cast<int>(lua_objlen(L, -1));
-    for (int i = 1; i <= count; ++i) {
-      lua_rawgeti(L, -1, i);
-      const auto* atlas_name = lua_tostring(L, -1);
-      if (atlas_name) [[likely]] {
-        const auto& pix = _pixmappool.get(std::format("atlas/{}", atlas_name));
-        auto** memory = static_cast<const pixmap**>(lua_newuserdata(L, sizeof(const pixmap*)));
-        *memory = &pix;
-        luaL_getmetatable(L, "Atlas");
-        lua_setmetatable(L, -2);
-
-        lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
-        lua_pushvalue(L, -2);
-        lua_setfield(L, -2, atlas_name);
-        lua_pop(L, 2);
-      }
-      lua_pop(L, 1);
-    }
-  }
-  lua_pop(L, 1);
-
   _reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   const auto end = SDL_GetPerformanceCounter();
@@ -725,23 +702,6 @@ void stage::draw() const {
       tf.flip
     );
   }
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  lua_getfield(L, -1, "on_paint");
-
-  if (lua_isfunction(L, -1)) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-
-    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-      std::string error = lua_tostring(L, -1);
-      lua_pop(L, 1);
-      throw std::runtime_error(error);
-    }
-  } else {
-    lua_pop(L, 1);
-  }
-
-  lua_pop(L, 1);
 
 #ifdef DEBUG
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);

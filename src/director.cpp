@@ -28,7 +28,8 @@ static int flush_callback(lua_State *state) {
 }
 
 director::director()
-    : _pixmappool(std::make_unique<pixmappool>()),
+    : _fontpool(std::make_unique<fontpool>()),
+      _pixmappool(std::make_unique<pixmappool>()),
       _soundpool(std::make_unique<soundpool>()),
       _sourcepool(std::make_unique<sourcepool>()) {}
 
@@ -54,8 +55,6 @@ void director::wire() {
   lua_setfield(L, -2, "flush");
 
   lua_setglobal(L, "director");
-
-  atlas::wire();
 }
 
 void director::navigate(std::string_view name) {
@@ -78,6 +77,7 @@ void director::flush() {
   _sourcepool->clear();
   _soundpool->clear();
   _pixmappool->clear();
+  _fontpool->clear();
 }
 
 void director::preload(std::string_view name) {

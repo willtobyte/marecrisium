@@ -182,7 +182,6 @@ cassette = {}
 ---these fields, lifecycle callbacks, and entity/sound declarations.
 ---@field objects StageObject[]|nil Objects to spawn when the stage is created.
 ---@field sounds string[]|nil Sound names to preload. Each `"foo"` loads `sounds/foo` and is accessible as `pool.foo`.
----@field atlas string[]|nil Atlas names to preload. Each `"foo"` loads `blobs/atlas/foo.png` and is accessible as `pool.foo`.
 local Stage = {}
 
 ---Called when the director navigates to this stage.
@@ -201,11 +200,6 @@ function Stage.on_tick(self, tick) end
 ---@param self table The stage table itself.
 ---@param delta number Frame delta time in seconds.
 function Stage.on_loop(self, delta) end
-
----Called every frame during the draw phase, after all entities are rendered.
----Use `pool.<atlas>:draw()` here for custom batch rendering.
----@param self table The stage table itself.
-function Stage.on_paint(self) end
 
 ---Called when a click occurs but no collidable object is hit.
 ---@param x number Click X position in world coordinates.
@@ -391,8 +385,8 @@ world = {}
 --------------------------------------------------------------------------------
 
 ---@class Pool
----Access objects, sounds, and atlases by name.
----@field [string] Object|Sound|Atlas
+---Access objects and sounds by name.
+---@field [string] Object|Sound
 
 ---Resource pool (available inside stage scripts).
 ---@type Pool
@@ -461,26 +455,6 @@ platform = {}
 ---@param url string The URL to open.
 ---@return boolean success Whether the operation succeeded.
 function openurl(url) end
-
---------------------------------------------------------------------------------
--- Atlas (batch rendering userdata, available in `pool`)
---------------------------------------------------------------------------------
-
----@class Atlas
----@field width number Atlas texture width in pixels (read-only).
----@field height number Atlas texture height in pixels (read-only).
-local Atlas = {}
-
----Draw textured geometry in batch using vertex and index data.
----Vertices are a LuaJIT FFI `float` array with 8 values per vertex
----in SDL_Vertex layout: x, y, r, g, b, a, u, v.
----Colors are 0.0-1.0 floats. UVs are normalized 0.0-1.0.
----Indices are a LuaJIT FFI `int` array of 0-based triangle indices.
----@param vertices ffi.cdata* FFI float array: {x, y, r, g, b, a, u, v, ...}.
----@param count integer Number of vertices.
----@param indices ffi.cdata* FFI int array of 0-based triangle indices.
----@param index_count integer Number of indices.
-function Atlas:draw(vertices, count, indices, index_count) end
 
 --------------------------------------------------------------------------------
 -- WebSocket (WebSocket connection)
