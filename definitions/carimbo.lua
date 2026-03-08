@@ -248,10 +248,14 @@ director = {}
 ---@class Overlay
 local Overlay = {}
 
----Called every frame while this overlay is active.
+---Called every frame while this overlay is active (logic only, no rendering).
 ---@param self Overlay The overlay table itself.
 ---@param delta number Frame delta time in seconds.
 function Overlay.on_loop(self, delta) end
+
+---Called every frame to render overlay elements. Use overlay:label() here.
+---@param self Overlay The overlay table itself.
+function Overlay.on_paint(self) end
 
 ---Draw a text label at the given position using a preloaded font.
 ---@param font string Font family name (must be declared in the overlay's fonts list).

@@ -3,11 +3,11 @@
 static int overlay_label(lua_State *state) {
   auto **ptr = static_cast<overlay **>(luaL_checkudata(state, 1, "Overlay"));
   auto *self = *ptr;
-  const auto *font = luaL_checkstring(state, 2);
-  const auto *text = luaL_checkstring(state, 3);
+  const std::string_view font = luaL_checkstring(state, 2);
+  const std::string_view text = luaL_checkstring(state, 3);
   const auto x = static_cast<float>(luaL_checknumber(state, 4));
   const auto y = static_cast<float>(luaL_checknumber(state, 5));
-  self->enqueue(font, text, x, y);
+  self->render_label(font, text, x, y);
   return 0;
 }
 
@@ -88,12 +88,22 @@ void overlay::update(float delta) {
 }
 
 void overlay::draw() const {
-  for (const auto &entry : _labels) {
-    const auto &font = _fontpool.get(entry.font);
-    font.draw(entry.text, entry.x, entry.y);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_getfield(L, -1, "on_paint");
+
+  if (lua_isfunction(L, -1)) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+
+    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
+      std::string error = lua_tostring(L, -1);
+      lua_pop(L, 2);
+      throw std::runtime_error(error);
+    }
+  } else {
+    lua_pop(L, 1);
   }
 
-  _labels.clear();
+  lua_pop(L, 1);
 }
 
 void overlay::wire() {
@@ -114,6 +124,7 @@ void overlay::unwire() {
   lua_setglobal(L, "overlay");
 }
 
-void overlay::enqueue(std::string_view font, std::string_view text, float x, float y) {
-  _labels.emplace_back(entry{std::string{font}, std::string{text}, x, y});
+void overlay::render_label(std::string_view family, std::string_view text, float x, float y) const {
+  const auto &f = _fontpool.get(family);
+  f.draw(text, x, y);
 }

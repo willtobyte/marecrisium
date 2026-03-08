@@ -15,19 +15,10 @@ public:
 
   static void unwire();
 
-  void enqueue(std::string_view font, std::string_view text, float x, float y);
+  void render_label(std::string_view family, std::string_view text, float x, float y) const;
 
 private:
   std::string _name;
   fontpool& _fontpool;
   int _reference = LUA_NOREF;
-
-  struct entry {
-    std::string font;
-    std::string text;
-    float x;
-    float y;
-  };
-
-  mutable std::vector<entry> _labels;
 };
