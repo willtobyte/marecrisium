@@ -118,11 +118,6 @@ void overlay::wire() {
   lua_setglobal(L, "overlay");
 }
 
-void overlay::unwire() {
-  lua_pushnil(L);
-  lua_setglobal(L, "overlay");
-}
-
 void overlay::render_label(std::string_view family, std::string_view text, float x, float y) const {
   const auto &f = _fontpool.get(family);
   f.draw(text, x, y);

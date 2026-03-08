@@ -22,9 +22,7 @@ public:
 
   void flush();
 
-  void set_overlay(std::string_view name);
-
-  void unset_overlay();
+  void set_overlay(std::optional<std::string_view> name);
 
   void transition();
 
