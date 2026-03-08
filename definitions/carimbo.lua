@@ -230,9 +230,39 @@ function Director.preload(name) end
 ---Destroy all stages and clear all resource pools.
 function Director.flush() end
 
+---Activate an overlay. Creates it if not loaded. Pass nil to deactivate.
+---@param name string|nil Overlay name (matches `overlays/<name>.lua`).
+function Director.overlay(name) end
+
 ---Global stage director.
 ---@type Director
 director = {}
+
+--------------------------------------------------------------------------------
+-- Overlay (HUD / on-screen text)
+--------------------------------------------------------------------------------
+
+---@class OverlayConfig
+---@field fonts string[] Font families to preload from `overlay/fonts/`.
+
+---@class Overlay
+local Overlay = {}
+
+---Called every frame while this overlay is active.
+---@param self Overlay The overlay table itself.
+---@param delta number Frame delta time in seconds.
+function Overlay.on_loop(self, delta) end
+
+---Draw a text label at the given position using a preloaded font.
+---@param font string Font family name (must be declared in the overlay's fonts list).
+---@param text string The text to render.
+---@param x number X position in logical pixels.
+---@param y number Y position in logical pixels.
+function Overlay:label(font, text, x, y) end
+
+---Global overlay instance (nil when no overlay is active).
+---@type Overlay|nil
+overlay = nil
 
 --------------------------------------------------------------------------------
 -- Viewport

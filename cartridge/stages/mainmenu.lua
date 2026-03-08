@@ -7,6 +7,8 @@ return ticker.wrap({
 	},
 
 	on_enter = function()
+		director.overlay("hud")
+
 		ticker.every(100, function()
 			print("on timer")
 		end)

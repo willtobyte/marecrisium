@@ -27,6 +27,19 @@ static int flush_callback(lua_State *state) {
   return 0;
 }
 
+static int overlay_callback(lua_State *state) {
+  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
+
+  if (lua_isnil(state, 1) || lua_isnone(state, 1)) {
+    self->unset_overlay();
+    return 0;
+  }
+
+  const auto *name = luaL_checkstring(state, 1);
+  self->set_overlay(name);
+  return 0;
+}
+
 director::director()
     : _fontpool(std::make_unique<fontpool>()),
       _pixmappool(std::make_unique<pixmappool>()),
@@ -54,6 +67,10 @@ void director::wire() {
   lua_pushcclosure(L, flush_callback, 1);
   lua_setfield(L, -2, "flush");
 
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, overlay_callback, 1);
+  lua_setfield(L, -2, "overlay");
+
   lua_setglobal(L, "director");
 }
 
@@ -73,11 +90,29 @@ void director::destroy(std::string_view name) {
 
 void director::flush() {
   _current = nullptr;
+  unset_overlay();
   _stages.clear();
+  _overlays.clear();
   _sourcepool->clear();
   _soundpool->clear();
   _pixmappool->clear();
   _fontpool->clear();
+}
+
+void director::set_overlay(std::string_view name) {
+  const auto [it, result] = _overlays.try_emplace(std::string{name}, nullptr);
+
+  if (result) {
+    it->second = std::make_unique<overlay>(name, *_fontpool);
+  }
+
+  _overlay = it->second.get();
+  _overlay->wire();
+}
+
+void director::unset_overlay() {
+  overlay::unwire();
+  _overlay = nullptr;
 }
 
 void director::preload(std::string_view name) {
@@ -120,10 +155,18 @@ void director::update(float delta) {
   if (_current) [[likely]] {
     _current->update(delta);
   }
+
+  if (_overlay) {
+    _overlay->update(delta);
+  }
 }
 
 void director::draw() const {
   if (_current) [[likely]] {
     _current->draw();
+  }
+
+  if (_overlay) {
+    _overlay->draw();
   }
 }
