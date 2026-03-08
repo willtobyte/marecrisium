@@ -137,6 +137,7 @@ void font::draw(std::string_view text, float x, float y) const noexcept {
     if (_vertex_count + 4 > _vertices.size()) break;
 
     const auto& glyph = _props[static_cast<uint8_t>(character)];
+
     const auto base = static_cast<int>(_vertex_count);
 
     _vertices[_vertex_count++] = SDL_Vertex{{cx, cy}, color, {glyph.u0, glyph.v0}};

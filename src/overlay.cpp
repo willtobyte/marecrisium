@@ -51,8 +51,7 @@ overlay::overlay(std::string_view name, fontpool &fonts)
       lua_rawgeti(L, -1, i);
 
       if (lua_isstring(L, -1)) {
-        const std::string_view family = lua_tostring(L, -1);
-        static_cast<void>(_fontpool.get(family));
+        std::ignore = _fontpool.get(lua_tostring(L, -1));
       }
 
       lua_pop(L, 1);
