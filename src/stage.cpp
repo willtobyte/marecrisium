@@ -832,18 +832,20 @@ void stage::dispatch_hover(float x, float y) {
   b2World_OverlapAABB(
     _world, aabb, filter,
     [](b2ShapeId shape, void* userdata) -> bool {
-      auto* hits = static_cast<std::unordered_set<entt::entity>*>(userdata);
+      auto* hits = static_cast<std::vector<entt::entity>*>(userdata);
       const auto entity = static_cast<entt::entity>(
         reinterpret_cast<uintptr_t>(b2Shape_GetUserData(shape)));
-      hits->emplace(entity);
+      hits->push_back(entity);
       return true;
     },
     &_hits);
 
+  std::ranges::sort(_hits);
+
   dispatch_unhover();
 
   for (const auto entity : _hits) {
-    if (_hovering.contains(entity))
+    if (std::ranges::binary_search(_hovering, entity))
       continue;
 
     if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
@@ -876,7 +878,7 @@ void stage::dispatch_hover(float x, float y) {
 
 void stage::dispatch_unhover() {
   for (const auto entity : _hovering) {
-    if (_hits.contains(entity))
+    if (std::ranges::binary_search(_hits, entity))
       continue;
 
     if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
@@ -974,8 +976,8 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     float fraction;
   };
 
-  std::vector<hit> hits;
-  hits.reserve(16);
+  static std::vector<hit> hits;
+  hits.clear();
 
   const auto radians = angle * (std::numbers::pi_v<float> / 180.f);
   const b2Vec2 origin{x, y};

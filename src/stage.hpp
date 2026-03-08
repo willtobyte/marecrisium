@@ -33,8 +33,8 @@ private:
   b2WorldId _world;
   float _accumulator = .0f;
   uint32_t _mouse_previous_buttons{};
-  std::unordered_set<entt::entity> _hovering;
-  std::unordered_set<entt::entity> _hits;
+  std::vector<entt::entity> _hovering;
+  std::vector<entt::entity> _hits;
   int _reference = LUA_NOREF;
   int _environment_reference = LUA_NOREF;
   int _pool_reference = LUA_NOREF;
