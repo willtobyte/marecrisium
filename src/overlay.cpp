@@ -3,8 +3,8 @@
 static int overlay_label(lua_State *state) {
   auto **ptr = static_cast<overlay **>(luaL_checkudata(state, 1, "Overlay"));
   auto *self = *ptr;
-  const std::string_view font = luaL_checkstring(state, 2);
-  const std::string_view text = luaL_checkstring(state, 3);
+  const auto* font = luaL_checkstring(state, 2);
+  const auto* text = luaL_checkstring(state, 3);
   const auto x = static_cast<float>(luaL_checknumber(state, 4));
   const auto y = static_cast<float>(luaL_checknumber(state, 5));
   self->render_label(font, text, x, y);
