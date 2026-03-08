@@ -139,10 +139,10 @@ void font::draw(std::string_view text, float x, float y) const noexcept {
     const auto& glyph = _props[static_cast<uint8_t>(character)];
     const auto base = static_cast<int>(_vertex_count);
 
-    _vertices[_vertex_count++] = SDL_Vertex{{cx,          cy},          color, {glyph.u0, glyph.v0}};
-    _vertices[_vertex_count++] = SDL_Vertex{{cx + glyph.sw, cy},          color, {glyph.u1, glyph.v0}};
+    _vertices[_vertex_count++] = SDL_Vertex{{cx, cy}, color, {glyph.u0, glyph.v0}};
+    _vertices[_vertex_count++] = SDL_Vertex{{cx + glyph.sw, cy}, color, {glyph.u1, glyph.v0}};
     _vertices[_vertex_count++] = SDL_Vertex{{cx + glyph.sw, cy + glyph.sh}, color, {glyph.u1, glyph.v1}};
-    _vertices[_vertex_count++] = SDL_Vertex{{cx,          cy + glyph.sh}, color, {glyph.u0, glyph.v1}};
+    _vertices[_vertex_count++] = SDL_Vertex{{cx, cy + glyph.sh}, color, {glyph.u0, glyph.v1}};
 
     _indices[_index_count++] = base;
     _indices[_index_count++] = base + 1;
