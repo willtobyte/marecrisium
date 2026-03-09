@@ -39,12 +39,6 @@ static int overlay_callback(lua_State *state) {
   return 0;
 }
 
-director::director()
-    : _fontpool(std::make_unique<fontpool>()),
-      _pixmappool(std::make_unique<pixmappool>()),
-      _soundpool(std::make_unique<soundpool>()),
-      _sourcepool(std::make_unique<sourcepool>()) {}
-
 director::~director() = default;
 
 void director::wire() {
@@ -92,10 +86,10 @@ void director::flush() {
 
   _stages.clear();
   _overlays.clear();
-  _sourcepool->clear();
-  _soundpool->clear();
-  _pixmappool->clear();
-  _fontpool->clear();
+  resources.source.clear();
+  resources.sound.clear();
+  resources.pixmap.clear();
+  resources.font.clear();
 
   set_overlay(std::nullopt);
 }
@@ -109,7 +103,7 @@ void director::set_overlay(std::optional<std::string_view> name) {
   const auto [it, result] = _overlays.try_emplace(std::string{*name}, nullptr);
 
   if (result) {
-    it->second = std::make_unique<overlay>(*name, *_fontpool);
+    it->second = std::make_unique<overlay>(*name);
   }
 
   _overlay = it->second.get();
@@ -121,7 +115,7 @@ void director::preload(std::string_view name) {
     return;
   }
 
-  _stages.emplace(name, std::make_unique<stage>(name, *_pixmappool, *_soundpool, *_sourcepool));
+  _stages.emplace(name, std::make_unique<stage>(name));
 }
 
 void director::transition() {
@@ -136,7 +130,7 @@ void director::transition() {
   auto it = _stages.find(*_pending);
 
   if (it == _stages.end()) {
-    auto s = std::make_unique<stage>(*_pending, *_pixmappool, *_soundpool, *_sourcepool);
+    auto s = std::make_unique<stage>(*_pending);
     auto [inserted, _] = _stages.emplace(std::move(*_pending), std::move(s));
     it = inserted;
   }

@@ -23,8 +23,8 @@ static int overlay_index(lua_State *state) {
   return lua_pushnil(state), 1;
 }
 
-overlay::overlay(std::string_view name, fontpool &fonts)
-    : _name(name), _fontpool(fonts) {
+overlay::overlay(std::string_view name)
+    : _name(name) {
   const auto filename = std::format("overlays/{}.lua", name);
   const auto buffer = io::read(filename);
   const auto *data = reinterpret_cast<const char *>(buffer.data());
@@ -51,7 +51,7 @@ overlay::overlay(std::string_view name, fontpool &fonts)
       lua_rawgeti(L, -1, i);
 
       if (lua_isstring(L, -1)) {
-        std::ignore = _fontpool.get(lua_tostring(L, -1));
+        std::ignore = resources.font.get(lua_tostring(L, -1));
       }
 
       lua_pop(L, 1);
@@ -119,6 +119,6 @@ void overlay::wire() {
 }
 
 void overlay::render_label(std::string_view family, std::string_view text, float x, float y) const {
-  const auto &f = _fontpool.get(family);
+  const auto &f = resources.font.get(family);
   f.draw(text, x, y);
 }

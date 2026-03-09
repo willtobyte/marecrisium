@@ -3,8 +3,9 @@
 lua_State *L = nullptr;
 ma_engine *audioengine = nullptr;
 SDL_Renderer *renderer = nullptr;
-struct viewport viewport{};
 b2Vec2 gravity{.0f, .0f};
+struct viewport viewport{};
+struct resources resources{};
 
 engine::engine() {
   const auto buffer = io::read("scripts/main.lua");

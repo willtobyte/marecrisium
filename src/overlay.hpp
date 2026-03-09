@@ -1,10 +1,8 @@
 #pragma once
 
-class fontpool;
-
 class overlay final {
 public:
-  overlay(std::string_view name, fontpool& fonts);
+  explicit overlay(std::string_view name);
   ~overlay();
 
   void update(float delta);
@@ -17,6 +15,5 @@ public:
 
 private:
   std::string _name;
-  fontpool& _fontpool;
   int _reference = LUA_NOREF;
 };

@@ -1,15 +1,11 @@
 #pragma once
 
-class fontpool;
 class overlay;
-class pixmappool;
-class soundpool;
-class sourcepool;
 class stage;
 
 class director final {
 public:
-  director();
+  director() = default;
   ~director();
 
   void wire();
@@ -38,8 +34,4 @@ private:
   std::optional<std::string> _pending;
   std::unordered_map<std::string, std::unique_ptr<stage>, transparent_hash, std::equal_to<>> _stages;
   std::unordered_map<std::string, std::unique_ptr<overlay>, transparent_hash, std::equal_to<>> _overlays;
-  std::unique_ptr<fontpool> _fontpool;
-  std::unique_ptr<pixmappool> _pixmappool;
-  std::unique_ptr<soundpool> _soundpool;
-  std::unique_ptr<sourcepool> _sourcepool;
 };

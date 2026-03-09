@@ -182,6 +182,7 @@ cassette = {}
 ---these fields, lifecycle callbacks, and entity/sound declarations.
 ---@field objects StageObject[]|nil Objects to spawn when the stage is created.
 ---@field sounds string[]|nil Sound names to preload. Each `"foo"` loads `sounds/foo` and is accessible as `pool.foo`.
+---@field tilemap string|nil Tilemap name. Loads `tilemaps/<name>.lua` and exposes a `tilemap` global in the stage environment.
 local Stage = {}
 
 ---Called when the director navigates to this stage.
@@ -206,6 +207,37 @@ function Stage.on_loop(self, delta) end
 ---@param y number Click Y position in world coordinates.
 ---@param button "left"|"middle"|"right" Which mouse button was released.
 function Stage.on_click(x, y, button) end
+
+---Called every frame before rendering to set up camera/tilemap.
+---Use `tilemap:draw(x, y, w, h)` here to set the camera position.
+---Return camera_x, camera_y to offset object rendering.
+---@param self table The stage table itself.
+---@return number|nil camera_x Camera X offset for object rendering.
+---@return number|nil camera_y Camera Y offset for object rendering.
+function Stage.on_paint(self) end
+
+--------------------------------------------------------------------------------
+-- Tilemap (tile-based level rendering)
+--------------------------------------------------------------------------------
+
+---@class Tilemap
+---Tilemap instance (available in stage environment when `tilemap` field is set).
+---Loaded from `tilemaps/<name>.lua`. Atlas textures from
+---`blobs/tilemaps/<name>/background.png` and `blobs/tilemaps/<name>/foreground.png`.
+---Backdrop image from `blobs/tilemaps/<name>/backdrop.png`.
+local Tilemap = {}
+
+---Set the camera position for tilemap rendering.
+---Call this from `on_paint` to control which part of the tilemap is visible.
+---@param x number Camera X position in world pixels.
+---@param y number Camera Y position in world pixels.
+---@param w number Camera width in world pixels.
+---@param h number Camera height in world pixels.
+function Tilemap:draw(x, y, w, h) end
+
+---Tilemap instance (nil when stage has no tilemap).
+---@type Tilemap|nil
+tilemap = nil
 
 --------------------------------------------------------------------------------
 -- Director (stage navigation)

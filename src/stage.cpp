@@ -2,6 +2,28 @@ static constexpr float FIXED_TIMESTEP = 1.f / 60.f;
 
 static constexpr int WORLD_SUBSTEPS = 4;
 
+static int tilemap_draw(lua_State* state) {
+  auto** ptr = static_cast<tilemap**>(luaL_checkudata(state, 1, "Tilemap"));
+  const auto x = static_cast<float>(luaL_checknumber(state, 2));
+  const auto y = static_cast<float>(luaL_checknumber(state, 3));
+  const auto w = static_cast<float>(luaL_checknumber(state, 4));
+  const auto h = static_cast<float>(luaL_checknumber(state, 5));
+  (*ptr)->set_camera(x, y, w, h);
+  return 0;
+}
+
+static int tilemap_index(lua_State* state) {
+  luaL_checkudata(state, 1, "Tilemap");
+  const std::string_view key = luaL_checkstring(state, 2);
+
+  if (key == "draw") {
+    lua_pushcfunction(state, tilemap_draw);
+    return 1;
+  }
+
+  return lua_pushnil(state), 1;
+}
+
 static int world_raycast(lua_State* state) {
   auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
   const auto* caller = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
@@ -12,11 +34,8 @@ static int world_raycast(lua_State* state) {
   return self->raycast(state, caller->entity, x, y, angle, distance);
 }
 
-stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sourcepool& sources)
+stage::stage(std::string_view name)
     : _name(name),
-      _pixmappool(pixmaps),
-      _soundpool(sounds),
-      _sourcepool(sources),
       _stringpool(std::make_unique<stringpool>()) {
   const auto start = SDL_GetPerformanceCounter();
 
@@ -33,7 +52,6 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
       b2DestroyBody(bo.id);
   }>();
 
-  _registry.ctx().emplace<sourcepool*>(&_sourcepool);
   _registry.ctx().emplace<stringpool*>(_stringpool.get());
 
   lua_newtable(L);
@@ -108,7 +126,7 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
 
       if (lua_istable(L, -1)) {
         auto& a = _registry.emplace<animation>(entity);
-        a.pixmap = &_pixmappool.get(std::format("objects/{}", object_kind));
+        a.pixmap = &resources.pixmap.get(std::format("objects/{}", object_kind));
 
         lua_pushnil(L);
         while (lua_next(L, -2) != 0) {
@@ -264,7 +282,7 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
       if (lua_isstring(L, -1)) {
         const std::string_view sname = lua_tostring(L, -1);
 
-        auto& fx = _soundpool.get(std::format("sounds/{}", sname));
+        auto& fx = resources.sound.get(std::format("sounds/{}", sname));
         auto** memory = static_cast<sound**>(lua_newuserdata(L, sizeof(sound*)));
         *memory = &fx;
         luaL_getmetatable(L, "Sound");
@@ -281,6 +299,30 @@ stage::stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sour
 
       lua_pop(L, 1);
     }
+  }
+  lua_pop(L, 1);
+
+  lua_getfield(L, -1, "tilemap");
+  if (lua_isstring(L, -1)) {
+    const std::string_view tilemap_name = lua_tostring(L, -1);
+    _tilemap = std::make_unique<tilemap>(tilemap_name, _world);
+
+    auto** memory = static_cast<tilemap**>(lua_newuserdata(L, sizeof(tilemap*)));
+    *memory = _tilemap.get();
+
+    if (luaL_newmetatable(L, "Tilemap")) {
+      lua_pushcfunction(L, tilemap_index);
+      lua_setfield(L, -2, "__index");
+    }
+
+    lua_setmetatable(L, -2);
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
+    lua_pushvalue(L, -2);
+    lua_setfield(L, -2, "tilemap");
+    lua_pop(L, 1);
+
+    lua_pop(L, 1);
   }
   lua_pop(L, 1);
 
@@ -678,6 +720,35 @@ void stage::update(float delta) {
 }
 
 void stage::draw() const {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_getfield(L, -1, "on_paint");
+
+  auto cx = .0f;
+  auto cy = .0f;
+
+  if (lua_isfunction(L, -1)) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+
+    if (lua_pcall(L, 1, 2, 0) != 0) [[unlikely]] {
+      std::string error = lua_tostring(L, -1);
+      lua_pop(L, 2);
+      throw std::runtime_error(std::move(error));
+    }
+
+    if (lua_isnumber(L, -2))
+      cx = static_cast<float>(lua_tonumber(L, -2));
+    if (lua_isnumber(L, -1))
+      cy = static_cast<float>(lua_tonumber(L, -1));
+    lua_pop(L, 2);
+  } else {
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
+
+  if (_tilemap)
+    _tilemap->draw_background();
+
   for (auto&& [entity, a, tf] : _registry.view<animation, transform>().each()) {
     if (!tf.shown || !a.playing || !a.pixmap || a.clip_count == 0) [[unlikely]]
       continue;
@@ -690,27 +761,34 @@ void stage::draw() const {
 
     const auto dw = fr.w * tf.scale;
     const auto dh = fr.h * tf.scale;
+    const auto sx = tf.x - cx;
+    const auto sy = tf.y - cy;
 
-    if (tf.x + dw < .0f || tf.x > viewport.width ||
-        tf.y + dh < .0f || tf.y > viewport.height)
+    if (sx + dw < .0f || sx > viewport.width ||
+        sy + dh < .0f || sy > viewport.height)
       continue;
 
     a.pixmap->draw(
       fr.x, fr.y, fr.w, fr.h,
-      tf.x, tf.y, dw, dh,
+      sx, sy, dw, dh,
       static_cast<double>(tf.angle),
       static_cast<uint8_t>(std::clamp(tf.alpha, .0f, 255.0f)),
       tf.flip
     );
   }
 
+  if (_tilemap)
+    _tilemap->draw_foreground();
+
 #ifdef DEBUG
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
 
-  const b2AABB aabb = {{.0f, .0f}, {viewport.width, viewport.height}};
+  const b2AABB aabb = {{cx, cy}, {cx + viewport.width, cy + viewport.height}};
   const b2QueryFilter filter = b2DefaultQueryFilter();
+  const float offset[] = {cx, cy};
 
-  b2World_OverlapAABB(_world, aabb, filter, [](b2ShapeId shape, void*) -> bool {
+  b2World_OverlapAABB(_world, aabb, filter, [](b2ShapeId shape, void* userdata) -> bool {
+    const auto* offset = static_cast<const float*>(userdata);
     const auto body_id = b2Shape_GetBody(shape);
     const auto xf = b2Body_GetTransform(body_id);
     const auto polygon = b2Shape_GetPolygon(shape);
@@ -719,11 +797,11 @@ void stage::draw() const {
       const auto a = b2TransformPoint(xf, polygon.vertices[i]);
       const auto b = b2TransformPoint(xf, polygon.vertices[(i + 1) % polygon.count]);
 
-      SDL_RenderLine(renderer, a.x, a.y, b.x, b.y);
+      SDL_RenderLine(renderer, a.x - offset[0], a.y - offset[1], b.x - offset[0], b.y - offset[1]);
     }
 
     return true;
-  }, nullptr);
+  }, const_cast<float*>(offset));
 
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 #endif

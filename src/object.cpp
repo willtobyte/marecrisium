@@ -419,8 +419,7 @@ objectproxy::objectproxy(
   }
   lua_pop(L, 1);
 
-  auto* sources = registry.ctx().get<sourcepool*>();
-  sources->insert(kind);
+  resources.source.insert(kind);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, environment);
   lua_setfenv(L, -2);

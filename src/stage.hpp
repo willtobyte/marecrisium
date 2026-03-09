@@ -1,13 +1,11 @@
 #pragma once
 
-class pixmappool;
-class soundpool;
-class sourcepool;
 class stringpool;
+class tilemap;
 
 class stage final {
 public:
-  stage(std::string_view name, pixmappool& pixmaps, soundpool& sounds, sourcepool& sources);
+  explicit stage(std::string_view name);
   ~stage();
 
   void on_enter();
@@ -25,9 +23,6 @@ public:
 private:
   std::string _name;
   entt::registry _registry;
-  pixmappool& _pixmappool;
-  soundpool& _soundpool;
-  sourcepool& _sourcepool;
   std::unique_ptr<stringpool> _stringpool;
   std::vector<sound*> _sounds;
   b2WorldId _world;
@@ -35,6 +30,7 @@ private:
   uint32_t _mouse_previous_buttons{};
   std::vector<entt::entity> _hovering;
   std::vector<entt::entity> _hits;
+  std::unique_ptr<tilemap> _tilemap;
   int _reference = LUA_NOREF;
   int _environment_reference = LUA_NOREF;
   int _pool_reference = LUA_NOREF;
