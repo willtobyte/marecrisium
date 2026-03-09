@@ -74,8 +74,8 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
     const auto h = static_cast<size_t>(_height);
 
     std::vector<uint8_t> visited(total);
-    const auto* __restrict__ tiles = collision.data();
-    auto* __restrict__ visited_data = visited.data();
+    const auto* RESTRICT tiles = collision.data();
+    auto* RESTRICT visited_data = visited.data();
 
     for (size_t row = 0; row < h; ++row) {
       const auto row_offset = row * w;

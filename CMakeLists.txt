@@ -18,6 +18,7 @@ add_compile_definitions(
   $<$<BOOL:${DEVELOPMENT}>:DEVELOPMENT>
   $<$<PLATFORM_ID:Windows>:NOMINMAX>
   $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN>
+  $<IF:$<CXX_COMPILER_ID:MSVC>,RESTRICT=__restrict,RESTRICT=__restrict__>
 )
 
 add_executable(${PROJECT_NAME})
