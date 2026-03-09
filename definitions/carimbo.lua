@@ -291,6 +291,29 @@ overlay = nil
 viewport = {}
 
 --------------------------------------------------------------------------------
+-- ObjectPrototype (table returned by objects/<kind>.lua)
+--------------------------------------------------------------------------------
+
+---@class ObjectPrototype
+---@field body? "dynamic"|"kinematic"|"static" Physics body type. Default is "kinematic".
+---@field cullable? boolean Whether this object can become dormant when off-screen. Only applies to non-dynamic bodies. Default is false.
+---@field animation table<string, number[][]> Animation clips. Each clip is an array of frames: {sx, sy, sw, sh, duration_ms [, cx, cy, cw, ch]}.
+---@field on_spawn? fun(self: Object) Called once when the object is created.
+---@field on_loop? fun(self: Object, delta: number) Called every frame.
+---@field on_collision_begin? fun(self: Object, other_name: string, other_kind: string, normal_x?: number, normal_y?: number) Called on physics contact begin.
+---@field on_collision_end? fun(self: Object, other_name: string, other_kind: string) Called on physics contact end.
+---@field on_screen_exit? fun(self: Object, direction: "left"|"right"|"top"|"bottom") Called when the object moves fully outside a screen edge.
+---@field on_screen_enter? fun(self: Object, direction: "left"|"right"|"top"|"bottom") Called when the object returns inside a screen edge.
+---@field on_animation_end? fun(self: Object, clip_name: string) Called when an animation clip finishes or is replaced.
+---@field on_animation_begin? fun(self: Object, clip_name: string) Called when a new animation clip starts playing.
+---@field on_click? fun(self: Object, x: number, y: number, button: "left"|"middle"|"right") Called when the object is clicked.
+---@field on_hover? fun(self: Object) Called when the mouse cursor enters the object's hitbox.
+---@field on_unhover? fun(self: Object) Called when the mouse cursor leaves the object's hitbox.
+---@field on_sleep? fun(self: Object) Called when the object becomes dormant (off-screen).
+---@field on_wake? fun(self: Object) Called when the object wakes from dormancy.
+---@field [string] any Custom properties accessible via the object instance.
+
+--------------------------------------------------------------------------------
 -- Object (entity userdata, available as `self` and in `pool`)
 --------------------------------------------------------------------------------
 

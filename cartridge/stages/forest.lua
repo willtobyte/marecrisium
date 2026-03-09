@@ -28,7 +28,7 @@ return ticker.wrap({
 		pool.enemy5.position = { 1300, 700 }
 		pool.enemy6.position = { 1500, 800 }
 		pool.enemy7.position = { 1800, 750 }
-		pool.enemy8.position = { 300, 500 }
+		pool.enemy8.position = { 10, 900 }
 	end,
 
 	on_paint = function(self)
