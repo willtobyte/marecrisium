@@ -489,6 +489,7 @@ void stage::update(float delta) {
             sdef.enableContactEvents = true;
             sdef.enableSensorEvents = true;
             sdef.density = 1.f;
+            sdef.material.friction = .0f;
           } break;
           case body_type::fixed: {
             sdef.enableContactEvents = true;
@@ -591,8 +592,10 @@ void stage::update(float delta) {
           reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.shapeIdA)));
       const auto entity_b = static_cast<entt::entity>(
           reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.shapeIdB)));
-      dispatch_collision(entity_a, entity_b, "on_collision_begin");
-      dispatch_collision(entity_b, entity_a, "on_collision_begin");
+      const auto& normal = event.manifold.normal;
+      const b2Vec2 flipped = {-normal.x, -normal.y};
+      dispatch_collision(entity_a, entity_b, "on_collision_begin", &normal);
+      dispatch_collision(entity_b, entity_a, "on_collision_begin", &flipped);
     }
 
     for (int i = 0; i < contact_events.endCount; ++i) {
@@ -1017,7 +1020,8 @@ void stage::dispatch_screen_event(
 void stage::dispatch_collision(
   entt::entity entity,
   entt::entity other,
-  const char* callback
+  const char* callback,
+  const b2Vec2* normal
 ) {
   if (!_registry.valid(entity) || !_registry.valid(other)) return;
   if (!_registry.all_of<objectproxy>(entity) ||
@@ -1037,7 +1041,14 @@ void stage::dispatch_collision(
     lua_pushstring(L, _stringpool->get(target.name));
     lua_pushstring(L, _stringpool->get(target.kind));
 
-    if (lua_pcall(L, 3, 0, 0) != 0) [[unlikely]] {
+    auto argc = 3;
+    if (normal) {
+      lua_pushnumber(L, static_cast<double>(normal->x));
+      lua_pushnumber(L, static_cast<double>(normal->y));
+      argc = 5;
+    }
+
+    if (lua_pcall(L, argc, 0, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
       lua_pop(L, 1);
       throw std::runtime_error(std::move(error));

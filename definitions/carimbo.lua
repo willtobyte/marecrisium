@@ -347,13 +347,17 @@ function Object.on_spawn(self) end
 ---@param delta number Frame delta time in seconds.
 function Object.on_loop(self, delta) end
 
----Called when a physics sensor overlap begins with another object.
+---Called when a physics contact begins with another object.
+---For contact events, the collision normal is provided. The normal points from self toward the other object.
+---A normal_y < -0.5 typically indicates the other object is below (ground contact).
 ---@param self Object
 ---@param other_name string Name of the other object.
 ---@param other_kind string Kind/type of the other object.
-function Object.on_collision_begin(self, other_name, other_kind) end
+---@param normal_x? number X component of the contact normal (nil for sensor events).
+---@param normal_y? number Y component of the contact normal (nil for sensor events).
+function Object.on_collision_begin(self, other_name, other_kind, normal_x, normal_y) end
 
----Called when a physics sensor overlap ends with another object.
+---Called when a physics contact ends with another object.
 ---@param self Object
 ---@param other_name string Name of the other object.
 ---@param other_kind string Kind/type of the other object.

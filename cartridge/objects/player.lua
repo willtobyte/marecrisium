@@ -1,6 +1,7 @@
 local speed = 200
 local jump = -400
-local grounded = false
+local ground_contacts = {}
+local ground_count = 0
 
 return {
 	body = "dynamic",
@@ -30,17 +31,22 @@ return {
 
 		self.vx = vx
 
-		if grounded and (keyboard.space or keyboard.up or keyboard.w) then
+		if ground_count > 0 and (keyboard.space or keyboard.up or keyboard.w) then
 			self.vy = jump
-			grounded = false
 		end
 	end,
 
-	on_collision_begin = function(self, other_name, other_kind)
-		grounded = true
+	on_collision_begin = function(self, other_name, other_kind, normal_x, normal_y)
+		if normal_y and normal_y < -0.5 then
+			ground_contacts[other_name] = true
+			ground_count = ground_count + 1
+		end
 	end,
 
 	on_collision_end = function(self, other_name, other_kind)
-		grounded = false
+		if ground_contacts[other_name] then
+			ground_contacts[other_name] = nil
+			ground_count = ground_count - 1
+		end
 	end,
 }
