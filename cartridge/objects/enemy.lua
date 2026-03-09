@@ -36,11 +36,11 @@ return {
 		print(self.name .. " woke up")
 	end,
 
-	on_collision_begin = function(self, other_name, other_kind)
-		print("enemy collision begin", other_name, other_kind)
+	on_collision_begin = function(self, name, kind)
+		print("enemy collision begin", name, kind)
 	end,
 
-	on_collision_end = function(self, other_name, other_kind)
-		print("enemy collision end", other_name, other_kind)
+	on_collision_end = function(self, name, kind)
+		print("enemy collision end", name, kind)
 	end,
 }

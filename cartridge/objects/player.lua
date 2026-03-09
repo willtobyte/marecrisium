@@ -52,23 +52,23 @@ return {
 		end
 	end,
 
-	on_collision_begin = function(self, other_name, other_kind, _, normal_y)
+	on_collision_begin = function(self, name, kind, _, normal_y)
 		if normal_y and normal_y > 0.5 then
-			ground[other_name] = (ground[other_name] or 0) + 1
+			ground[name] = (ground[name] or 0) + 1
 			grounded = grounded + 1
-			if other_kind == "enemy" then
-				riding[other_name] = true
+			if kind == "enemy" then
+				riding[name] = true
 			end
 		end
 	end,
 
-	on_collision_end = function(self, other_name)
-		if ground[other_name] and ground[other_name] > 0 then
-			ground[other_name] = ground[other_name] - 1
+	on_collision_end = function(self, name)
+		if ground[name] and ground[name] > 0 then
+			ground[name] = ground[name] - 1
 			grounded = grounded - 1
-			if ground[other_name] == 0 then
-				ground[other_name] = nil
-				riding[other_name] = nil
+			if ground[name] == 0 then
+				ground[name] = nil
+				riding[name] = nil
 			end
 		end
 	end,

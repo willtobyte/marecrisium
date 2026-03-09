@@ -300,8 +300,8 @@ viewport = {}
 ---@field animation table<string, number[][]> Animation clips. Each clip is an array of frames: {sx, sy, sw, sh, duration_ms [, cx, cy, cw, ch]}.
 ---@field on_spawn? fun(self: Object) Called once when the object is created.
 ---@field on_loop? fun(self: Object, delta: number) Called every frame.
----@field on_collision_begin? fun(self: Object, other_name: string, other_kind: string, normal_x?: number, normal_y?: number) Called on physics contact begin.
----@field on_collision_end? fun(self: Object, other_name: string, other_kind: string) Called on physics contact end.
+---@field on_collision_begin? fun(self: Object, name: string, kind: string, normal_x?: number, normal_y?: number) Called on physics contact begin. `name` and `kind` refer to the other object involved in the collision.
+---@field on_collision_end? fun(self: Object, name: string, kind: string) Called on physics contact end. `name` and `kind` refer to the other object involved in the collision.
 ---@field on_screen_exit? fun(self: Object, direction: "left"|"right"|"top"|"bottom") Called when the object moves fully outside a screen edge.
 ---@field on_screen_enter? fun(self: Object, direction: "left"|"right"|"top"|"bottom") Called when the object returns inside a screen edge.
 ---@field on_animation_end? fun(self: Object, clip_name: string) Called when an animation clip finishes or is replaced.
@@ -353,17 +353,17 @@ function Object.on_loop(self, delta) end
 ---For contact events, the collision normal is provided. The normal points from self toward the other object.
 ---A normal_y > 0.5 typically indicates the other object is below (ground contact).
 ---@param self Object
----@param other_name string Name of the other object.
----@param other_kind string Kind/type of the other object.
+---@param name string Name of the other object involved in the collision.
+---@param kind string Kind/type of the other object involved in the collision.
 ---@param normal_x? number X component of the contact normal (nil for sensor events).
 ---@param normal_y? number Y component of the contact normal (nil for sensor events).
-function Object.on_collision_begin(self, other_name, other_kind, normal_x, normal_y) end
+function Object.on_collision_begin(self, name, kind, normal_x, normal_y) end
 
 ---Called when a physics contact ends with another object.
 ---@param self Object
----@param other_name string Name of the other object.
----@param other_kind string Kind/type of the other object.
-function Object.on_collision_end(self, other_name, other_kind) end
+---@param name string Name of the other object involved in the collision.
+---@param kind string Kind/type of the other object involved in the collision.
+function Object.on_collision_end(self, name, kind) end
 
 ---Called when the object moves fully outside a screen edge.
 ---@param self Object
