@@ -216,7 +216,7 @@ void sound::stop() noexcept {
 }
 
 void sound::set_volume(float gain) noexcept {
-  ma_sound_set_volume(&_sound, std::clamp(gain, .0f, 1.0f));
+  ma_sound_set_volume(&_sound, std::clamp(gain, .0f, 1.f));
 }
 
 float sound::volume() const noexcept {

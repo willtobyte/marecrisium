@@ -792,7 +792,7 @@ void stage::draw() const {
       fr.x, fr.y, fr.w, fr.h,
       sx, sy, dw, dh,
       static_cast<double>(tf.angle),
-      static_cast<uint8_t>(std::clamp(tf.alpha, .0f, 255.0f)),
+      static_cast<uint8_t>(std::clamp(tf.alpha, .0f, 255.f)),
       tf.flip
     );
   }
@@ -1127,7 +1127,7 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
       const auto entity = static_cast<entt::entity>(
         reinterpret_cast<uintptr_t>(b2Shape_GetUserData(shape)));
       results->push_back({entity, fraction});
-      return 1.0f;
+      return 1.f;
     },
     &hits
   );

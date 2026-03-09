@@ -1,7 +1,7 @@
 #include "websocket.hpp"
 
 namespace {
-socketconn* conn{nullptr};
+socketconn* connection{nullptr};
 
 [[nodiscard]] int abs_index(lua_State* state, int idx) noexcept {
   return (idx > 0 || idx <= LUA_REGISTRYINDEX)
@@ -258,9 +258,9 @@ int websocket_index(lua_State* state) {
 
 int websocket_gc(lua_State* state) {
   auto** ptr = static_cast<socketconn**>(luaL_checkudata(state, 1, "WebSocket"));
-  if (*ptr == conn) {
-    delete conn;
-    conn = nullptr;
+  if (*ptr == connection) {
+    delete connection;
+    connection = nullptr;
   }
   *ptr = nullptr;
   return 0;
@@ -269,11 +269,11 @@ int websocket_gc(lua_State* state) {
 int websocket_call(lua_State* state) {
   const auto* const url = luaL_checkstring(state, 1);
 
-  delete conn;
-  conn = new socketconn(std::string(url));
+  delete connection;
+  connection = new socketconn(std::string(url));
 
   auto** udata = static_cast<socketconn**>(lua_newuserdata(state, sizeof(socketconn*)));
-  *udata = conn;
+  *udata = connection;
 
   if (luaL_newmetatable(state, "WebSocket")) {
     lua_pushcfunction(state, websocket_index);
@@ -550,6 +550,6 @@ void websocket::wire() {
 }
 
 void websocket::poll() {
-  if (conn) [[likely]]
-    conn->poll();
+  if (connection) [[likely]]
+    connection->poll();
 }

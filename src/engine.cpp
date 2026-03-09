@@ -27,7 +27,7 @@ engine::engine() {
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "scale");
-  const auto scale = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 1.0f;
+  const auto scale = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 1.f;
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "fullscreen");

@@ -1,9 +1,9 @@
 #include "gamepad.hpp"
 
-static constexpr float DEADZONE_THRESHOLD = 0.1f;
+static constexpr float DEADZONE_THRESHOLD = .1f;
 
 [[nodiscard]] static float deadzone(Sint16 raw) noexcept {
-  const auto value = static_cast<float>(raw) / 32767.0f;
+  const auto value = static_cast<float>(raw) / 32767.f;
   if (std::abs(value) < DEADZONE_THRESHOLD)
     return .0f;
 
@@ -32,12 +32,12 @@ static bool on_event(void *, SDL_Event *event) {
 }
 
 static int gamepad_rumble(lua_State *state) {
-  const auto low = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.0f);
-  const auto high = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.0f);
+  const auto low = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
+  const auto high = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
   const auto duration = static_cast<uint32_t>(luaL_checkinteger(state, 4));
 
-  const auto low16 = static_cast<uint16_t>(low * 65535.0f);
-  const auto high16 = static_cast<uint16_t>(high * 65535.0f);
+  const auto low16 = static_cast<uint16_t>(low * 65535.f);
+  const auto high16 = static_cast<uint16_t>(high * 65535.f);
 
   if (!ptr) [[unlikely]]
     return lua_pushboolean(state, false), 1;

@@ -12,9 +12,9 @@ enum class flipmode : uint8_t {
 struct transform final {
   float x{};
   float y{};
-  float scale{1.0f};
+  float scale{1.f};
   float angle{};
-  float alpha{255.0f};
+  float alpha{255.f};
   bool shown{true};
   flipmode flip{flipmode::none};
 };
