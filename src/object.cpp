@@ -89,7 +89,7 @@ namespace {
 
     if (key == "vx") {
       const auto* bd = registry.try_get<body>(entity);
-      if (bd && bd->type == body_type::dynamic && b2Body_IsValid(bd->id)) {
+      if (bd && b2Body_IsValid(bd->id)) {
         lua_pushnumber(state, static_cast<double>(b2Body_GetLinearVelocity(bd->id).x));
         return 1;
       }
@@ -99,7 +99,7 @@ namespace {
 
     if (key == "vy") {
       const auto* bd = registry.try_get<body>(entity);
-      if (bd && bd->type == body_type::dynamic && b2Body_IsValid(bd->id)) {
+      if (bd && b2Body_IsValid(bd->id)) {
         lua_pushnumber(state, static_cast<double>(b2Body_GetLinearVelocity(bd->id).y));
         return 1;
       }

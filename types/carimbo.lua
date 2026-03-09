@@ -321,8 +321,8 @@ viewport = {}
 ---@field x number Transform X position. For dynamic and static bodies, setting this teleports the body.
 ---@field y number Transform Y position. For dynamic and static bodies, setting this teleports the body.
 ---@field position number[] Write-only. Set position as {x, y} with a single body teleport. More efficient than setting x and y separately.
----@field vx number Linear velocity X component (read/write). Only works on dynamic bodies, returns 0 otherwise.
----@field vy number Linear velocity Y component (read/write). Only works on dynamic bodies, returns 0 otherwise.
+---@field vx number Linear velocity X component. Readable on all body types; writable only on dynamic bodies.
+---@field vy number Linear velocity Y component. Readable on all body types; writable only on dynamic bodies.
 ---@field scale number Transform scale factor.
 ---@field angle number Rotation angle in degrees.
 ---@field alpha number Opacity (0-255).
