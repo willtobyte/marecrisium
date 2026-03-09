@@ -494,7 +494,7 @@ void stage::update(float delta) {
 
         switch (bd.type) {
           case body_type::kinematic: {
-            sdef.isSensor = true;
+            sdef.enableContactEvents = true;
             sdef.enableSensorEvents = true;
           } break;
           case body_type::dynamic: {
@@ -515,14 +515,17 @@ void stage::update(float delta) {
 
         const auto cx = tf.x + frame.cx * tf.scale + hx;
         const auto cy = tf.y + frame.cy * tf.scale + hy;
-        const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
 
         switch (bd.type) {
           case body_type::kinematic: {
+            const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
             b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(radians)}, FIXED_TIMESTEP);
           } break;
-          case body_type::dynamic:
+          case body_type::dynamic: {
+            b2Body_SetTransform(bd.id, {cx, cy}, b2MakeRot(.0f));
+          } break;
           case body_type::fixed: {
+            const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
             b2Body_SetTransform(bd.id, {cx, cy}, b2MakeRot(radians));
           } break;
         }

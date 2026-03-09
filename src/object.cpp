@@ -160,7 +160,15 @@ namespace {
       auto* bd = registry.try_get<body>(entity);
       if (bd && b2Body_IsValid(bd->id)) {
         switch (bd->type) {
-          case body_type::dynamic:
+          case body_type::dynamic: {
+            auto offset = .0f;
+            const auto* an = registry.try_get<animation>(entity);
+            if (an && an->playing && an->clip_count > 0)
+              offset = an->clips[an->active].frames[an->current].cx * tf.scale;
+
+            const auto position = b2Body_GetPosition(bd->id);
+            b2Body_SetTransform(bd->id, {value + offset + bd->cached_hx, position.y}, b2MakeRot(.0f));
+          } break;
           case body_type::fixed: {
             auto offset = .0f;
             const auto* an = registry.try_get<animation>(entity);
@@ -186,7 +194,15 @@ namespace {
       auto* bd = registry.try_get<body>(entity);
       if (bd && b2Body_IsValid(bd->id)) {
         switch (bd->type) {
-          case body_type::dynamic:
+          case body_type::dynamic: {
+            auto offset = .0f;
+            const auto* an = registry.try_get<animation>(entity);
+            if (an && an->playing && an->clip_count > 0)
+              offset = an->clips[an->active].frames[an->current].cy * tf.scale;
+
+            const auto position = b2Body_GetPosition(bd->id);
+            b2Body_SetTransform(bd->id, {position.x, value + offset + bd->cached_hy}, b2MakeRot(.0f));
+          } break;
           case body_type::fixed: {
             auto offset = .0f;
             const auto* an = registry.try_get<animation>(entity);
@@ -222,7 +238,18 @@ namespace {
       auto* bd = registry.try_get<body>(entity);
       if (bd && b2Body_IsValid(bd->id)) {
         switch (bd->type) {
-          case body_type::dynamic:
+          case body_type::dynamic: {
+            auto ox = .0f;
+            auto oy = .0f;
+            const auto* an = registry.try_get<animation>(entity);
+            if (an && an->playing && an->clip_count > 0) {
+              const auto& frame = an->clips[an->active].frames[an->current];
+              ox = frame.cx * tf.scale;
+              oy = frame.cy * tf.scale;
+            }
+
+            b2Body_SetTransform(bd->id, {px + ox + bd->cached_hx, py + oy + bd->cached_hy}, b2MakeRot(.0f));
+          } break;
           case body_type::fixed: {
             auto ox = .0f;
             auto oy = .0f;
@@ -273,11 +300,11 @@ namespace {
       auto* bd = registry.try_get<body>(entity);
       if (bd && b2Body_IsValid(bd->id)) {
         switch (bd->type) {
-          case body_type::dynamic:
           case body_type::fixed: {
             const auto position = b2Body_GetPosition(bd->id);
             b2Body_SetTransform(bd->id, position, b2MakeRot(tf.angle * (std::numbers::pi_v<float> / 180.f)));
           } break;
+          case body_type::dynamic:
           case body_type::kinematic:
             break;
         }

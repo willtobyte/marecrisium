@@ -2,7 +2,7 @@ local speed = 30
 local max_distance = 64
 
 return {
-	body = "static",
+	body = "kinematic",
 	cullable = true,
 
 	animation = {

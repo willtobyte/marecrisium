@@ -2,6 +2,7 @@ local controls = require("helpers/controls")
 
 local speed = 200
 local jump = -400
+local spin = 360
 local ground = {}
 local grounded = 0
 
@@ -35,6 +36,10 @@ return {
 
 		if grounded > 0 and controls.jump then
 			self.vy = jump
+		end
+
+		if keyboard.space then
+			self.angle = self.angle + spin * delta
 		end
 	end,
 
