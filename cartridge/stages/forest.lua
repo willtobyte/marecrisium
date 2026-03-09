@@ -8,10 +8,27 @@ return ticker.wrap({
 
 	objects = {
 		{ name = "player", kind = "player" },
+		{ name = "enemy1", kind = "enemy" },
+		{ name = "enemy2", kind = "enemy" },
+		{ name = "enemy3", kind = "enemy" },
+		{ name = "enemy4", kind = "enemy" },
+		{ name = "enemy5", kind = "enemy" },
+		{ name = "enemy6", kind = "enemy" },
+		{ name = "enemy7", kind = "enemy" },
+		{ name = "enemy8", kind = "enemy" },
 	},
 
 	on_enter = function()
 		director.overlay("hud")
+
+		pool.enemy1.position = { 200, 1200 }
+		pool.enemy2.position = { 400, 800 }
+		pool.enemy3.position = { 700, 750 }
+		pool.enemy4.position = { 1000, 800 }
+		pool.enemy5.position = { 1300, 700 }
+		pool.enemy6.position = { 1500, 800 }
+		pool.enemy7.position = { 1800, 750 }
+		pool.enemy8.position = { 300, 500 }
 	end,
 
 	on_paint = function(self)
@@ -41,8 +58,6 @@ return ticker.wrap({
 
 		camera_x = camera_x + (target_x - camera_x) * 0.1
 		camera_y = camera_y + (target_y - camera_y) * 0.1
-
-		tilemap:draw(camera_x, camera_y, viewport.width, viewport.height)
 
 		return camera_x, camera_y
 	end,

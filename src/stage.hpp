@@ -27,6 +27,8 @@ private:
   std::vector<sound*> _sounds;
   b2WorldId _world;
   float _accumulator = .0f;
+  mutable float _camera_x = .0f;
+  mutable float _camera_y = .0f;
   uint32_t _mouse_previous_buttons{};
   std::vector<entt::entity> _hovering;
   std::vector<entt::entity> _hits;
@@ -44,4 +46,6 @@ private:
   void dispatch_collision(entt::entity entity, entt::entity other_entity, const char* callback_name, const b2Vec2* normal = nullptr);
 
   void dispatch_screen_event(const objectproxy& proxy, const char* callback_name, std::string_view direction);
+
+  void dispatch_dormancy(const objectproxy& proxy, const char* callback_name);
 };

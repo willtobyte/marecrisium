@@ -82,3 +82,11 @@ struct boundary final {
 };
 
 static_assert(std::is_trivially_copyable_v<boundary>);
+
+struct cullable final {};
+
+static_assert(std::is_trivially_copyable_v<cullable>);
+
+struct dormant final {};
+
+static_assert(std::is_trivially_copyable_v<dormant>);

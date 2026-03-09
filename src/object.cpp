@@ -23,6 +23,16 @@ namespace {
     auto& registry = *proxy->registry;
     const auto entity = proxy->entity;
 
+    if (key == "cullable") {
+      lua_pushboolean(state, registry.all_of<cullable>(entity));
+      return 1;
+    }
+
+    if (key == "dormant") {
+      lua_pushboolean(state, registry.all_of<dormant>(entity));
+      return 1;
+    }
+
     if (key == "name") {
       const auto* strings = registry.ctx().get<stringpool*>();
       lua_pushstring(state, strings->get(proxy->name));

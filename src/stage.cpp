@@ -2,28 +2,6 @@ static constexpr float FIXED_TIMESTEP = 1.f / 60.f;
 
 static constexpr int WORLD_SUBSTEPS = 4;
 
-static int tilemap_draw(lua_State* state) {
-  auto** ptr = static_cast<tilemap**>(luaL_checkudata(state, 1, "Tilemap"));
-  const auto x = static_cast<float>(luaL_checknumber(state, 2));
-  const auto y = static_cast<float>(luaL_checknumber(state, 3));
-  const auto w = static_cast<float>(luaL_checknumber(state, 4));
-  const auto h = static_cast<float>(luaL_checknumber(state, 5));
-  (*ptr)->set_camera(x, y, w, h);
-  return 0;
-}
-
-static int tilemap_index(lua_State* state) {
-  luaL_checkudata(state, 1, "Tilemap");
-  const std::string_view key = luaL_checkstring(state, 2);
-
-  if (key == "draw") {
-    lua_pushcfunction(state, tilemap_draw);
-    return 1;
-  }
-
-  return lua_pushnil(state), 1;
-}
-
 static int world_raycast(lua_State* state) {
   auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
   const auto* caller = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
@@ -246,6 +224,19 @@ stage::stage(std::string_view name)
 
       lua_pop(L, 2);
 
+      {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
+        lua_getfield(L, -1, "cullable");
+        const auto wants_cullable = lua_toboolean(L, -1) != 0;
+        lua_pop(L, 2);
+
+        if (wants_cullable) {
+          const auto* bd = _registry.try_get<body>(entity);
+          if (!bd || bd->type != body_type::dynamic)
+            _registry.emplace<cullable>(entity);
+        }
+      }
+
       lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
       lua_getfield(L, -1, "on_spawn");
 
@@ -306,23 +297,6 @@ stage::stage(std::string_view name)
   if (lua_isstring(L, -1)) {
     const std::string_view tilemap_name = lua_tostring(L, -1);
     _tilemap = std::make_unique<tilemap>(tilemap_name, _world);
-
-    auto** memory = static_cast<tilemap**>(lua_newuserdata(L, sizeof(tilemap*)));
-    *memory = _tilemap.get();
-
-    if (luaL_newmetatable(L, "Tilemap")) {
-      lua_pushcfunction(L, tilemap_index);
-      lua_setfield(L, -2, "__index");
-    }
-
-    lua_setmetatable(L, -2);
-
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
-    lua_pushvalue(L, -2);
-    lua_setfield(L, -2, "tilemap");
-    lua_pop(L, 1);
-
-    lua_pop(L, 1);
   }
   lua_pop(L, 1);
 
@@ -395,6 +369,44 @@ void stage::on_tick(uint64_t tick) {
 }
 
 void stage::update(float delta) {
+  static constexpr float CULLING_MARGIN = 32.f;
+
+  for (auto&& [entity, proxy, tf, an] :
+       _registry.view<cullable, objectproxy, transform, animation>().each()) {
+    const auto& frame = an.clips[an.active].frames[an.current];
+    const auto width = frame.w * tf.scale;
+    const auto height = frame.h * tf.scale;
+    const auto screen_x = tf.x - _camera_x;
+    const auto screen_y = tf.y - _camera_y;
+
+    const auto offscreen =
+      screen_x + width < -CULLING_MARGIN ||
+      screen_x > viewport.width + CULLING_MARGIN ||
+      screen_y + height < -CULLING_MARGIN ||
+      screen_y > viewport.height + CULLING_MARGIN;
+
+    if (offscreen) {
+      if (!_registry.all_of<dormant>(entity)) {
+        _registry.emplace<dormant>(entity);
+
+        if (auto* bd = _registry.try_get<body>(entity);
+            bd && b2Shape_IsValid(bd->shape)) {
+          b2DestroyShape(bd->shape, false);
+          bd->shape = b2_nullShapeId;
+          bd->cached_hx = .0f;
+          bd->cached_hy = .0f;
+        }
+
+        dispatch_dormancy(proxy, "on_sleep");
+      }
+    } else {
+      if (_registry.all_of<dormant>(entity)) {
+        _registry.remove<dormant>(entity);
+        dispatch_dormancy(proxy, "on_wake");
+      }
+    }
+  }
+
   float wx, wy;
   const auto buttons = SDL_GetMouseState(&wx, &wy);
   SDL_RenderCoordinatesFromWindow(renderer, wx, wy, &wx, &wy);
@@ -429,7 +441,7 @@ void stage::update(float delta) {
 
   lua_pop(L, 1);
 
-  for (auto&& [entity, proxy] : _registry.view<objectproxy>().each()) {
+  for (auto&& [entity, proxy] : _registry.view<objectproxy>(entt::exclude<dormant>).each()) {
     if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
       continue;
 
@@ -456,7 +468,7 @@ void stage::update(float delta) {
 
   while (_accumulator >= FIXED_TIMESTEP) {
     for (auto&& [en, bd, an, tf] :
-         _registry.view<body, animation, transform>().each()) {
+         _registry.view<body, animation, transform>(entt::exclude<dormant>).each()) {
       const auto active = an.playing && an.clip_count > 0;
       const auto& frame = an.clips[an.active].frames[an.current];
       const auto visible = active && frame.collidable &&
@@ -614,20 +626,20 @@ void stage::update(float delta) {
       static constexpr std::string_view directions[] = {"left", "right", "top", "bottom"};
 
       for (auto&& [entity, sb, bd, proxy] :
-           _registry.view<boundary, const body, const objectproxy>().each()) {
+           _registry.view<boundary, const body, const objectproxy>(entt::exclude<dormant>).each()) {
         if (!b2Shape_IsValid(bd.shape))
           continue;
 
         const auto aabb = b2Shape_GetAABB(bd.shape);
 
         uint8_t current = 0;
-        if (aabb.upperBound.x < .0f)
+        if (aabb.upperBound.x < _camera_x)
           current |= boundary::left;
-        if (aabb.lowerBound.x > viewport.width)
+        if (aabb.lowerBound.x > _camera_x + viewport.width)
           current |= boundary::right;
-        if (aabb.upperBound.y < .0f)
+        if (aabb.upperBound.y < _camera_y)
           current |= boundary::top;
-        if (aabb.lowerBound.y > viewport.height)
+        if (aabb.lowerBound.y > _camera_y + viewport.height)
           current |= boundary::bottom;
 
         const auto exited = static_cast<uint8_t>(current & ~sb.previous);
@@ -648,7 +660,7 @@ void stage::update(float delta) {
     _accumulator -= FIXED_TIMESTEP;
   }
 
-  for (auto&& [entity, a] : _registry.view<animation>().each()) {
+  for (auto&& [entity, a] : _registry.view<animation>(entt::exclude<dormant>).each()) {
     if (!a.playing || a.clip_count == 0)
       continue;
 
@@ -726,8 +738,8 @@ void stage::draw() const {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_getfield(L, -1, "on_paint");
 
-  auto cx = .0f;
-  auto cy = .0f;
+  _camera_x = .0f;
+  _camera_y = .0f;
 
   if (lua_isfunction(L, -1)) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
@@ -739,9 +751,9 @@ void stage::draw() const {
     }
 
     if (lua_isnumber(L, -2))
-      cx = static_cast<float>(lua_tonumber(L, -2));
+      _camera_x = static_cast<float>(lua_tonumber(L, -2));
     if (lua_isnumber(L, -1))
-      cy = static_cast<float>(lua_tonumber(L, -1));
+      _camera_y = static_cast<float>(lua_tonumber(L, -1));
     lua_pop(L, 2);
   } else {
     lua_pop(L, 1);
@@ -749,10 +761,12 @@ void stage::draw() const {
 
   lua_pop(L, 1);
 
-  if (_tilemap)
+  if (_tilemap) {
+    _tilemap->set_camera(_camera_x, _camera_y, viewport.width, viewport.height);
     _tilemap->draw_background();
+  }
 
-  for (auto&& [entity, a, tf] : _registry.view<animation, transform>().each()) {
+  for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
     if (!tf.shown || !a.playing || !a.pixmap || a.clip_count == 0) [[unlikely]]
       continue;
 
@@ -764,8 +778,8 @@ void stage::draw() const {
 
     const auto dw = fr.w * tf.scale;
     const auto dh = fr.h * tf.scale;
-    const auto sx = tf.x - cx;
-    const auto sy = tf.y - cy;
+    const auto sx = tf.x - _camera_x;
+    const auto sy = tf.y - _camera_y;
 
     if (sx + dw < .0f || sx > viewport.width ||
         sy + dh < .0f || sy > viewport.height)
@@ -786,9 +800,9 @@ void stage::draw() const {
 #ifdef DEBUG
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
 
-  const b2AABB aabb = {{cx, cy}, {cx + viewport.width, cy + viewport.height}};
+  const b2AABB aabb = {{_camera_x, _camera_y}, {_camera_x + viewport.width, _camera_y + viewport.height}};
   const b2QueryFilter filter = b2DefaultQueryFilter();
-  const float offset[] = {cx, cy};
+  const float offset[] = {_camera_x, _camera_y};
 
   b2World_OverlapAABB(_world, aabb, filter, [](b2ShapeId shape, void* userdata) -> bool {
     const auto* offset = static_cast<const float*>(userdata);
@@ -861,7 +875,7 @@ void stage::dispatch_click(float x, float y, const char* button) {
   const auto span = std::span{buffer.data(), ctx.count};
   entt::entity topmost = entt::null;
 
-  for (auto&& [entity, a, tf] : _registry.view<animation, transform>().each()) {
+  for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
     if (!tf.shown || tf.alpha <= .0f) [[unlikely]]
       continue;
 
@@ -1006,6 +1020,32 @@ void stage::dispatch_screen_event(
     lua_pushlstring(L, direction.data(), direction.size());
 
     if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
+      std::string error = lua_tostring(L, -1);
+      lua_pop(L, 1);
+      throw std::runtime_error(std::move(error));
+    }
+  } else {
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
+}
+
+void stage::dispatch_dormancy(
+  const objectproxy& proxy,
+  const char* callback
+) {
+  if (proxy.prototype == LUA_NOREF ||
+      proxy.handle == LUA_NOREF)
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+  lua_getfield(L, -1, callback);
+
+  if (lua_isfunction(L, -1)) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+
+    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
       lua_pop(L, 1);
       throw std::runtime_error(std::move(error));

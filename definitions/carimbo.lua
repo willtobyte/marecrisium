@@ -208,36 +208,13 @@ function Stage.on_loop(self, delta) end
 ---@param button "left"|"middle"|"right" Which mouse button was released.
 function Stage.on_click(x, y, button) end
 
----Called every frame before rendering to set up camera/tilemap.
----Use `tilemap:draw(x, y, w, h)` here to set the camera position.
----Return camera_x, camera_y to offset object rendering.
+---Called every frame before rendering.
+---Return camera_x, camera_y to offset object and tilemap rendering.
+---The engine automatically applies the returned camera to the tilemap.
 ---@param self table The stage table itself.
----@return number|nil camera_x Camera X offset for object rendering.
----@return number|nil camera_y Camera Y offset for object rendering.
+---@return number|nil camera_x Camera X offset for rendering.
+---@return number|nil camera_y Camera Y offset for rendering.
 function Stage.on_paint(self) end
-
---------------------------------------------------------------------------------
--- Tilemap (tile-based level rendering)
---------------------------------------------------------------------------------
-
----@class Tilemap
----Tilemap instance (available in stage environment when `tilemap` field is set).
----Loaded from `tilemaps/<name>.lua`. Atlas textures from
----`blobs/tilemaps/<name>/background.png` and `blobs/tilemaps/<name>/foreground.png`.
----Backdrop image from `blobs/tilemaps/<name>/backdrop.png`.
-local Tilemap = {}
-
----Set the camera position for tilemap rendering.
----Call this from `on_paint` to control which part of the tilemap is visible.
----@param x number Camera X position in world pixels.
----@param y number Camera Y position in world pixels.
----@param w number Camera width in world pixels.
----@param h number Camera height in world pixels.
-function Tilemap:draw(x, y, w, h) end
-
----Tilemap instance (nil when stage has no tilemap).
----@type Tilemap|nil
-tilemap = nil
 
 --------------------------------------------------------------------------------
 -- Director (stage navigation)
@@ -331,6 +308,8 @@ viewport = {}
 ---@field name string The object's name (read-only).
 ---@field kind string The kind/type string of this object (read-only).
 ---@field alive boolean Whether the object is still alive (read-only).
+---@field cullable boolean Whether this object participates in off-screen dormancy (read-only, set via prototype).
+---@field dormant boolean Whether this object is currently dormant/sleeping because it is off-screen (read-only).
 ---@field animation string|nil Currently playing animation clip name. Assign to switch clips.
 ---@field [string] any Custom properties from the prototype table.
 local Object = {}
@@ -400,6 +379,17 @@ function Object.on_hover(self) end
 ---Only triggered for collidable objects.
 ---@param self Object
 function Object.on_unhover(self) end
+
+---Called when the object goes dormant (fully off-screen with margin).
+---Only triggered for objects with `cullable = true` in their prototype.
+---While dormant, the object receives no updates, physics, rendering, or other callbacks.
+---@param self Object
+function Object.on_sleep(self) end
+
+---Called when the object wakes up (returns to screen after being dormant).
+---Only triggered for objects with `cullable = true` in their prototype.
+---@param self Object
+function Object.on_wake(self) end
 
 --------------------------------------------------------------------------------
 -- Sound (audio handle userdata, available in `pool`)
