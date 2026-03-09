@@ -620,3 +620,29 @@ function Ticker.clear() end
 ---@param stage Stage The stage table to wrap.
 ---@return Stage stage The same table, modified in place.
 function Ticker.wrap(stage) end
+
+--------------------------------------------------------------------------------
+-- Controls (unified keyboard + gamepad abstraction)
+--------------------------------------------------------------------------------
+
+---@class Controls
+---Unified input abstraction that merges keyboard and gamepad into
+---semantic game actions. Require via `require("helpers/controls")`.
+---
+---Directional inputs combine arrow keys, d-pad, and left stick.
+---Action buttons combine keyboard keys and gamepad face buttons.
+---
+---Usage:
+---```lua
+---local controls = require("helpers/controls")
+---if controls.left then ... end
+---if controls.jump then ... end
+---```
+---@field left boolean Arrow left, d-pad left, or left stick left.
+---@field right boolean Arrow right, d-pad right, or left stick right.
+---@field up boolean Arrow up, d-pad up, or left stick up.
+---@field down boolean Arrow down, d-pad down, or left stick down.
+---@field jump boolean Keyboard X or gamepad south (A / Cross).
+---@field attack boolean Keyboard Z or gamepad west (X / Square).
+---@field start boolean Keyboard Enter or gamepad Start.
+local Controls = {}

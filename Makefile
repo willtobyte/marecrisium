@@ -1,7 +1,6 @@
 SHELL := /usr/bin/env bash
 PROFILE := $(if $(profile),$(profile),default)
 BUILDTYPE := $(if $(buildtype),$(buildtype),Debug)
-SCENE := $(if $(SCENE),$(SCENE),prelude)
 CARTRIDGE := $(if $(CARTRIDGE),$(CARTRIDGE),./cartridge)
 NCPUS := $(shell sysctl -n hw.ncpu 2>/dev/null | awk '{print $$1 - 1}')
 
@@ -35,7 +34,7 @@ build: ## Builds the project
 .PHONY: run
 run: build ## Builds and runs the project
 	clear
-	NOVSYNC=1 SCENE=$(SCENE) CARTRIDGE=$(CARTRIDGE) lldb -o run -- ./build/carimbo
+	CARTRIDGE=$(CARTRIDGE) lldb -o run -- ./build/carimbo
 
 .PHONY: help
 help:
