@@ -39,16 +39,19 @@ return {
 	end,
 
 	on_collision_begin = function(self, other_name, _, _, normal_y)
-		if normal_y and normal_y < -0.5 then
-			ground[other_name] = true
+		if normal_y and normal_y > 0.5 then
+			ground[other_name] = (ground[other_name] or 0) + 1
 			grounded = grounded + 1
 		end
 	end,
 
 	on_collision_end = function(self, other_name)
-		if ground[other_name] then
-			ground[other_name] = nil
+		if ground[other_name] and ground[other_name] > 0 then
+			ground[other_name] = ground[other_name] - 1
 			grounded = grounded - 1
+			if ground[other_name] == 0 then
+				ground[other_name] = nil
+			end
 		end
 	end,
 }

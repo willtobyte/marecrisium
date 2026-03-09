@@ -351,7 +351,7 @@ function Object.on_loop(self, delta) end
 
 ---Called when a physics contact begins with another object.
 ---For contact events, the collision normal is provided. The normal points from self toward the other object.
----A normal_y < -0.5 typically indicates the other object is below (ground contact).
+---A normal_y > 0.5 typically indicates the other object is below (ground contact).
 ---@param self Object
 ---@param other_name string Name of the other object.
 ---@param other_kind string Kind/type of the other object.
