@@ -806,8 +806,8 @@ void stage::draw() const {
 
   b2World_OverlapAABB(_world, aabb, filter, [](b2ShapeId shape, void* userdata) -> bool {
     const auto* offset = static_cast<const float*>(userdata);
-    const auto body_id = b2Shape_GetBody(shape);
-    const auto xf = b2Body_GetTransform(body_id);
+    const auto bid = b2Shape_GetBody(shape);
+    const auto xf = b2Body_GetTransform(bid);
     const auto polygon = b2Shape_GetPolygon(shape);
 
     for (int i = 0; i < polygon.count; ++i) {
