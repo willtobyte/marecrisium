@@ -1,6 +1,6 @@
 #include "platform.hpp"
 
-static int platform_index(lua_State *state) noexcept {
+static int platform_index(lua_State *state) {
   const std::string_view key = luaL_checkstring(state, 2);
 
   if (key == "name")
@@ -36,7 +36,7 @@ static int platform_index(lua_State *state) noexcept {
   return lua_pushnil(state), 1;
 }
 
-static int platform_newindex(lua_State *state) noexcept {
+static int platform_newindex(lua_State *state) {
   const std::string_view key = luaL_checkstring(state, 2);
 
   if (key == "clipboard") {

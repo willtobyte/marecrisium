@@ -7,12 +7,14 @@ static int friend_index(lua_State *state) {
   if (key == "id") {
     lua_getfenv(state, 1);
     lua_getfield(state, -1, "id");
+    lua_remove(state, -2);
     return 1;
   }
 
   if (key == "name") {
     lua_getfenv(state, 1);
     lua_getfield(state, -1, "name");
+    lua_remove(state, -2);
     return 1;
   }
 

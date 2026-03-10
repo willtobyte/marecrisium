@@ -28,19 +28,11 @@ return {
 		end
 	end,
 
-	on_sleep = function(self)
-		print(self.name .. " fell asleep")
-	end,
+	on_sleep = function(self) end,
 
-	on_wake = function(self)
-		print(self.name .. " woke up")
-	end,
+	on_wake = function(self) end,
 
-	on_collision_begin = function(self, name, kind)
-		print("enemy collision begin", name, kind)
-	end,
+	on_collision_begin = function(self, name, kind) end,
 
-	on_collision_end = function(self, name, kind)
-		print("enemy collision end", name, kind)
-	end,
+	on_collision_end = function(self, name, kind) end,
 }

@@ -72,8 +72,8 @@ private:
   parsed_url _parsed;
 
   struct lws_context* _context{nullptr};
-  struct lws* _wsi{nullptr};
-  bool _connected{false};
+  std::atomic<struct lws*> _wsi{nullptr};
+  std::atomic<bool> _connected{false};
 
   ringbuffer<message> _inbound;
   ringbuffer<message> _outbound;

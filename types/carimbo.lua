@@ -656,7 +656,7 @@ function Ticker.wrap(stage) end
 ---@field right boolean Arrow right, d-pad right, or left stick right.
 ---@field up boolean Arrow up, d-pad up, or left stick up.
 ---@field down boolean Arrow down, d-pad down, or left stick down.
----@field jump boolean Keyboard X or gamepad south (A / Cross).
+---@field jump boolean Keyboard Space or gamepad south (A / Cross).
 ---@field attack boolean Keyboard Z or gamepad west (X / Square).
 ---@field start boolean Keyboard Enter or gamepad Start.
 local Controls = {}

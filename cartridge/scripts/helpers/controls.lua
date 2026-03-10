@@ -15,7 +15,7 @@ setmetatable(controls, {
 		elseif key == "jump" then
 			return keyboard.space or gamepad.south
 		elseif key == "attack" then
-			return keyboard.z or gamepad.west
+			return keyboard.b or gamepad.west
 		elseif key == "start" then
 			return keyboard.enter or gamepad.start
 		end

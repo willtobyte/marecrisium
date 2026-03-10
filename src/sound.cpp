@@ -3,11 +3,11 @@
 namespace {
   int sound_play(lua_State* state) {
     auto** ptr = static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    auto* fx = *ptr;
-    fx->play();
+    auto* instance = *ptr;
+    instance->play();
 
-    if (fx->on_begin != LUA_NOREF) {
-      lua_rawgeti(state, LUA_REGISTRYINDEX, fx->on_begin);
+    if (instance->on_begin != LUA_NOREF) {
+      lua_rawgeti(state, LUA_REGISTRYINDEX, instance->on_begin);
 
       if (lua_pcall(state, 0, 0, 0) != 0) [[unlikely]] {
         std::string error = lua_tostring(state, -1);
@@ -27,14 +27,14 @@ namespace {
 
   int sound_on_begin(lua_State* state) {
     auto** ptr = static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    auto* fx = *ptr;
+    auto* instance = *ptr;
     luaL_checktype(state, 2, LUA_TFUNCTION);
 
-    if (fx->on_begin != LUA_NOREF)
-      luaL_unref(state, LUA_REGISTRYINDEX, fx->on_begin);
+    if (instance->on_begin != LUA_NOREF)
+      luaL_unref(state, LUA_REGISTRYINDEX, instance->on_begin);
 
     lua_pushvalue(state, 2);
-    fx->on_begin = luaL_ref(state, LUA_REGISTRYINDEX);
+    instance->on_begin = luaL_ref(state, LUA_REGISTRYINDEX);
     return 0;
   }
 
@@ -49,29 +49,29 @@ namespace {
 
   int sound_on_end(lua_State* state) {
     auto** ptr = static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    auto* fx = *ptr;
+    auto* instance = *ptr;
     luaL_checktype(state, 2, LUA_TFUNCTION);
 
-    if (fx->on_end != LUA_NOREF)
-      luaL_unref(state, LUA_REGISTRYINDEX, fx->on_end);
+    if (instance->on_end != LUA_NOREF)
+      luaL_unref(state, LUA_REGISTRYINDEX, instance->on_end);
 
     lua_pushvalue(state, 2);
-    fx->on_end = luaL_ref(state, LUA_REGISTRYINDEX);
+    instance->on_end = luaL_ref(state, LUA_REGISTRYINDEX);
     return 0;
   }
 
   int sound_index(lua_State* state) {
     auto** ptr = static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    auto* fx = *ptr;
+    auto* instance = *ptr;
     const std::string_view key = luaL_checkstring(state, 2);
 
     if (key == "volume") {
-      lua_pushnumber(state, static_cast<double>(fx->volume()));
+      lua_pushnumber(state, static_cast<double>(instance->volume()));
       return 1;
     }
 
     if (key == "loop") {
-      lua_pushboolean(state, fx->loop());
+      lua_pushboolean(state, instance->loop());
       return 1;
     }
 
@@ -105,16 +105,16 @@ namespace {
 
   int sound_newindex(lua_State* state) {
     auto** ptr = static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    auto* fx = *ptr;
+    auto* instance = *ptr;
     const std::string_view key = luaL_checkstring(state, 2);
 
     if (key == "volume") {
-      fx->set_volume(static_cast<float>(luaL_checknumber(state, 3)));
+      instance->set_volume(static_cast<float>(luaL_checknumber(state, 3)));
       return 0;
     }
 
     if (key == "loop") {
-      fx->set_loop(lua_toboolean(state, 3) != 0);
+      instance->set_loop(lua_toboolean(state, 3) != 0);
       return 0;
     }
 

@@ -257,27 +257,27 @@ stage::stage(std::string_view name)
 
   lua_getfield(L, -1, "sounds");
   if (lua_istable(L, -1)) {
-    const auto scount = static_cast<int>(lua_objlen(L, -1));
-    _sounds.reserve(static_cast<size_t>(scount));
+    const auto count = static_cast<int>(lua_objlen(L, -1));
+    _sounds.reserve(static_cast<size_t>(count));
 
-    for (int s = 1; s <= scount; ++s) {
-      lua_rawgeti(L, -1, s);
+    for (auto i = 1; i <= count; ++i) {
+      lua_rawgeti(L, -1, i);
 
       if (lua_isstring(L, -1)) {
-        const std::string_view sname = lua_tostring(L, -1);
+        const std::string_view sound_name = lua_tostring(L, -1);
 
-        auto& fx = resources.sound.get(std::format("sounds/{}", sname));
+        auto& instance = resources.sound.get(std::format("sounds/{}", sound_name));
         auto** memory = static_cast<sound**>(lua_newuserdata(L, sizeof(sound*)));
-        *memory = &fx;
+        *memory = &instance;
         luaL_getmetatable(L, "Sound");
         lua_setmetatable(L, -2);
 
         lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
         lua_pushvalue(L, -2);
-        lua_setfield(L, -2, sname.data());
+        lua_setfield(L, -2, sound_name.data());
         lua_pop(L, 1);
 
-        _sounds.emplace_back(&fx);
+        _sounds.emplace_back(&instance);
         lua_pop(L, 1);
       }
 
@@ -702,8 +702,8 @@ void stage::update(float delta) {
     }
   }
 
-  for (auto* fx : _sounds) {
-    fx->poll();
+  for (auto* instance : _sounds) {
+    instance->poll();
   }
 }
 

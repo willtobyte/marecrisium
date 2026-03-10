@@ -299,7 +299,7 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
 
   switch (reason) {
     case LWS_CALLBACK_CLIENT_ESTABLISHED: {
-      ws->_connected = true;
+      ws->_connected.store(true, std::memory_order_release);
       ws->resubscribe();
       lws_callback_on_writable(wsi);
     } break;
@@ -346,8 +346,8 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
 
     case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
     case LWS_CALLBACK_CLIENT_CLOSED: [[unlikely]] {
-      ws->_connected = false;
-      ws->_wsi = nullptr;
+      ws->_connected.store(false, std::memory_order_release);
+      ws->_wsi.store(nullptr, std::memory_order_release);
     } break;
 
     default:
@@ -413,7 +413,7 @@ void socketconn::reconnect() {
   ccinfo.protocol = protocols[0].name;
   ccinfo.ssl_connection = _parsed.ssl ? LCCSCF_USE_SSL : 0;
 
-  _wsi = lws_client_connect_via_info(&ccinfo);
+  _wsi.store(lws_client_connect_via_info(&ccinfo), std::memory_order_release);
 }
 
 void socketconn::run() {
@@ -428,15 +428,16 @@ void socketconn::run() {
       continue;
     }
 
-    if (!_wsi && !_connected) [[unlikely]] {
+    if (!_wsi.load(std::memory_order_acquire) && !_connected.load(std::memory_order_acquire)) [[unlikely]] {
       std::this_thread::sleep_for(std::chrono::seconds(1));
       reconnect();
     }
 
     lws_service(_context, 100);
 
-    if (_connected && _wsi) [[likely]]
-      lws_callback_on_writable(_wsi);
+    auto* current_wsi = _wsi.load(std::memory_order_acquire);
+    if (_connected.load(std::memory_order_acquire) && current_wsi) [[likely]]
+      lws_callback_on_writable(current_wsi);
   }
 
   if (_context) {
