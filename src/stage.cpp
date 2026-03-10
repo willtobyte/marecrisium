@@ -455,6 +455,68 @@ void stage::update(float delta) {
     }
 
     lua_pop(L, 1);
+
+    auto* a = _registry.try_get<animation>(entity);
+    if (!a || !a->playing || a->clip_count == 0)
+      continue;
+
+    const auto& c = a->clips[a->active];
+    if (c.count == 0)
+      continue;
+
+    const auto& fr = c.frames[a->current];
+
+    if (fr.duration < .0f)
+      continue;
+
+    a->elapsed += delta;
+
+    while (a->elapsed >= fr.duration && fr.duration > .0f) {
+      a->elapsed -= fr.duration;
+      ++a->current;
+
+      if (a->current >= c.count) {
+        a->current = 0;
+
+        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+        lua_getfield(L, -1, "on_animation_end");
+
+        if (lua_isfunction(L, -1)) {
+          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+          lua_pushstring(L, _stringpool->get(c.name));
+
+          if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
+            std::string error = lua_tostring(L, -1);
+            lua_pop(L, 2);
+            throw std::runtime_error(std::move(error));
+          }
+        } else {
+          lua_pop(L, 1);
+        }
+
+        lua_pop(L, 1);
+
+        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+        lua_getfield(L, -1, "on_animation_begin");
+
+        if (lua_isfunction(L, -1)) {
+          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+          lua_pushstring(L, _stringpool->get(c.name));
+
+          if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
+            std::string error = lua_tostring(L, -1);
+            lua_pop(L, 2);
+            throw std::runtime_error(std::move(error));
+          }
+        } else {
+          lua_pop(L, 1);
+        }
+
+        lua_pop(L, 1);
+      }
+
+      break;
+    }
   }
 
   _accumulator += delta;
@@ -543,46 +605,82 @@ void stage::update(float delta) {
       tf.y = position.y - frame.cy * tf.scale - bd->cached_hy;
     }
 
+    static constexpr std::string_view directions[] = {"left", "right", "top", "bottom"};
+
     for (auto&& [entity, bd] :
          _registry.view<const body>(entt::exclude<dormant>).each()) {
-      if (bd.type != body_type::dynamic || !b2Body_IsValid(bd.id)) continue;
+      if (!b2Body_IsValid(bd.id))
+        continue;
 
-      const auto capacity = b2Body_GetContactCapacity(bd.id);
-      bool on_ground = false;
-      entt::entity ride_target = entt::null;
+      if (bd.type == body_type::dynamic) {
+        const auto capacity = b2Body_GetContactCapacity(bd.id);
+        bool on_ground = false;
+        entt::entity ride_target = entt::null;
 
-      if (capacity > 0) {
-        std::array<b2ContactData, 8> contacts{};
-        const auto count = b2Body_GetContactData(bd.id, contacts.data(), static_cast<int>(contacts.size()));
-        const auto* user = b2Shape_GetUserData(bd.shape);
+        if (capacity > 0) {
+          std::array<b2ContactData, 8> contacts{};
+          const auto count = b2Body_GetContactData(bd.id, contacts.data(), static_cast<int>(contacts.size()));
+          const auto* user = b2Shape_GetUserData(bd.shape);
 
-        for (auto j = 0uz; j < static_cast<size_t>(count); ++j) {
-          const auto& manifold = contacts[j].manifold;
-          const auto is_shape_a = b2Shape_GetUserData(contacts[j].shapeIdA) == user;
-          const auto normal_y = is_shape_a ? manifold.normal.y : -manifold.normal.y;
-          if (normal_y > .5f) {
-            on_ground = true;
+          for (auto j = 0uz; j < static_cast<size_t>(count); ++j) {
+            const auto& manifold = contacts[j].manifold;
+            const auto is_shape_a = b2Shape_GetUserData(contacts[j].shapeIdA) == user;
+            const auto normal_y = is_shape_a ? manifold.normal.y : -manifold.normal.y;
+            if (normal_y > .5f) {
+              on_ground = true;
 
-            const auto other_shape = is_shape_a ? contacts[j].shapeIdB : contacts[j].shapeIdA;
-            const auto other_body = b2Shape_GetBody(other_shape);
-            if (b2Body_GetType(other_body) == b2_kinematicBody) {
-              const auto* other_data = b2Shape_GetUserData(other_shape);
-              if (other_data)
-                ride_target = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(other_data));
+              const auto other_shape = is_shape_a ? contacts[j].shapeIdB : contacts[j].shapeIdA;
+              const auto other_body = b2Shape_GetBody(other_shape);
+              if (b2Body_GetType(other_body) == b2_kinematicBody) {
+                const auto* other_data = b2Shape_GetUserData(other_shape);
+                if (other_data)
+                  ride_target = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(other_data));
+              }
+
+              break;
             }
-
-            break;
           }
         }
+
+        if (on_ground) {
+          _registry.emplace_or_replace<grounded>(entity);
+        } else {
+          _registry.remove<grounded>(entity);
+        }
+
+        _registry.emplace_or_replace<riding>(entity, ride_target);
       }
 
-      if (on_ground) {
-        _registry.emplace_or_replace<grounded>(entity);
-      } else {
-        _registry.remove<grounded>(entity);
-      }
+      if (auto* sb = _registry.try_get<boundary>(entity);
+          sb && b2Shape_IsValid(bd.shape)) {
+        const auto* proxy = _registry.try_get<objectproxy>(entity);
+        if (proxy) {
+          const auto aabb = b2Shape_GetAABB(bd.shape);
 
-      _registry.emplace_or_replace<riding>(entity, ride_target);
+          uint8_t current = 0;
+          if (aabb.upperBound.x < _camera_x)
+            current |= boundary::left;
+          if (aabb.lowerBound.x > _camera_x + viewport.width)
+            current |= boundary::right;
+          if (aabb.upperBound.y < _camera_y)
+            current |= boundary::top;
+          if (aabb.lowerBound.y > _camera_y + viewport.height)
+            current |= boundary::bottom;
+
+          const auto exited = static_cast<uint8_t>(current & ~sb->previous);
+          const auto entered = static_cast<uint8_t>(sb->previous & ~current);
+
+          for (uint8_t bit = 0; bit < 4; ++bit) {
+            const auto mask = static_cast<uint8_t>(1u << bit);
+            if (exited & mask)
+              dispatch_screen_event(*proxy, "on_screen_exit", directions[bit]);
+            if (entered & mask)
+              dispatch_screen_event(*proxy, "on_screen_enter", directions[bit]);
+          }
+
+          sb->previous = current;
+        }
+      }
     }
 
     const auto sensor_events = b2World_GetSensorEvents(_world);
@@ -641,111 +739,7 @@ void stage::update(float delta) {
       dispatch_collision(entity_b, entity_a, "on_collision_end");
     }
 
-    {
-      static constexpr std::string_view directions[] = {"left", "right", "top", "bottom"};
-
-      for (auto&& [entity, sb, bd, proxy] :
-           _registry.view<boundary, const body, const objectproxy>(entt::exclude<dormant>).each()) {
-        if (!b2Shape_IsValid(bd.shape))
-          continue;
-
-        const auto aabb = b2Shape_GetAABB(bd.shape);
-
-        uint8_t current = 0;
-        if (aabb.upperBound.x < _camera_x)
-          current |= boundary::left;
-        if (aabb.lowerBound.x > _camera_x + viewport.width)
-          current |= boundary::right;
-        if (aabb.upperBound.y < _camera_y)
-          current |= boundary::top;
-        if (aabb.lowerBound.y > _camera_y + viewport.height)
-          current |= boundary::bottom;
-
-        const auto exited = static_cast<uint8_t>(current & ~sb.previous);
-        const auto entered = static_cast<uint8_t>(sb.previous & ~current);
-
-        for (uint8_t bit = 0; bit < 4; ++bit) {
-          const auto mask = static_cast<uint8_t>(1u << bit);
-          if (exited & mask)
-            dispatch_screen_event(proxy, "on_screen_exit", directions[bit]);
-          if (entered & mask)
-            dispatch_screen_event(proxy, "on_screen_enter", directions[bit]);
-        }
-
-        sb.previous = current;
-      }
-    }
-
     _accumulator -= FIXED_TIMESTEP;
-  }
-
-  for (auto&& [entity, a] : _registry.view<animation>(entt::exclude<dormant>).each()) {
-    if (!a.playing || a.clip_count == 0)
-      continue;
-
-    const auto& c = a.clips[a.active];
-    if (c.count == 0)
-      continue;
-
-    const auto& fr = c.frames[a.current];
-
-    if (fr.duration < .0f)
-      continue;
-
-    a.elapsed += delta;
-
-    while (a.elapsed >= fr.duration && fr.duration > .0f) {
-      a.elapsed -= fr.duration;
-      ++a.current;
-
-      if (a.current >= c.count) {
-        a.current = 0;
-
-        if (_registry.all_of<objectproxy>(entity)) {
-          const auto& proxy = _registry.get<objectproxy>(entity);
-
-          if (proxy.prototype != LUA_NOREF && proxy.handle != LUA_NOREF) {
-            lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-            lua_getfield(L, -1, "on_animation_end");
-
-            if (lua_isfunction(L, -1)) {
-              lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-              lua_pushstring(L, _stringpool->get(c.name));
-
-              if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-                std::string error = lua_tostring(L, -1);
-                lua_pop(L, 2);
-                throw std::runtime_error(std::move(error));
-              }
-            } else {
-              lua_pop(L, 1);
-            }
-
-            lua_pop(L, 1);
-
-            lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-            lua_getfield(L, -1, "on_animation_begin");
-
-            if (lua_isfunction(L, -1)) {
-              lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-              lua_pushstring(L, _stringpool->get(c.name));
-
-              if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-                std::string error = lua_tostring(L, -1);
-                lua_pop(L, 2);
-                throw std::runtime_error(std::move(error));
-              }
-            } else {
-              lua_pop(L, 1);
-            }
-
-            lua_pop(L, 1);
-          }
-        }
-      }
-
-      break;
-    }
   }
 
   for (auto* instance : _sounds) {
