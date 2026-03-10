@@ -2,10 +2,9 @@ local controls = require("helpers/controls")
 
 local speed = 200
 local jump = -400
-local spin = 360
 local ground = {}
 local grounded = 0
-local riding = {}
+local riding = nil
 
 return {
 	body = "dynamic",
@@ -35,11 +34,11 @@ return {
 
 		if grounded > 0 and controls.jump then
 			self.vy = jump
-			riding = {}
+			riding = nil
 		end
 
-		for name, _ in pairs(riding) do
-			local enemy = pool[name]
+		if riding then
+			local enemy = pool[riding]
 			if enemy then
 				vx = vx + enemy.vx
 			end
@@ -53,7 +52,7 @@ return {
 			ground[name] = (ground[name] or 0) + 1
 			grounded = grounded + 1
 			if kind == "enemy" then
-				riding[name] = true
+				riding = name
 			end
 		end
 	end,
@@ -64,7 +63,9 @@ return {
 			grounded = grounded - 1
 			if ground[name] == 0 then
 				ground[name] = nil
-				riding[name] = nil
+				if riding == name then
+					riding = nil
+				end
 			end
 		end
 	end,
