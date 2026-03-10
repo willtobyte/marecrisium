@@ -724,9 +724,9 @@ void stage::draw() const {
     }
 
     if (lua_isnumber(L, -2))
-      _camera_x = static_cast<float>(lua_tonumber(L, -2));
+      _camera_x = std::roundf(static_cast<float>(lua_tonumber(L, -2)));
     if (lua_isnumber(L, -1))
-      _camera_y = static_cast<float>(lua_tonumber(L, -1));
+      _camera_y = std::roundf(static_cast<float>(lua_tonumber(L, -1)));
     lua_pop(L, 2);
   } else {
     lua_pop(L, 1);

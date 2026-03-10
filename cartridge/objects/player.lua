@@ -46,10 +46,6 @@ return {
 		end
 
 		self.vx = vx
-
-		if keyboard.space then
-			self.angle = self.angle + spin * delta
-		end
 	end,
 
 	on_collision_begin = function(self, name, kind, _, normal_y)
