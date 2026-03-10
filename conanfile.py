@@ -25,7 +25,7 @@ class Carimbo(ConanFile):
 
     def configure(self):
         self.options["miniaudio"].header_only = True
-        self.options["sentry-native"].backend = "inprocess"
+        self.options["sentry-native"].backend = "inproc"
         self.options["sentry-native"].shared = False
 
     def generate(self):
