@@ -383,7 +383,7 @@ namespace {
                   lua_pushstring(state, strings->get(previous));
                   if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]] {
                     std::string error = lua_tostring(state, -1);
-                    lua_pop(state, 1);
+                    lua_pop(state, 2);
                     throw std::runtime_error(std::move(error));
                   }
                 } else {
@@ -399,7 +399,7 @@ namespace {
                 lua_pushstring(state, strings->get(hash));
                 if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]] {
                     std::string error = lua_tostring(state, -1);
-                    lua_pop(state, 1);
+                    lua_pop(state, 2);
                     throw std::runtime_error(std::move(error));
                   }
               } else {
