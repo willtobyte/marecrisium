@@ -150,14 +150,17 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
     _background_uvs.resize(count);
 
+    const auto half_texel_u = .5f / atlas_width;
+    const auto half_texel_v = .5f / atlas_height;
+
     for (size_t id = 0; id < count; ++id) {
       const auto column = static_cast<float>(id % tiles_per_row);
       const auto row = static_cast<float>(id / tiles_per_row);
       auto& entry = _background_uvs[id];
-      entry.u0 = column * u_scale;
-      entry.v0 = row * v_scale;
-      entry.u1 = entry.u0 + u_scale;
-      entry.v1 = entry.v0 + v_scale;
+      entry.u0 = column * u_scale + half_texel_u;
+      entry.v0 = row * v_scale + half_texel_v;
+      entry.u1 = (column + 1.f) * u_scale - half_texel_u;
+      entry.v1 = (row + 1.f) * v_scale - half_texel_v;
     }
   }
 
@@ -172,14 +175,17 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
     _foreground_uvs.resize(count);
 
+    const auto half_texel_u = .5f / atlas_width;
+    const auto half_texel_v = .5f / atlas_height;
+
     for (size_t id = 0; id < count; ++id) {
       const auto column = static_cast<float>(id % tiles_per_row);
       const auto row = static_cast<float>(id / tiles_per_row);
       auto& entry = _foreground_uvs[id];
-      entry.u0 = column * u_scale;
-      entry.v0 = row * v_scale;
-      entry.u1 = entry.u0 + u_scale;
-      entry.v1 = entry.v0 + v_scale;
+      entry.u0 = column * u_scale + half_texel_u;
+      entry.v0 = row * v_scale + half_texel_v;
+      entry.u1 = (column + 1.f) * u_scale - half_texel_u;
+      entry.v1 = (row + 1.f) * v_scale - half_texel_v;
     }
   }
 
@@ -283,6 +289,9 @@ void tilemap::build_layer(
   auto dy = static_cast<float>(start_row) * _size - _camera_y;
 
   for (auto row = start_row; row <= end_row; ++row, row_offset += _width, dy += _size) {
+    const auto snapped_y0 = std::roundf(dy);
+    const auto snapped_y1 = std::roundf(dy + _size);
+
     for (auto column = start_column; column <= end_column; ++column) {
       const auto tile_id = tiles[row_offset + column];
       if (tile_id == 0) [[likely]]
@@ -290,12 +299,14 @@ void tilemap::build_layer(
 
       const auto& entry = uvs[tile_id - 1];
       const auto dx = static_cast<float>(column) * _size - _camera_x;
+      const auto snapped_x0 = std::roundf(dx);
+      const auto snapped_x1 = std::roundf(dx + _size);
       const auto base = static_cast<int32_t>(vertices.size());
 
-      vertices.emplace_back(SDL_Vertex{{dx, dy}, white, {entry.u0, entry.v0}});
-      vertices.emplace_back(SDL_Vertex{{dx + _size, dy}, white, {entry.u1, entry.v0}});
-      vertices.emplace_back(SDL_Vertex{{dx + _size, dy + _size}, white, {entry.u1, entry.v1}});
-      vertices.emplace_back(SDL_Vertex{{dx, dy + _size}, white, {entry.u0, entry.v1}});
+      vertices.emplace_back(SDL_Vertex{{snapped_x0, snapped_y0}, white, {entry.u0, entry.v0}});
+      vertices.emplace_back(SDL_Vertex{{snapped_x1, snapped_y0}, white, {entry.u1, entry.v0}});
+      vertices.emplace_back(SDL_Vertex{{snapped_x1, snapped_y1}, white, {entry.u1, entry.v1}});
+      vertices.emplace_back(SDL_Vertex{{snapped_x0, snapped_y1}, white, {entry.u0, entry.v1}});
 
       indices.emplace_back(base);
       indices.emplace_back(base + 1);
