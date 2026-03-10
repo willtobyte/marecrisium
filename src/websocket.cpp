@@ -446,23 +446,23 @@ void socketconn::run() {
   }
 }
 
-void socketconn::send(message msg) noexcept {
-  _outbound.push(std::move(msg));
+void socketconn::send(message message) noexcept {
+  _outbound.push(std::move(message));
   if (_context) [[likely]]
     lws_cancel_service(_context);
 }
 
 void socketconn::poll() {
-  message msg;
-  while (_inbound.try_pop(msg)) {
-    auto* document = yyjson_read(msg.payload.c_str(), msg.payload.size(), 0);
+  message message;
+  while (_inbound.try_pop(message)) {
+    auto* document = yyjson_read(message.payload.c_str(), message.payload.size(), 0);
     if (!document) [[unlikely]]
       continue;
 
     auto* root = yyjson_doc_get_root(document);
     auto* data_value = yyjson_obj_get(root, "data");
 
-    const auto it = _subscriptions.find(msg.topic);
+    const auto it = _subscriptions.find(message.topic);
     if (it != _subscriptions.end()) [[likely]] {
       for (auto* subscriber : it->second) {
         if (!subscriber->active()) [[unlikely]]

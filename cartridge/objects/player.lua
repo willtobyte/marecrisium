@@ -31,7 +31,6 @@ return {
 
 		if self.grounded and controls.jump then
 			self.vy = jump
-			error("jump error")
 		end
 
 		local target = self.riding

@@ -54,7 +54,7 @@ public:
   socketconn(socketconn&&) = delete;
   socketconn& operator=(socketconn&&) = delete;
 
-  void send(message msg) noexcept;
+  void send(message message) noexcept;
   void poll();
 
   void add_subscription(subscription* subscription);
