@@ -154,7 +154,7 @@ void engine::loop() {
   const auto delta = std::min(static_cast<float>(static_cast<double>(now - prior) / frequency), 1.f / 30.f);
   prior = now;
 
-#ifdef DEVELOPMENT
+#ifdef DEBUG
   static auto tick = now;
   static auto frames = 0;
   ++frames;

@@ -1098,12 +1098,7 @@ void stage::dispatch_dormancy(
   lua_pop(L, 1);
 }
 
-void stage::dispatch_collision(
-  entt::entity entity,
-  entt::entity other,
-  const char* callback,
-  const b2Vec2* normal
-) {
+void stage::dispatch_collision(entt::entity entity, entt::entity other, const char* callback, const b2Vec2* normal) {
   if (!_registry.valid(entity) || !_registry.valid(other)) return;
   if (!_registry.all_of<objectproxy>(entity) ||
       !_registry.all_of<objectproxy>(other)) return;

@@ -44,7 +44,6 @@ build: ## Builds the project
 		-DCMAKE_C_FLAGS_DEBUG="$(DEBUG_CFLAGS)" \
 		-DCMAKE_CXX_FLAGS_DEBUG="$(DEBUG_CFLAGS)" \
 		-DCMAKE_EXE_LINKER_FLAGS_DEBUG="$(DEBUG_LDFLAGS)" \
-		-DDEVELOPMENT=ON \
 		$(EXTRA_FLAGS)
 	cmake --build build \
 		--parallel $(NCPUS) \

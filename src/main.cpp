@@ -1,7 +1,7 @@
 #include <SDL3/SDL_main.h>
 
 int main(int argc, char **argv) {
-#ifndef DEVELOPMENT
+#ifndef DEBUG
   if (auto* out = std::freopen("stdout.txt", "w", stdout)) {
     setvbuf(out, nullptr, _IONBF, 0);
   }
