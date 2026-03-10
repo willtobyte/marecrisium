@@ -1,7 +1,3 @@
-static constexpr float FIXED_TIMESTEP = 1.f / 60.f;
-
-static constexpr int WORLD_SUBSTEPS = 4;
-
 static int world_raycast(lua_State* state) {
   auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
   const auto* caller = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
@@ -16,10 +12,6 @@ stage::stage(std::string_view name)
     : _name(name),
       _stringpool(std::make_unique<stringpool>()) {
   const auto start = SDL_GetPerformanceCounter();
-
-  b2WorldDef def = b2DefaultWorldDef();
-  def.gravity = gravity;
-  _world = b2CreateWorld(&def);
 
   _registry.on_destroy<objectproxy>().connect<&objectproxy::on_destroy>();
   _registry.on_destroy<body>().connect<[](entt::registry& registry, entt::entity entity) {
@@ -70,6 +62,23 @@ stage::stage(std::string_view name)
     lua_pop(L, 1);
     throw std::runtime_error(std::move(error));
   }
+
+  b2Vec2 gravity{.0f, .0f};
+  lua_getfield(L, -1, "gravity");
+  if (lua_istable(L, -1)) {
+    lua_rawgeti(L, -1, 1);
+    gravity.x = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
+    lua_pop(L, 1);
+
+    lua_rawgeti(L, -1, 2);
+    gravity.y = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
+    lua_pop(L, 1);
+  }
+  lua_pop(L, 1);
+
+  b2WorldDef def = b2DefaultWorldDef();
+  def.gravity = gravity;
+  _world = b2CreateWorld(&def);
 
   lua_getfield(L, -1, "objects");
   if (lua_istable(L, -1)) {
@@ -521,7 +530,7 @@ void stage::update(float delta) {
 
   _accumulator += delta;
 
-  while (_accumulator >= FIXED_TIMESTEP) {
+  while (_accumulator >= _timestep) {
     for (auto&& [en, bd, an, tf] :
          _registry.view<body, animation, transform>(entt::exclude<dormant>).each()) {
       const auto active = an.playing && an.clip_count > 0;
@@ -562,7 +571,7 @@ void stage::update(float delta) {
         const auto cy = tf.y + frame.cy * tf.scale + hy;
 
         if (bd.type == body_type::kinematic) {
-          b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(to_radians(tf.angle))}, FIXED_TIMESTEP);
+          b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(to_radians(tf.angle))}, _timestep);
         } else {
           const auto rot = bd.type == body_type::dynamic ? b2MakeRot(.0f) : b2MakeRot(to_radians(tf.angle));
           b2Body_SetTransform(bd.id, {cx, cy}, rot);
@@ -574,11 +583,11 @@ void stage::update(float delta) {
       if (bd.type == body_type::kinematic) {
         const auto cx = tf.x + frame.cx * tf.scale + bd.cached_hx;
         const auto cy = tf.y + frame.cy * tf.scale + bd.cached_hy;
-        b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(to_radians(tf.angle))}, FIXED_TIMESTEP);
+        b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(to_radians(tf.angle))}, _timestep);
       }
     }
 
-    b2World_Step(_world, FIXED_TIMESTEP, WORLD_SUBSTEPS);
+    b2World_Step(_world, _timestep, _substeps);
 
     const auto body_events = b2World_GetBodyEvents(_world);
 
@@ -739,7 +748,7 @@ void stage::update(float delta) {
       dispatch_collision(entity_b, entity_a, "on_collision_end");
     }
 
-    _accumulator -= FIXED_TIMESTEP;
+    _accumulator -= _timestep;
   }
 
   for (auto* instance : _sounds) {

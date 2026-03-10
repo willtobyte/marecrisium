@@ -48,7 +48,6 @@ struct viewport {
 };
 
 extern struct viewport viewport;
-extern b2Vec2 gravity;
 
 struct SDL_Deleter final {
   template <typename T>

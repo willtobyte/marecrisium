@@ -26,6 +26,8 @@ private:
   std::unique_ptr<stringpool> _stringpool;
   std::vector<sound*> _sounds;
   b2WorldId _world;
+  float _timestep = 1.f / 60.f;
+  int _substeps = 4;
   float _accumulator = .0f;
   mutable float _camera_x = .0f;
   mutable float _camera_y = .0f;

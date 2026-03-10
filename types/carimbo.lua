@@ -165,8 +165,6 @@ cassette = {}
 ---@field title string Window title.
 ---@field scale number Render scale factor.
 ---@field fullscreen boolean Whether to start in fullscreen mode.
----@field meter number|nil Pixels per physics meter for Box2D length units. Default is 100.
----@field gravity number[]|nil World gravity as {gx, gy}. Default is {0, 0} (no gravity). Set to e.g. {0, 980} for a platformer.
 ---@field ticks integer|nil Fixed tick rate (ticks per second). Default is 0 (disabled). Set to e.g. 10 for 10 ticks/second.
 ---@field on_begin fun() Called once after the engine is fully initialized.
 
@@ -181,6 +179,7 @@ cassette = {}
 ---@class Stage
 ---A stage script (`stages/<name>.lua`) returns a table that may contain
 ---these fields, lifecycle callbacks, and entity/sound declarations.
+---@field gravity number[]|nil World gravity as {gx, gy}. Default is {0, 0} (no gravity). Set to e.g. {0, 980} for a platformer.
 ---@field objects StageObject[]|nil Objects to spawn when the stage is created.
 ---@field sounds string[]|nil Sound names to preload. Each `"foo"` loads `sounds/foo` and is accessible as `pool.foo`.
 ---@field tilemap string|nil Tilemap name. Loads `tilemaps/<name>.lua` and exposes a `tilemap` global in the stage environment.

@@ -4,6 +4,8 @@ local camera_x = 0
 local camera_y = 0
 
 return ticker.wrap({
+	gravity = { 0, 980 },
+
 	tilemap = "forest",
 
 	objects = {
