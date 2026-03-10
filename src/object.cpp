@@ -176,7 +176,7 @@ namespace {
               offset = an->clips[an->active].frames[an->current].cx * tf.scale;
 
             const auto position = b2Body_GetPosition(bd->id);
-            b2Body_SetTransform(bd->id, {value + offset + bd->cached_hx, position.y}, b2MakeRot(tf.angle * (std::numbers::pi_v<float> / 180.f)));
+            b2Body_SetTransform(bd->id, {value + offset + bd->cached_hx, position.y}, b2MakeRot(to_radians(tf.angle)));
           } break;
           case body_type::kinematic:
             break;
@@ -210,7 +210,7 @@ namespace {
               offset = an->clips[an->active].frames[an->current].cy * tf.scale;
 
             const auto position = b2Body_GetPosition(bd->id);
-            b2Body_SetTransform(bd->id, {position.x, value + offset + bd->cached_hy}, b2MakeRot(tf.angle * (std::numbers::pi_v<float> / 180.f)));
+            b2Body_SetTransform(bd->id, {position.x, value + offset + bd->cached_hy}, b2MakeRot(to_radians(tf.angle)));
           } break;
           case body_type::kinematic:
             break;
@@ -260,7 +260,7 @@ namespace {
               oy = frame.cy * tf.scale;
             }
 
-            b2Body_SetTransform(bd->id, {px + ox + bd->cached_hx, py + oy + bd->cached_hy}, b2MakeRot(tf.angle * (std::numbers::pi_v<float> / 180.f)));
+            b2Body_SetTransform(bd->id, {px + ox + bd->cached_hx, py + oy + bd->cached_hy}, b2MakeRot(to_radians(tf.angle)));
           } break;
           case body_type::kinematic:
             break;
@@ -302,7 +302,7 @@ namespace {
         switch (bd->type) {
           case body_type::fixed: {
             const auto position = b2Body_GetPosition(bd->id);
-            b2Body_SetTransform(bd->id, position, b2MakeRot(tf.angle * (std::numbers::pi_v<float> / 180.f)));
+            b2Body_SetTransform(bd->id, position, b2MakeRot(to_radians(tf.angle)));
           } break;
           case body_type::dynamic:
           case body_type::kinematic:

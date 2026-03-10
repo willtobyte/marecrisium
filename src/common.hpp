@@ -14,6 +14,7 @@
 #include <optional>
 #include <print>
 #include <random>
+#include <span>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -80,6 +81,10 @@ struct PHYSFS_Deleter final {
     }
   }
 };
+
+[[nodiscard]] constexpr float to_radians(float degrees) noexcept {
+  return degrees * (std::numbers::pi_v<float> / 180.f);
+}
 
 struct transparent_hash final {
   using is_transparent = void;

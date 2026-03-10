@@ -46,6 +46,10 @@ engine::engine() {
   }
   lua_pop(L, 1);
 
+  lua_getfield(L, -1, "meter");
+  b2SetLengthUnitsPerMeter(lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 100.f);
+  lua_pop(L, 1);
+
   lua_getfield(L, -1, "ticks");
   if (lua_isnumber(L, -1)) {
     const auto ticks = static_cast<int>(lua_tonumber(L, -1));

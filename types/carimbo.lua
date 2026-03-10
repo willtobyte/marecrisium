@@ -165,6 +165,7 @@ cassette = {}
 ---@field title string Window title.
 ---@field scale number Render scale factor.
 ---@field fullscreen boolean Whether to start in fullscreen mode.
+---@field meter number|nil Pixels per physics meter for Box2D length units. Default is 100.
 ---@field gravity number[]|nil World gravity as {gx, gy}. Default is {0, 0} (no gravity). Set to e.g. {0, 980} for a platformer.
 ---@field ticks integer|nil Fixed tick rate (ticks per second). Default is 0 (disabled). Set to e.g. 10 for 10 ticks/second.
 ---@field on_begin fun() Called once after the engine is fully initialized.

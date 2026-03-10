@@ -128,7 +128,6 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
         const auto polygon = b2MakeBox(box_hx, box_hy);
         auto sdef = b2DefaultShapeDef();
         sdef.enableContactEvents = true;
-        sdef.enableSensorEvents = true;
         b2CreatePolygonShape(body_id, &sdef, &polygon);
       }
     }

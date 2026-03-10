@@ -31,7 +31,6 @@ private:
   mutable float _camera_y = .0f;
   uint32_t _mouse_previous_buttons{};
   std::vector<entt::entity> _hovering;
-  std::vector<entt::entity> _hits;
   std::unique_ptr<tilemap> _tilemap;
   int _reference = LUA_NOREF;
   int _environment_reference = LUA_NOREF;
@@ -41,7 +40,7 @@ private:
 
   void dispatch_hover(float x, float y);
 
-  void dispatch_unhover();
+  void dispatch_unhover(std::span<const entt::entity> current);
 
   void dispatch_collision(entt::entity entity, entt::entity other_entity, const char* callback_name, const b2Vec2* normal = nullptr);
 

@@ -4,6 +4,7 @@ return {
 	height = 1080,
 	scale = 3.0,
 	ticks = 10,
+	meter = 100,
 	gravity = { 0, 980 },
 	fullscreen = os.getenv("FULLSCREEN") == "1",
 	on_begin = function()

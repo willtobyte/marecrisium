@@ -17,8 +17,6 @@ stage::stage(std::string_view name)
       _stringpool(std::make_unique<stringpool>()) {
   const auto start = SDL_GetPerformanceCounter();
 
-  b2SetLengthUnitsPerMeter(100.f);
-
   b2WorldDef def = b2DefaultWorldDef();
   def.gravity = gravity;
   _world = b2CreateWorld(&def);
@@ -202,18 +200,13 @@ stage::stage(std::string_view name)
           b2BodyDef bdef = b2DefaultBodyDef();
           bdef.userData = reinterpret_cast<void*>(static_cast<uintptr_t>(entity));
 
-          switch (bt) {
-            case body_type::dynamic: {
-              bdef.type = b2_dynamicBody;
-              bdef.isBullet = true;
-              bdef.fixedRotation = true;
-            } break;
-            case body_type::fixed: {
-              bdef.type = b2_staticBody;
-            } break;
-            case body_type::kinematic: {
-              bdef.type = b2_kinematicBody;
-            } break;
+          bdef.type = bt == body_type::dynamic   ? b2_dynamicBody
+                   : bt == body_type::fixed     ? b2_staticBody
+                                                : b2_kinematicBody;
+
+          if (bt == body_type::dynamic) {
+            bdef.isBullet = true;
+            bdef.fixedRotation = true;
           }
 
           const auto id = b2CreateBody(_world, &bdef);
@@ -491,22 +484,12 @@ void stage::update(float delta) {
 
         auto sdef = b2DefaultShapeDef();
         sdef.userData = reinterpret_cast<void*>(static_cast<uintptr_t>(en));
+        sdef.enableContactEvents = true;
+        sdef.enableSensorEvents = true;
 
-        switch (bd.type) {
-          case body_type::kinematic: {
-            sdef.enableContactEvents = true;
-            sdef.enableSensorEvents = true;
-          } break;
-          case body_type::dynamic: {
-            sdef.enableContactEvents = true;
-            sdef.enableSensorEvents = true;
-            sdef.density = 1.f;
-            sdef.material.friction = .0f;
-          } break;
-          case body_type::fixed: {
-            sdef.enableContactEvents = true;
-            sdef.enableSensorEvents = true;
-          } break;
+        if (bd.type == body_type::dynamic) {
+          sdef.density = 1.f;
+          sdef.material.friction = .0f;
         }
 
         bd.shape = b2CreatePolygonShape(bd.id, &sdef, &polygon);
@@ -516,33 +499,20 @@ void stage::update(float delta) {
         const auto cx = tf.x + frame.cx * tf.scale + hx;
         const auto cy = tf.y + frame.cy * tf.scale + hy;
 
-        switch (bd.type) {
-          case body_type::kinematic: {
-            const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
-            b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(radians)}, FIXED_TIMESTEP);
-          } break;
-          case body_type::dynamic: {
-            b2Body_SetTransform(bd.id, {cx, cy}, b2MakeRot(.0f));
-          } break;
-          case body_type::fixed: {
-            const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
-            b2Body_SetTransform(bd.id, {cx, cy}, b2MakeRot(radians));
-          } break;
+        if (bd.type == body_type::kinematic) {
+          b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(to_radians(tf.angle))}, FIXED_TIMESTEP);
+        } else {
+          const auto rot = bd.type == body_type::dynamic ? b2MakeRot(.0f) : b2MakeRot(to_radians(tf.angle));
+          b2Body_SetTransform(bd.id, {cx, cy}, rot);
         }
 
         continue;
       }
 
-      switch (bd.type) {
-        case body_type::kinematic: {
-          const auto cx = tf.x + frame.cx * tf.scale + bd.cached_hx;
-          const auto cy = tf.y + frame.cy * tf.scale + bd.cached_hy;
-          const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
-          b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(radians)}, FIXED_TIMESTEP);
-        } break;
-        case body_type::dynamic:
-        case body_type::fixed:
-          break;
+      if (bd.type == body_type::kinematic) {
+        const auto cx = tf.x + frame.cx * tf.scale + bd.cached_hx;
+        const auto cy = tf.y + frame.cy * tf.scale + bd.cached_hy;
+        b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(to_radians(tf.angle))}, FIXED_TIMESTEP);
       }
     }
 
@@ -926,24 +896,33 @@ void stage::dispatch_hover(float x, float y) {
   const b2AABB aabb = {{x - HALF, y - HALF}, {x + HALF, y + HALF}};
   const auto filter = b2DefaultQueryFilter();
 
-  _hits.clear();
+  struct context {
+    entt::entity* hits;
+    uint8_t count;
+  };
+
+  std::array<entt::entity, 16> buffer{};
+  context ctx{buffer.data(), 0};
 
   b2World_OverlapAABB(
     _world, aabb, filter,
     [](b2ShapeId shape, void* userdata) -> bool {
-      auto* hits = static_cast<std::vector<entt::entity>*>(userdata);
+      auto* ctx = static_cast<context*>(userdata);
+      if (ctx->count >= 16) [[unlikely]]
+        return false;
       const auto entity = static_cast<entt::entity>(
         reinterpret_cast<uintptr_t>(b2Shape_GetUserData(shape)));
-      hits->push_back(entity);
+      ctx->hits[ctx->count++] = entity;
       return true;
     },
-    &_hits);
+    &ctx);
 
-  std::ranges::sort(_hits);
+  const auto hits = std::span{buffer.data(), ctx.count};
+  std::ranges::sort(hits);
 
-  dispatch_unhover();
+  dispatch_unhover(hits);
 
-  for (const auto entity : _hits) {
+  for (const auto entity : hits) {
     if (std::ranges::binary_search(_hovering, entity))
       continue;
 
@@ -972,12 +951,12 @@ void stage::dispatch_hover(float x, float y) {
     lua_pop(L, 1);
   }
 
-  _hovering.swap(_hits);
+  _hovering.assign(hits.begin(), hits.end());
 }
 
-void stage::dispatch_unhover() {
+void stage::dispatch_unhover(std::span<const entt::entity> current) {
   for (const auto entity : _hovering) {
-    if (std::ranges::binary_search(_hits, entity))
+    if (std::ranges::binary_search(current, entity))
       continue;
 
     if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
@@ -1109,10 +1088,9 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     float fraction;
   };
 
-  static std::vector<hit> hits;
-  hits.clear();
+  std::vector<hit> hits;
 
-  const auto radians = angle * (std::numbers::pi_v<float> / 180.f);
+  const auto radians = to_radians(angle);
   const b2Vec2 origin{x, y};
   const b2Vec2 translation{std::cos(radians) * distance, std::sin(radians) * distance};
   const auto filter = b2DefaultQueryFilter();
