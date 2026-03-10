@@ -3,10 +3,10 @@
 namespace {
 socketconn* connection{nullptr};
 
-[[nodiscard]] int abs_index(lua_State* state, int idx) noexcept {
-  return (idx > 0 || idx <= LUA_REGISTRYINDEX)
-    ? idx
-    : lua_gettop(state) + idx + 1;
+[[nodiscard]] int abs_index(lua_State* state, int index) noexcept {
+  return (index > 0 || index <= LUA_REGISTRYINDEX)
+    ? index
+    : lua_gettop(state) + index + 1;
 }
 
 void yyjson_to_lua(lua_State* state, yyjson_val* val) {
