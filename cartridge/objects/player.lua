@@ -2,9 +2,6 @@ local controls = require("helpers/controls")
 
 local speed = 200
 local jump = -400
-local ground = {}
-local grounded = 0
-local riding = nil
 
 return {
 	body = "dynamic",
@@ -32,41 +29,18 @@ return {
 			self.flip = "none"
 		end
 
-		if grounded > 0 and controls.jump then
+		if self.grounded and controls.jump then
 			self.vy = jump
-			riding = nil
 		end
 
-		if riding then
-			local enemy = pool[riding]
+		local target = self.riding
+		if target then
+			local enemy = pool[target]
 			if enemy then
-				vx = vx + enemy.vx
+				vx = vx + (enemy.speed_x or 0)
 			end
 		end
 
 		self.vx = vx
-	end,
-
-	on_collision_begin = function(self, name, kind, _, normal_y)
-		if normal_y and normal_y > 0.5 then
-			ground[name] = (ground[name] or 0) + 1
-			grounded = grounded + 1
-			if kind == "enemy" then
-				riding = name
-			end
-		end
-	end,
-
-	on_collision_end = function(self, name)
-		if ground[name] and ground[name] > 0 then
-			ground[name] = ground[name] - 1
-			grounded = grounded - 1
-			if ground[name] == 0 then
-				ground[name] = nil
-				if riding == name then
-					riding = nil
-				end
-			end
-		end
 	end,
 }

@@ -543,16 +543,59 @@ void stage::update(float delta) {
       tf.y = position.y - frame.cy * tf.scale - bd->cached_hy;
     }
 
+    for (auto&& [entity, bd] :
+         _registry.view<const body>(entt::exclude<dormant>).each()) {
+      if (bd.type != body_type::dynamic || !b2Body_IsValid(bd.id)) continue;
+
+      const auto capacity = b2Body_GetContactCapacity(bd.id);
+      bool on_ground = false;
+      entt::entity ride_target = entt::null;
+
+      if (capacity > 0) {
+        std::array<b2ContactData, 8> contacts{};
+        const auto count = b2Body_GetContactData(bd.id, contacts.data(), static_cast<int>(contacts.size()));
+        const auto* user = b2Shape_GetUserData(bd.shape);
+
+        for (auto j = 0uz; j < static_cast<size_t>(count); ++j) {
+          const auto& manifold = contacts[j].manifold;
+          const auto is_shape_a = b2Shape_GetUserData(contacts[j].shapeIdA) == user;
+          const auto normal_y = is_shape_a ? manifold.normal.y : -manifold.normal.y;
+          if (normal_y > .5f) {
+            on_ground = true;
+
+            const auto other_shape = is_shape_a ? contacts[j].shapeIdB : contacts[j].shapeIdA;
+            const auto other_body = b2Shape_GetBody(other_shape);
+            if (b2Body_GetType(other_body) == b2_kinematicBody) {
+              const auto* other_data = b2Shape_GetUserData(other_shape);
+              if (other_data)
+                ride_target = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(other_data));
+            }
+
+            break;
+          }
+        }
+      }
+
+      if (on_ground) {
+        _registry.emplace_or_replace<grounded>(entity);
+      } else {
+        _registry.remove<grounded>(entity);
+      }
+
+      _registry.emplace_or_replace<riding>(entity, ride_target);
+    }
+
     const auto sensor_events = b2World_GetSensorEvents(_world);
 
     for (int i = 0; i < sensor_events.beginCount; ++i) {
       const auto& event = sensor_events.beginEvents[i];
       if (!b2Shape_IsValid(event.sensorShapeId) || !b2Shape_IsValid(event.visitorShapeId))
         continue;
-      const auto sensor = static_cast<entt::entity>(
-          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.sensorShapeId)));
-      const auto visitor = static_cast<entt::entity>(
-          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.visitorShapeId)));
+      const auto* sensor_data = b2Shape_GetUserData(event.sensorShapeId);
+      const auto* visitor_data = b2Shape_GetUserData(event.visitorShapeId);
+      if (!sensor_data || !visitor_data) continue;
+      const auto sensor = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(sensor_data));
+      const auto visitor = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(visitor_data));
       dispatch_collision(sensor, visitor, "on_collision_begin");
     }
 
@@ -560,10 +603,11 @@ void stage::update(float delta) {
       const auto& event = sensor_events.endEvents[i];
       if (!b2Shape_IsValid(event.sensorShapeId) || !b2Shape_IsValid(event.visitorShapeId))
         continue;
-      const auto sensor = static_cast<entt::entity>(
-          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.sensorShapeId)));
-      const auto visitor = static_cast<entt::entity>(
-          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.visitorShapeId)));
+      const auto* sensor_data = b2Shape_GetUserData(event.sensorShapeId);
+      const auto* visitor_data = b2Shape_GetUserData(event.visitorShapeId);
+      if (!sensor_data || !visitor_data) continue;
+      const auto sensor = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(sensor_data));
+      const auto visitor = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(visitor_data));
       dispatch_collision(sensor, visitor, "on_collision_end");
     }
 
@@ -573,10 +617,11 @@ void stage::update(float delta) {
       const auto& event = contact_events.beginEvents[i];
       if (!b2Shape_IsValid(event.shapeIdA) || !b2Shape_IsValid(event.shapeIdB))
         continue;
-      const auto entity_a = static_cast<entt::entity>(
-          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.shapeIdA)));
-      const auto entity_b = static_cast<entt::entity>(
-          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.shapeIdB)));
+      const auto* data_a = b2Shape_GetUserData(event.shapeIdA);
+      const auto* data_b = b2Shape_GetUserData(event.shapeIdB);
+      if (!data_a || !data_b) continue;
+      const auto entity_a = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(data_a));
+      const auto entity_b = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(data_b));
       const auto& normal = event.manifold.normal;
       const b2Vec2 flipped = {-normal.x, -normal.y};
       dispatch_collision(entity_a, entity_b, "on_collision_begin", &normal);
@@ -587,10 +632,11 @@ void stage::update(float delta) {
       const auto& event = contact_events.endEvents[i];
       if (!b2Shape_IsValid(event.shapeIdA) || !b2Shape_IsValid(event.shapeIdB))
         continue;
-      const auto entity_a = static_cast<entt::entity>(
-          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.shapeIdA)));
-      const auto entity_b = static_cast<entt::entity>(
-          reinterpret_cast<uintptr_t>(b2Shape_GetUserData(event.shapeIdB)));
+      const auto* data_a = b2Shape_GetUserData(event.shapeIdA);
+      const auto* data_b = b2Shape_GetUserData(event.shapeIdB);
+      if (!data_a || !data_b) continue;
+      const auto entity_a = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(data_a));
+      const auto entity_b = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(data_b));
       dispatch_collision(entity_a, entity_b, "on_collision_end");
       dispatch_collision(entity_b, entity_a, "on_collision_end");
     }

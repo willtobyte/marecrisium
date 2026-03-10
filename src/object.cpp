@@ -33,6 +33,22 @@ namespace {
       return 1;
     }
 
+    if (key == "grounded") {
+      lua_pushboolean(state, registry.all_of<grounded>(entity));
+      return 1;
+    }
+
+    if (key == "riding") {
+      const auto* rd = registry.try_get<riding>(entity);
+      if (rd && rd->target != entt::null && registry.valid(rd->target) && registry.all_of<objectproxy>(rd->target)) {
+        const auto* strings = registry.ctx().get<stringpool*>();
+        const auto& target_proxy = registry.get<objectproxy>(rd->target);
+        lua_pushstring(state, strings->get(target_proxy.name));
+        return 1;
+      }
+      return lua_pushnil(state), 1;
+    }
+
     if (key == "name") {
       const auto* strings = registry.ctx().get<stringpool*>();
       lua_pushstring(state, strings->get(proxy->name));

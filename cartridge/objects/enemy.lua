@@ -15,10 +15,12 @@ return {
 		self.animation = "running"
 		self.direction = 1
 		self.distance = 0
+		self.speed_x = speed
 	end,
 
 	on_loop = function(self, delta)
-		self.x = self.x + speed * self.direction * delta
+		self.speed_x = speed * self.direction
+		self.x = self.x + self.speed_x * delta
 		self.distance = self.distance + speed * delta
 
 		if self.distance >= max_distance then
@@ -27,12 +29,4 @@ return {
 			self.flip = self.direction < 0 and "horizontal" or "none"
 		end
 	end,
-
-	on_sleep = function(self) end,
-
-	on_wake = function(self) end,
-
-	on_collision_begin = function(self, name, kind) end,
-
-	on_collision_end = function(self, name, kind) end,
 }

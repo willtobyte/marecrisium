@@ -334,6 +334,8 @@ viewport = {}
 ---@field alive boolean Whether the object is still alive (read-only).
 ---@field cullable boolean Whether this object participates in off-screen dormancy (read-only, set via prototype).
 ---@field dormant boolean Whether this object is currently dormant/sleeping because it is off-screen (read-only).
+---@field grounded boolean Whether this dynamic body is touching a surface below it (read-only). Always false for non-dynamic bodies.
+---@field riding string|nil Name of the kinematic object this dynamic body is standing on (read-only). Nil when not riding anything.
 ---@field animation string|nil Currently playing animation clip name. Assign to switch clips.
 ---@field [string] any Custom properties from the prototype table.
 local Object = {}
