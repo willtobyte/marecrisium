@@ -12,6 +12,15 @@ int application::run() {
 
     std::println(stderr, "{}", error);
 
+#ifndef DEBUG
+    const auto event = sentry_value_new_event();
+    const auto exception = sentry_value_new_exception("exception", error);
+    sentry_value_set_stacktrace(exception, nullptr, 0);
+    sentry_event_add_exception(event, exception);
+    sentry_capture_event(event);
+    sentry_flush(3000);
+#endif
+
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Ink Spill Disaster", error, nullptr);
 
     return 1;

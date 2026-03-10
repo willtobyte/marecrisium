@@ -15,6 +15,7 @@ class Carimbo(ConanFile):
             "physfs/3.2.0",
             "libspng/0.7.4",
             "sdl/3.4.0",
+            "sentry-native/0.12.6",
             "sqlite3/3.51.0",
             "luajit/2.1.0-beta3",
             "opusfile/0.12",
@@ -24,6 +25,8 @@ class Carimbo(ConanFile):
 
     def configure(self):
         self.options["miniaudio"].header_only = True
+        self.options["sentry-native"].backend = "inprocess"
+        self.options["sentry-native"].shared = False
 
     def generate(self):
         license_output = Path(self.build_folder) / "LICENSES"

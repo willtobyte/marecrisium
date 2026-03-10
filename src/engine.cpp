@@ -46,6 +46,27 @@ engine::engine() {
   lua_getfield(L, -1, "title");
   const std::string_view title = lua_isstring(L, -1) ? lua_tostring(L, -1) : "Untitled";
 
+#ifndef DEBUG
+  lua_getfield(L, -2, "sentry");
+  if (lua_isstring(L, -1)) {
+    const std::string_view dsn = lua_tostring(L, -1);
+    if (!dsn.empty()) {
+      auto* const options = sentry_options_new();
+      sentry_options_set_dsn(options, dsn.data());
+      sentry_options_set_database_path(options, ".sentry");
+      sentry_options_set_sample_rate(options, 1.);
+
+      sentry_options_add_attachment(options, "cassette.tape");
+      sentry_options_add_attachment(options, "stdout.txt");
+      sentry_options_add_attachment(options, "stderr.txt");
+
+      sentry_init(options);
+      std::atexit([] { sentry_close(); });
+    }
+  }
+  lua_pop(L, 1);
+#endif
+
   static const auto window = SDL_CreateWindow(
     title.data(), width, height, fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
   lua_pop(L, 1);

@@ -37,6 +37,7 @@ find_package(EnTT CONFIG REQUIRED)
 find_package(libwebsockets CONFIG REQUIRED)
 find_package(PhysFS CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
+find_package(sentry CONFIG REQUIRED)
 find_package(SPNG CONFIG REQUIRED)
 find_package(luajit CONFIG REQUIRED)
 find_package(miniaudio CONFIG REQUIRED)
@@ -49,6 +50,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   EnTT::EnTT
   physfs-static
   SDL3::SDL3-static
+  sentry-native::sentry-native
   spng::spng_static
   miniaudio::miniaudio
   opusfile::opusfile
