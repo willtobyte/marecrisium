@@ -130,67 +130,69 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
 }
 
 [[nodiscard]] std::string build_action_json(const char* action, const char* topic) {
-  auto* doc = yyjson_mut_doc_new(nullptr);
-  auto* root = yyjson_mut_obj(doc);
-  yyjson_mut_doc_set_root(doc, root);
-  yyjson_mut_obj_add_str(doc, root, "action", action);
-  yyjson_mut_obj_add_str(doc, root, "topic", topic);
-  auto* json = yyjson_mut_write(doc, 0, nullptr);
+  auto* document = yyjson_mut_doc_new(nullptr);
+  auto* root = yyjson_mut_obj(document);
+  yyjson_mut_doc_set_root(document, root);
+  yyjson_mut_obj_add_str(document, root, "action", action);
+  yyjson_mut_obj_add_str(document, root, "topic", topic);
+  auto* json = yyjson_mut_write(document, 0, nullptr);
   std::string result(json);
   free(json);
-  yyjson_mut_doc_free(doc);
+  yyjson_mut_doc_free(document);
   return result;
 }
 
-void parse_url(const std::string& url, std::string& host, std::string& path, int& port, bool& ssl) {
-  std::string_view sv(url);
+[[nodiscard]] parsed_url parse_url(std::string_view sv) {
+  parsed_url result;
 
   if (sv.starts_with("wss://")) [[likely]] {
-    ssl = true;
-    port = 443;
+    result.ssl = true;
+    result.port = 443;
     sv.remove_prefix(6);
   } else if (sv.starts_with("ws://")) {
-    ssl = false;
-    port = 80;
+    result.ssl = false;
+    result.port = 80;
     sv.remove_prefix(5);
   } else if (sv.starts_with("https://")) {
-    ssl = true;
-    port = 443;
+    result.ssl = true;
+    result.port = 443;
     sv.remove_prefix(8);
   } else if (sv.starts_with("http://")) [[unlikely]] {
-    ssl = false;
-    port = 80;
+    result.ssl = false;
+    result.port = 80;
     sv.remove_prefix(7);
   }
 
   const auto slash = sv.find('/');
   const auto host_part = sv.substr(0, slash);
-  path = (slash != std::string_view::npos) ? std::string(sv.substr(slash)) : "/";
+  result.path = (slash != std::string_view::npos) ? std::string(sv.substr(slash)) : "/";
 
   const auto colon = host_part.find(':');
   if (colon != std::string_view::npos) [[unlikely]] {
-    host = std::string(host_part.substr(0, colon));
-    port = std::stoi(std::string(host_part.substr(colon + 1)));
+    result.host = std::string(host_part.substr(0, colon));
+    result.port = std::stoi(std::string(host_part.substr(colon + 1)));
   } else {
-    host = std::string(host_part);
+    result.host = std::string(host_part);
   }
+
+  return result;
 }
 
 int subscription_publish(lua_State* state) {
-  auto** p = static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
+  auto** pointer = static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
   luaL_checktype(state, 2, LUA_TTABLE);
-  (*p)->publish(state, 2);
+  (*pointer)->publish(state, 2);
   return 0;
 }
 
 int subscription_unsubscribe(lua_State* state) {
-  auto** p = static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
-  (*p)->unsubscribe();
+  auto** pointer = static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
+  (*pointer)->unsubscribe();
   return 0;
 }
 
 int subscription_index(lua_State* state) {
-  auto** ptr = static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
+  luaL_checkudata(state, 1, "Subscription");
   const std::string_view key = luaL_checkstring(state, 2);
 
   if (key == "publish") {
@@ -204,7 +206,8 @@ int subscription_index(lua_State* state) {
   }
 
   if (key == "topic") {
-    lua_pushstring(state, (*ptr)->topic().c_str());
+    auto** pointer = static_cast<subscription**>(lua_touserdata(state, 1));
+    lua_pushstring(state, (*pointer)->topic().c_str());
     return 1;
   }
 
@@ -212,10 +215,12 @@ int subscription_index(lua_State* state) {
 }
 
 int subscription_gc(lua_State* state) {
-  auto** ptr = static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
-  (*ptr)->unsubscribe();
-  delete *ptr;
-  *ptr = nullptr;
+  auto** pointer = static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
+  if (*pointer) {
+    (*pointer)->unsubscribe();
+    delete *pointer;
+    *pointer = nullptr;
+  }
   return 0;
 }
 
@@ -227,10 +232,10 @@ int websocket_subscribe(lua_State* state) {
   lua_pushvalue(state, 3);
   const auto ref = luaL_ref(state, LUA_REGISTRYINDEX);
 
-  auto* subscription = new ::subscription(*ws_ptr, std::string(topic), ref);
+  auto* instance = new subscription(*ws_ptr, std::string(topic), ref);
 
-  auto** udata = static_cast<::subscription**>(lua_newuserdata(state, sizeof(::subscription*)));
-  *udata = subscription;
+  auto** udata = static_cast<subscription**>(lua_newuserdata(state, sizeof(subscription*)));
+  *udata = instance;
 
   if (luaL_newmetatable(state, "Subscription")) {
     lua_pushcfunction(state, subscription_index);
@@ -257,12 +262,12 @@ int websocket_index(lua_State* state) {
 }
 
 int websocket_gc(lua_State* state) {
-  auto** ptr = static_cast<socketconn**>(luaL_checkudata(state, 1, "WebSocket"));
-  if (*ptr == connection) {
+  auto** pointer = static_cast<socketconn**>(luaL_checkudata(state, 1, "WebSocket"));
+  if (*pointer == connection) {
     delete connection;
     connection = nullptr;
   }
-  *ptr = nullptr;
+  *pointer = nullptr;
   return 0;
 }
 
@@ -301,37 +306,41 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
 
     case LWS_CALLBACK_CLIENT_RECEIVE: [[likely]] {
       const auto* const text = static_cast<const char*>(in);
-      auto* doc = yyjson_read(text, len, 0);
-      auto* root = yyjson_doc_get_root(doc);
-      auto* topic_val = yyjson_obj_get(root, "topic");
-      auto* data_val = yyjson_obj_get(root, "data");
+      auto* document = yyjson_read(text, len, 0);
+      if (!document) [[unlikely]]
+        break;
 
-      const auto* const topic_str = yyjson_get_str(topic_val);
-      auto* data_json = yyjson_val_write(data_val, 0, nullptr);
+      auto* root = yyjson_doc_get_root(document);
+      auto* topic_value = yyjson_obj_get(root, "topic");
+      if (!topic_value) [[unlikely]] {
+        yyjson_doc_free(document);
+        break;
+      }
+
+      const auto* const topic_string = yyjson_get_str(topic_value);
+      if (!topic_string) [[unlikely]] {
+        yyjson_doc_free(document);
+        break;
+      }
 
       ws->_inbound.push(message{
-        std::string(topic_str),
-        std::string(data_json)
+        std::string(topic_string),
+        std::string(text, len)
       });
 
-      free(data_json);
-      yyjson_doc_free(doc);
+      yyjson_doc_free(document);
     } break;
 
     case LWS_CALLBACK_CLIENT_WRITEABLE: {
-      message msg;
-      if (ws->_outbound.try_pop(msg)) {
-        const auto& payload = msg.payload;
+      struct message message;
+      while (ws->_outbound.try_pop(message)) {
+        const auto& payload = message.payload;
         const auto size = payload.size();
-        ws->_sendbuf.resize(LWS_PRE + size);
-        std::memcpy(ws->_sendbuf.data() + LWS_PRE, payload.data(), size);
-        lws_write(wsi, ws->_sendbuf.data() + LWS_PRE, size, LWS_WRITE_TEXT);
-
-        message peek;
-        if (ws->_outbound.try_pop(peek)) {
-          ws->_outbound.push(std::move(peek));
-          lws_callback_on_writable(wsi);
-        }
+        const auto required = LWS_PRE + size;
+        if (ws->_sendbuffer.size() < required) [[unlikely]]
+          ws->_sendbuffer.resize(required);
+        std::memcpy(ws->_sendbuffer.data() + LWS_PRE, payload.data(), size);
+        lws_write(wsi, ws->_sendbuffer.data() + LWS_PRE, size, LWS_WRITE_TEXT);
       }
     } break;
 
@@ -356,18 +365,21 @@ static const struct lws_protocols protocols[] = {
 };
 }
 
-socketconn::socketconn(std::string url) : _url(std::move(url)) {
-  parse_url(_url, _host, _path, _port, _ssl);
-  _sendbuf.reserve(LWS_PRE + 4096);
+socketconn::socketconn(std::string url)
+  : _url(std::move(url)), _parsed(parse_url(_url)) {
+  _sendbuffer.reserve(LWS_PRE + 4096);
   _thread = std::thread([this] { run(); });
 }
 
 socketconn::~socketconn() {
-  for (auto* subscription : _subscriptions) {
-    if (subscription->callback() != LUA_NOREF)
-      luaL_unref(L, LUA_REGISTRYINDEX, subscription->callback());
-    subscription->_active = false;
-    subscription->_callback = LUA_NOREF;
+  for (auto& [topic, subscribers] : _subscriptions) {
+    for (auto* subscriber : subscribers) {
+      if (subscriber->_callback != LUA_NOREF)
+        luaL_unref(L, LUA_REGISTRYINDEX, subscriber->_callback);
+      subscriber->_active = false;
+      subscriber->_callback = LUA_NOREF;
+      subscriber->_owner = nullptr;
+    }
   }
   _subscriptions.clear();
 
@@ -388,44 +400,37 @@ void socketconn::connect() {
   info.options = LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
 
   _context = lws_create_context(&info);
+}
 
+void socketconn::reconnect() {
   struct lws_client_connect_info ccinfo{};
   ccinfo.context = _context;
-  ccinfo.address = _host.c_str();
-  ccinfo.port = _port;
-  ccinfo.path = _path.c_str();
-  ccinfo.host = _host.c_str();
-  ccinfo.origin = _host.c_str();
+  ccinfo.address = _parsed.host.c_str();
+  ccinfo.port = _parsed.port;
+  ccinfo.path = _parsed.path.c_str();
+  ccinfo.host = _parsed.host.c_str();
+  ccinfo.origin = _parsed.host.c_str();
   ccinfo.protocol = protocols[0].name;
-  ccinfo.ssl_connection = _ssl ? LCCSCF_USE_SSL : 0;
+  ccinfo.ssl_connection = _parsed.ssl ? LCCSCF_USE_SSL : 0;
 
   _wsi = lws_client_connect_via_info(&ccinfo);
 }
 
 void socketconn::run() {
   connect();
+  reconnect();
 
   while (!_stop.load(std::memory_order_acquire)) {
     if (!_context) [[unlikely]] {
       std::this_thread::sleep_for(std::chrono::seconds(1));
       connect();
+      reconnect();
       continue;
     }
 
     if (!_wsi && !_connected) [[unlikely]] {
       std::this_thread::sleep_for(std::chrono::seconds(1));
-
-      struct lws_client_connect_info ccinfo{};
-      ccinfo.context = _context;
-      ccinfo.address = _host.c_str();
-      ccinfo.port = _port;
-      ccinfo.path = _path.c_str();
-      ccinfo.host = _host.c_str();
-      ccinfo.origin = _host.c_str();
-      ccinfo.protocol = protocols[0].name;
-      ccinfo.ssl_connection = _ssl ? LCCSCF_USE_SSL : 0;
-
-      _wsi = lws_client_connect_via_info(&ccinfo);
+      reconnect();
     }
 
     lws_service(_context, 100);
@@ -447,47 +452,68 @@ void socketconn::send(message msg) noexcept {
 }
 
 void socketconn::poll() {
-  message m;
-  while (_inbound.try_pop(m)) {
-    for (auto* subscription : _subscriptions) {
-      if (subscription->active() && subscription->topic() == m.topic) [[likely]] {
-        const auto ref = subscription->callback();
+  message msg;
+  while (_inbound.try_pop(msg)) {
+    auto* document = yyjson_read(msg.payload.c_str(), msg.payload.size(), 0);
+    if (!document) [[unlikely]]
+      continue;
 
-        auto* doc = yyjson_read(m.payload.c_str(), m.payload.size(), 0);
-        auto* root = yyjson_doc_get_root(doc);
+    auto* root = yyjson_doc_get_root(document);
+    auto* data_value = yyjson_obj_get(root, "data");
 
+    const auto it = _subscriptions.find(msg.topic);
+    if (it != _subscriptions.end()) [[likely]] {
+      for (auto* subscriber : it->second) {
+        if (!subscriber->active()) [[unlikely]]
+          continue;
+
+        const auto ref = subscriber->callback();
         lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
-        yyjson_to_lua(L, root);
 
-        yyjson_doc_free(doc);
+        if (data_value)
+          yyjson_to_lua(L, data_value);
+        else
+          lua_pushnil(L);
 
         if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
           std::string error = lua_tostring(L, -1);
           lua_pop(L, 1);
+          yyjson_doc_free(document);
           throw std::runtime_error(std::move(error));
         }
       }
     }
+
+    yyjson_doc_free(document);
   }
 }
 
-void socketconn::add_subscription(subscription* subscription) {
-  _subscriptions.push_back(subscription);
-  auto payload = build_action_json("subscribe", subscription->topic().c_str());
-  send(message{subscription->topic(), std::move(payload)});
+void socketconn::add_subscription(subscription* subscriber) {
+  _subscriptions[subscriber->topic()].emplace_back(subscriber);
+  auto payload = build_action_json("subscribe", subscriber->topic().c_str());
+  send(message{subscriber->topic(), std::move(payload)});
 }
 
-void socketconn::remove_subscription(subscription* subscription) {
-  auto payload = build_action_json("unsubscribe", subscription->topic().c_str());
-  send(message{subscription->topic(), std::move(payload)});
-  std::erase(_subscriptions, subscription);
+void socketconn::remove_subscription(subscription* subscriber) {
+  auto payload = build_action_json("unsubscribe", subscriber->topic().c_str());
+  send(message{subscriber->topic(), std::move(payload)});
+
+  auto it = _subscriptions.find(subscriber->topic());
+  if (it != _subscriptions.end()) [[likely]] {
+    std::erase(it->second, subscriber);
+    if (it->second.empty())
+      _subscriptions.erase(it);
+  }
 }
 
 void socketconn::resubscribe() {
-  for (auto* subscription : _subscriptions) {
-    if (!subscription->active()) [[unlikely]] continue;
-    auto payload = build_action_json("subscribe", subscription->topic().c_str());
-    _outbound.push(message{subscription->topic(), std::move(payload)});
+  for (const auto& [topic, subscribers] : _subscriptions) {
+    for (const auto* subscriber : subscribers) {
+      if (!subscriber->active()) [[unlikely]]
+        continue;
+      auto payload = build_action_json("subscribe", topic.c_str());
+      _outbound.push(message{topic, std::move(payload)});
+    }
   }
 }
 
@@ -501,7 +527,7 @@ subscription::~subscription() {
 }
 
 void subscription::publish(lua_State* state, int idx) {
-  if (!_active) [[unlikely]]
+  if (!_active || !_owner) [[unlikely]]
     return;
 
   auto* document = yyjson_mut_doc_new(nullptr);
@@ -522,7 +548,8 @@ void subscription::unsubscribe() {
   if (!_active) [[unlikely]] return;
   _active = false;
 
-  _owner->remove_subscription(this);
+  if (_owner) [[likely]]
+    _owner->remove_subscription(this);
 
   if (_callback != LUA_NOREF) [[likely]] {
     luaL_unref(L, LUA_REGISTRYINDEX, _callback);

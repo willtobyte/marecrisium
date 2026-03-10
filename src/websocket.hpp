@@ -35,6 +35,13 @@ private:
   alignas(64) std::atomic<size_t> _tail{0};
 };
 
+struct parsed_url {
+  std::string host;
+  std::string path;
+  int port{443};
+  bool ssl{true};
+};
+
 class subscription;
 
 class socketconn final {
@@ -58,13 +65,11 @@ private:
 
   void run();
   void connect();
+  void reconnect();
   void resubscribe();
 
   std::string _url;
-  std::string _host;
-  std::string _path;
-  int _port{443};
-  bool _ssl{true};
+  parsed_url _parsed;
 
   struct lws_context* _context{nullptr};
   struct lws* _wsi{nullptr};
@@ -73,8 +78,8 @@ private:
   ringbuffer<message> _inbound;
   ringbuffer<message> _outbound;
 
-  std::vector<subscription*> _subscriptions;
-  std::vector<uint8_t> _sendbuf;
+  std::unordered_map<std::string, std::vector<subscription*>, transparent_hash, std::equal_to<>> _subscriptions;
+  std::vector<uint8_t> _sendbuffer;
 
   std::atomic<bool> _stop{false};
   std::thread _thread;
