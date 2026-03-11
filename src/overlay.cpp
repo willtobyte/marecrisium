@@ -3,11 +3,67 @@
 static int overlay_label(lua_State *state) {
   auto **ptr = static_cast<overlay **>(luaL_checkudata(state, 1, "Overlay"));
   auto *self = *ptr;
-  const auto* font = luaL_checkstring(state, 2);
-  const auto* text = luaL_checkstring(state, 3);
+  const auto *font = luaL_checkstring(state, 2);
+  const auto *text = luaL_checkstring(state, 3);
   const auto x = static_cast<float>(luaL_checknumber(state, 4));
   const auto y = static_cast<float>(luaL_checknumber(state, 5));
-  self->render_label(font, text, x, y);
+
+  if (!lua_istable(state, 6)) [[likely]] {
+    self->render_label(font, text, x, y);
+    return 0;
+  }
+
+  std::array<glypheffect, 256> effects{};
+  auto lenght = 0uz;
+
+  lua_pushnil(state);
+  while (lua_next(state, 6) != 0) {
+    if (lua_isnumber(state, -2) && lua_istable(state, -1)) {
+      const auto index = static_cast<std::size_t>(lua_tointeger(state, -2)) - 1;
+
+      if (index < effects.size()) {
+        auto &effect = effects[index];
+
+        lua_getfield(state, -1, "xoffset");
+        if (lua_isnumber(state, -1)) effect.xoffset = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "yoffset");
+        if (lua_isnumber(state, -1)) effect.yoffset = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "scale");
+        if (lua_isnumber(state, -1)) effect.scale = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "r");
+        if (lua_isnumber(state, -1)) effect.r = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "g");
+        if (lua_isnumber(state, -1)) effect.g = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "b");
+        if (lua_isnumber(state, -1)) effect.b = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "angle");
+        if (lua_isnumber(state, -1)) effect.angle = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "alpha");
+        if (lua_isnumber(state, -1)) effect.alpha = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+
+        if (index >= lenght) lenght = index + 1;
+      }
+    }
+
+    lua_pop(state, 1);
+  }
+
+  self->render_label(font, text, x, y, std::span{effects.data(), lenght});
   return 0;
 }
 
@@ -121,4 +177,9 @@ void overlay::wire() {
 void overlay::render_label(std::string_view family, std::string_view text, float x, float y) const {
   const auto &f = resources.font.get(family);
   f.draw(text, x, y);
+}
+
+void overlay::render_label(std::string_view family, std::string_view text, float x, float y, std::span<const glypheffect> effects) const {
+  const auto &f = resources.font.get(family);
+  f.draw(text, x, y, effects);
 }

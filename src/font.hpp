@@ -1,5 +1,16 @@
 #pragma once
 
+struct glypheffect final {
+  float xoffset{.0f};
+  float yoffset{.0f};
+  float scale{1.f};
+  float angle{.0f};
+  float r{1.f};
+  float g{1.f};
+  float b{1.f};
+  float alpha{1.f};
+};
+
 struct alignas(32) glyphprops final {
   float u0, v0, u1, v1;
   float sw, sh;
@@ -18,6 +29,8 @@ public:
   font& operator=(font&&) noexcept = default;
 
   void draw(std::string_view text, float x, float y) const noexcept;
+
+  void draw(std::string_view text, float x, float y, std::span<const glypheffect> effects) const noexcept;
 
 private:
   std::unique_ptr<SDL_Texture, SDL_Deleter> _texture;

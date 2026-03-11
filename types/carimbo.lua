@@ -255,6 +255,28 @@ director = {}
 ---@class OverlayConfig
 ---@field fonts string[] Font families to preload from `overlay/fonts/`.
 
+---Per-glyph visual effect applied to individual characters in a label.
+---Each field is optional; omitted fields use their default (no effect).
+---Newline characters do not count as glyphs for indexing purposes.
+---
+---Usage:
+---```lua
+---overlay:label("pixel", "hello", 10, 20, {
+---  [1] = { r = 1, g = 0, b = 0 },           -- 'h' in red
+---  [3] = { yoffset = -2, scale = 1.5 },      -- first 'l' raised and scaled
+---  [5] = { alpha = 0.5 },                     -- 'o' semi-transparent
+---})
+---```
+---@class GlyphEffect
+---@field xoffset? number Horizontal pixel offset for this glyph. Default 0.
+---@field yoffset? number Vertical pixel offset for this glyph. Default 0.
+---@field scale? number Scale factor for this glyph. Default 1.
+---@field angle? number Rotation angle in degrees for this glyph, around its center. Default 0.
+---@field r? number Red channel for this glyph (0.0-1.0). Default 1.
+---@field g? number Green channel for this glyph (0.0-1.0). Default 1.
+---@field b? number Blue channel for this glyph (0.0-1.0). Default 1.
+---@field alpha? number Opacity for this glyph (0.0-1.0). Default 1.
+
 ---@class Overlay
 local Overlay = {}
 
@@ -268,11 +290,16 @@ function Overlay.on_loop(self, delta) end
 function Overlay.on_paint(self) end
 
 ---Draw a text label at the given position using a preloaded font.
+---Optionally accepts a table of per-glyph effects keyed by 1-based visible
+---character index (newlines are not counted). Each entry is a GlyphEffect
+---table that overrides position, scale, and color for that specific glyph.
+---Indices without an entry render normally (white, no offset, scale 1).
 ---@param font string Font family name (must be declared in the overlay's fonts list).
 ---@param text string The text to render.
 ---@param x number X position in logical pixels.
 ---@param y number Y position in logical pixels.
-function Overlay:label(font, text, x, y) end
+---@param effects? table<integer, GlyphEffect> Per-glyph effects keyed by 1-based visible character index.
+function Overlay:label(font, text, x, y, effects) end
 
 ---Global overlay instance (nil when no overlay is active).
 ---@type Overlay|nil

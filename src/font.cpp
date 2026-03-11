@@ -1,5 +1,11 @@
 #include "font.hpp"
 
+[[nodiscard]] static SDL_FPoint rotate(float px, float py, float midx, float midy, float cosine, float sine) noexcept {
+  const auto dx = px - midx;
+  const auto dy = py - midy;
+  return {midx + dx * cosine - dy * sine, midy + dx * sine + dy * cosine};
+}
+
 font::font(std::string_view family) {
   const auto filename = std::format("overlay/fonts/{}.lua", family);
   const auto meta = io::read(filename);
@@ -117,15 +123,18 @@ font::font(std::string_view family) {
 }
 
 void font::draw(std::string_view text, float x, float y) const noexcept {
+  draw(text, x, y, {});
+}
+
+void font::draw(std::string_view text, float x, float y, std::span<const glypheffect> effects) const noexcept {
   if (text.empty()) [[unlikely]] return;
 
   _vertex_count = 0;
   _index_count = 0;
 
-  constexpr auto color = SDL_FColor{1.f, 1.f, 1.f, 1.f};
-
   auto cx = x;
   auto cy = y;
+  auto gi = 0uz;
 
   for (const auto character : text) {
     if (character == '\n') {
@@ -140,10 +149,42 @@ void font::draw(std::string_view text, float x, float y) const noexcept {
 
     const auto base = static_cast<int>(_vertex_count);
 
-    _vertices[_vertex_count++] = SDL_Vertex{{cx, cy}, color, {glyph.u0, glyph.v0}};
-    _vertices[_vertex_count++] = SDL_Vertex{{cx + glyph.sw, cy}, color, {glyph.u1, glyph.v0}};
-    _vertices[_vertex_count++] = SDL_Vertex{{cx + glyph.sw, cy + glyph.sh}, color, {glyph.u1, glyph.v1}};
-    _vertices[_vertex_count++] = SDL_Vertex{{cx, cy + glyph.sh}, color, {glyph.u0, glyph.v1}};
+    auto gx = cx;
+    auto gy = cy;
+    auto sw = glyph.sw;
+    auto sh = glyph.sh;
+    auto color = SDL_FColor{1.f, 1.f, 1.f, 1.f};
+
+    auto angle = .0f;
+
+    if (gi < effects.size()) {
+      const auto& effect = effects[gi];
+
+      gx += effect.xoffset;
+      gy += effect.yoffset;
+      sw *= effect.scale;
+      sh *= effect.scale;
+      angle = effect.angle;
+      color = {effect.r, effect.g, effect.b, effect.alpha};
+    }
+
+    if (angle == .0f) [[likely]] {
+      _vertices[_vertex_count++] = SDL_Vertex{{gx, gy}, color, {glyph.u0, glyph.v0}};
+      _vertices[_vertex_count++] = SDL_Vertex{{gx + sw, gy}, color, {glyph.u1, glyph.v0}};
+      _vertices[_vertex_count++] = SDL_Vertex{{gx + sw, gy + sh}, color, {glyph.u1, glyph.v1}};
+      _vertices[_vertex_count++] = SDL_Vertex{{gx, gy + sh}, color, {glyph.u0, glyph.v1}};
+    } else {
+      const auto midx = gx + sw * .5f;
+      const auto midy = gy + sh * .5f;
+      const auto radians = to_radians(angle);
+      const auto cosine = std::cos(radians);
+      const auto sine = std::sin(radians);
+
+      _vertices[_vertex_count++] = SDL_Vertex{rotate(gx, gy, midx, midy, cosine, sine), color, {glyph.u0, glyph.v0}};
+      _vertices[_vertex_count++] = SDL_Vertex{rotate(gx + sw, gy, midx, midy, cosine, sine), color, {glyph.u1, glyph.v0}};
+      _vertices[_vertex_count++] = SDL_Vertex{rotate(gx + sw, gy + sh, midx, midy, cosine, sine), color, {glyph.u1, glyph.v1}};
+      _vertices[_vertex_count++] = SDL_Vertex{rotate(gx, gy + sh, midx, midy, cosine, sine), color, {glyph.u0, glyph.v1}};
+    }
 
     _indices[_index_count++] = base;
     _indices[_index_count++] = base + 1;
@@ -153,6 +194,7 @@ void font::draw(std::string_view text, float x, float y) const noexcept {
     _indices[_index_count++] = base + 3;
 
     cx += glyph.sw + static_cast<float>(_spacing);
+    ++gi;
   }
 
   if (_vertex_count == 0) [[unlikely]] return;
