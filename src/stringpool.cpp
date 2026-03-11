@@ -7,5 +7,6 @@ entt::id_type stringpool::insert(std::string_view value) {
 }
 
 const char* stringpool::get(entt::id_type key) const {
-  return _pool.at(key).c_str();
+  const auto it = _pool.find(key);
+  return it->second.c_str();
 }

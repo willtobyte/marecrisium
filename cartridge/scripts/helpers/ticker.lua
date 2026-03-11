@@ -3,7 +3,7 @@ local timers = {}
 
 local function add(ticks, callback, once)
 	local timer = { target = ticks, current = 0, callback = callback, once = once }
-	timers[timer] = true
+	timers[#timers + 1] = timer
 	return timer
 end
 
@@ -16,7 +16,7 @@ function ticker.every(ticks, callback)
 end
 
 function ticker.cancel(timer)
-	timers[timer] = nil
+	timer.cancelled = true
 end
 
 function ticker.clear()
@@ -26,16 +26,22 @@ end
 function ticker.wrap(stage)
 	local original_on_tick = stage.on_tick
 	local original_on_leave = stage.on_leave
+	local remove = table.remove
 
 	stage.on_tick = function(self, tick)
-		for timer in pairs(timers) do
-			timer.current = timer.current + 1
-			if timer.current >= timer.target then
-				timer.callback()
-				if timer.once then
-					timers[timer] = nil
-				else
-					timer.current = 0
+		for i = #timers, 1, -1 do
+			local timer = timers[i]
+			if timer.cancelled then
+				remove(timers, i)
+			else
+				timer.current = timer.current + 1
+				if timer.current >= timer.target then
+					timer.callback()
+					if timer.once then
+						remove(timers, i)
+					else
+						timer.current = 0
+					end
 				end
 			end
 		end

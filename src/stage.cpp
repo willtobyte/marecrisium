@@ -357,9 +357,34 @@ stage::stage(std::string_view name)
   lua_pop(L, 1);
 
   _reference = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+
+  lua_getfield(L, -1, "on_loop");
+  if (lua_isfunction(L, -1))
+    _on_loop = luaL_ref(L, LUA_REGISTRYINDEX);
+  else
+    lua_pop(L, 1);
+
+  lua_getfield(L, -1, "on_paint");
+  if (lua_isfunction(L, -1))
+    _on_paint = luaL_ref(L, LUA_REGISTRYINDEX);
+  else
+    lua_pop(L, 1);
+
+  lua_getfield(L, -1, "on_tick");
+  if (lua_isfunction(L, -1))
+    _on_tick = luaL_ref(L, LUA_REGISTRYINDEX);
+  else
+    lua_pop(L, 1);
+
+  lua_pop(L, 1);
 }
 
 stage::~stage() {
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_tick);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   luaL_unref(L, LUA_REGISTRYINDEX, _pool_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _environment_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
@@ -401,23 +426,17 @@ void stage::on_leave() {
 }
 
 void stage::on_tick(uint64_t tick) {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  lua_getfield(L, -1, "on_tick");
-
-  if (lua_isfunction(L, -1)) {
+  if (_on_tick != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_tick);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     lua_pushnumber(L, static_cast<lua_Number>(tick));
 
     if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
-      lua_pop(L, 2);
+      lua_pop(L, 1);
       throw std::runtime_error(std::move(error));
     }
-  } else {
-    lua_pop(L, 1);
   }
-
-  lua_pop(L, 1);
 }
 
 void stage::update(float delta) {
@@ -475,45 +494,33 @@ void stage::update(float delta) {
 
   dispatch_hover(wx, wy);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  lua_getfield(L, -1, "on_loop");
-
-  if (lua_isfunction(L, -1)) {
+  if (_on_loop != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
 
     if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
-      lua_pop(L, 2);
+      lua_pop(L, 1);
       throw std::runtime_error(std::move(error));
     }
-  } else {
-    lua_pop(L, 1);
   }
-
-  lua_pop(L, 1);
 
   for (auto&& [entity, proxy] : _registry.view<objectproxy>(entt::exclude<dormant>).each()) {
     if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
       continue;
 
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-    lua_getfield(L, -1, "on_loop");
-
-    if (lua_isfunction(L, -1)) {
+    if (proxy.on_loop != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_loop);
       lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
       lua_pushnumber(L, static_cast<lua_Number>(delta));
 
       if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
         std::string error = lua_tostring(L, -1);
-        lua_pop(L, 2);
+        lua_pop(L, 1);
         throw std::runtime_error(std::move(error));
       }
-    } else {
-      lua_pop(L, 1);
     }
-
-    lua_pop(L, 1);
 
     auto* a = _registry.try_get<animation>(entity);
     if (!a || !a->playing || a->clip_count == 0)
@@ -537,41 +544,29 @@ void stage::update(float delta) {
       if (a->current >= c.count) {
         a->current = 0;
 
-        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-        lua_getfield(L, -1, "on_animation_end");
-
-        if (lua_isfunction(L, -1)) {
+        if (proxy.on_animation_end != LUA_NOREF) {
+          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_animation_end);
           lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
           lua_pushstring(L, _stringpool.get(c.name));
 
           if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
             std::string error = lua_tostring(L, -1);
-            lua_pop(L, 2);
+            lua_pop(L, 1);
             throw std::runtime_error(std::move(error));
           }
-        } else {
-          lua_pop(L, 1);
         }
 
-        lua_pop(L, 1);
-
-        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-        lua_getfield(L, -1, "on_animation_begin");
-
-        if (lua_isfunction(L, -1)) {
+        if (proxy.on_animation_begin != LUA_NOREF) {
+          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_animation_begin);
           lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
           lua_pushstring(L, _stringpool.get(c.name));
 
           if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
             std::string error = lua_tostring(L, -1);
-            lua_pop(L, 2);
+            lua_pop(L, 1);
             throw std::runtime_error(std::move(error));
           }
-        } else {
-          lua_pop(L, 1);
         }
-
-        lua_pop(L, 1);
       }
 
       break;
@@ -808,18 +803,16 @@ void stage::update(float delta) {
 }
 
 void stage::draw() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  lua_getfield(L, -1, "on_paint");
-
   _camera_x = .0f;
   _camera_y = .0f;
 
-  if (lua_isfunction(L, -1)) {
+  if (_on_paint != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
     if (lua_pcall(L, 1, 2, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
-      lua_pop(L, 2);
+      lua_pop(L, 1);
       throw std::runtime_error(std::move(error));
     }
 
@@ -828,11 +821,7 @@ void stage::draw() {
     if (lua_isnumber(L, -1))
       _camera_y = std::roundf(static_cast<float>(lua_tonumber(L, -1)));
     lua_pop(L, 2);
-  } else {
-    lua_pop(L, 1);
   }
-
-  lua_pop(L, 1);
 
   _backdrop->draw(
     .0f, .0f,
@@ -1188,7 +1177,13 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     float fraction;
   };
 
-  std::vector<hit> hits;
+  struct context {
+    std::array<hit, 64>* buffer;
+    uint8_t count;
+  };
+
+  static std::array<hit, 64> hits;
+  context ctx{&hits, 0};
 
   const auto radians = to_radians(angle);
   auto sine = .0f, cosine = .0f;
@@ -1203,19 +1198,22 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     translation,
     filter,
     [](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void* userdata) -> float {
-      auto* results = static_cast<std::vector<hit>*>(userdata);
-      results->push_back({to_entity(b2Shape_GetUserData(shape)), fraction});
+      auto* ctx = static_cast<context*>(userdata);
+      if (ctx->count >= 64) [[unlikely]]
+        return -1.f;
+      (*ctx->buffer)[ctx->count++] = {to_entity(b2Shape_GetUserData(shape)), fraction};
       return 1.f;
     },
-    &hits
+    &ctx
   );
 
-  std::ranges::sort(hits, {}, &hit::fraction);
+  const auto result = std::span{hits.data(), ctx.count};
+  std::ranges::sort(result, {}, &hit::fraction);
 
   lua_newtable(state);
   int index = 1;
 
-  for (const auto& [entity, fraction] : hits) {
+  for (const auto& [entity, fraction] : result) {
     if (entity == caller)
       continue;
 

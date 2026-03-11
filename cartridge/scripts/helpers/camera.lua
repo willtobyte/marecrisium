@@ -1,3 +1,6 @@
+local abs = math.abs
+local viewport = viewport
+
 local camera = {}
 
 local state = {
@@ -101,10 +104,10 @@ function camera.update(target_x, target_y, delta)
 		end
 	end
 
-	if math.abs(state.velocity_x) < config.snap_threshold and math.abs(diff_x) < config.snap_threshold then
+	if abs(state.velocity_x) < config.snap_threshold and abs(diff_x) < config.snap_threshold then
 		state.velocity_x = 0
 	end
-	if math.abs(state.velocity_y) < config.snap_threshold and math.abs(diff_y) < config.snap_threshold then
+	if abs(state.velocity_y) < config.snap_threshold and abs(diff_y) < config.snap_threshold then
 		state.velocity_y = 0
 	end
 

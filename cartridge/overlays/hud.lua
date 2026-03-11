@@ -1,3 +1,7 @@
+local sin = math.sin
+local floor = math.floor
+local format = string.format
+
 local elapsed = 0
 local title = "nostalgia"
 local effects = {}
@@ -14,12 +18,12 @@ return {
 
 		for i = 1, #title do
 			local phase = elapsed * 3 + (i - 1) * 0.7
-			local wave = math.sin(phase) * 2
+			local wave = sin(phase) * 2
 			local hue = ((i - 1) / #title + elapsed * 0.1) % 1
 
 			local r, g, b
 			local sector = hue * 6
-			local frac = sector - math.floor(sector)
+			local frac = sector - floor(sector)
 
 			if sector < 1 then
 				r, g, b = 1, frac, 0
@@ -40,15 +44,15 @@ return {
 			effect.r = r
 			effect.g = g
 			effect.b = b
-			effect.angle = math.sin(elapsed * 2 + (i - 1) * 0.5) * 15
+			effect.angle = sin(elapsed * 2 + (i - 1) * 0.5) * 15
 			-- effect.alpha = 0.6 + 0.4 * math.sin(elapsed * 4 + (i - 1) * 0.9)
 		end
 	end,
 
 	on_paint = function(self)
-		local minutes = math.floor(elapsed / 60)
-		local seconds = math.floor(elapsed % 60)
-		local time = string.format("%02d:%02d", minutes, seconds)
+		local minutes = floor(elapsed / 60)
+		local seconds = floor(elapsed % 60)
+		local time = format("%02d:%02d", minutes, seconds)
 
 		overlay:label("pixel", title, 3, 3, effects)
 		overlay:label("pixel", time, 3, 16)

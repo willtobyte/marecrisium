@@ -57,4 +57,8 @@ private:
   int _reference = LUA_NOREF;
   int _environment_reference = LUA_NOREF;
   int _pool_reference = LUA_NOREF;
+  int _on_loop = LUA_NOREF;
+  int _on_paint = LUA_NOREF;
+  int _on_tick = LUA_NOREF;
+
 };

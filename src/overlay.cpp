@@ -130,6 +130,22 @@ overlay::overlay(std::string_view name)
 
   _reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+
+  lua_getfield(L, -1, "on_loop");
+  if (lua_isfunction(L, -1))
+    _on_loop = luaL_ref(L, LUA_REGISTRYINDEX);
+  else
+    lua_pop(L, 1);
+
+  lua_getfield(L, -1, "on_paint");
+  if (lua_isfunction(L, -1))
+    _on_paint = luaL_ref(L, LUA_REGISTRYINDEX);
+  else
+    lua_pop(L, 1);
+
+  lua_pop(L, 1);
+
   SDL_AddEventWatch(on_event, nullptr);
   SDL_StartTextInput(SDL_GetRenderWindow(renderer));
 }
@@ -137,46 +153,36 @@ overlay::overlay(std::string_view name)
 overlay::~overlay() {
   SDL_StopTextInput(SDL_GetRenderWindow(renderer));
   SDL_RemoveEventWatch(on_event, nullptr);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
 }
 
 void overlay::update(float delta) {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  lua_getfield(L, -1, "on_loop");
-
-  if (lua_isfunction(L, -1)) {
+  if (_on_loop != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
 
     if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
-      lua_pop(L, 2);
+      lua_pop(L, 1);
       throw std::runtime_error(std::move(error));
     }
-  } else {
-    lua_pop(L, 1);
   }
-
-  lua_pop(L, 1);
 }
 
 void overlay::draw() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  lua_getfield(L, -1, "on_paint");
-
-  if (lua_isfunction(L, -1)) {
+  if (_on_paint != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
     if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
-      lua_pop(L, 2);
+      lua_pop(L, 1);
       throw std::runtime_error(std::move(error));
     }
-  } else {
-    lua_pop(L, 1);
   }
-
-  lua_pop(L, 1);
 }
 
 void overlay::wire() {
