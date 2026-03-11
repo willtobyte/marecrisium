@@ -10,8 +10,6 @@ static int world_raycast(lua_State* state) {
 
 stage::stage(std::string_view name)
     : _name(name) {
-  const auto start = SDL_GetPerformanceCounter();
-
   _registry.on_destroy<objectproxy>().connect<&objectproxy::on_destroy>();
   _registry.on_destroy<body>().connect<[](entt::registry& registry, entt::entity entity) {
     auto& bo = registry.get<body>(entity);
@@ -302,10 +300,6 @@ stage::stage(std::string_view name)
   lua_pop(L, 1);
 
   _reference = luaL_ref(L, LUA_REGISTRYINDEX);
-
-  const auto end = SDL_GetPerformanceCounter();
-  const auto elapsed = static_cast<double>(end - start) * 1000.0 / static_cast<double>(SDL_GetPerformanceFrequency());
-  std::println("[stage] {} took {:.3f}ms", _name, elapsed);
 }
 
 stage::~stage() {
