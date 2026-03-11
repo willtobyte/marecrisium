@@ -177,8 +177,8 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
       const auto midx = gx + sw * .5f;
       const auto midy = gy + sh * .5f;
       const auto radians = to_radians(angle);
-      const auto cosine = std::cos(radians);
-      const auto sine = std::sin(radians);
+      auto sine = .0f, cosine = .0f;
+      sincos(radians, sine, cosine);
 
       _vertices[_vertex_count++] = SDL_Vertex{rotate(gx, gy, midx, midy, cosine, sine), color, {glyph.u0, glyph.v0}};
       _vertices[_vertex_count++] = SDL_Vertex{rotate(gx + sw, gy, midx, midy, cosine, sine), color, {glyph.u1, glyph.v0}};

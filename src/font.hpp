@@ -1,5 +1,7 @@
 #pragma once
 
+#include "math.hpp"
+
 struct glypheffect final {
   float xoffset{.0f};
   float yoffset{.0f};

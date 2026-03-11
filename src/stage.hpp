@@ -1,5 +1,6 @@
 #pragma once
 
+#include "math.hpp"
 #include "particlesystem.hpp"
 #include "stringpool.hpp"
 #include "tilemap.hpp"

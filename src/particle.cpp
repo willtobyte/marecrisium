@@ -3,34 +3,6 @@
 namespace {
 
 constexpr float TWO_PI = 6.28318530718f;
-constexpr float HALF_PI = 1.57079632679f;
-constexpr float INV_HALF_PI = .63661977236f;
-
-constexpr float SIN_C0 = .99997f;
-constexpr float SIN_C1 = .16596f;
-constexpr float SIN_C2 = .00759f;
-constexpr float COS_C0 = .99996f;
-constexpr float COS_C1 = .49985f;
-constexpr float COS_C2 = .03659f;
-
-constexpr int QUADRANT_MASK = 3;
-constexpr float QUADRANT_SIGNS[8] = {1.f, 1.f, 1.f, -1.f, -1.f, -1.f, -1.f, 1.f};
-
-void fast_sincos(float x, float& osin, float& ocos) noexcept {
-  const auto q = static_cast<int>(x * INV_HALF_PI);
-  const auto t = x - static_cast<float>(q) * HALF_PI;
-  const auto t2 = t * t;
-
-  const auto sin_t = t * (SIN_C0 - t2 * (SIN_C1 - t2 * SIN_C2));
-  const auto cos_t = COS_C0 - t2 * (COS_C1 - t2 * COS_C2);
-
-  const auto qi = (q & QUADRANT_MASK) * 2;
-  const auto swap = static_cast<float>(q & 1);
-  const auto keep = 1.f - swap;
-
-  osin = (sin_t * keep + cos_t * swap) * QUADRANT_SIGNS[qi];
-  ocos = (cos_t * keep + sin_t * swap) * QUADRANT_SIGNS[qi + 1];
-}
 
 int particle_index(lua_State* state) {
   const auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
@@ -183,7 +155,7 @@ void particle::update(float delta) noexcept {
       const auto a = _angled(eng);
 
       float sa, ca;
-      fast_sincos(a, sa, ca);
+      sincos(a, sa, ca);
 
       xs[i] = px + _xspawnd(eng) + r * ca;
       ys[i] = py + _yspawnd(eng) + r * sa;
@@ -240,7 +212,7 @@ void particle::draw(float camera_x, float camera_y) const noexcept {
     const auto shh = hh * sc;
 
     float sa, ca;
-    fast_sincos(angles[i], sa, ca);
+    sincos(angles[i], sa, ca);
 
     const SDL_FColor color = {1.f, 1.f, 1.f, alpha};
 

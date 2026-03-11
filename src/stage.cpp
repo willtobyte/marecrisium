@@ -1197,8 +1197,10 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
   std::vector<hit> hits;
 
   const auto radians = to_radians(angle);
+  auto sine = .0f, cosine = .0f;
+  sincos(radians, sine, cosine);
   const b2Vec2 origin{x, y};
-  const b2Vec2 translation{std::cos(radians) * distance, std::sin(radians) * distance};
+  const b2Vec2 translation{cosine * distance, sine * distance};
   const auto filter = b2DefaultQueryFilter();
 
   b2World_CastRay(
