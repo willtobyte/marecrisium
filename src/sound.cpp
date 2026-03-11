@@ -30,8 +30,7 @@ namespace {
     auto* instance = *ptr;
     luaL_checktype(state, 2, LUA_TFUNCTION);
 
-    if (instance->on_begin != LUA_NOREF)
-      luaL_unref(state, LUA_REGISTRYINDEX, instance->on_begin);
+    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_begin);
 
     lua_pushvalue(state, 2);
     instance->on_begin = luaL_ref(state, LUA_REGISTRYINDEX);
@@ -52,8 +51,7 @@ namespace {
     auto* instance = *ptr;
     luaL_checktype(state, 2, LUA_TFUNCTION);
 
-    if (instance->on_end != LUA_NOREF)
-      luaL_unref(state, LUA_REGISTRYINDEX, instance->on_end);
+    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_end);
 
     lua_pushvalue(state, 2);
     instance->on_end = luaL_ref(state, LUA_REGISTRYINDEX);
@@ -196,12 +194,8 @@ sound::sound(std::string_view filename) {
 }
 
 sound::~sound() {
-  if (on_begin != LUA_NOREF)
-    luaL_unref(L, LUA_REGISTRYINDEX, on_begin);
-
-  if (on_end != LUA_NOREF)
-    luaL_unref(L, LUA_REGISTRYINDEX, on_end);
-
+  luaL_unref(L, LUA_REGISTRYINDEX, on_begin);
+  luaL_unref(L, LUA_REGISTRYINDEX, on_end);
   ma_sound_uninit(&_sound);
   ma_audio_buffer_uninit(&_buffer);
 }

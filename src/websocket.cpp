@@ -374,8 +374,7 @@ socketconn::socketconn(std::string url)
 socketconn::~socketconn() {
   for (auto& [topic, subscribers] : _subscriptions) {
     for (auto* subscriber : subscribers) {
-      if (subscriber->_callback != LUA_NOREF)
-        luaL_unref(L, LUA_REGISTRYINDEX, subscriber->_callback);
+      luaL_unref(L, LUA_REGISTRYINDEX, subscriber->_callback);
       subscriber->_active = false;
       subscriber->_callback = LUA_NOREF;
       subscriber->_owner = nullptr;
@@ -552,10 +551,8 @@ void subscription::unsubscribe() {
   if (_owner) [[likely]]
     _owner->remove_subscription(this);
 
-  if (_callback != LUA_NOREF) [[likely]] {
-    luaL_unref(L, LUA_REGISTRYINDEX, _callback);
-    _callback = LUA_NOREF;
-  }
+  luaL_unref(L, LUA_REGISTRYINDEX, _callback);
+  _callback = LUA_NOREF;
 }
 
 const std::string& subscription::topic() const noexcept {

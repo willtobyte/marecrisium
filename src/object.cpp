@@ -441,25 +441,17 @@ namespace {
 
   int object_gc(lua_State* state) {
     auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
-    if (proxy->on_animation_begin != LUA_NOREF) {
-      luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
-      proxy->on_animation_begin = LUA_NOREF;
-    }
+    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
+    proxy->on_animation_begin = LUA_NOREF;
 
-    if (proxy->on_animation_end != LUA_NOREF) {
-      luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
-      proxy->on_animation_end = LUA_NOREF;
-    }
+    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
+    proxy->on_animation_end = LUA_NOREF;
 
-    if (proxy->on_loop != LUA_NOREF) {
-      luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_loop);
-      proxy->on_loop = LUA_NOREF;
-    }
+    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_loop);
+    proxy->on_loop = LUA_NOREF;
 
-    if (proxy->prototype != LUA_NOREF) {
-      luaL_unref(state, LUA_REGISTRYINDEX, proxy->prototype);
-      proxy->prototype = LUA_NOREF;
-    }
+    luaL_unref(state, LUA_REGISTRYINDEX, proxy->prototype);
+    proxy->prototype = LUA_NOREF;
 
     return 0;
   }
@@ -472,25 +464,17 @@ void objectproxy::on_destroy(entt::registry& registry, entt::entity entity) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
     auto* userdata = static_cast<objectproxy*>(lua_touserdata(L, -1));
     if (userdata) {
-      if (userdata->on_animation_begin != LUA_NOREF) {
-        luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_begin);
-        userdata->on_animation_begin = LUA_NOREF;
-      }
+      luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_begin);
+      userdata->on_animation_begin = LUA_NOREF;
 
-      if (userdata->on_animation_end != LUA_NOREF) {
-        luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_end);
-        userdata->on_animation_end = LUA_NOREF;
-      }
+      luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_end);
+      userdata->on_animation_end = LUA_NOREF;
 
-      if (userdata->on_loop != LUA_NOREF) {
-        luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_loop);
-        userdata->on_loop = LUA_NOREF;
-      }
+      luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_loop);
+      userdata->on_loop = LUA_NOREF;
 
-      if (userdata->prototype != LUA_NOREF) {
-        luaL_unref(L, LUA_REGISTRYINDEX, userdata->prototype);
-        userdata->prototype = LUA_NOREF;
-      }
+      luaL_unref(L, LUA_REGISTRYINDEX, userdata->prototype);
+      userdata->prototype = LUA_NOREF;
     }
 
     lua_pop(L, 1);
