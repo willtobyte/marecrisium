@@ -43,7 +43,9 @@ static int cassette_index(lua_State* state) {
   } else {
     lua_pushnil(state);
   }
+
   sqlite3_reset(stmt_select);
+
   return 1;
 }
 
