@@ -20,24 +20,7 @@ public:
 
   [[nodiscard]] int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
 
-private:
-  std::string _name;
-  entt::registry _registry;
-  std::unique_ptr<stringpool> _stringpool;
-  std::vector<sound*> _sounds;
-  b2WorldId _world;
-  float _timestep = 1.f / 60.f;
-  int _substeps = 4;
-  float _accumulator = .0f;
-  mutable float _camera_x = .0f;
-  mutable float _camera_y = .0f;
-  uint32_t _mouse_previous_buttons{};
-  std::vector<entt::entity> _hovering;
-  std::unique_ptr<tilemap> _tilemap;
-  int _reference = LUA_NOREF;
-  int _environment_reference = LUA_NOREF;
-  int _pool_reference = LUA_NOREF;
-
+protected:
   void dispatch_click(float x, float y, const char* button);
 
   void dispatch_hover(float x, float y);
@@ -49,4 +32,22 @@ private:
   void dispatch_screen_event(const objectproxy& proxy, const char* callback_name, std::string_view direction);
 
   void dispatch_dormancy(const objectproxy& proxy, const char* callback_name);
+
+private:
+  entt::registry _registry;
+  std::string _name;
+  std::vector<sound*> _sounds;
+  std::vector<entt::entity> _hovering;
+  std::unique_ptr<stringpool> _stringpool;
+  std::unique_ptr<tilemap> _tilemap;
+  b2WorldId _world;
+  float _timestep = 1.f / 60.f;
+  float _accumulator = .0f;
+  mutable float _camera_x = .0f;
+  mutable float _camera_y = .0f;
+  uint32_t _mouse_previous_buttons{};
+  int _substeps = 4;
+  int _reference = LUA_NOREF;
+  int _environment_reference = LUA_NOREF;
+  int _pool_reference = LUA_NOREF;
 };
