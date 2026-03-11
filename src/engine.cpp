@@ -153,7 +153,6 @@ void engine::loop() {
   const auto delta = std::min(static_cast<float>(static_cast<double>(now - prior) / frequency), 1.f / 30.f);
   prior = now;
 
-#ifdef DEBUG
   static auto tick = now;
   static auto frames = 0;
   ++frames;
@@ -166,7 +165,6 @@ void engine::loop() {
     frames = 0;
     tick = now;
   }
-#endif
 
   lua_gc(L, LUA_GCSTEP, 100);
 
