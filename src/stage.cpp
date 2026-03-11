@@ -298,6 +298,66 @@ stage::stage(std::string_view name)
   if (lua_isstring(L, -1)) {
     const std::string_view tilemap_name = lua_tostring(L, -1);
     _tilemap.emplace(tilemap_name, _world);
+
+    for (const auto& p : _tilemap->particles()) {
+      auto& instance = _particlesystem.add(p.name, p.kind, p.x, p.y, p.active);
+      auto** memory = static_cast<particle**>(lua_newuserdata(L, sizeof(particle*)));
+      *memory = &instance;
+      luaL_getmetatable(L, "Particle");
+      lua_setmetatable(L, -2);
+
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+      lua_pushvalue(L, -2);
+      lua_setfield(L, -2, p.name.c_str());
+      lua_pop(L, 1);
+
+      lua_pop(L, 1);
+    }
+  }
+  lua_pop(L, 1);
+
+  lua_getfield(L, -1, "particles");
+  if (lua_istable(L, -1)) {
+    const auto count = static_cast<int>(lua_objlen(L, -1));
+
+    for (int i = 1; i <= count; ++i) {
+      lua_rawgeti(L, -1, i);
+
+      lua_getfield(L, -1, "name");
+      const std::string particle_name{lua_tostring(L, -1)};
+      lua_pop(L, 1);
+
+      lua_getfield(L, -1, "kind");
+      const std::string particle_kind{lua_tostring(L, -1)};
+      lua_pop(L, 1);
+
+      lua_getfield(L, -1, "x");
+      const auto px = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
+      lua_pop(L, 1);
+
+      lua_getfield(L, -1, "y");
+      const auto py = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
+      lua_pop(L, 1);
+
+      lua_getfield(L, -1, "active");
+      const auto active = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : true;
+      lua_pop(L, 1);
+
+      lua_pop(L, 1);
+
+      auto& instance = _particlesystem.add(particle_name, particle_kind, px, py, active);
+      auto** memory = static_cast<particle**>(lua_newuserdata(L, sizeof(particle*)));
+      *memory = &instance;
+      luaL_getmetatable(L, "Particle");
+      lua_setmetatable(L, -2);
+
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+      lua_pushvalue(L, -2);
+      lua_setfield(L, -2, particle_name.data());
+      lua_pop(L, 1);
+
+      lua_pop(L, 1);
+    }
   }
   lua_pop(L, 1);
 
@@ -749,6 +809,8 @@ void stage::update(float delta) {
   for (auto* instance : _sounds) {
     instance->poll();
   }
+
+  _particlesystem.update(delta);
 }
 
 void stage::draw() const {
@@ -810,6 +872,8 @@ void stage::draw() const {
       tf.flip
     );
   }
+
+  _particlesystem.draw(_camera_x, _camera_y);
 
   if (_tilemap)
     _tilemap->draw_foreground();

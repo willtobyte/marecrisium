@@ -177,12 +177,20 @@ cassette = {}
 ---@field name string Unique instance name for this object. Accessible via `pool.<name>`.
 ---@field kind string Object type. Maps to `objects/<kind>.lua` (prototype) and `blobs/objects/<kind>.png` (spritesheet).
 
+---@class StageParticle
+---@field name string Unique instance name for this particle emitter. Accessible via `pool.<name>`.
+---@field kind string Particle type. Maps to `particles/<kind>.lua` (config) and `blobs/particles/<kind>.png` (texture).
+---@field x? number Initial X position. Default 0.
+---@field y? number Initial Y position. Default 0.
+---@field active? boolean Whether particles spawn immediately. Default true.
+
 ---@class Stage
 ---A stage script (`stages/<name>.lua`) returns a table that may contain
 ---these fields, lifecycle callbacks, and entity/sound declarations.
 ---@field gravity number[]|nil World gravity as {gx, gy}. Default is {0, 0} (no gravity). Set to e.g. {0, 980} for a platformer.
 ---@field objects StageObject[]|nil Objects to spawn when the stage is created.
 ---@field sounds string[]|nil Sound names to preload. Each `"foo"` loads `sounds/foo` and is accessible as `pool.foo`.
+---@field particles StageParticle[]|nil Particle emitters to create. Each entry spawns a particle system accessible as `pool.<name>`.
 ---@field tilemap string|nil Tilemap name. Loads `tilemaps/<name>.lua` and exposes a `tilemap` global in the stage environment.
 local Stage = {}
 
@@ -474,6 +482,16 @@ function Sound:on_begin(fn) end
 function Sound:on_end(fn) end
 
 --------------------------------------------------------------------------------
+-- Particle (particle emitter userdata, available in `pool`)
+--------------------------------------------------------------------------------
+
+---@class Particle
+---@field x number Emitter X position (read/write).
+---@field y number Emitter Y position (read/write).
+---@field active boolean Whether dead particles respawn (read/write).
+local Particle = {}
+
+--------------------------------------------------------------------------------
 -- World (physics, available per-stage)
 --------------------------------------------------------------------------------
 
@@ -498,8 +516,8 @@ world = {}
 --------------------------------------------------------------------------------
 
 ---@class Pool
----Access objects and sounds by name.
----@field [string] Object|Sound
+---Access objects, sounds, and particle emitters by name.
+---@field [string] Object|Sound|Particle
 
 ---Resource pool (available inside stage scripts).
 ---@type Pool

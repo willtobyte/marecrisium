@@ -1,5 +1,6 @@
 #pragma once
 
+#include "particlesystem.hpp"
 #include "stringpool.hpp"
 #include "tilemap.hpp"
 
@@ -39,6 +40,7 @@ private:
   std::vector<sound*> _sounds;
   std::vector<entt::entity> _hovering;
   stringpool _stringpool;
+  particlesystem _particlesystem;
   mutable std::optional<tilemap> _tilemap;
   b2WorldId _world;
   float _timestep = 1.f / 60.f;

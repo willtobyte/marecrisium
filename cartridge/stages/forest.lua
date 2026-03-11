@@ -18,6 +18,12 @@ return ticker.wrap({
 		{ name = "enemy8", kind = "enemy" },
 	},
 
+	particles = {
+		{ name = "smoke1", kind = "smoke", x = 220, y = 900 },
+		{ name = "smoke2", kind = "smoke", x = 270, y = 920 },
+		{ name = "smoke3", kind = "smoke", x = 320, y = 900 },
+	},
+
 	on_enter = function()
 		director.overlay("hud")
 

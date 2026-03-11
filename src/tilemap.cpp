@@ -135,6 +135,41 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
     }
   }
 
+  lua_getfield(L, -1, "particles");
+  if (lua_istable(L, -1)) {
+    const auto count = static_cast<int>(lua_objlen(L, -1));
+    _particles.reserve(static_cast<size_t>(count));
+
+    for (int i = 1; i <= count; ++i) {
+      lua_rawgeti(L, -1, i);
+
+      lua_getfield(L, -1, "name");
+      std::string pname{lua_tostring(L, -1)};
+      lua_pop(L, 1);
+
+      lua_getfield(L, -1, "kind");
+      std::string pkind{lua_tostring(L, -1)};
+      lua_pop(L, 1);
+
+      lua_getfield(L, -1, "x");
+      const auto px = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
+      lua_pop(L, 1);
+
+      lua_getfield(L, -1, "y");
+      const auto py = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
+      lua_pop(L, 1);
+
+      lua_getfield(L, -1, "active");
+      const auto active = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : true;
+      lua_pop(L, 1);
+
+      _particles.emplace_back(particleref{std::move(pname), std::move(pkind), px, py, active});
+
+      lua_pop(L, 1);
+    }
+  }
+  lua_pop(L, 1);
+
   lua_pop(L, 1);
 
   _backdrop = &resources.pixmap.get(std::format("tilemaps/{}/backdrop", name));
@@ -313,4 +348,8 @@ void tilemap::build_layer(const uint32_t* tiles, const uv* uvs, std::vector<SDL_
       indices.emplace_back(base + 3);
     }
   }
+}
+
+const std::vector<particleref>& tilemap::particles() const noexcept {
+  return _particles;
 }
