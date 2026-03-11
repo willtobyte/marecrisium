@@ -2,13 +2,9 @@
 
 class sound final {
 public:
+  sound() = delete;
   explicit sound(std::string_view filename);
   ~sound();
-
-  sound(const sound&) = delete;
-  sound& operator=(const sound&) = delete;
-  sound(sound&&) = delete;
-  sound& operator=(sound&&) = delete;
 
   void play();
   void stop() noexcept;
