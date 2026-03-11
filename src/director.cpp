@@ -111,11 +111,11 @@ void director::set_overlay(std::optional<std::string_view> name) {
 }
 
 void director::preload(std::string_view name) {
-  if (_stages.contains(name)) [[unlikely]] {
+  if (_stages.find(name) != _stages.end()) [[unlikely]] {
     return;
   }
 
-  _stages.emplace(name, std::make_unique<stage>(name));
+  _stages.try_emplace(std::string{name}, std::make_unique<stage>(name));
 }
 
 void director::transition() {
