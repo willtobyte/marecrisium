@@ -26,7 +26,7 @@ public:
 
   void update(float delta);
 
-  void draw() const;
+  void draw();
 
 private:
   stage *_current = nullptr;

@@ -172,7 +172,6 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
   lua_pop(L, 1);
 
-  _backdrop = &resources.pixmap.get(std::format("tilemaps/{}/backdrop", name));
   _background_atlas = &resources.pixmap.get(std::format("tilemaps/{}/background", name));
   _foreground_atlas = &resources.pixmap.get(std::format("tilemaps/{}/foreground", name));
 
@@ -250,12 +249,8 @@ void tilemap::set_camera(float x, float y, float w, float h) noexcept {
 }
 
 void tilemap::draw_background() noexcept {
-  _backdrop->draw(
-    .0f, .0f,
-    static_cast<float>(_backdrop->width()),
-    static_cast<float>(_backdrop->height()),
-    .0f, .0f, viewport.width, viewport.height
-  );
+  if (!_background_atlas) [[unlikely]]
+    return;
 
   if (_dirty) {
     build_layer(
@@ -280,6 +275,9 @@ void tilemap::draw_background() noexcept {
 }
 
 void tilemap::draw_foreground() noexcept {
+  if (!_foreground_atlas) [[unlikely]]
+    return;
+
   if (_dirty) {
     build_layer(
       _foreground_tiles.data(),

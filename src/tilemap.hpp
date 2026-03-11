@@ -14,7 +14,10 @@ struct particleref final {
 
 class tilemap final {
 public:
+  tilemap() = default;
+
   tilemap(std::string_view name, b2WorldId world);
+
   ~tilemap() = default;
 
   void set_camera(float x, float y, float w, float h) noexcept;
@@ -26,10 +29,10 @@ public:
   [[nodiscard]] const std::vector<particleref>& particles() const noexcept;
 
 private:
-  int32_t _width;
-  int32_t _height;
-  float _size;
-  float _inv_size;
+  int32_t _width{};
+  int32_t _height{};
+  float _size{};
+  float _inv_size{};
 
   std::vector<uint32_t> _background_tiles;
   std::vector<uint32_t> _foreground_tiles;
@@ -37,9 +40,8 @@ private:
   std::vector<uv> _background_uvs;
   std::vector<uv> _foreground_uvs;
 
-  const pixmap* _background_atlas;
-  const pixmap* _foreground_atlas;
-  const pixmap* _backdrop;
+  const pixmap* _background_atlas{};
+  const pixmap* _foreground_atlas{};
 
   std::vector<SDL_Vertex> _background_vertices;
   std::vector<int32_t> _background_indices;

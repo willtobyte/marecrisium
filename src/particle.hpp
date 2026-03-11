@@ -1,6 +1,6 @@
 #pragma once
 
-#include "math.hpp"
+void sincos(float x, float& osin, float& ocos) noexcept;
 
 class pixmap;
 
@@ -26,7 +26,7 @@ public:
   particle& operator=(particle&&) noexcept = default;
 
   void update(float delta) noexcept;
-  void draw(float camera_x, float camera_y) const noexcept;
+  void draw(float camera_x, float camera_y) noexcept;
 
   [[nodiscard]] float x() const noexcept;
   void set_x(float value) noexcept;
@@ -48,8 +48,8 @@ private:
   std::vector<float> _life, _scale, _angle, _av, _af;
   std::vector<size_t> _respawn;
 
-  mutable std::vector<SDL_Vertex> _vertices;
-  mutable std::vector<int> _indices;
+  std::vector<SDL_Vertex> _vertices;
+  std::vector<int> _indices;
 
   std::uniform_real_distribution<float> _xspawnd, _yspawnd, _radiusd, _angled;
   std::uniform_real_distribution<float> _xveld, _yveld, _gxd, _gyd;

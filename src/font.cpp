@@ -122,11 +122,11 @@ font::font(std::string_view family) {
   }
 }
 
-void font::draw(std::string_view text, float x, float y) const noexcept {
+void font::draw(std::string_view text, float x, float y) noexcept {
   draw(text, x, y, {});
 }
 
-void font::draw(std::string_view text, float x, float y, std::span<const glypheffect> effects) const noexcept {
+void font::draw(std::string_view text, float x, float y, std::span<const glypheffect> effects) noexcept {
   if (text.empty()) [[unlikely]] return;
 
   _vertex_count = 0;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "math.hpp"
+void sincos(float x, float& osin, float& ocos) noexcept;
 
 struct glypheffect final {
   float xoffset{.0f};
@@ -30,9 +30,9 @@ public:
   font(font&&) noexcept = default;
   font& operator=(font&&) noexcept = default;
 
-  void draw(std::string_view text, float x, float y) const noexcept;
+  void draw(std::string_view text, float x, float y) noexcept;
 
-  void draw(std::string_view text, float x, float y, std::span<const glypheffect> effects) const noexcept;
+  void draw(std::string_view text, float x, float y, std::span<const glypheffect> effects) noexcept;
 
 private:
   std::unique_ptr<SDL_Texture, SDL_Deleter> _texture;
@@ -44,8 +44,8 @@ private:
   float _scale{1.f};
   std::string _glyphs;
   std::array<glyphprops, 256> _props{};
-  mutable std::array<SDL_Vertex, 1024> _vertices{};
-  mutable std::size_t _vertex_count{0};
-  mutable std::array<int, 1536> _indices{};
-  mutable std::size_t _index_count{0};
+  std::array<SDL_Vertex, 1024> _vertices{};
+  std::size_t _vertex_count{0};
+  std::array<int, 1536> _indices{};
+  std::size_t _index_count{0};
 };

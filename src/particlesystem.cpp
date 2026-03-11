@@ -15,8 +15,8 @@ void particlesystem::update(float delta) noexcept {
   }
 }
 
-void particlesystem::draw(float camera_x, float camera_y) const noexcept {
-  for (const auto& [_, p] : _particles) {
+void particlesystem::draw(float camera_x, float camera_y) noexcept {
+  for (auto& [_, p] : _particles) {
     p.draw(camera_x, camera_y);
   }
 }

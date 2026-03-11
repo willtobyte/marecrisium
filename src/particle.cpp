@@ -172,7 +172,7 @@ void particle::update(float delta) noexcept {
   }
 }
 
-void particle::draw(float camera_x, float camera_y) const noexcept {
+void particle::draw(float camera_x, float camera_y) noexcept {
   const auto n = _count;
   const auto hw = _hw;
   const auto hh = _hh;

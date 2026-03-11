@@ -156,7 +156,7 @@ void director::update(float delta) {
   }
 }
 
-void director::draw() const {
+void director::draw() {
   if (_current) [[likely]] {
     _current->draw();
   }

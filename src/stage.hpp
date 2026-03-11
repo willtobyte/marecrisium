@@ -1,9 +1,12 @@
 #pragma once
 
-#include "math.hpp"
 #include "particlesystem.hpp"
 #include "stringpool.hpp"
 #include "tilemap.hpp"
+
+class pixmap;
+
+void sincos(float x, float& osin, float& ocos) noexcept;
 
 class stage final {
 public:
@@ -18,7 +21,7 @@ public:
 
   void update(float delta);
 
-  void draw() const;
+  void draw();
 
   [[nodiscard]] int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
 
@@ -42,12 +45,13 @@ private:
   std::vector<entt::entity> _hovering;
   stringpool _stringpool;
   particlesystem _particlesystem;
-  mutable std::optional<tilemap> _tilemap;
+  const pixmap* _backdrop;
+  tilemap _tilemap;
   b2WorldId _world;
   float _timestep = 1.f / 60.f;
   float _accumulator = .0f;
-  mutable float _camera_x = .0f;
-  mutable float _camera_y = .0f;
+  float _camera_x = .0f;
+  float _camera_y = .0f;
   uint32_t _mouse_previous_buttons{};
   int _substeps = 4;
   int _reference = LUA_NOREF;

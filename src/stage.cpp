@@ -294,12 +294,14 @@ stage::stage(std::string_view name)
   }
   lua_pop(L, 1);
 
+  _backdrop = &resources.pixmap.get(std::format("stages/{}", _name));
+
   lua_getfield(L, -1, "tilemap");
   if (lua_isstring(L, -1)) {
     const std::string_view tilemap_name = lua_tostring(L, -1);
-    _tilemap.emplace(tilemap_name, _world);
+    _tilemap = tilemap(tilemap_name, _world);
 
-    for (const auto& p : _tilemap->particles()) {
+    for (const auto& p : _tilemap.particles()) {
       auto& instance = _particlesystem.add(p.name, p.kind, p.x, p.y, p.active);
       auto** memory = static_cast<particle**>(lua_newuserdata(L, sizeof(particle*)));
       *memory = &instance;
@@ -813,7 +815,7 @@ void stage::update(float delta) {
   _particlesystem.update(delta);
 }
 
-void stage::draw() const {
+void stage::draw() {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_getfield(L, -1, "on_paint");
 
@@ -840,10 +842,15 @@ void stage::draw() const {
 
   lua_pop(L, 1);
 
-  if (_tilemap) {
-    _tilemap->set_camera(_camera_x, _camera_y, viewport.width, viewport.height);
-    _tilemap->draw_background();
-  }
+  _backdrop->draw(
+    .0f, .0f,
+    static_cast<float>(_backdrop->width()),
+    static_cast<float>(_backdrop->height()),
+    .0f, .0f, viewport.width, viewport.height
+  );
+
+  _tilemap.set_camera(_camera_x, _camera_y, viewport.width, viewport.height);
+  _tilemap.draw_background();
 
   for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
     if (!tf.shown || !a.playing || !a.pixmap || a.clip_count == 0) [[unlikely]]
@@ -875,8 +882,7 @@ void stage::draw() const {
 
   _particlesystem.draw(_camera_x, _camera_y);
 
-  if (_tilemap)
-    _tilemap->draw_foreground();
+  _tilemap.draw_foreground();
 
 #ifdef DEBUG
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);

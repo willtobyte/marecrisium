@@ -16,7 +16,7 @@ static std::pair<float, float> read_range(lua_State* state, const char* field) n
   return {a, b};
 }
 
-const config& particlepool::get(std::string_view kind) {
+config& particlepool::get(std::string_view kind) {
   const auto key = entt::hashed_string{kind.data()}.value();
   const auto it = _pool.find(key);
   if (it != _pool.end()) [[likely]]

@@ -160,7 +160,7 @@ void overlay::update(float delta) {
   lua_pop(L, 1);
 }
 
-void overlay::draw() const {
+void overlay::draw() {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_getfield(L, -1, "on_paint");
 
@@ -192,12 +192,12 @@ void overlay::wire() {
   lua_setglobal(L, "overlay");
 }
 
-void overlay::render_label(std::string_view family, std::string_view text, float x, float y) const {
-  const auto &f = resources.font.get(family);
+void overlay::render_label(std::string_view family, std::string_view text, float x, float y) {
+  auto& f = resources.font.get(family);
   f.draw(text, x, y);
 }
 
-void overlay::render_label(std::string_view family, std::string_view text, float x, float y, std::span<const glypheffect> effects) const {
-  const auto &f = resources.font.get(family);
+void overlay::render_label(std::string_view family, std::string_view text, float x, float y, std::span<const glypheffect> effects) {
+  auto& f = resources.font.get(family);
   f.draw(text, x, y, effects);
 }

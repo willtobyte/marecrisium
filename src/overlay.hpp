@@ -7,13 +7,13 @@ public:
 
   void update(float delta);
 
-  void draw() const;
+  void draw();
 
   void wire();
 
-  void render_label(std::string_view family, std::string_view text, float x, float y) const;
+  void render_label(std::string_view family, std::string_view text, float x, float y);
 
-  void render_label(std::string_view family, std::string_view text, float x, float y, std::span<const glypheffect> effects) const;
+  void render_label(std::string_view family, std::string_view text, float x, float y, std::span<const glypheffect> effects);
 
 private:
   std::string _name;

@@ -1,6 +1,6 @@
 #include "pixmappool.hpp"
 
-const pixmap& pixmappool::get(std::string_view name) {
+pixmap& pixmappool::get(std::string_view name) {
   const auto key = entt::hashed_string{name.data()}.value();
   const auto it = _pool.find(key);
   if (it != _pool.end()) [[likely]]
