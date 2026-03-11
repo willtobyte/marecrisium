@@ -100,9 +100,9 @@ void director::set_overlay(std::optional<std::string_view> name) {
     return;
   }
 
-  const auto [it, result] = _overlays.try_emplace(std::string{*name}, nullptr);
+  const auto [it, inserted] = _overlays.try_emplace(std::string{*name}, nullptr);
 
-  if (result) {
+  if (inserted) {
     it->second = std::make_unique<overlay>(*name);
   }
 
