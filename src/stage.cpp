@@ -478,21 +478,21 @@ void stage::update(float delta) {
     }
   }
 
-  float wx, wy;
-  const auto buttons = SDL_GetMouseState(&wx, &wy);
-  SDL_RenderCoordinatesFromWindow(renderer, wx, wy, &wx, &wy);
+  float x, y;
+  const auto buttons = SDL_GetMouseState(&x, &y);
+  SDL_RenderCoordinatesFromWindow(renderer, x, y, &x, &y);
 
   const auto released = _mouse_previous_buttons & ~buttons;
   _mouse_previous_buttons = buttons;
 
   if (released & SDL_BUTTON_LMASK) [[unlikely]]
-    dispatch_click(wx, wy, "left");
+    dispatch_click(x, y, "left");
   else if (released & SDL_BUTTON_MMASK) [[unlikely]]
-    dispatch_click(wx, wy, "middle");
+    dispatch_click(x, y, "middle");
   else if (released & SDL_BUTTON_RMASK) [[unlikely]]
-    dispatch_click(wx, wy, "right");
+    dispatch_click(x, y, "right");
 
-  dispatch_hover(wx, wy);
+  dispatch_hover(x, y);
 
   if (_on_loop != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
