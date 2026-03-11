@@ -308,21 +308,6 @@ stage::stage(std::string_view name)
   if (lua_isstring(L, -1)) {
     const std::string_view tilemap_name = lua_tostring(L, -1);
     _tilemap = tilemap(tilemap_name, _world);
-
-    for (const auto& p : _tilemap.particles()) {
-      auto& instance = _particlesystem.add(p.name, p.kind, p.x, p.y, p.active);
-      auto** memory = static_cast<particle**>(lua_newuserdata(L, sizeof(particle*)));
-      *memory = &instance;
-      luaL_getmetatable(L, "Particle");
-      lua_setmetatable(L, -2);
-
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
-      lua_pushvalue(L, -2);
-      lua_setfield(L, -2, p.name.c_str());
-      lua_pop(L, 1);
-
-      lua_pop(L, 1);
-    }
   }
   lua_pop(L, 1);
 

@@ -4,14 +4,6 @@ struct alignas(16) uv final {
   float u0, v0, u1, v1;
 };
 
-struct particleref final {
-  std::string name;
-  std::string kind;
-  float x;
-  float y;
-  bool active;
-};
-
 class tilemap final {
 public:
   tilemap() = default;
@@ -25,8 +17,6 @@ public:
   void draw_background() noexcept;
 
   void draw_foreground() noexcept;
-
-  [[nodiscard]] const std::vector<particleref>& particles() const noexcept;
 
 private:
   int32_t _width{};
@@ -47,8 +37,6 @@ private:
   std::vector<int32_t> _background_indices;
   std::vector<SDL_Vertex> _foreground_vertices;
   std::vector<int32_t> _foreground_indices;
-
-  std::vector<particleref> _particles;
 
   float _camera_x{};
   float _camera_y{};
