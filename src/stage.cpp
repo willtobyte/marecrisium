@@ -1,3 +1,5 @@
+#include "stage.hpp"
+
 static int world_raycast(lua_State* state) {
   auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
   const auto* caller = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));

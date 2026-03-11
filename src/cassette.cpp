@@ -1,3 +1,5 @@
+#include "cassette.hpp"
+
 namespace {
 constexpr const char* filename = "cassette.tape";
 
