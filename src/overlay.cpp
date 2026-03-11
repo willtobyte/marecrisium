@@ -1,5 +1,18 @@
 #include "overlay.hpp"
 
+static bool on_event(void *, SDL_Event *event) {
+  switch (event->type) {
+    case SDL_EVENT_TEXT_INPUT: {
+      // std::println("{}", event->text.text);
+    } break;
+
+    default:
+      break;
+  }
+
+  return true;
+}
+
 static int overlay_label(lua_State *state) {
   auto **ptr = static_cast<overlay **>(luaL_checkudata(state, 1, "Overlay"));
   auto *self = *ptr;
@@ -81,6 +94,9 @@ static int overlay_index(lua_State *state) {
 
 overlay::overlay(std::string_view name)
     : _name(name) {
+  SDL_AddEventWatch(on_event, nullptr);
+  SDL_StartTextInput(SDL_GetRenderWindow(renderer));
+
   const auto filename = std::format("overlays/{}.lua", name);
   const auto buffer = io::read(filename);
   const auto *data = reinterpret_cast<const char *>(buffer.data());
@@ -119,6 +135,8 @@ overlay::overlay(std::string_view name)
 }
 
 overlay::~overlay() {
+  SDL_StopTextInput(SDL_GetRenderWindow(renderer));
+  SDL_RemoveEventWatch(on_event, nullptr);
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
 }
 
