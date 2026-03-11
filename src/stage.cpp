@@ -1061,10 +1061,7 @@ void stage::dispatch_screen_event(const objectproxy& proxy, const char* callback
   lua_pop(L, 1);
 }
 
-void stage::dispatch_dormancy(
-  const objectproxy& proxy,
-  const char* callback
-) {
+void stage::dispatch_dormancy(const objectproxy& proxy, const char* callback) {
   if (proxy.prototype == LUA_NOREF ||
       proxy.handle == LUA_NOREF)
     return;
