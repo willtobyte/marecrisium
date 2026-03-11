@@ -47,7 +47,7 @@ private:
   std::vector<size_t> _respawn;
 
   mutable std::vector<SDL_Vertex> _vertices;
-  std::vector<int> _indices;
+  mutable std::vector<int> _indices;
 
   std::uniform_real_distribution<float> _xspawnd, _yspawnd, _radiusd, _angled;
   std::uniform_real_distribution<float> _xveld, _yveld, _gxd, _gyd;
