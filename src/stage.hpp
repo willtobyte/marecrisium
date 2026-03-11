@@ -1,5 +1,8 @@
 #pragma once
 
+#include "stringpool.hpp"
+#include "tilemap.hpp"
+
 class stage final {
 public:
   explicit stage(std::string_view name);
@@ -24,11 +27,11 @@ protected:
 
   void dispatch_unhover(std::span<const entt::entity> current);
 
-  void dispatch_collision(entt::entity entity, entt::entity other_entity, const char* callback_name, const b2Vec2* normal = nullptr);
+  void dispatch_collision(entt::entity entity, entt::entity other, const char* callback, const b2Vec2* normal = nullptr);
 
-  void dispatch_screen_event(const objectproxy& proxy, const char* callback_name, std::string_view direction);
+  void dispatch_screen_event(const objectproxy& proxy, const char* callback, std::string_view direction);
 
-  void dispatch_dormancy(const objectproxy& proxy, const char* callback_name);
+  void dispatch_dormancy(const objectproxy& proxy, const char* callback);
 
 private:
   entt::registry _registry;

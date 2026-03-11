@@ -1043,11 +1043,7 @@ void stage::dispatch_unhover(std::span<const entt::entity> current) {
   }
 }
 
-void stage::dispatch_screen_event(
-  const objectproxy& proxy,
-  const char* callback,
-  std::string_view direction
-) {
+void stage::dispatch_screen_event(const objectproxy& proxy, const char* callback, std::string_view direction) {
   if (proxy.prototype == LUA_NOREF ||
       proxy.handle == LUA_NOREF)
     return;
