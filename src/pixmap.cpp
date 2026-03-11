@@ -36,8 +36,8 @@ void pixmap::draw(
     const uint8_t alpha,
     const flipmode flip
 ) const noexcept {
-  const SDL_FRect source{ sx, sy, sw, sh };
-  const SDL_FRect destination{ dx, dy, dw, dh };
+  const SDL_FRect source{sx, sy, sw, sh};
+  const SDL_FRect destination{dx, dy, dw, dh};
 
   SDL_SetTextureAlphaMod(_texture.get(), alpha);
   SDL_RenderTextureRotated(renderer, _texture.get(), &source, &destination, angle, nullptr, static_cast<SDL_FlipMode>(flip));
