@@ -1,5 +1,13 @@
 #include "stage.hpp"
 
+static void* to_userdata(entt::entity e) noexcept {
+  return reinterpret_cast<void*>(static_cast<uintptr_t>(e) + 1);
+}
+
+static entt::entity to_entity(const void* p) noexcept {
+  return static_cast<entt::entity>(reinterpret_cast<uintptr_t>(p) - 1);
+}
+
 static int world_raycast(lua_State* state) {
   auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
   const auto* caller = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
@@ -206,7 +214,7 @@ stage::stage(std::string_view name)
                                            : body_type::kinematic;
 
           b2BodyDef bdef = b2DefaultBodyDef();
-          bdef.userData = reinterpret_cast<void*>(static_cast<uintptr_t>(entity));
+          bdef.userData = to_userdata(entity);
 
           bdef.type = bt == body_type::dynamic   ? b2_dynamicBody
                    : bt == body_type::fixed     ? b2_staticBody
@@ -611,7 +619,7 @@ void stage::update(float delta) {
         const auto polygon = b2MakeBox(hx, hy);
 
         auto sdef = b2DefaultShapeDef();
-        sdef.userData = reinterpret_cast<void*>(static_cast<uintptr_t>(en));
+        sdef.userData = to_userdata(en);
         sdef.enableContactEvents = true;
         sdef.enableSensorEvents = true;
 
@@ -650,8 +658,7 @@ void stage::update(float delta) {
 
     for (int i = 0; i < body_events.moveCount; ++i) {
       const auto& event = body_events.moveEvents[i];
-      const auto entity = static_cast<entt::entity>(
-          reinterpret_cast<uintptr_t>(event.userData));
+      const auto entity = to_entity(event.userData);
 
       if (!_registry.valid(entity)) [[unlikely]]
         continue;
@@ -700,7 +707,7 @@ void stage::update(float delta) {
               if (b2Body_GetType(other_body) == b2_kinematicBody) {
                 const auto* other_data = b2Shape_GetUserData(other_shape);
                 if (other_data)
-                  ride_target = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(other_data));
+                  ride_target = to_entity(other_data);
               }
 
               break;
@@ -758,8 +765,8 @@ void stage::update(float delta) {
       const auto* sensor_data = b2Shape_GetUserData(event.sensorShapeId);
       const auto* visitor_data = b2Shape_GetUserData(event.visitorShapeId);
       if (!sensor_data || !visitor_data) continue;
-      const auto sensor = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(sensor_data));
-      const auto visitor = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(visitor_data));
+      const auto sensor = to_entity(sensor_data);
+      const auto visitor = to_entity(visitor_data);
       dispatch_collision(sensor, visitor, "on_collision_begin");
     }
 
@@ -770,8 +777,8 @@ void stage::update(float delta) {
       const auto* sensor_data = b2Shape_GetUserData(event.sensorShapeId);
       const auto* visitor_data = b2Shape_GetUserData(event.visitorShapeId);
       if (!sensor_data || !visitor_data) continue;
-      const auto sensor = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(sensor_data));
-      const auto visitor = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(visitor_data));
+      const auto sensor = to_entity(sensor_data);
+      const auto visitor = to_entity(visitor_data);
       dispatch_collision(sensor, visitor, "on_collision_end");
     }
 
@@ -784,8 +791,8 @@ void stage::update(float delta) {
       const auto* data_a = b2Shape_GetUserData(event.shapeIdA);
       const auto* data_b = b2Shape_GetUserData(event.shapeIdB);
       if (!data_a || !data_b) continue;
-      const auto entity_a = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(data_a));
-      const auto entity_b = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(data_b));
+      const auto entity_a = to_entity(data_a);
+      const auto entity_b = to_entity(data_b);
       const auto& normal = event.manifold.normal;
       const b2Vec2 flipped = {-normal.x, -normal.y};
       dispatch_collision(entity_a, entity_b, "on_collision_begin", &normal);
@@ -799,8 +806,8 @@ void stage::update(float delta) {
       const auto* data_a = b2Shape_GetUserData(event.shapeIdA);
       const auto* data_b = b2Shape_GetUserData(event.shapeIdB);
       if (!data_a || !data_b) continue;
-      const auto entity_a = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(data_a));
-      const auto entity_b = static_cast<entt::entity>(reinterpret_cast<uintptr_t>(data_b));
+      const auto entity_a = to_entity(data_a);
+      const auto entity_b = to_entity(data_b);
       dispatch_collision(entity_a, entity_b, "on_collision_end");
       dispatch_collision(entity_b, entity_a, "on_collision_end");
     }
@@ -940,9 +947,7 @@ void stage::dispatch_click(float x, float y, const char* button) {
       auto* ctx = static_cast<context*>(userdata);
       if (ctx->count >= 32) [[unlikely]]
         return false;
-      const auto entity = static_cast<entt::entity>(
-        reinterpret_cast<uintptr_t>(b2Shape_GetUserData(shape)));
-      ctx->hits[ctx->count++] = entity;
+      ctx->hits[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
       return true;
     },
     &ctx);
@@ -1034,9 +1039,7 @@ void stage::dispatch_hover(float x, float y) {
       auto* ctx = static_cast<context*>(userdata);
       if (ctx->count >= 16) [[unlikely]]
         return false;
-      const auto entity = static_cast<entt::entity>(
-        reinterpret_cast<uintptr_t>(b2Shape_GetUserData(shape)));
-      ctx->hits[ctx->count++] = entity;
+      ctx->hits[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
       return true;
     },
     &ctx);
@@ -1216,9 +1219,7 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     filter,
     [](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void* userdata) -> float {
       auto* results = static_cast<std::vector<hit>*>(userdata);
-      const auto entity = static_cast<entt::entity>(
-        reinterpret_cast<uintptr_t>(b2Shape_GetUserData(shape)));
-      results->push_back({entity, fraction});
+      results->push_back({to_entity(b2Shape_GetUserData(shape)), fraction});
       return 1.f;
     },
     &hits

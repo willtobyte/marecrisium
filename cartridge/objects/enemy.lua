@@ -18,6 +18,31 @@ return {
 		self.speed_x = speed
 	end,
 
+	on_collision_begin = function(self, name, kind, normal_x, normal_y)
+		if kind ~= "player" then
+			return
+		end
+		if not normal_x then
+			return
+		end
+
+		local side
+		if normal_y > 0.5 then
+			side = "bottom"
+		elseif normal_y < -0.5 then
+			side = "top"
+		elseif normal_x > 0.5 then
+			side = "right"
+		elseif normal_x < -0.5 then
+			side = "left"
+		end
+
+		if side then
+			print("collision with " .. name .. " from " .. side)
+			pool.player:damage()
+		end
+	end,
+
 	on_loop = function(self, delta)
 		self.speed_x = speed * self.direction
 		self.x = self.x + self.speed_x * delta

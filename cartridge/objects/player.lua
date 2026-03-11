@@ -43,4 +43,8 @@ return {
 
 		self.vx = vx
 	end,
+
+	on_damage = function(self)
+		print("on damage " .. self.name)
+	end,
 }

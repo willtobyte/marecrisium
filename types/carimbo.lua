@@ -375,6 +375,12 @@ viewport = {}
 ---@field riding string|nil Name of the kinematic object this dynamic body is standing on (read-only). Nil when not riding anything.
 ---@field animation string|nil Currently playing animation clip name. Assign to switch clips.
 ---@field [string] any Custom properties from the prototype table.
+---
+---Method dispatch: calling `pool.<name>:<method>(...)` resolves to
+---`on_<method>(self, ...)` in the target object's prototype. The engine
+---automatically prepends the `on_` prefix when looking up methods.
+---For example, `pool.player:damage()` invokes `on_damage(self)` defined
+---in the player's prototype (`objects/player.lua`).
 local Object = {}
 
 ---Destroy this object. After calling, `alive` returns false and all property access returns nil.
