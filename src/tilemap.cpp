@@ -1,3 +1,5 @@
+#include "tilemap.hpp"
+
 tilemap::tilemap(std::string_view name, b2WorldId world) {
   const auto filename = std::format("tilemaps/{}.lua", name);
   const auto buffer = io::read(filename);
