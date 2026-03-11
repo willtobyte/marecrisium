@@ -23,6 +23,15 @@ int particle_index(lua_State* state) {
     return 1;
   }
 
+  if (key == "position") {
+    lua_createtable(state, 2, 0);
+    lua_pushnumber(state, static_cast<lua_Number>(self->x()));
+    lua_rawseti(state, -2, 1);
+    lua_pushnumber(state, static_cast<lua_Number>(self->y()));
+    lua_rawseti(state, -2, 2);
+    return 1;
+  }
+
   return lua_pushnil(state), 1;
 }
 
@@ -42,6 +51,22 @@ int particle_newindex(lua_State* state) {
 
   if (key == "y") {
     self->set_y(static_cast<float>(luaL_checknumber(state, 3)));
+    return 0;
+  }
+
+  if (key == "position") {
+    luaL_checktype(state, 3, LUA_TTABLE);
+
+    lua_rawgeti(state, 3, 1);
+    const auto px = static_cast<float>(luaL_checknumber(state, -1));
+    lua_pop(state, 1);
+
+    lua_rawgeti(state, 3, 2);
+    const auto py = static_cast<float>(luaL_checknumber(state, -1));
+    lua_pop(state, 1);
+
+    self->set_x(px);
+    self->set_y(py);
     return 0;
   }
 

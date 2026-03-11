@@ -19,9 +19,9 @@ return ticker.wrap({
 	},
 
 	particles = {
-		{ name = "smoke1", kind = "smoke", x = 220, y = 900 },
-		{ name = "smoke2", kind = "smoke", x = 270, y = 920 },
-		{ name = "smoke3", kind = "smoke", x = 320, y = 900 },
+		{ name = "smoke1", kind = "smoke" },
+		{ name = "smoke2", kind = "smoke" },
+		{ name = "smoke3", kind = "smoke" },
 	},
 
 	on_enter = function()
@@ -45,6 +45,10 @@ return ticker.wrap({
 		pool.enemy6.position = { 1500, 800 }
 		pool.enemy7.position = { 1800, 750 }
 		pool.enemy8.position = { 10, 900 }
+
+		pool.smoke1.position = { 220, 900 }
+		pool.smoke2.position = { 270, 920 }
+		pool.smoke3.position = { 320, 900 }
 	end,
 
 	on_leave = function()

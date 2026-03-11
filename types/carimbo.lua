@@ -358,7 +358,7 @@ viewport = {}
 ---@class Object
 ---@field x number Transform X position. For dynamic and static bodies, setting this teleports the body.
 ---@field y number Transform Y position. For dynamic and static bodies, setting this teleports the body.
----@field position number[] Write-only. Set position as {x, y} with a single body teleport. More efficient than setting x and y separately.
+---@field position number[] Position as {x, y}. Reading returns a new table. Setting teleports the body in a single call, more efficient than setting x and y separately.
 ---@field vx number Linear velocity X component. Readable on all body types; writable only on dynamic bodies.
 ---@field vy number Linear velocity Y component. Readable on all body types; writable only on dynamic bodies.
 ---@field scale number Transform scale factor.
@@ -496,6 +496,7 @@ function Sound:on_end(fn) end
 ---@class Particle
 ---@field x number Emitter X position (read/write).
 ---@field y number Emitter Y position (read/write).
+---@field position number[] Emitter position as {x, y} (read/write). Reading returns a new table.
 ---@field active boolean Whether dead particles respawn (read/write).
 local Particle = {}
 

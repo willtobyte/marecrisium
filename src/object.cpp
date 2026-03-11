@@ -65,6 +65,16 @@ namespace {
       return 1;
     }
 
+    if (key == "position") {
+      const auto& tf = registry.get<transform>(entity);
+      lua_createtable(state, 2, 0);
+      lua_pushnumber(state, static_cast<double>(tf.x));
+      lua_rawseti(state, -2, 1);
+      lua_pushnumber(state, static_cast<double>(tf.y));
+      lua_rawseti(state, -2, 2);
+      return 1;
+    }
+
     if (key == "scale") {
       lua_pushnumber(state, static_cast<double>(registry.get<transform>(entity).scale));
       return 1;
