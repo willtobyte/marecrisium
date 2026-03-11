@@ -450,16 +450,8 @@ void objectproxy::on_destroy(entt::registry& registry, entt::entity entity) {
   }
 }
 
-objectproxy::objectproxy(
-  entt::registry& registry,
-  entt::entity entity,
-  std::string_view name,
-  std::string_view kind,
-  int environment
-)
-    : registry(&registry), entity(entity),
-      name(entt::hashed_string{name.data()}.value()),
-      kind(entt::hashed_string{kind.data()}.value()) {
+objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::string_view name, std::string_view kind, int environment)
+    : registry(&registry), entity(entity), name(entt::hashed_string{name.data()}.value()), kind(entt::hashed_string{kind.data()}.value()) {
   if (luaL_newmetatable(L, "Object")) {
     lua_pushcfunction(L, object_index);
     lua_setfield(L, -2, "__index");

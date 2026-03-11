@@ -266,12 +266,7 @@ void tilemap::draw_foreground() noexcept {
   );
 }
 
-void tilemap::build_layer(
-  const uint32_t* tiles,
-  const uv* uvs,
-  std::vector<SDL_Vertex>& vertices,
-  std::vector<int32_t>& indices
-) noexcept {
+void tilemap::build_layer(const uint32_t* tiles, const uv* uvs, std::vector<SDL_Vertex>& vertices, std::vector<int32_t>& indices) noexcept {
   vertices.clear();
   indices.clear();
 

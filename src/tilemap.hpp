@@ -42,10 +42,5 @@ private:
   float _camera_h{};
   bool _dirty{true};
 
-  void build_layer(
-    const uint32_t* tiles,
-    const uv* uvs,
-    std::vector<SDL_Vertex>& vertices,
-    std::vector<int32_t>& indices
-  ) noexcept;
+  void build_layer(const uint32_t* tiles, const uv* uvs, std::vector<SDL_Vertex>& vertices, std::vector<int32_t>& indices) noexcept;
 };
