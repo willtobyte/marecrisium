@@ -1,5 +1,6 @@
 namespace {
 constexpr const char* filename = "cassette.tape";
+
 sqlite3* database;
 sqlite3_stmt* stmt_select;
 sqlite3_stmt* stmt_upsert;
@@ -10,6 +11,7 @@ sqlite3_stmt* stmt_clear;
 static int cassette_clear(lua_State*) {
   sqlite3_step(stmt_clear);
   sqlite3_reset(stmt_clear);
+
   return 0;
 }
 
@@ -59,6 +61,7 @@ static int cassette_newindex(lua_State* state) {
     sqlite3_bind_text(stmt_delete, 1, key.data(), -1, SQLITE_STATIC);
     sqlite3_step(stmt_delete);
     sqlite3_reset(stmt_delete);
+
     return 0;
   }
 
@@ -73,8 +76,10 @@ static int cassette_newindex(lua_State* state) {
     sqlite3_bind_int(stmt_upsert, 2, 2);
     sqlite3_bind_text(stmt_upsert, 3, lua_tostring(state, 3), -1, SQLITE_TRANSIENT);
   }
+
   sqlite3_step(stmt_upsert);
   sqlite3_reset(stmt_upsert);
+
   return 0;
 }
 
