@@ -94,9 +94,6 @@ static int overlay_index(lua_State *state) {
 
 overlay::overlay(std::string_view name)
     : _name(name) {
-  SDL_AddEventWatch(on_event, nullptr);
-  SDL_StartTextInput(SDL_GetRenderWindow(renderer));
-
   const auto filename = std::format("overlays/{}.lua", name);
   const auto buffer = io::read(filename);
   const auto *data = reinterpret_cast<const char *>(buffer.data());
@@ -132,6 +129,9 @@ overlay::overlay(std::string_view name)
   lua_pop(L, 1);
 
   _reference = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  SDL_AddEventWatch(on_event, nullptr);
+  SDL_StartTextInput(SDL_GetRenderWindow(renderer));
 }
 
 overlay::~overlay() {
