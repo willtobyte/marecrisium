@@ -10,12 +10,10 @@ namespace {
 }
 
 void sourcepool::insert(std::string_view name) {
-  const auto filename = std::format("objects/{}.lua", name);
-  const auto key = entt::hashed_string{filename.c_str()}.value();
-  const auto label = std::format("@{}", filename);
+  const auto key = entt::hashed_string{name.data()}.value();
 
-  if (const auto it = _pool.find(key); it != _pool.end()) {
-    const auto& bytecode = it->second;
+  if (const auto it = _pool.find(key); it != _pool.end()) [[likely]] {
+    const auto& [label, bytecode] = it->second;
     const auto* data = reinterpret_cast<const char*>(bytecode.data());
     const auto size = bytecode.size();
 
@@ -27,6 +25,9 @@ void sourcepool::insert(std::string_view name) {
 
     return;
   }
+
+  const auto filename = std::format("objects/{}.lua", name);
+  auto label = std::format("@{}", filename);
 
   const auto buffer = io::read(filename);
   const auto* data = reinterpret_cast<const char*>(buffer.data());
@@ -41,7 +42,7 @@ void sourcepool::insert(std::string_view name) {
   std::vector<uint8_t> bytecode;
   lua_dump(L, bytecode_writer, &bytecode);
 
-  _pool.emplace(key, std::move(bytecode));
+  _pool.emplace(key, std::make_pair(std::move(label), std::move(bytecode)));
 }
 
 void sourcepool::clear() {

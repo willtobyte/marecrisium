@@ -1,10 +1,12 @@
 #include "pixmappool.hpp"
 
 const pixmap& pixmappool::get(std::string_view name) {
-  const auto filename = std::format("blobs/{}.png", name);
-  const auto key = entt::hashed_string{filename.c_str()}.value();
-  const auto [it, _] = _pool.try_emplace(key, filename);
-  return it->second;
+  const auto key = entt::hashed_string{name.data()}.value();
+  const auto it = _pool.find(key);
+  if (it != _pool.end()) [[likely]]
+    return it->second;
+
+  return _pool.try_emplace(key, std::format("blobs/{}.png", name)).first->second;
 }
 
 void pixmappool::clear() {

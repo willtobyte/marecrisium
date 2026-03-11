@@ -1,14 +1,12 @@
 #include "soundpool.hpp"
 
 sound& soundpool::get(std::string_view name) {
-  const auto filename = std::format("blobs/{}.opus", name);
-  const auto key = entt::hashed_string{filename.c_str()}.value();
-  const auto [it, inserted] = _pool.try_emplace(key);
+  const auto key = entt::hashed_string{name.data()}.value();
+  const auto it = _pool.find(key);
+  if (it != _pool.end()) [[likely]]
+    return *it->second;
 
-  if (inserted)
-    it->second = std::make_unique<sound>(filename);
-
-  return *it->second;
+  return *_pool.try_emplace(key, std::make_unique<sound>(std::format("blobs/{}.opus", name))).first->second;
 }
 
 void soundpool::clear() {
