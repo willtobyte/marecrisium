@@ -9,8 +9,7 @@ static int world_raycast(lua_State* state) {
 }
 
 stage::stage(std::string_view name)
-    : _name(name),
-      _stringpool(std::make_unique<stringpool>()) {
+    : _name(name) {
   const auto start = SDL_GetPerformanceCounter();
 
   _registry.on_destroy<objectproxy>().connect<&objectproxy::on_destroy>();
@@ -20,7 +19,7 @@ stage::stage(std::string_view name)
       b2DestroyBody(bo.id);
   }>();
 
-  _registry.ctx().emplace<stringpool*>(_stringpool.get());
+  _registry.ctx().emplace<stringpool*>(&_stringpool);
 
   lua_newtable(L);
   lua_newtable(L);
@@ -103,8 +102,8 @@ stage::stage(std::string_view name)
       const auto prototype = proxy.prototype;
       const auto handle = proxy.handle;
 
-      static_cast<void>(_stringpool->insert(object_name));
-      static_cast<void>(_stringpool->insert(object_kind));
+      static_cast<void>(_stringpool.insert(object_name));
+      static_cast<void>(_stringpool.insert(object_kind));
 
       lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
       lua_getfield(L, -1, "animation");
@@ -121,7 +120,7 @@ stage::stage(std::string_view name)
           }
 
           const std::string_view clip_name = lua_tostring(L, -2);
-          const auto cid = _stringpool->insert(clip_name);
+          const auto cid = _stringpool.insert(clip_name);
 
           auto& c = a.clips[a.clip_count];
           c.name = cid;
@@ -298,7 +297,7 @@ stage::stage(std::string_view name)
   lua_getfield(L, -1, "tilemap");
   if (lua_isstring(L, -1)) {
     const std::string_view tilemap_name = lua_tostring(L, -1);
-    _tilemap = std::make_unique<tilemap>(tilemap_name, _world);
+    _tilemap.emplace(tilemap_name, _world);
   }
   lua_pop(L, 1);
 
@@ -492,7 +491,7 @@ void stage::update(float delta) {
 
         if (lua_isfunction(L, -1)) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-          lua_pushstring(L, _stringpool->get(c.name));
+          lua_pushstring(L, _stringpool.get(c.name));
 
           if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
             std::string error = lua_tostring(L, -1);
@@ -510,7 +509,7 @@ void stage::update(float delta) {
 
         if (lua_isfunction(L, -1)) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-          lua_pushstring(L, _stringpool->get(c.name));
+          lua_pushstring(L, _stringpool.get(c.name));
 
           if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
             std::string error = lua_tostring(L, -1);
@@ -1114,8 +1113,8 @@ void stage::dispatch_collision(entt::entity entity, entt::entity other, const ch
 
   if (lua_isfunction(L, -1)) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, self.handle);
-    lua_pushstring(L, _stringpool->get(target.name));
-    lua_pushstring(L, _stringpool->get(target.kind));
+    lua_pushstring(L, _stringpool.get(target.name));
+    lua_pushstring(L, _stringpool.get(target.kind));
 
     auto argc = 3;
     if (normal) {

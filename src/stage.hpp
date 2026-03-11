@@ -1,8 +1,5 @@
 #pragma once
 
-class stringpool;
-class tilemap;
-
 class stage final {
 public:
   explicit stage(std::string_view name);
@@ -38,8 +35,8 @@ private:
   std::string _name;
   std::vector<sound*> _sounds;
   std::vector<entt::entity> _hovering;
-  std::unique_ptr<stringpool> _stringpool;
-  std::unique_ptr<tilemap> _tilemap;
+  stringpool _stringpool;
+  mutable std::optional<tilemap> _tilemap;
   b2WorldId _world;
   float _timestep = 1.f / 60.f;
   float _accumulator = .0f;

@@ -1,7 +1,7 @@
 local controls = require("helpers/controls")
 
-local speed = 200
-local jump = -400
+local speed = 100
+local jump = -360
 
 return {
 	body = "dynamic",
