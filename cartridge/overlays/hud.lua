@@ -41,7 +41,7 @@ return {
 			effect.g = g
 			effect.b = b
 			effect.angle = math.sin(elapsed * 2 + (i - 1) * 0.5) * 15
-			effect.alpha = 0.6 + 0.4 * math.sin(elapsed * 4 + (i - 1) * 0.9)
+			-- effect.alpha = 0.6 + 0.4 * math.sin(elapsed * 4 + (i - 1) * 0.9)
 		end
 	end,
 

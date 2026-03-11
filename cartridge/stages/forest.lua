@@ -1,7 +1,7 @@
 local ticker = require("helpers/ticker")
 local camera = require("helpers/camera")
 
-return ticker.wrap({
+return {
 	gravity = { 0, 980 },
 
 	tilemap = "forest",
@@ -59,4 +59,4 @@ return ticker.wrap({
 		local player = pool.player
 		return camera.update(player.x, player.y)
 	end,
-})
+}
