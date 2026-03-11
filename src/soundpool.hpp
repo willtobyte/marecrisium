@@ -10,5 +10,5 @@ public:
   void clear();
 
 private:
-  std::unordered_map<entt::id_type, std::unique_ptr<sound>> _pool;
+  std::unordered_map<entt::id_type, sound> _pool;
 };
