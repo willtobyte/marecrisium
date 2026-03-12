@@ -1,3 +1,3 @@
 return {
-	nostalgia = "Nostalgia",
+	nostalgia = "Henrique Delduca",
 }
