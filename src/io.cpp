@@ -25,17 +25,8 @@ std::vector<std::string> io::enumerate(std::string_view directory) {
   if (!ptr) [[unlikely]]
     throw std::runtime_error{std::format("[PHYSFS_enumerateFiles] error while enumerating directory: {}", directory)};
 
-  auto* const *data = ptr.get();
+  auto **data = ptr.get();
+  while (*data) ++data;
 
-  auto n = 0uz;
-  while (data[n] != nullptr) ++n;
-
-  std::vector<std::string> entries;
-  entries.reserve(n);
-
-  for (auto i = 0uz; i < n; ++i) {
-    entries.emplace_back(data[i]);
-  }
-
-  return entries;
+  return {ptr.get(), data};
 }
