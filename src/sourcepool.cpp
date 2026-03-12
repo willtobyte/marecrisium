@@ -40,6 +40,7 @@ void sourcepool::insert(std::string_view name) {
   }
 
   std::vector<uint8_t> bytecode;
+  bytecode.reserve(8192);
   lua_dump(L, bytecode_writer, &bytecode);
 
   _pool.emplace(key, std::pair{std::move(label), std::move(bytecode)});
