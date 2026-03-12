@@ -1,3 +1,5 @@
+local pool = pool
+
 local speed = 30
 local max_distance = 64
 
@@ -19,10 +21,7 @@ return {
 	end,
 
 	on_collision_begin = function(self, name, kind, normal_x, normal_y)
-		if kind ~= "player" then
-			return
-		end
-		if not normal_x then
+		if kind ~= "player" or not normal_x then
 			return
 		end
 
@@ -44,8 +43,7 @@ return {
 	end,
 
 	on_loop = function(self, delta)
-		self.speed_x = speed * self.direction
-		self.x = self.x + self.speed_x * delta
+		self.x = self.x + speed * self.direction * delta
 		self.distance = self.distance + speed * delta
 
 		if self.distance >= max_distance then

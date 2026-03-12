@@ -38,6 +38,7 @@ return ticker.wrap({
 		director.overlay("hud")
 
 		camera.set_bounds(0, 0, 120 * 16 - viewport.width, 68 * 16 - viewport.height)
+
 		camera.configure({
 			dead_zone_x = 16,
 			dead_zone_y = 16,

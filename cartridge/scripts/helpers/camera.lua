@@ -1,4 +1,6 @@
 local abs = math.abs
+local max = math.max
+local min = math.min
 local viewport = viewport
 
 local camera = {}
@@ -24,8 +26,8 @@ local config = {
 }
 
 function camera.configure(options)
-	for key, value in pairs(options) do
-		config[key] = value
+	for k, v in pairs(options) do
+		config[k] = v
 	end
 end
 
@@ -37,77 +39,57 @@ function camera.reset(x, y)
 end
 
 function camera.set_bounds(min_x, min_y, max_x, max_y)
-	config.bounds = {
-		min_x = min_x,
-		min_y = min_y,
-		max_x = max_x,
-		max_y = max_y,
-	}
-end
-
-local function clamp(value, min, max)
-	if value < min then
-		return min
-	end
-	if value > max then
-		return max
-	end
-	return value
+	config.bounds = { min_x = min_x, min_y = min_y, max_x = max_x, max_y = max_y }
 end
 
 function camera.update(target_x, target_y, delta)
 	local dt = delta or (1 / 60)
 
-	target_x = target_x + config.offset_x + config.lookahead_x
-	target_y = target_y + config.offset_y + config.lookahead_y
+	local tx = target_x + config.offset_x + config.lookahead_x - viewport.width * 0.5
+	local ty = target_y + config.offset_y + config.lookahead_y - viewport.height * 0.5
 
-	local half_w = viewport.width * 0.5
-	local half_h = viewport.height * 0.5
-
-	local desired_x = target_x - half_w
-	local desired_y = target_y - half_h
-
-	if config.bounds then
-		desired_x = clamp(desired_x, config.bounds.min_x, config.bounds.max_x)
-		desired_y = clamp(desired_y, config.bounds.min_y, config.bounds.max_y)
+	local bounds = config.bounds
+	if bounds then
+		tx = max(bounds.min_x, min(bounds.max_x, tx))
+		ty = max(bounds.min_y, min(bounds.max_y, ty))
 	end
 
-	local diff_x = desired_x - state.x
-	local diff_y = desired_y - state.y
+	local dx = tx - state.x
+	local dy = ty - state.y
 
-	if diff_x > -config.dead_zone_x and diff_x < config.dead_zone_x then
-		diff_x = 0
+	if abs(dx) < config.dead_zone_x then
+		dx = 0
 	end
-	if diff_y > -config.dead_zone_y and diff_y < config.dead_zone_y then
-		diff_y = 0
+	if abs(dy) < config.dead_zone_y then
+		dy = 0
 	end
 
-	local stiffness = config.smoothing * config.smoothing
-	local acceleration_x = diff_x * stiffness - state.velocity_x * 2 * config.smoothing * config.damping
-	local acceleration_y = diff_y * stiffness - state.velocity_y * 2 * config.smoothing * config.damping
+	local s = config.smoothing
+	local k = s * s
+	local c = 2 * s * config.damping
 
-	state.velocity_x = state.velocity_x + acceleration_x * dt
-	state.velocity_y = state.velocity_y + acceleration_y * dt
+	state.velocity_x = state.velocity_x + (dx * k - state.velocity_x * c) * dt
+	state.velocity_y = state.velocity_y + (dy * k - state.velocity_y * c) * dt
 
 	state.x = state.x + state.velocity_x * dt
 	state.y = state.y + state.velocity_y * dt
 
-	if config.bounds then
-		state.x = clamp(state.x, config.bounds.min_x, config.bounds.max_x)
-		state.y = clamp(state.y, config.bounds.min_y, config.bounds.max_y)
-
-		if state.x == config.bounds.min_x or state.x == config.bounds.max_x then
+	if bounds then
+		if state.x <= bounds.min_x or state.x >= bounds.max_x then
 			state.velocity_x = 0
 		end
-		if state.y == config.bounds.min_y or state.y == config.bounds.max_y then
+		if state.y <= bounds.min_y or state.y >= bounds.max_y then
 			state.velocity_y = 0
 		end
+		state.x = max(bounds.min_x, min(bounds.max_x, state.x))
+		state.y = max(bounds.min_y, min(bounds.max_y, state.y))
 	end
 
-	if abs(state.velocity_x) < config.snap_threshold and abs(diff_x) < config.snap_threshold then
+	local snap = config.snap_threshold
+	if abs(state.velocity_x) < snap and abs(dx) < snap then
 		state.velocity_x = 0
 	end
-	if abs(state.velocity_y) < config.snap_threshold and abs(diff_y) < config.snap_threshold then
+	if abs(state.velocity_y) < snap and abs(dy) < snap then
 		state.velocity_y = 0
 	end
 
