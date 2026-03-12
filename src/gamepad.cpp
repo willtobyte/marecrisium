@@ -121,7 +121,7 @@ void gamepad::wire() {
   SDL_AddEventWatch(on_event, nullptr);
 
   auto count = 0;
-  const auto ids = std::unique_ptr<SDL_JoystickID[], SDL_Deleter>(SDL_GetGamepads(&count));
+  const auto ids = std::unique_ptr<SDL_JoystickID[], SDL_Deleter>{SDL_GetGamepads(&count)};
   if (ids && count > 0) {
     ptr.reset(SDL_OpenGamepad(ids[0]));
   }

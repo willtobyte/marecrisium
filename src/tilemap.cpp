@@ -10,13 +10,13 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   if (luaL_loadbuffer(L, data, length, label.c_str()) != 0) [[unlikely]] {
     std::string error = lua_tostring(L, -1);
     lua_pop(L, 1);
-    throw std::runtime_error(std::move(error));
+    throw std::runtime_error{std::move(error)};
   }
 
   if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
     std::string error = lua_tostring(L, -1);
     lua_pop(L, 1);
-    throw std::runtime_error(std::move(error));
+    throw std::runtime_error{std::move(error)};
   }
 
   lua_getfield(L, -1, "size");

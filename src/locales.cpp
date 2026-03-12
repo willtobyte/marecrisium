@@ -19,7 +19,7 @@ void locales::wire() {
   lua_newtable(L);
 
   auto count = 0;
-  const auto preferred = std::unique_ptr<SDL_Locale*[], SDL_Deleter>(SDL_GetPreferredLocales(&count));
+  const auto preferred = std::unique_ptr<SDL_Locale*[], SDL_Deleter>{SDL_GetPreferredLocales(&count)};
 
   if (preferred && count > 0) [[likely]] {
     const auto filename = std::format("locales/{}.lua", preferred[0]->language);
@@ -33,13 +33,13 @@ void locales::wire() {
       if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
         auto error = std::string{lua_tostring(L, -1)};
         lua_pop(L, 1);
-        throw std::runtime_error(std::move(error));
+        throw std::runtime_error{std::move(error)};
       }
 
       if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
         auto error = std::string{lua_tostring(L, -1)};
         lua_pop(L, 1);
-        throw std::runtime_error(std::move(error));
+        throw std::runtime_error{std::move(error)};
       }
 
       lua_remove(L, -2);

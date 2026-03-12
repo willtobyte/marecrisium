@@ -14,7 +14,7 @@ static int platform_index(lua_State *state) {
 
   if (key == "locale") {
     auto count = 0;
-    const auto locales = std::unique_ptr<SDL_Locale*[], SDL_Deleter>(SDL_GetPreferredLocales(&count));
+    const auto locales = std::unique_ptr<SDL_Locale*[], SDL_Deleter>{SDL_GetPreferredLocales(&count)};
     if (!locales || count == 0 || !locales[0]->language) [[unlikely]]
       return lua_pushstring(state, ""), 1;
 
@@ -28,7 +28,7 @@ static int platform_index(lua_State *state) {
   }
 
   if (key == "clipboard") {
-    const auto text = std::unique_ptr<char, SDL_Deleter>(SDL_GetClipboardText());
+    const auto text = std::unique_ptr<char, SDL_Deleter>{SDL_GetClipboardText()};
     lua_pushstring(state, text ? text.get() : "");
     return 1;
   }

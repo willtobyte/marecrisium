@@ -12,7 +12,7 @@ namespace {
       if (lua_pcall(state, 0, 0, 0) != 0) [[unlikely]] {
         std::string error = lua_tostring(state, -1);
         lua_pop(state, 1);
-        throw std::runtime_error(std::move(error));
+        throw std::runtime_error{std::move(error)};
       }
     }
 
@@ -133,13 +133,13 @@ sound::sound(std::string_view filename) {
   const auto buffer = io::read(filename);
 
   auto error = 0;
-  const std::unique_ptr<OggOpusFile, decltype(&op_free)> codec(
+  const std::unique_ptr<OggOpusFile, decltype(&op_free)> codec{
     op_open_memory(buffer.data(), buffer.size(), &error),
     &op_free
-  );
+  };
 
   if (error != 0) [[unlikely]]
-    throw std::runtime_error(std::format("[op_open_memory] failed to decode: {}", filename));
+    throw std::runtime_error{std::format("[op_open_memory] failed to decode: {}", filename)};
 
   const auto channels = op_channel_count(codec.get(), -1);
   const auto nsamples = op_pcm_total(codec.get(), -1);
@@ -160,7 +160,7 @@ sound::sound(std::string_view filename) {
       continue;
 
     if (read < 0) [[unlikely]]
-      throw std::runtime_error(std::format("[op_read_float] failed to decode: {}", filename));
+      throw std::runtime_error{std::format("[op_read_float] failed to decode: {}", filename)};
 
     if (read == 0)
       break;
@@ -236,7 +236,7 @@ void sound::poll() {
     if (lua_pcall(L, 0, 0, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
       lua_pop(L, 1);
-      throw std::runtime_error(std::move(error));
+      throw std::runtime_error{std::move(error)};
     }
   }
 }

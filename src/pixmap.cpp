@@ -4,7 +4,7 @@ pixmap::pixmap(std::string_view filename) {
   const auto buffer = io::read(filename);
 
   auto spng =
-    std::unique_ptr<spng_ctx, SPNG_Deleter>(spng_ctx_new(SPNG_CTX_IGNORE_ADLER32));
+    std::unique_ptr<spng_ctx, SPNG_Deleter>{spng_ctx_new(SPNG_CTX_IGNORE_ADLER32)};
 
   spng_set_crc_action(spng.get(), SPNG_CRC_USE, SPNG_CRC_USE);
   spng_set_png_buffer(spng.get(), buffer.data(), buffer.size());
@@ -21,8 +21,8 @@ pixmap::pixmap(std::string_view filename) {
   auto pixels = std::make_unique_for_overwrite<uint8_t[]>(length);
   spng_decode_image(spng.get(), pixels.get(), length, SPNG_FMT_RGBA8, SPNG_DECODE_TRNS);
 
-  _texture = std::unique_ptr<SDL_Texture, SDL_Deleter>(
-      SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, _width, _height));
+  _texture = std::unique_ptr<SDL_Texture, SDL_Deleter>{
+      SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, _width, _height)};
 
   SDL_UpdateTexture(_texture.get(), nullptr, pixels.get(), _width * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32));
   SDL_SetTextureScaleMode(_texture.get(), SDL_SCALEMODE_NEAREST);

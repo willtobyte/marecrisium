@@ -16,13 +16,13 @@ font::font(std::string_view family) {
   if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
     std::string error = lua_tostring(L, -1);
     lua_pop(L, 1);
-    throw std::runtime_error(std::move(error));
+    throw std::runtime_error{std::move(error)};
   }
 
   if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
     std::string error = lua_tostring(L, -1);
     lua_pop(L, 1);
-    throw std::runtime_error(std::move(error));
+    throw std::runtime_error{std::move(error)};
   }
 
   lua_getfield(L, -1, "glyphs");
@@ -49,7 +49,7 @@ font::font(std::string_view family) {
 
   const auto buffer = io::read(std::format("blobs/overlay/fonts/{}.png", family));
 
-  auto spng = std::unique_ptr<spng_ctx, SPNG_Deleter>(spng_ctx_new(SPNG_CTX_IGNORE_ADLER32));
+  auto spng = std::unique_ptr<spng_ctx, SPNG_Deleter>{spng_ctx_new(SPNG_CTX_IGNORE_ADLER32)};
 
   spng_set_crc_action(spng.get(), SPNG_CRC_USE, SPNG_CRC_USE);
   spng_set_png_buffer(spng.get(), buffer.data(), buffer.size());
@@ -66,8 +66,8 @@ font::font(std::string_view family) {
   auto decoded = std::make_unique_for_overwrite<uint8_t[]>(length);
   spng_decode_image(spng.get(), decoded.get(), length, SPNG_FMT_RGBA8, SPNG_DECODE_TRNS);
 
-  _texture = std::unique_ptr<SDL_Texture, SDL_Deleter>(
-    SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, _width, _height));
+  _texture = std::unique_ptr<SDL_Texture, SDL_Deleter>{
+    SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, _width, _height)};
 
   SDL_UpdateTexture(_texture.get(), nullptr, decoded.get(), _width * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32));
   SDL_SetTextureScaleMode(_texture.get(), SDL_SCALEMODE_NEAREST);

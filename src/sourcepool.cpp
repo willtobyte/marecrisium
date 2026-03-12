@@ -20,7 +20,7 @@ void sourcepool::insert(std::string_view name) {
     if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
       lua_pop(L, 1);
-      throw std::runtime_error(std::move(error));
+      throw std::runtime_error{std::move(error)};
     }
 
     return;
@@ -36,13 +36,13 @@ void sourcepool::insert(std::string_view name) {
   if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
     std::string error = lua_tostring(L, -1);
     lua_pop(L, 1);
-    throw std::runtime_error(std::move(error));
+    throw std::runtime_error{std::move(error)};
   }
 
   std::vector<uint8_t> bytecode;
   lua_dump(L, bytecode_writer, &bytecode);
 
-  _pool.emplace(key, std::make_pair(std::move(label), std::move(bytecode)));
+  _pool.emplace(key, std::pair{std::move(label), std::move(bytecode)});
 }
 
 void sourcepool::clear() {

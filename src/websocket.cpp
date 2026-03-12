@@ -136,7 +136,7 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
   yyjson_mut_obj_add_str(document, root, "action", action);
   yyjson_mut_obj_add_str(document, root, "topic", topic);
   auto* json = yyjson_mut_write(document, 0, nullptr);
-  std::string result(json);
+  std::string result{json};
   free(json);
   yyjson_mut_doc_free(document);
   return result;
@@ -196,7 +196,7 @@ int websocket_subscribe(lua_State* state) {
   lua_pushvalue(state, 3);
   const auto ref = luaL_ref(state, LUA_REGISTRYINDEX);
 
-  auto* instance = new subscription(*ws_ptr, std::string(topic), ref);
+  auto* instance = new subscription(*ws_ptr, std::string{topic}, ref);
 
   auto** udata = static_cast<subscription**>(lua_newuserdata(state, sizeof(subscription*)));
   *udata = instance;
@@ -239,7 +239,7 @@ int websocket_call(lua_State* state) {
   const auto* const url = luaL_checkstring(state, 1);
 
   delete connection;
-  connection = new socketconn(std::string(url));
+  connection = new socketconn(std::string{url});
 
   auto** udata = static_cast<socketconn**>(lua_newuserdata(state, sizeof(socketconn*)));
   *udata = connection;
@@ -260,7 +260,7 @@ int websocket_call(lua_State* state) {
 netloc::netloc(std::string_view url) {
   const auto slash = url.find('/');
   const auto authority = url.substr(0, slash);
-  path = (slash != std::string_view::npos) ? std::string(url.substr(slash)) : "/";
+  path = (slash != std::string_view::npos) ? std::string{url.substr(slash)} : "/";
 
   const auto colon = authority.find(':');
   if (colon != std::string_view::npos) [[unlikely]] {
@@ -304,7 +304,7 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
       }
 
       ws->_inbound.push(message{
-        std::string(topic_string),
+        std::string{topic_string},
         std::string(text, len)
       });
 
@@ -348,7 +348,7 @@ static const struct lws_protocols protocols[] = {
 socketconn::socketconn(std::string url)
   : _url(std::move(url)), _netloc(_url) {
   _sendbuffer.reserve(LWS_PRE + 4096);
-  _thread = std::thread([this] { run(); });
+  _thread = std::thread{[this] { run(); }};
 }
 
 socketconn::~socketconn() {
@@ -401,14 +401,14 @@ void socketconn::run() {
 
   while (!_stop.load(std::memory_order_acquire)) {
     if (!_context) [[unlikely]] {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+      std::this_thread::sleep_for(std::chrono::seconds{1});
       connect();
       reconnect();
       continue;
     }
 
     if (!_wsi.load(std::memory_order_acquire) && !_connected.load(std::memory_order_acquire)) [[unlikely]] {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+      std::this_thread::sleep_for(std::chrono::seconds{1});
       reconnect();
     }
 
@@ -459,7 +459,7 @@ void socketconn::poll() {
           std::string error = lua_tostring(L, -1);
           lua_pop(L, 1);
           yyjson_doc_free(document);
-          throw std::runtime_error(std::move(error));
+          throw std::runtime_error{std::move(error)};
         }
       }
     }
@@ -518,7 +518,7 @@ void subscription::publish(lua_State* state, int idx) {
   yyjson_mut_obj_add_val(document, root, "data", lua_to_yyjson(state, idx, document));
 
   auto* json = yyjson_mut_write(document, 0, nullptr);
-  _owner->send(message{_topic, std::string(json)});
+  _owner->send(message{_topic, std::string{json}});
 
   free(json);
   yyjson_mut_doc_free(document);

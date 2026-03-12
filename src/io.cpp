@@ -5,9 +5,9 @@ bool io::exists(std::string_view filename) noexcept {
 }
 
 std::vector<uint8_t> io::read(std::string_view filename) {
-  const auto ptr = std::unique_ptr<PHYSFS_File, PHYSFS_Deleter>(PHYSFS_openRead(filename.data()));
+  const auto ptr = std::unique_ptr<PHYSFS_File, PHYSFS_Deleter>{PHYSFS_openRead(filename.data())};
   if (!ptr) [[unlikely]]
-    throw std::runtime_error(std::format("[PHYSFS_openRead] error while opening file: {}", filename));
+    throw std::runtime_error{std::format("[PHYSFS_openRead] error while opening file: {}", filename)};
 
   const auto length = PHYSFS_fileLength(ptr.get());
   assert(length >= 0 && "[PHYSFS_fileLength] failed to get file length");
@@ -21,9 +21,9 @@ std::vector<uint8_t> io::read(std::string_view filename) {
 }
 
 std::vector<std::string> io::enumerate(std::string_view directory) {
-  std::unique_ptr<char*[], PHYSFS_Deleter> ptr(PHYSFS_enumerateFiles(directory.data()));
+  std::unique_ptr<char*[], PHYSFS_Deleter> ptr{PHYSFS_enumerateFiles(directory.data())};
   if (!ptr) [[unlikely]]
-    throw std::runtime_error(std::format("[PHYSFS_enumerateFiles] error while enumerating directory: {}", directory));
+    throw std::runtime_error{std::format("[PHYSFS_enumerateFiles] error while enumerating directory: {}", directory)};
 
   auto* const *data = ptr.get();
 
