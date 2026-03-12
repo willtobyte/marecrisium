@@ -258,35 +258,18 @@ int websocket_call(lua_State* state) {
 }
 
 netloc::netloc(std::string_view url) {
-  if (url.starts_with("wss://")) [[likely]] {
-    ssl = true;
-    port = 443;
-    url.remove_prefix(6);
-  } else if (url.starts_with("ws://")) {
-    ssl = false;
-    port = 80;
-    url.remove_prefix(5);
-  } else if (url.starts_with("https://")) {
-    ssl = true;
-    port = 443;
-    url.remove_prefix(8);
-  } else if (url.starts_with("http://")) [[unlikely]] {
-    ssl = false;
-    port = 80;
-    url.remove_prefix(7);
-  }
-
   const auto slash = url.find('/');
-  const auto host_part = url.substr(0, slash);
+  const auto authority = url.substr(0, slash);
   path = (slash != std::string_view::npos) ? std::string(url.substr(slash)) : "/";
 
-  const auto colon = host_part.find(':');
+  const auto colon = authority.find(':');
   if (colon != std::string_view::npos) [[unlikely]] {
-    host = std::string(host_part.substr(0, colon));
-    const auto digits = host_part.substr(colon + 1);
+    host = std::string{authority.substr(0, colon)};
+    const auto digits = authority.substr(colon + 1);
     std::from_chars(digits.data(), digits.data() + digits.size(), port);
+    ssl = false;
   } else {
-    host = std::string(host_part);
+    host = std::string{authority};
   }
 }
 

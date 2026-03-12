@@ -629,7 +629,7 @@ Subscription.topic = ""
 
 ---Create a WebSocket connection to the given URL.
 ---Only one connection can exist at a time; calling again replaces the previous one.
----@param url string The WebSocket URL (wss:// or ws://).
+---@param url string The host with optional port and path (e.g. "example.com/path" or "localhost:8080/path").
 ---@return WebSocket
 function WebSocket.new(url) end
 
