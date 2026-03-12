@@ -36,8 +36,6 @@ public:
 
 private:
   std::unique_ptr<SDL_Texture, SDL_Deleter> _texture;
-  int _width{0};
-  int _height{0};
   int16_t _spacing{0};
   int16_t _leading{0};
   float _fontheight{.0f};

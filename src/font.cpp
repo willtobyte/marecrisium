@@ -57,8 +57,8 @@ font::font(std::string_view family) {
   spng_ihdr ihdr;
   spng_get_ihdr(spng.get(), &ihdr);
 
-  _width = static_cast<int>(ihdr.width);
-  _height = static_cast<int>(ihdr.height);
+  const auto width = static_cast<int>(ihdr.width);
+  const auto height = static_cast<int>(ihdr.height);
 
   size_t length;
   spng_decoded_image_size(spng.get(), SPNG_FMT_RGBA8, &length);
@@ -67,34 +67,34 @@ font::font(std::string_view family) {
   spng_decode_image(spng.get(), decoded.get(), length, SPNG_FMT_RGBA8, SPNG_DECODE_TRNS);
 
   _texture = std::unique_ptr<SDL_Texture, SDL_Deleter>{
-    SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, _width, _height)};
+    SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, width, height)};
 
-  SDL_UpdateTexture(_texture.get(), nullptr, decoded.get(), _width * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32));
+  SDL_UpdateTexture(_texture.get(), nullptr, decoded.get(), width * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32));
   SDL_SetTextureScaleMode(_texture.get(), SDL_SCALEMODE_NEAREST);
   SDL_SetTextureBlendMode(_texture.get(), SDL_BLENDMODE_BLEND);
 
   const auto* pixels = reinterpret_cast<const uint32_t*>(decoded.get());
   const auto separator = pixels[0];
 
-  const auto iw = 1.f / static_cast<float>(_width);
-  const auto ih = 1.f / static_cast<float>(_height);
+  const auto iw = 1.f / static_cast<float>(width);
+  const auto ih = 1.f / static_cast<float>(height);
 
   auto x = 0, y = 0;
   auto first = true;
   for (char glyph : _glyphs) {
-    while (x < _width && pixels[y * _width + x] == separator) {
+    while (x < width && pixels[y * width + x] == separator) {
       ++x;
     }
 
-    assert(x < _width);
+    assert(x < width);
 
     auto w = 0;
-    while (x + w < _width && pixels[y * _width + x + w] != separator) {
+    while (x + w < width && pixels[y * width + x + w] != separator) {
       ++w;
     }
 
     auto h = 0;
-    while (y + h < _height && pixels[(y + h) * _width + x] != separator) {
+    while (y + h < height && pixels[(y + h) * width + x] != separator) {
       ++h;
     }
 
