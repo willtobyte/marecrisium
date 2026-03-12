@@ -109,8 +109,7 @@ font::font(std::string_view family) {
       (fx + fw) * iw,
       (fy + fh) * ih,
       fw * _scale,
-      fh * _scale,
-      fw
+      fh * _scale
     };
 
     if (first) {

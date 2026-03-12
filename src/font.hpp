@@ -2,7 +2,7 @@
 
 void sincos(float x, float& osin, float& ocos) noexcept;
 
-struct glypheffect final {
+struct alignas(32) glypheffect final {
   float xoffset{.0f};
   float yoffset{.0f};
   float scale{1.f};
@@ -16,7 +16,6 @@ struct glypheffect final {
 struct alignas(32) glyphprops final {
   float u0, v0, u1, v1;
   float sw, sh;
-  float w;
 };
 
 class font final {
