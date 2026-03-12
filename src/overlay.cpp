@@ -146,6 +146,17 @@ overlay::overlay(std::string_view name)
 
   lua_pop(L, 1);
 
+  auto **memory = static_cast<overlay **>(lua_newuserdata(L, sizeof(overlay *)));
+  *memory = this;
+
+  if (luaL_newmetatable(L, "Overlay")) {
+    lua_pushcfunction(L, overlay_index);
+    lua_setfield(L, -2, "__index");
+  }
+
+  lua_setmetatable(L, -2);
+  _userdata_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+
   SDL_AddEventWatch(on_event, nullptr);
   SDL_StartTextInput(SDL_GetRenderWindow(renderer));
 }
@@ -156,6 +167,7 @@ overlay::~overlay() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
+  luaL_unref(L, LUA_REGISTRYINDEX, _userdata_reference);
 }
 
 void overlay::update(float delta) {
@@ -186,15 +198,7 @@ void overlay::draw() {
 }
 
 void overlay::wire() {
-  auto **memory = static_cast<overlay **>(lua_newuserdata(L, sizeof(overlay *)));
-  *memory = this;
-
-  if (luaL_newmetatable(L, "Overlay")) {
-    lua_pushcfunction(L, overlay_index);
-    lua_setfield(L, -2, "__index");
-  }
-
-  lua_setmetatable(L, -2);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_reference);
   lua_setglobal(L, "overlay");
 }
 

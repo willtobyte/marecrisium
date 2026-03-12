@@ -17,6 +17,7 @@ public:
 
 private:
   std::string _name;
+  int _userdata_reference = LUA_NOREF;
   int _reference = LUA_NOREF;
   int _on_loop = LUA_NOREF;
   int _on_paint = LUA_NOREF;
