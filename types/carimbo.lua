@@ -634,6 +634,17 @@ Subscription.topic = ""
 function WebSocket.new(url) end
 
 --------------------------------------------------------------------------------
+-- Localization
+--------------------------------------------------------------------------------
+
+---Looks up key in the loaded locale file (locales/<lang>.lua).
+---Language is auto-detected from the OS via SDL.
+---Returns the translated string, or the key itself if not found.
+---@param key string
+---@return string
+function _(key) end
+
+--------------------------------------------------------------------------------
 -- Moment (time)
 --------------------------------------------------------------------------------
 

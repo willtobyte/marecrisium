@@ -33,6 +33,7 @@ void scriptengine::run() {
   cassette::wire();
   gamepad::wire();
   keyboard::wire();
+  locales::wire();
   mouse::wire();
   platform::wire();
   runtime::wire();

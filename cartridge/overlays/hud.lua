@@ -3,7 +3,7 @@ local floor = math.floor
 local format = string.format
 
 local elapsed = 0
-local title = "nostalgia"
+local title = _("nostalgia")
 local effects = {}
 
 for i = 1, #title do
