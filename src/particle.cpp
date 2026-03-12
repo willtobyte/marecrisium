@@ -80,26 +80,26 @@ std::mt19937& particle::rng() noexcept {
   return engine;
 }
 
-particle::particle(const config& cfg, const pixmap& texture, float x, float y, bool active)
+particle::particle(const config& config, const pixmap& texture, float x, float y, bool active)
     : _texture(&texture)
     , _x(x)
     , _y(y)
     , _hw(static_cast<float>(texture.width()) * .5f)
     , _hh(static_cast<float>(texture.height()) * .5f)
     , _active(active)
-    , _count(cfg.count)
-    , _xspawnd(std::min(cfg.xspawn.first, cfg.xspawn.second), std::max(cfg.xspawn.first, cfg.xspawn.second))
-    , _yspawnd(std::min(cfg.yspawn.first, cfg.yspawn.second), std::max(cfg.yspawn.first, cfg.yspawn.second))
-    , _radiusd(std::min(cfg.radius.first, cfg.radius.second), std::max(cfg.radius.first, cfg.radius.second))
-    , _angled(std::min(cfg.angle.first, cfg.angle.second), std::max(cfg.angle.first, cfg.angle.second))
-    , _xveld(std::min(cfg.xvel.first, cfg.xvel.second), std::max(cfg.xvel.first, cfg.xvel.second))
-    , _yveld(std::min(cfg.yvel.first, cfg.yvel.second), std::max(cfg.yvel.first, cfg.yvel.second))
-    , _gxd(std::min(cfg.gx.first, cfg.gx.second), std::max(cfg.gx.first, cfg.gx.second))
-    , _gyd(std::min(cfg.gy.first, cfg.gy.second), std::max(cfg.gy.first, cfg.gy.second))
-    , _scaled(std::min(cfg.scale.first, cfg.scale.second), std::max(cfg.scale.first, cfg.scale.second))
-    , _lifed(std::min(cfg.life.first, cfg.life.second), std::max(cfg.life.first, cfg.life.second))
-    , _rotforced(std::min(cfg.rforce.first, cfg.rforce.second), std::max(cfg.rforce.first, cfg.rforce.second))
-    , _rotveld(std::min(cfg.rvel.first, cfg.rvel.second), std::max(cfg.rvel.first, cfg.rvel.second)) {
+    , _count(config.count)
+    , _xspawnd(std::min(config.xspawn.first, config.xspawn.second), std::max(config.xspawn.first, config.xspawn.second))
+    , _yspawnd(std::min(config.yspawn.first, config.yspawn.second), std::max(config.yspawn.first, config.yspawn.second))
+    , _radiusd(std::min(config.radius.first, config.radius.second), std::max(config.radius.first, config.radius.second))
+    , _angled(std::min(config.angle.first, config.angle.second), std::max(config.angle.first, config.angle.second))
+    , _xveld(std::min(config.xvel.first, config.xvel.second), std::max(config.xvel.first, config.xvel.second))
+    , _yveld(std::min(config.yvel.first, config.yvel.second), std::max(config.yvel.first, config.yvel.second))
+    , _gxd(std::min(config.gx.first, config.gx.second), std::max(config.gx.first, config.gx.second))
+    , _gyd(std::min(config.gy.first, config.gy.second), std::max(config.gy.first, config.gy.second))
+    , _scaled(std::min(config.scale.first, config.scale.second), std::max(config.scale.first, config.scale.second))
+    , _lifed(std::min(config.life.first, config.life.second), std::max(config.life.first, config.life.second))
+    , _rotforced(std::min(config.rforce.first, config.rforce.second), std::max(config.rforce.first, config.rforce.second))
+    , _rotveld(std::min(config.rvel.first, config.rvel.second), std::max(config.rvel.first, config.rvel.second)) {
   if (luaL_newmetatable(L, "Particle")) {
     lua_pushcfunction(L, particle_index);
     lua_setfield(L, -2, "__index");

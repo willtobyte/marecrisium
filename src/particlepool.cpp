@@ -13,6 +13,7 @@ static std::pair<float, float> read_range(lua_State* state, const char* field) n
     lua_pop(state, 1);
   }
   lua_pop(state, 1);
+
   return {a, b};
 }
 
@@ -22,7 +23,7 @@ config& particlepool::get(std::string_view kind) {
   if (it != _pool.end()) [[likely]]
     return it->second;
 
-  config cfg{};
+  config config{};
 
   const auto filename = std::format("particles/{}.lua", kind);
   const auto buffer = io::read(filename);
@@ -43,44 +44,44 @@ config& particlepool::get(std::string_view kind) {
   }
 
   lua_getfield(L, -1, "count");
-  cfg.count = static_cast<size_t>(lua_tonumber(L, -1));
+  config.count = static_cast<size_t>(lua_tonumber(L, -1));
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "spawn");
   if (lua_istable(L, -1)) {
-    cfg.xspawn = read_range(L, "x");
-    cfg.yspawn = read_range(L, "y");
-    cfg.radius = read_range(L, "radius");
-    cfg.angle = read_range(L, "angle");
-    cfg.scale = read_range(L, "scale");
-    cfg.life = read_range(L, "life");
+    config.xspawn = read_range(L, "x");
+    config.yspawn = read_range(L, "y");
+    config.radius = read_range(L, "radius");
+    config.angle = read_range(L, "angle");
+    config.scale = read_range(L, "scale");
+    config.life = read_range(L, "life");
   }
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "velocity");
   if (lua_istable(L, -1)) {
-    cfg.xvel = read_range(L, "x");
-    cfg.yvel = read_range(L, "y");
+    config.xvel = read_range(L, "x");
+    config.yvel = read_range(L, "y");
   }
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "gravity");
   if (lua_istable(L, -1)) {
-    cfg.gx = read_range(L, "x");
-    cfg.gy = read_range(L, "y");
+    config.gx = read_range(L, "x");
+    config.gy = read_range(L, "y");
   }
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "rotation");
   if (lua_istable(L, -1)) {
-    cfg.rforce = read_range(L, "force");
-    cfg.rvel = read_range(L, "velocity");
+    config.rforce = read_range(L, "force");
+    config.rvel = read_range(L, "velocity");
   }
   lua_pop(L, 1);
 
   lua_pop(L, 1);
 
-  return _pool.try_emplace(key, std::move(cfg)).first->second;
+  return _pool.try_emplace(key, std::move(config)).first->second;
 }
 
 void particlepool::clear() {

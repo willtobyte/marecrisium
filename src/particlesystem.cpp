@@ -2,10 +2,10 @@
 
 particle& particlesystem::add(std::string_view name, std::string_view kind, float x, float y, bool active) {
   const auto key = entt::hashed_string{name.data()}.value();
-  const auto& cfg = resources.particle.get(kind);
+  const auto& config = resources.particle.get(kind);
   const auto& texture = resources.pixmap.get(std::format("particles/{}", kind));
 
-  auto [it, inserted] = _particles.try_emplace(key, cfg, texture, x, y, active);
+  auto [it, inserted] = _particles.try_emplace(key, config, texture, x, y, active);
   return it->second;
 }
 
