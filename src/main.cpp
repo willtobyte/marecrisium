@@ -41,6 +41,7 @@ int main(int argc, char **argv) {
 
   lua_close(L);
 
+  ma_engine_stop(&engine);
   ma_engine_uninit(&engine);
 
   PHYSFS_deinit();

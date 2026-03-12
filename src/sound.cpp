@@ -196,6 +196,7 @@ sound::sound(std::string_view filename) {
 sound::~sound() {
   luaL_unref(L, LUA_REGISTRYINDEX, on_begin);
   luaL_unref(L, LUA_REGISTRYINDEX, on_end);
+  ma_sound_stop(&_sound);
   ma_sound_uninit(&_sound);
   ma_audio_buffer_uninit(&_buffer);
 }
