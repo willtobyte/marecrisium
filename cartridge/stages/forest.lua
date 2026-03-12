@@ -53,7 +53,6 @@ return ticker.wrap({
 	end,
 
 	on_paint = function()
-		local player = pool.player
-		return camera.update(player.x, player.y)
+		return camera.update(pool.player.x, pool.player.y)
 	end,
 })
