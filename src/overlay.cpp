@@ -120,7 +120,7 @@ overlay::overlay(std::string_view name)
       lua_rawgeti(L, -1, i);
 
       if (lua_isstring(L, -1)) {
-        std::ignore = resources.font.get(lua_tostring(L, -1));
+        std::ignore = depot->font.get(lua_tostring(L, -1));
       }
 
       lua_pop(L, 1);
@@ -203,11 +203,11 @@ void overlay::wire() {
 }
 
 void overlay::render_label(std::string_view family, std::string_view text, float x, float y) {
-  auto& f = resources.font.get(family);
+  auto& f = depot->font.get(family);
   f.draw(text, x, y);
 }
 
 void overlay::render_label(std::string_view family, std::string_view text, float x, float y, std::span<const glypheffect> effects) {
-  auto& f = resources.font.get(family);
+  auto& f = depot->font.get(family);
   f.draw(text, x, y, effects);
 }

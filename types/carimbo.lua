@@ -176,6 +176,12 @@ cassette = {}
 ---@class StageObject
 ---@field name string Unique instance name for this object. Accessible via `pool.<name>`.
 ---@field kind string Object type. Maps to `objects/<kind>.lua` (prototype) and `blobs/objects/<kind>.png` (spritesheet).
+---@field x? number Initial X position. Default 0.
+---@field y? number Initial Y position. Default 0.
+
+---@class StageSound
+---@field name string Sound name. Loads `sounds/<name>` and is accessible as `pool.<name>`.
+---@field autoplay? boolean Whether to start playing immediately. Default false.
 
 ---@class StageParticle
 ---@field name string Unique instance name for this particle emitter. Accessible via `pool.<name>`.
@@ -191,7 +197,7 @@ cassette = {}
 ---which is drawn stretched to fill the viewport before any tilemap or object rendering.
 ---@field gravity number[]|nil World gravity as {gx, gy}. Default is {0, 0} (no gravity). Set to e.g. {0, 980} for a platformer.
 ---@field objects StageObject[]|nil Objects to spawn when the stage is created.
----@field sounds string[]|nil Sound names to preload. Each `"foo"` loads `sounds/foo` and is accessible as `pool.foo`.
+---@field sounds StageSound[]|nil Sounds to preload. Each entry is `{ name = "foo", autoplay = true }`. Loads `sounds/<name>` and is accessible as `pool.<name>`.
 ---@field particles StageParticle[]|nil Particle emitters to create. Each entry spawns a particle system accessible as `pool.<name>`.
 ---@field tilemap string|nil Tilemap name. Loads `tilemaps/<name>.lua` and exposes a `tilemap` global in the stage environment.
 local Stage = {}

@@ -23,6 +23,9 @@ int main(int argc, char **argv) {
   ma_engine_init(&config, &engine);
   audioengine = &engine;
 
+  resources resources{};
+  depot = &resources;
+
   L = luaL_newstate();
   luaL_openlibs(L);
 

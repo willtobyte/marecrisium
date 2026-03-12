@@ -10,20 +10,24 @@ return ticker.wrap({
 
 	objects = {
 		{ name = "player", kind = "player" },
-		{ name = "enemy1", kind = "enemy" },
-		{ name = "enemy2", kind = "enemy" },
-		{ name = "enemy3", kind = "enemy" },
-		{ name = "enemy4", kind = "enemy" },
-		{ name = "enemy5", kind = "enemy" },
-		{ name = "enemy6", kind = "enemy" },
-		{ name = "enemy7", kind = "enemy" },
-		{ name = "enemy8", kind = "enemy" },
+		{ name = "enemy1", kind = "enemy", x = 200, y = 1200 },
+		{ name = "enemy2", kind = "enemy", x = 400, y = 800 },
+		{ name = "enemy3", kind = "enemy", x = 700, y = 750 },
+		{ name = "enemy4", kind = "enemy", x = 1000, y = 800 },
+		{ name = "enemy5", kind = "enemy", x = 1300, y = 700 },
+		{ name = "enemy6", kind = "enemy", x = 1500, y = 800 },
+		{ name = "enemy7", kind = "enemy", x = 1800, y = 750 },
+		{ name = "enemy8", kind = "enemy", x = 10, y = 900 },
+	},
+
+	sounds = {
+		{ name = "theme", autoplay = true },
 	},
 
 	particles = {
-		{ name = "smoke1", kind = "smoke" },
-		{ name = "smoke2", kind = "smoke" },
-		{ name = "smoke3", kind = "smoke" },
+		{ name = "smoke1", kind = "smoke", x = 220, y = 900 },
+		{ name = "smoke2", kind = "smoke", x = 270, y = 920 },
+		{ name = "smoke3", kind = "smoke", x = 320, y = 900 },
 	},
 
 	on_enter = function()
@@ -42,19 +46,6 @@ return ticker.wrap({
 			offset_x = 8,
 			offset_y = 8,
 		})
-
-		pool.enemy1.position = { 200, 1200 }
-		pool.enemy2.position = { 400, 800 }
-		pool.enemy3.position = { 700, 750 }
-		pool.enemy4.position = { 1000, 800 }
-		pool.enemy5.position = { 1300, 700 }
-		pool.enemy6.position = { 1500, 800 }
-		pool.enemy7.position = { 1800, 750 }
-		pool.enemy8.position = { 10, 900 }
-
-		pool.smoke1.position = { 220, 900 }
-		pool.smoke2.position = { 270, 920 }
-		pool.smoke3.position = { 320, 900 }
 	end,
 
 	on_leave = function()

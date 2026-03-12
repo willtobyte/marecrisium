@@ -496,7 +496,7 @@ objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::str
   }
   lua_pop(L, 1);
 
-  resources.source.insert(kind);
+  depot->source.insert(kind);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, environment);
   lua_setfenv(L, -2);

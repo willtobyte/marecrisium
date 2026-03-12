@@ -137,8 +137,8 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
   lua_pop(L, 1);
 
-  _background_atlas = &resources.pixmap.get(std::format("tilemaps/{}/background", name));
-  _foreground_atlas = &resources.pixmap.get(std::format("tilemaps/{}/foreground", name));
+  _background_atlas = &depot->pixmap.get(std::format("tilemaps/{}/background", name));
+  _foreground_atlas = &depot->pixmap.get(std::format("tilemaps/{}/foreground", name));
 
   {
     const auto atlas_width = static_cast<float>(_background_atlas->width());

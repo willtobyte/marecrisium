@@ -102,10 +102,20 @@ stage::stage(std::string_view name)
       const std::string object_kind{lua_tostring(L, -1)};
       lua_pop(L, 1);
 
+      lua_getfield(L, -1, "x");
+      const auto ox = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
+      lua_pop(L, 1);
+
+      lua_getfield(L, -1, "y");
+      const auto oy = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
+      lua_pop(L, 1);
+
       lua_pop(L, 1);
 
       const auto entity = _registry.create();
-      _registry.emplace<transform>(entity);
+      auto& tf = _registry.emplace<transform>(entity);
+      tf.x = ox;
+      tf.y = oy;
       const auto& proxy = _registry.emplace<objectproxy>(entity, _registry, entity, object_name, object_kind, _environment_reference);
       const auto prototype = proxy.prototype;
       const auto handle = proxy.handle;
@@ -118,7 +128,7 @@ stage::stage(std::string_view name)
 
       if (lua_istable(L, -1)) {
         auto& a = _registry.emplace<animation>(entity);
-        a.pixmap = &resources.pixmap.get(std::format("objects/{}", object_kind));
+        a.pixmap = &depot->pixmap.get(std::format("objects/{}", object_kind));
 
         lua_pushnil(L);
         while (lua_next(L, -2) != 0) {
@@ -279,10 +289,16 @@ stage::stage(std::string_view name)
     for (auto i = 1; i <= count; ++i) {
       lua_rawgeti(L, -1, i);
 
-      if (lua_isstring(L, -1)) {
-        const std::string_view sound_name = lua_tostring(L, -1);
+      if (lua_istable(L, -1)) {
+        lua_getfield(L, -1, "name");
+        const std::string sound_name{lua_tostring(L, -1)};
+        lua_pop(L, 1);
 
-        auto& instance = resources.sound.get(std::format("sounds/{}", sound_name));
+        lua_getfield(L, -1, "autoplay");
+        const auto autoplay = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : false;
+        lua_pop(L, 1);
+
+        auto& instance = depot->sound.get(std::format("sounds/{}", sound_name));
         auto** memory = static_cast<sound**>(lua_newuserdata(L, sizeof(sound*)));
         *memory = &instance;
         luaL_getmetatable(L, "Sound");
@@ -295,6 +311,9 @@ stage::stage(std::string_view name)
 
         _sounds.emplace_back(&instance);
         lua_pop(L, 1);
+
+        if (autoplay)
+          instance.play();
       }
 
       lua_pop(L, 1);
@@ -302,7 +321,7 @@ stage::stage(std::string_view name)
   }
   lua_pop(L, 1);
 
-  _backdrop = &resources.pixmap.get(std::format("stages/{}", _name));
+  _backdrop = &depot->pixmap.get(std::format("stages/{}", _name));
 
   lua_getfield(L, -1, "tilemap");
   if (lua_isstring(L, -1)) {

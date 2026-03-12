@@ -18,4 +18,4 @@ struct resources {
   sourcepool source;
 };
 
-extern struct resources resources;
+extern struct resources* depot;

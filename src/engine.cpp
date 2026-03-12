@@ -4,7 +4,7 @@ lua_State *L = nullptr;
 ma_engine *audioengine = nullptr;
 SDL_Renderer *renderer = nullptr;
 struct viewport viewport{};
-struct resources resources{};
+struct resources* depot = nullptr;
 
 engine::engine() {
   const auto buffer = io::read("scripts/main.lua");

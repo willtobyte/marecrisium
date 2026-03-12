@@ -86,10 +86,10 @@ void director::flush() {
 
   _stages.clear();
   _overlays.clear();
-  resources.source.clear();
-  resources.sound.clear();
-  resources.pixmap.clear();
-  resources.font.clear();
+  depot->source.clear();
+  depot->sound.clear();
+  depot->pixmap.clear();
+  depot->font.clear();
 
   set_overlay(std::nullopt);
 }
