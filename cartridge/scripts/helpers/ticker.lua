@@ -1,9 +1,13 @@
+local remove = table.remove
+
 local ticker = {}
 local timers = {}
+local n = 0
 
 local function add(ticks, callback, once)
 	local timer = { target = ticks, current = 0, callback = callback, once = once }
-	timers[#timers + 1] = timer
+	n = n + 1
+	timers[n] = timer
 	return timer
 end
 
@@ -20,25 +24,33 @@ function ticker.cancel(timer)
 end
 
 function ticker.clear()
-	timers = {}
+	for i = n, 1, -1 do
+		timers[i] = nil
+	end
+	n = 0
 end
 
 function ticker.wrap(stage)
 	local original_on_tick = stage.on_tick
 	local original_on_leave = stage.on_leave
-	local remove = table.remove
 
 	stage.on_tick = function(self, tick)
-		for i = #timers, 1, -1 do
-			local timer = timers[i]
+		local list = timers
+		for i = n, 1, -1 do
+			local timer = list[i]
+			if not timer then
+				break
+			end
 			if timer.cancelled then
-				remove(timers, i)
+				remove(list, i)
+				n = n - 1
 			else
 				timer.current = timer.current + 1
 				if timer.current >= timer.target then
 					timer.callback()
 					if timer.once then
-						remove(timers, i)
+						remove(list, i)
+						n = n - 1
 					else
 						timer.current = 0
 					end
