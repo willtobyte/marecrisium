@@ -1,7 +1,9 @@
 local ticker = require("helpers/ticker")
 local camera = require("helpers/camera")
 
-return {
+local print = print
+
+return ticker.wrap({
 	gravity = { 0, 980 },
 
 	tilemap = "forest",
@@ -25,6 +27,10 @@ return {
 	},
 
 	on_enter = function()
+		ticker.every(50, function()
+			print("5 seconds elapsed")
+		end)
+
 		director.overlay("hud")
 
 		camera.set_bounds(0, 0, 120 * 16 - viewport.width, 68 * 16 - viewport.height)
@@ -59,4 +65,4 @@ return {
 		local player = pool.player
 		return camera.update(player.x, player.y)
 	end,
-}
+})
