@@ -23,8 +23,7 @@ public:
   int on_end{LUA_NOREF};
 
 private:
-  [[nodiscard]] bool ended();
+  std::atomic<bool> _ended{false};
   ma_audio_buffer _buffer{};
   ma_sound _sound{};
-  std::atomic<bool> _ended{false};
 };
