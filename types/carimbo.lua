@@ -182,6 +182,7 @@ cassette = {}
 ---@class StageSound
 ---@field name string Sound name. Loads `sounds/<name>` and is accessible as `pool.<name>`.
 ---@field autoplay? boolean Whether to start playing immediately. Default false.
+---@field loop? boolean Whether to enable looping. Default false.
 
 ---@class StageParticle
 ---@field name string Unique instance name for this particle emitter. Accessible via `pool.<name>`.

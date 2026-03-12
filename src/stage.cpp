@@ -298,6 +298,10 @@ stage::stage(std::string_view name)
         const auto autoplay = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : false;
         lua_pop(L, 1);
 
+        lua_getfield(L, -1, "loop");
+        const auto loop = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : false;
+        lua_pop(L, 1);
+
         auto& instance = depot->sound.get(std::format("sounds/{}", sound_name));
         auto** memory = static_cast<sound**>(lua_newuserdata(L, sizeof(sound*)));
         *memory = &instance;
@@ -311,6 +315,9 @@ stage::stage(std::string_view name)
 
         _sounds.emplace_back(&instance);
         lua_pop(L, 1);
+
+        if (loop)
+          instance.set_loop(true);
 
         if (autoplay)
           instance.play();

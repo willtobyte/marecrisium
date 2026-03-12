@@ -21,7 +21,7 @@ return ticker.wrap({
 	},
 
 	sounds = {
-		{ name = "theme", autoplay = true },
+		{ name = "theme", autoplay = true, loop = true },
 	},
 
 	particles = {
