@@ -257,28 +257,28 @@ int websocket_call(lua_State* state) {
 }
 }
 
-netloc::netloc(std::string_view sv) {
-  if (sv.starts_with("wss://")) [[likely]] {
+netloc::netloc(std::string_view url) {
+  if (url.starts_with("wss://")) [[likely]] {
     ssl = true;
     port = 443;
-    sv.remove_prefix(6);
-  } else if (sv.starts_with("ws://")) {
+    url.remove_prefix(6);
+  } else if (url.starts_with("ws://")) {
     ssl = false;
     port = 80;
-    sv.remove_prefix(5);
-  } else if (sv.starts_with("https://")) {
+    url.remove_prefix(5);
+  } else if (url.starts_with("https://")) {
     ssl = true;
     port = 443;
-    sv.remove_prefix(8);
-  } else if (sv.starts_with("http://")) [[unlikely]] {
+    url.remove_prefix(8);
+  } else if (url.starts_with("http://")) [[unlikely]] {
     ssl = false;
     port = 80;
-    sv.remove_prefix(7);
+    url.remove_prefix(7);
   }
 
-  const auto slash = sv.find('/');
-  const auto host_part = sv.substr(0, slash);
-  path = (slash != std::string_view::npos) ? std::string(sv.substr(slash)) : "/";
+  const auto slash = url.find('/');
+  const auto host_part = url.substr(0, slash);
+  path = (slash != std::string_view::npos) ? std::string(url.substr(slash)) : "/";
 
   const auto colon = host_part.find(':');
   if (colon != std::string_view::npos) [[unlikely]] {
