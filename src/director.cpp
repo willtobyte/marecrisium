@@ -89,6 +89,7 @@ void director::flush() {
   depot->source.clear();
   depot->sound.clear();
   depot->pixmap.clear();
+  depot->particle.clear();
   depot->font.clear();
 
   set_overlay(std::nullopt);
