@@ -43,7 +43,8 @@ return {
 	end,
 
 	on_loop = function(self, delta)
-		self.x = self.x + speed * self.direction * delta
+		self.speed_x = speed * self.direction
+		self.x = self.x + self.speed_x * delta
 		self.distance = self.distance + speed * delta
 
 		if self.distance >= max_distance then
