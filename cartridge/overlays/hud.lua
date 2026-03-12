@@ -55,6 +55,6 @@ return {
 		local time = format("%02d:%02d", minutes, seconds)
 
 		overlay:label("pixel", title, 3, 3, effects)
-		overlay:label("pixel", time, 3, 16)
+		-- overlay:label("pixel", time, 3, 16)
 	end,
 }
