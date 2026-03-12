@@ -35,7 +35,9 @@ private:
   alignas(64) std::atomic<size_t> _tail{0};
 };
 
-struct parsed_url {
+struct netloc {
+  explicit netloc(std::string_view url);
+
   std::string host;
   std::string path;
   int port{443};
@@ -69,7 +71,7 @@ private:
   void resubscribe();
 
   std::string _url;
-  parsed_url _parsed;
+  netloc _netloc;
 
   struct lws_context* _context{nullptr};
   std::atomic<struct lws*> _wsi{nullptr};

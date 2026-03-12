@@ -142,42 +142,6 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
   return result;
 }
 
-[[nodiscard]] parsed_url parse_url(std::string_view sv) {
-  parsed_url result;
-
-  if (sv.starts_with("wss://")) [[likely]] {
-    result.ssl = true;
-    result.port = 443;
-    sv.remove_prefix(6);
-  } else if (sv.starts_with("ws://")) {
-    result.ssl = false;
-    result.port = 80;
-    sv.remove_prefix(5);
-  } else if (sv.starts_with("https://")) {
-    result.ssl = true;
-    result.port = 443;
-    sv.remove_prefix(8);
-  } else if (sv.starts_with("http://")) [[unlikely]] {
-    result.ssl = false;
-    result.port = 80;
-    sv.remove_prefix(7);
-  }
-
-  const auto slash = sv.find('/');
-  const auto host_part = sv.substr(0, slash);
-  result.path = (slash != std::string_view::npos) ? std::string(sv.substr(slash)) : "/";
-
-  const auto colon = host_part.find(':');
-  if (colon != std::string_view::npos) [[unlikely]] {
-    result.host = std::string(host_part.substr(0, colon));
-    result.port = std::stoi(std::string(host_part.substr(colon + 1)));
-  } else {
-    result.host = std::string(host_part);
-  }
-
-  return result;
-}
-
 int subscription_publish(lua_State* state) {
   auto** pointer = static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
   luaL_checktype(state, 2, LUA_TTABLE);
@@ -293,6 +257,39 @@ int websocket_call(lua_State* state) {
 }
 }
 
+netloc::netloc(std::string_view sv) {
+  if (sv.starts_with("wss://")) [[likely]] {
+    ssl = true;
+    port = 443;
+    sv.remove_prefix(6);
+  } else if (sv.starts_with("ws://")) {
+    ssl = false;
+    port = 80;
+    sv.remove_prefix(5);
+  } else if (sv.starts_with("https://")) {
+    ssl = true;
+    port = 443;
+    sv.remove_prefix(8);
+  } else if (sv.starts_with("http://")) [[unlikely]] {
+    ssl = false;
+    port = 80;
+    sv.remove_prefix(7);
+  }
+
+  const auto slash = sv.find('/');
+  const auto host_part = sv.substr(0, slash);
+  path = (slash != std::string_view::npos) ? std::string(sv.substr(slash)) : "/";
+
+  const auto colon = host_part.find(':');
+  if (colon != std::string_view::npos) [[unlikely]] {
+    host = std::string(host_part.substr(0, colon));
+    const auto digits = host_part.substr(colon + 1);
+    std::from_chars(digits.data(), digits.data() + digits.size(), port);
+  } else {
+    host = std::string(host_part);
+  }
+}
+
 int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user*/, void* in, size_t len) {
   auto* context = lws_get_context(wsi);
   auto* ws = static_cast<socketconn*>(lws_context_user(context));
@@ -366,7 +363,7 @@ static const struct lws_protocols protocols[] = {
 }
 
 socketconn::socketconn(std::string url)
-  : _url(std::move(url)), _parsed(parse_url(_url)) {
+  : _url(std::move(url)), _netloc(_url) {
   _sendbuffer.reserve(LWS_PRE + 4096);
   _thread = std::thread([this] { run(); });
 }
@@ -404,13 +401,13 @@ void socketconn::connect() {
 void socketconn::reconnect() {
   struct lws_client_connect_info ccinfo{};
   ccinfo.context = _context;
-  ccinfo.address = _parsed.host.c_str();
-  ccinfo.port = _parsed.port;
-  ccinfo.path = _parsed.path.c_str();
-  ccinfo.host = _parsed.host.c_str();
-  ccinfo.origin = _parsed.host.c_str();
+  ccinfo.address = _netloc.host.c_str();
+  ccinfo.port = _netloc.port;
+  ccinfo.path = _netloc.path.c_str();
+  ccinfo.host = _netloc.host.c_str();
+  ccinfo.origin = _netloc.host.c_str();
   ccinfo.protocol = protocols[0].name;
-  ccinfo.ssl_connection = _parsed.ssl ? LCCSCF_USE_SSL : 0;
+  ccinfo.ssl_connection = _netloc .ssl ? LCCSCF_USE_SSL : 0;
 
   _wsi.store(lws_client_connect_via_info(&ccinfo), std::memory_order_release);
 }
