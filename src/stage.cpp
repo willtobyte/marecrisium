@@ -821,8 +821,8 @@ void stage::update(float delta) {
     _accumulator -= _timestep;
   }
 
-  for (auto* instance : _sounds) {
-    instance->poll();
+  for (auto* sound : _sounds) {
+    sound->poll();
   }
 
   _particlesystem.update(delta);
