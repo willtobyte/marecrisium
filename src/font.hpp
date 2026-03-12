@@ -34,15 +34,15 @@ public:
   void draw(std::string_view text, float x, float y, std::span<const glypheffect> effects) noexcept;
 
 private:
-  std::unique_ptr<SDL_Texture, SDL_Deleter> _texture;
-  int16_t _spacing{0};
-  int16_t _leading{0};
-  float _fontheight{.0f};
-  float _scale{1.f};
-  std::string _glyphs;
   std::array<glyphprops, 256> _props{};
   std::array<SDL_Vertex, 1024> _vertices{};
-  std::size_t _vertex_count{0};
   std::array<int, 1536> _indices{};
+  std::unique_ptr<SDL_Texture, SDL_Deleter> _texture;
+  std::string _glyphs;
+  std::size_t _vertex_count{0};
   std::size_t _index_count{0};
+  float _fontheight{.0f};
+  float _scale{1.f};
+  int16_t _spacing{0};
+  int16_t _leading{0};
 };
