@@ -109,14 +109,14 @@ bool StoreStats() noexcept {
   return false;
 }
 
-std::string GetPersonaName() noexcept {
+const char* GetPersonaName() noexcept {
   if (pGetPersonaName) {
     if (const char* name = pGetPersonaName(SteamFriends())) {
-      return {name};
+      return name;
     }
   }
 
-  return {};
+  return "";
 }
 
 int GetFriendCount() noexcept {
@@ -136,12 +136,12 @@ uint64_t GetFriendByIndex(int index) noexcept {
   return 0;
 }
 
-std::string GetFriendPersonaName(uint64_t id) noexcept {
+const char* GetFriendPersonaName(uint64_t id) noexcept {
   if (pGetFriendPersonaName) {
     if (const char* name = pGetFriendPersonaName(SteamFriends(), id)) {
-      return {name};
+      return name;
     }
   }
 
-  return {};
+  return "";
 }

@@ -25,8 +25,7 @@ static int user_index(lua_State *state) {
   const std::string_view key = luaL_checkstring(state, 2);
 
   if (key == "persona") {
-    const auto name = GetPersonaName();
-    lua_pushstring(state, name.c_str());
+    lua_pushstring(state, GetPersonaName());
     return 1;
   }
 
@@ -41,7 +40,7 @@ static int user_index(lua_State *state) {
       if (id == 0) [[unlikely]]
         continue;
 
-      const auto name = GetFriendPersonaName(id);
+      const std::string_view name = GetFriendPersonaName(id);
       if (name.empty()) [[unlikely]]
         continue;
 
@@ -52,7 +51,7 @@ static int user_index(lua_State *state) {
       lua_newtable(state);
       lua_pushnumber(state, static_cast<lua_Number>(id));
       lua_setfield(state, -2, "id");
-      lua_pushstring(state, name.c_str());
+      lua_pushstring(state, name.data());
       lua_setfield(state, -2, "name");
       lua_setfenv(state, -2);
 
