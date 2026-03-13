@@ -2,6 +2,8 @@ local ticker = require("helpers/ticker")
 local camera = require("helpers/camera")
 
 local print = print
+local WebSocket = WebSocket
+local keyboard = keyboard
 
 return ticker.wrap({
 	gravity = { 0, 980 },
@@ -20,9 +22,7 @@ return ticker.wrap({
 		{ name = "enemy8", kind = "enemy", x = 10, y = 900 },
 	},
 
-	sounds = {
-		-- { name = "theme", autoplay = true, loop = true },
-	},
+	sounds = {},
 
 	particles = {
 		{ name = "smoke1", kind = "smoke", x = 420, y = 900 },
@@ -30,7 +30,7 @@ return ticker.wrap({
 		{ name = "smoke3", kind = "smoke", x = 420, y = 900 },
 	},
 
-	on_enter = function()
+	on_enter = function(self)
 		ticker.every(50, function()
 			print("5 seconds elapsed")
 		end)
@@ -47,10 +47,36 @@ return ticker.wrap({
 			offset_x = 8,
 			offset_y = 8,
 		})
+
+		self.ws = WebSocket.new("localhost:8080")
+
+		self.chat_echo = self.ws:subscribe("chat_echo", function(data)
+			print("[echo] " .. tostring(data.text))
+		end)
+
+		self.chat = self.ws:subscribe("chat", function() end)
+
+		self.r_was_down = false
 	end,
 
-	on_leave = function()
+	on_leave = function(self)
 		camera.reset()
+		self.chat_echo = nil
+		self.chat = nil
+		self.ws = nil
+		self.r_was_down = false
+	end,
+
+	on_loop = function(self)
+		if keyboard.r then
+			if not self.r_was_down then
+				self.r_was_down = true
+				self.chat:publish({ text = "hello world" })
+				print("[sent] hello world")
+			end
+		else
+			self.r_was_down = false
+		end
 	end,
 
 	on_paint = function()

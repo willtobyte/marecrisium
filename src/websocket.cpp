@@ -313,7 +313,7 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
 
     case LWS_CALLBACK_CLIENT_WRITEABLE: {
       struct message message;
-      while (ws->_outbound.try_pop(message)) {
+      if (ws->_outbound.try_pop(message)) {
         const auto& payload = message.payload;
         const auto size = payload.size();
         const auto required = LWS_PRE + size;
@@ -321,6 +321,7 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
           ws->_sendbuffer.resize(required);
         std::memcpy(ws->_sendbuffer.data() + LWS_PRE, payload.data(), size);
         lws_write(wsi, ws->_sendbuffer.data() + LWS_PRE, size, LWS_WRITE_TEXT);
+        lws_callback_on_writable(wsi);
       }
     } break;
 
