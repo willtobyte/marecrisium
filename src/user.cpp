@@ -43,8 +43,8 @@ static int user_index(lua_State *state) {
     const auto count = GetFriendCount();
 
     lua_newtable(state);
-    auto index = 1;
 
+    auto index = 1;
     for (auto i = 0; i < count; ++i) {
       const auto id = GetFriendByIndex(i);
       if (id == 0) [[unlikely]]
