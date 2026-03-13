@@ -441,26 +441,33 @@ void socketconn::poll() {
     auto* root = yyjson_doc_get_root(document);
     auto* data_value = yyjson_obj_get(root, "data");
 
-    const auto it = _subscriptions.find(message.topic);
-    if (it != _subscriptions.end()) [[likely]] {
-      for (auto* subscriber : it->second) {
-        if (!subscriber->active()) [[unlikely]]
-          continue;
-
-        const auto ref = subscriber->callback();
-        lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
-
-        if (data_value)
-          yyjson_to_lua(L, data_value);
-        else
-          lua_pushnil(L);
-
-        if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-          std::string error = lua_tostring(L, -1);
-          lua_pop(L, 1);
-          yyjson_doc_free(document);
-          throw std::runtime_error{std::move(error)};
+    std::vector<int> references;
+    {
+      std::scoped_lock lock{_mutex};
+      const auto it = _subscriptions.find(message.topic);
+      if (it != _subscriptions.end()) [[likely]] {
+        references.reserve(it->second.size());
+        for (const auto* subscriber : it->second) {
+          if (!subscriber->active()) [[unlikely]]
+            continue;
+          references.emplace_back(subscriber->callback());
         }
+      }
+    }
+
+    for (const auto reference : references) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, reference);
+
+      if (data_value)
+        yyjson_to_lua(L, data_value);
+      else
+        lua_pushnil(L);
+
+      if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
+        std::string error = lua_tostring(L, -1);
+        lua_pop(L, 1);
+        yyjson_doc_free(document);
+        throw std::runtime_error{std::move(error)};
       }
     }
 
@@ -469,7 +476,11 @@ void socketconn::poll() {
 }
 
 void socketconn::add_subscription(subscription* subscriber) {
-  _subscriptions[subscriber->topic()].emplace_back(subscriber);
+  {
+    std::scoped_lock lock{_mutex};
+    _subscriptions[subscriber->topic()].emplace_back(subscriber);
+  }
+
   auto payload = build_action_json("subscribe", subscriber->topic().c_str());
   send(message{subscriber->topic(), std::move(payload)});
 }
@@ -478,6 +489,7 @@ void socketconn::remove_subscription(subscription* subscriber) {
   auto payload = build_action_json("unsubscribe", subscriber->topic().c_str());
   send(message{subscriber->topic(), std::move(payload)});
 
+  std::scoped_lock lock{_mutex};
   auto it = _subscriptions.find(subscriber->topic());
   if (it != _subscriptions.end()) [[likely]] {
     std::erase(it->second, subscriber);
@@ -487,6 +499,7 @@ void socketconn::remove_subscription(subscription* subscriber) {
 }
 
 void socketconn::resubscribe() {
+  std::scoped_lock lock{_mutex};
   for (const auto& [topic, subscribers] : _subscriptions) {
     for (const auto* subscriber : subscribers) {
       if (!subscriber->active()) [[unlikely]]

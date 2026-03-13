@@ -5,7 +5,7 @@ struct message {
   std::string payload;
 };
 
-template <typename T, size_t N = 64>
+template <typename T, size_t N = 256>
 class ringbuffer final {
   static_assert((N & (N - 1)) == 0, "N must be a power of two");
 
@@ -14,7 +14,7 @@ public:
     const auto head = _head.load(std::memory_order_relaxed);
     const auto tail = _tail.load(std::memory_order_acquire);
     if (head - tail == N)
-      _tail.store(tail + 1, std::memory_order_release);
+      return;
     _data[head & MASK] = std::move(item);
     _head.store(head + 1, std::memory_order_release);
   }
@@ -80,6 +80,7 @@ private:
   ringbuffer<message> _inbound;
   ringbuffer<message> _outbound;
 
+  std::mutex _mutex;
   std::unordered_map<std::string, std::vector<subscription*>, transparent_hash, std::equal_to<>> _subscriptions;
   std::vector<uint8_t> _sendbuffer;
 
