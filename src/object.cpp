@@ -457,30 +457,6 @@ namespace {
   }
 }
 
-void objectproxy::on_destroy(entt::registry& registry, entt::entity entity) {
-  auto& proxy = registry.get<objectproxy>(entity);
-
-  if (proxy.handle != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-    auto* userdata = static_cast<objectproxy*>(lua_touserdata(L, -1));
-    if (userdata) {
-      luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_begin);
-      userdata->on_animation_begin = LUA_NOREF;
-
-      luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_end);
-      userdata->on_animation_end = LUA_NOREF;
-
-      luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_loop);
-      userdata->on_loop = LUA_NOREF;
-
-      luaL_unref(L, LUA_REGISTRYINDEX, userdata->prototype);
-      userdata->prototype = LUA_NOREF;
-    }
-
-    lua_pop(L, 1);
-    luaL_unref(L, LUA_REGISTRYINDEX, proxy.handle);
-  }
-}
 
 objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::string_view name, std::string_view kind, int environment)
     : registry(&registry), entity(entity), name(entt::hashed_string{name.data()}.value()), kind(entt::hashed_string{kind.data()}.value()) {

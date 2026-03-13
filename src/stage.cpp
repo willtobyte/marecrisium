@@ -8,6 +8,38 @@ static entt::entity to_entity(const void* p) noexcept {
   return static_cast<entt::entity>(reinterpret_cast<uintptr_t>(p) - 1);
 }
 
+static void on_objectproxy_destroy(entt::registry& registry, entt::entity entity) {
+  auto& proxy = registry.get<objectproxy>(entity);
+
+  if (proxy.handle == LUA_NOREF)
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+  auto* userdata = static_cast<objectproxy*>(lua_touserdata(L, -1));
+  if (userdata) {
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_begin);
+    userdata->on_animation_begin = LUA_NOREF;
+
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_end);
+    userdata->on_animation_end = LUA_NOREF;
+
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_loop);
+    userdata->on_loop = LUA_NOREF;
+
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->prototype);
+    userdata->prototype = LUA_NOREF;
+  }
+
+  lua_pop(L, 1);
+  luaL_unref(L, LUA_REGISTRYINDEX, proxy.handle);
+}
+
+static void on_object_destroy(entt::registry& registry, entt::entity entity) {
+  auto& bo = registry.get<body>(entity);
+  if (b2Body_IsValid(bo.id))
+    b2DestroyBody(bo.id);
+}
+
 static int world_raycast(lua_State* state) {
   auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
   const auto* caller = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
@@ -20,12 +52,8 @@ static int world_raycast(lua_State* state) {
 
 stage::stage(std::string_view name)
     : _name(name) {
-  _registry.on_destroy<objectproxy>().connect<&objectproxy::on_destroy>();
-  _registry.on_destroy<body>().connect<[](entt::registry& registry, entt::entity entity) {
-    auto& bo = registry.get<body>(entity);
-    if (b2Body_IsValid(bo.id))
-      b2DestroyBody(bo.id);
-  }>();
+  _registry.on_destroy<objectproxy>().connect<&on_objectproxy_destroy>();
+  _registry.on_destroy<body>().connect<&on_object_destroy>();
 
   _registry.ctx().emplace<stringpool*>(&_stringpool);
 

@@ -12,6 +12,4 @@ struct objectproxy final {
   int on_animation_begin{LUA_NOREF};
 
   objectproxy(entt::registry& registry, entt::entity entity, std::string_view name, std::string_view kind, int environment);
-
-  static void on_destroy(entt::registry& registry, entt::entity entity);
 };
