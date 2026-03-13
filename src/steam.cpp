@@ -110,37 +110,33 @@ bool StoreStats() noexcept {
 }
 
 const char* GetPersonaName() noexcept {
-  if (pGetPersonaName) {
-    if (const char* name = pGetPersonaName(SteamFriends())) {
-      return name;
-    }
+  if (const auto self = SteamFriends(); pGetPersonaName && self) {
+    return pGetPersonaName(self);
   }
 
   return "";
 }
 
 int GetFriendCount() noexcept {
-  if (pGetFriendCount) {
+  if (const auto self = SteamFriends(); pGetFriendCount && self) {
     // k_EFriendFlagImmediate = 0x04
-    return pGetFriendCount(SteamFriends(), 0x04);
+    return pGetFriendCount(self, 0x04);
   }
 
   return 0;
 }
 
 uint64_t GetFriendByIndex(int index) noexcept {
-  if (pGetFriendByIndex) {
-    return pGetFriendByIndex(SteamFriends(), index, 0x04);
+  if (const auto self = SteamFriends(); pGetFriendByIndex && self) {
+    return pGetFriendByIndex(self, index, 0x04);
   }
 
   return 0;
 }
 
 const char* GetFriendPersonaName(uint64_t id) noexcept {
-  if (pGetFriendPersonaName) {
-    if (const char* name = pGetFriendPersonaName(SteamFriends(), id)) {
-      return name;
-    }
+  if (const auto self = SteamFriends(); pGetFriendPersonaName && self) {
+    return pGetFriendPersonaName(self, id);
   }
 
   return "";

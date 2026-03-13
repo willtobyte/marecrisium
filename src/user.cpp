@@ -1,5 +1,15 @@
 #include "user.hpp"
 
+static int friend_newindex(lua_State *state) {
+  const std::string_view key = luaL_checkstring(state, 2);
+  return luaL_error(state, "attempt to write read-only field '%s'", key.data());
+}
+
+static int user_newindex(lua_State *state) {
+  const std::string_view key = luaL_checkstring(state, 2);
+  return luaL_error(state, "attempt to write read-only field '%s'", key.data());
+}
+
 static int friend_index(lua_State *state) {
   luaL_checkudata(state, 1, "Friend");
   const std::string_view key = luaL_checkstring(state, 2);
@@ -68,6 +78,8 @@ void user::wire() {
   luaL_newmetatable(L, "Friend");
   lua_pushcfunction(L, friend_index);
   lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, friend_newindex);
+  lua_setfield(L, -2, "__newindex");
   lua_pop(L, 1);
 
   lua_newuserdata(L, 1);
@@ -75,6 +87,8 @@ void user::wire() {
   luaL_newmetatable(L, "User");
   lua_pushcfunction(L, user_index);
   lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, user_newindex);
+  lua_setfield(L, -2, "__newindex");
 
   lua_setmetatable(L, -2);
   lua_setglobal(L, "user");
