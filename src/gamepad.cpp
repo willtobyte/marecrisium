@@ -60,7 +60,7 @@ static int push_gamepad_button(lua_State *state, SDL_GamepadButton b) {
 static int gamepad_index(lua_State *state) {
   enum class type : uint8_t { axis, button };
 
-  struct entry {
+  struct entry final {
     type type;
 
     union {
