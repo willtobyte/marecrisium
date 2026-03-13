@@ -190,6 +190,9 @@ cassette = {}
 ---@field x? number Initial X position. Default 0.
 ---@field y? number Initial Y position. Default 0.
 ---@field active? boolean Whether particles spawn immediately. Default true.
+---@field sound? string Sound name. Loads `sounds/<name>`, plays in loop with spatial attenuation.
+---@field distance? number Distance in pixels at which volume reaches zero. Default 300.
+---@field volume? number Volume at distance zero (0.0 to 1.0). Default 1.0.
 
 ---@class Stage
 ---A stage script (`stages/<name>.lua`) returns a table that may contain
@@ -470,6 +473,7 @@ function Object.on_wake(self) end
 
 ---@class Sound
 ---@field volume number Current volume, 0.0 to 1.0.
+---@field pan number Current stereo pan, -1.0 (left) to 1.0 (right).
 ---@field loop boolean Whether looping is enabled.
 local Sound = {}
 
@@ -502,6 +506,7 @@ function Sound:on_end(fn) end
 ---@field y number Emitter Y position (read/write).
 ---@field position number[] Emitter position as {x, y} (read/write). Reading returns a new table.
 ---@field active boolean Whether dead particles respawn (read/write).
+---@field sound Sound|nil The sound attached to this emitter (read-only).
 local Particle = {}
 
 --------------------------------------------------------------------------------

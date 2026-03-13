@@ -32,6 +32,19 @@ int particle_index(lua_State* state) {
     return 1;
   }
 
+  if (key == "sound") {
+    auto* s = self->sound();
+    if (!s)
+      return lua_pushnil(state), 1;
+
+    auto** memory = static_cast<sound**>(lua_newuserdata(state, sizeof(sound*)));
+    *memory = s;
+    luaL_getmetatable(state, "Sound");
+    lua_setmetatable(state, -2);
+
+    return 1;
+  }
+
   return lua_pushnil(state), 1;
 }
 
@@ -133,7 +146,26 @@ void particle::set_x(float value) noexcept { _x = value; }
 float particle::y() const noexcept { return _y; }
 void particle::set_y(float value) noexcept { _y = value; }
 bool particle::active() const noexcept { return _active; }
-void particle::set_active(bool value) noexcept { _active = value; }
+
+void particle::set_active(bool value) noexcept {
+  _active = value;
+
+  if (_sound) {
+    value ? _sound->play() : _sound->fade(-1.f, .0f, 300);
+  }
+}
+
+void particle::set_sound(class sound* sound, float distance, float volume) noexcept {
+  _sound = sound;
+  _distance = distance;
+  _volume = volume;
+
+  if (_active) {
+    _sound->play();
+  }
+}
+
+class sound* particle::sound() const noexcept { return _sound; }
 
 void particle::update(float delta) noexcept {
   const auto n = _count;
@@ -274,5 +306,17 @@ void particle::draw(float camera_x, float camera_y) noexcept {
       idxs,
       static_cast<int>(visible * 6)
     );
+  }
+
+  if (_sound) [[likely]] {
+    const auto cx = camera_x + viewport.width  * .5f;
+    const auto cy = camera_y + viewport.height * .5f;
+    const auto dx = _x - cx;
+    const auto dy = _y - cy;
+    const auto d = std::sqrt(dx * dx + dy * dy);
+    const auto t = std::clamp(d / _distance, .0f, 1.f);
+    const auto u = 1.f - t;
+    _sound->set_volume(_volume * u * u);
+    _sound->set_pan(std::clamp(dx / _distance, -1.f, 1.f) * .3f);
   }
 }

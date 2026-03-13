@@ -68,6 +68,11 @@ namespace {
       return 1;
     }
 
+    if (key == "pan") {
+      lua_pushnumber(state, static_cast<double>(instance->pan()));
+      return 1;
+    }
+
     if (key == "loop") {
       lua_pushboolean(state, instance->loop());
       return 1;
@@ -108,6 +113,11 @@ namespace {
 
     if (key == "volume") {
       instance->set_volume(static_cast<float>(luaL_checknumber(state, 3)));
+      return 0;
+    }
+
+    if (key == "pan") {
+      instance->set_pan(static_cast<float>(luaL_checknumber(state, 3)));
       return 0;
     }
 
@@ -216,6 +226,14 @@ void sound::set_volume(float gain) noexcept {
 
 float sound::volume() const noexcept {
   return ma_sound_get_volume(&_sound);
+}
+
+void sound::set_pan(float pan) noexcept {
+  ma_sound_set_pan(&_sound, std::clamp(pan, -1.f, 1.f));
+}
+
+float sound::pan() const noexcept {
+  return ma_sound_get_pan(&_sound);
 }
 
 void sound::set_loop(bool loop) noexcept {

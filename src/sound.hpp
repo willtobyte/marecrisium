@@ -12,6 +12,9 @@ public:
   void set_volume(float gain) noexcept;
   [[nodiscard]] float volume() const noexcept;
 
+  void set_pan(float pan) noexcept;
+  [[nodiscard]] float pan() const noexcept;
+
   void set_loop(bool loop) noexcept;
   [[nodiscard]] bool loop() const noexcept;
 

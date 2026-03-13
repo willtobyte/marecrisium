@@ -364,9 +364,32 @@ stage::stage(std::string_view name)
       const auto active = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : true;
       lua_pop(L, 1);
 
+      lua_getfield(L, -1, "sound");
+      const std::string sound_name = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      lua_pop(L, 1);
+
+      lua_getfield(L, -1, "distance");
+      const auto particle_distance = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 300.f;
+      lua_pop(L, 1);
+
+      lua_getfield(L, -1, "volume");
+      const auto particle_volume = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 1.f;
+      lua_pop(L, 1);
+
       lua_pop(L, 1);
 
       auto& instance = _particlesystem.add(particle_name, particle_kind, px, py, active);
+
+      if (!sound_name.empty()) {
+        auto& fx = depot->sound.get(std::format("sounds/{}", sound_name));
+        fx.set_loop(true);
+
+        if (std::ranges::find(_sounds, &fx) == _sounds.end())
+          _sounds.emplace_back(&fx);
+
+        instance.set_sound(&fx, particle_distance, particle_volume);
+      }
+
       auto** memory = static_cast<particle**>(lua_newuserdata(L, sizeof(particle*)));
       *memory = &instance;
       luaL_getmetatable(L, "Particle");

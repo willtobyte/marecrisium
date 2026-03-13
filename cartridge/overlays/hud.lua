@@ -13,6 +13,19 @@ end
 return {
 	fonts = { "pixel" },
 
+	layers = {
+		"background",
+		10,
+		10,
+		30,
+		30,
+		"health100",
+		10,
+		10,
+		30,
+		30,
+	},
+
 	on_loop = function(self, delta)
 		elapsed = elapsed + delta
 
@@ -55,6 +68,6 @@ return {
 		local time = format("%02d:%02d", minutes, seconds)
 
 		overlay:label("pixel", title, 3, 3, effects)
-		-- overlay:label("pixel", time, 3, 16)
+		overlay:label("pixel", time, 3, 18)
 	end,
 }

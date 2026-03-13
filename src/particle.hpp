@@ -3,6 +3,7 @@
 void sincos(float x, float& osin, float& ocos) noexcept;
 
 class pixmap;
+class sound;
 
 struct config final {
   size_t count{};
@@ -35,12 +36,18 @@ public:
   [[nodiscard]] bool active() const noexcept;
   void set_active(bool value) noexcept;
 
+  void set_sound(class sound* sound, float distance, float volume) noexcept;
+  [[nodiscard]] class sound* sound() const noexcept;
+
 private:
   const pixmap* _texture;
+  class sound* _sound{nullptr};
   float _x;
   float _y;
   float _hw;
   float _hh;
+  float _distance{300.f};
+  float _volume{1.f};
   bool _active;
   size_t _count;
 
