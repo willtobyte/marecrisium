@@ -98,7 +98,7 @@ void cassette::wire() {
     nullptr, nullptr, nullptr);
 
   sqlite3_prepare_v2(database, "SELECT type,value FROM data WHERE key=?", -1, &stmt_select, nullptr);
-  sqlite3_prepare_v2(database, "INSERT OR REPLACE INTO data(key,type,value) VALUES (?,?,?)", -1, &stmt_upsert, nullptr);
+  sqlite3_prepare_v2(database, "INSERT OR REPLACE INTO data(key,type,value) VALUES(?,?,?)", -1, &stmt_upsert, nullptr);
   sqlite3_prepare_v2(database, "DELETE FROM data WHERE key=?", -1, &stmt_delete, nullptr);
   sqlite3_prepare_v2(database, "DELETE FROM data", -1, &stmt_clear, nullptr);
 
