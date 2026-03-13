@@ -40,8 +40,6 @@ public:
   [[nodiscard]] class sound* sound() const noexcept;
 
 private:
-  const pixmap* _texture;
-  class sound* _sound{nullptr};
   float _x;
   float _y;
   float _hw;
@@ -50,6 +48,9 @@ private:
   float _volume{1.f};
   bool _active;
   size_t _count;
+
+  const pixmap* _texture;
+  class sound* _sound{nullptr};
 
   std::vector<float> _px, _py, _vx, _vy, _gx, _gy;
   std::vector<float> _life, _scale, _angle, _av, _af;

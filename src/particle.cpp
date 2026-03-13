@@ -94,13 +94,13 @@ std::mt19937& particle::rng() noexcept {
 }
 
 particle::particle(const config& config, const pixmap& texture, float x, float y, bool active)
-    : _texture(&texture)
-    , _x(x)
+    : _x(x)
     , _y(y)
     , _hw(static_cast<float>(texture.width()) * .5f)
     , _hh(static_cast<float>(texture.height()) * .5f)
     , _active(active)
     , _count(config.count)
+    , _texture(&texture)
     , _xspawnd(std::min(config.xspawn.first, config.xspawn.second), std::max(config.xspawn.first, config.xspawn.second))
     , _yspawnd(std::min(config.yspawn.first, config.yspawn.second), std::max(config.yspawn.first, config.yspawn.second))
     , _radiusd(std::min(config.radius.first, config.radius.second), std::max(config.radius.first, config.radius.second))
