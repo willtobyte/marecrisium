@@ -57,6 +57,18 @@ stage::stage(std::string_view name)
 
   _registry.ctx().emplace<stringpool*>(&_stringpool);
 
+  const auto filename = std::format("stages/{}.lua", name);
+  const auto buffer = io::read(filename);
+  const auto *data = reinterpret_cast<const char *>(buffer.data());
+  const auto size = buffer.size();
+  const auto label = std::format("@{}", filename);
+
+  if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
+    std::string error = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    throw std::runtime_error{std::move(error)};
+  }
+
   lua_newtable(L);
   lua_newtable(L);
   lua_pushvalue(L, LUA_GLOBALSINDEX);
@@ -76,18 +88,6 @@ stage::stage(std::string_view name)
   lua_setfield(L, -2, "raycast");
   lua_setfield(L, -2, "world");
   lua_pop(L, 1);
-
-  const auto filename = std::format("stages/{}.lua", name);
-  const auto buffer = io::read(filename);
-  const auto *data = reinterpret_cast<const char *>(buffer.data());
-  const auto size = buffer.size();
-  const auto label = std::format("@{}", filename);
-
-  if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
-    std::string error = lua_tostring(L, -1);
-    lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
-  }
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
   lua_setfenv(L, -2);
@@ -292,7 +292,7 @@ stage::stage(std::string_view name)
 
         if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
           std::string error = lua_tostring(L, -1);
-          lua_pop(L, 1);
+          lua_pop(L, 2);
           throw std::runtime_error{std::move(error)};
         }
       } else {
