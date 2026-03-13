@@ -37,6 +37,7 @@ static int newindex_callback(lua_State *state) {
     } else {
       self->set_overlay(luaL_checkstring(state, 3));
     }
+
     return 0;
   }
 
