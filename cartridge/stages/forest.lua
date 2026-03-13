@@ -25,9 +25,9 @@ return ticker.wrap({
 	},
 
 	particles = {
-		{ name = "smoke1", kind = "smoke", x = 420, y = 900, sound = "fire", distance = 300, volume = 1.0 },
-		{ name = "smoke2", kind = "smoke", x = 470, y = 920, sound = "fire", distance = 300, volume = 1.0 },
-		{ name = "smoke3", kind = "smoke", x = 420, y = 900, sound = "fire", distance = 300, volume = 1.0 },
+		{ name = "smoke1", kind = "smoke", x = 420, y = 900 },
+		{ name = "smoke2", kind = "smoke", x = 470, y = 920 },
+		{ name = "smoke3", kind = "smoke", x = 420, y = 900 },
 	},
 
 	on_enter = function()
