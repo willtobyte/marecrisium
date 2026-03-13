@@ -33,7 +33,7 @@ static int newindex_callback(lua_State *state) {
 
   if (key == "overlay") {
     if (lua_isnil(state, 3) || lua_isnone(state, 3)) {
-      self->set_overlay(std::nullopt);
+      self->clear_overlay();
     } else {
       self->set_overlay(luaL_checkstring(state, 3));
     }
@@ -86,8 +86,6 @@ void director::destroy(std::string_view name) {
 }
 
 void director::reset() {
-  _current = nullptr;
-
   _stages.clear();
   _overlays.clear();
   depot->source.clear();
@@ -96,23 +94,23 @@ void director::reset() {
   depot->particle.clear();
   depot->font.clear();
 
-  set_overlay(std::nullopt);
+  _current = nullptr;
+  _overlay = nullptr;
 }
 
-void director::set_overlay(std::optional<std::string_view> name) {
-  if (!name) {
-    _overlay = nullptr;
-    return;
-  }
-
-  const auto [it, inserted] = _overlays.try_emplace(std::string{*name}, nullptr);
+void director::set_overlay(std::string_view name) {
+  const auto [it, inserted] = _overlays.try_emplace(std::string{name}, nullptr);
 
   if (inserted) {
-    it->second = std::make_unique<overlay>(*name);
+    it->second = std::make_unique<overlay>(name);
   }
 
   _overlay = it->second.get();
   _overlay->wire();
+}
+
+void director::clear_overlay() {
+  _overlay = nullptr;
 }
 
 void director::preload(std::string_view name) {

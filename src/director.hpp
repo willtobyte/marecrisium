@@ -18,7 +18,9 @@ public:
 
   void reset();
 
-  void set_overlay(std::optional<std::string_view> name);
+  void set_overlay(std::string_view name);
+
+  void clear_overlay();
 
   void transition();
 
