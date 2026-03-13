@@ -16,7 +16,7 @@ public:
 
   void preload(std::string_view name);
 
-  void flush();
+  void reset();
 
   void set_overlay(std::optional<std::string_view> name);
 

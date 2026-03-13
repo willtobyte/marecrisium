@@ -21,22 +21,26 @@ static int preload_callback(lua_State *state) {
   return 0;
 }
 
-static int flush_callback(lua_State *state) {
+static int reset_callback(lua_State *state) {
   auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
-  self->flush();
+  self->reset();
   return 0;
 }
 
-static int overlay_callback(lua_State *state) {
+static int newindex_callback(lua_State *state) {
   auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
+  const std::string_view key = luaL_checkstring(state, 2);
 
-  if (lua_isnil(state, 1) || lua_isnone(state, 1)) {
-    self->set_overlay(std::nullopt);
+  if (key == "overlay") {
+    if (lua_isnil(state, 3) || lua_isnone(state, 3)) {
+      self->set_overlay(std::nullopt);
+    } else {
+      self->set_overlay(luaL_checkstring(state, 3));
+    }
     return 0;
   }
 
-  self->set_overlay(luaL_checkstring(state, 1));
-  return 0;
+  return luaL_error(state, "director: unknown property '%s'", key.data());
 }
 
 director::~director() = default;
@@ -57,12 +61,14 @@ void director::wire() {
   lua_setfield(L, -2, "preload");
 
   lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, flush_callback, 1);
-  lua_setfield(L, -2, "flush");
+  lua_pushcclosure(L, reset_callback, 1);
+  lua_setfield(L, -2, "reset");
 
+  luaL_newmetatable(L, "director");
   lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, overlay_callback, 1);
-  lua_setfield(L, -2, "overlay");
+  lua_pushcclosure(L, newindex_callback, 1);
+  lua_setfield(L, -2, "__newindex");
+  lua_setmetatable(L, -2);
 
   lua_setglobal(L, "director");
 }
@@ -81,7 +87,7 @@ void director::destroy(std::string_view name) {
   _stages.erase(it);
 }
 
-void director::flush() {
+void director::reset() {
   _current = nullptr;
 
   _stages.clear();

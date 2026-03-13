@@ -35,7 +35,7 @@ return ticker.wrap({
 			print("5 seconds elapsed")
 		end)
 
-		director.overlay("hud")
+		director.overlay = "hud"
 
 		camera.set_bounds(0, 0, 120 * 16 - viewport.width, 68 * 16 - viewport.height)
 

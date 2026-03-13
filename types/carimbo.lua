@@ -239,6 +239,7 @@ function Stage.on_paint(self) end
 --------------------------------------------------------------------------------
 
 ---@class Director
+---@field overlay string|nil Overlay name (matches `overlays/<name>.lua`). Assign to activate; assign nil to deactivate.
 local Director = {}
 
 ---Navigate to a named stage. Creates it if not preloaded.
@@ -255,11 +256,7 @@ function Director.destroy(name) end
 function Director.preload(name) end
 
 ---Destroy all stages and clear all resource pools.
-function Director.flush() end
-
----Activate an overlay. Creates it if not loaded. Pass nil to deactivate.
----@param name string|nil Overlay name (matches `overlays/<name>.lua`).
-function Director.overlay(name) end
+function Director.reset() end
 
 ---Global stage director.
 ---@type Director
