@@ -70,6 +70,14 @@ struct SPNG_Deleter final {
   }
 };
 
+struct OggOpusFile_Deleter final {
+  void operator()(OggOpusFile* ptr) const noexcept {
+    if (!ptr) [[unlikely]] return;
+
+    op_free(ptr);
+  }
+};
+
 struct PHYSFS_Deleter final {
   template <typename T>
   void operator()(T* ptr) const noexcept {

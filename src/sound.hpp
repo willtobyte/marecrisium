@@ -29,4 +29,5 @@ private:
   std::atomic<bool> _ended{false};
   ma_audio_buffer _buffer{};
   ma_sound _sound{};
+  std::unique_ptr<float[]> _samples;
 };

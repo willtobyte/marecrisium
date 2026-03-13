@@ -142,26 +142,20 @@ sound::sound(std::string_view filename) {
 
   const auto buffer = io::read(filename);
 
-  auto error = 0;
-  const std::unique_ptr<OggOpusFile, decltype(&op_free)> codec{
-    op_open_memory(buffer.data(), buffer.size(), &error),
-    &op_free
-  };
-
-  if (error != 0) [[unlikely]]
-    throw std::runtime_error{std::format("[op_open_memory] failed to decode: {}", filename)};
+  const std::unique_ptr<OggOpusFile, OggOpusFile_Deleter> codec{
+    op_open_memory(buffer.data(), buffer.size(), nullptr)};
 
   const auto channels = op_channel_count(codec.get(), -1);
   const auto nsamples = op_pcm_total(codec.get(), -1);
   const auto total = static_cast<size_t>(nsamples) * static_cast<size_t>(channels);
 
-  auto samples = std::make_unique_for_overwrite<float[]>(total);
+  _samples = std::make_unique_for_overwrite<float[]>(total);
 
-  size_t offset = 0;
+  auto offset = 0uz;
   while (offset < total) {
     const auto read = op_read_float(
       codec.get(),
-      samples.get() + offset,
+      _samples.get() + offset,
       static_cast<int>(total - offset),
       nullptr
     );
@@ -182,13 +176,13 @@ sound::sound(std::string_view filename) {
     ma_format_f32,
     static_cast<ma_uint32>(channels),
     offset / static_cast<size_t>(channels),
-    samples.get(),
+    _samples.get(),
     nullptr
   );
 
   config.sampleRate = 48000;
 
-  ma_audio_buffer_init_copy(&config, &_buffer);
+  ma_audio_buffer_init(&config, &_buffer);
 
   ma_sound_init_from_data_source(
     audioengine,
