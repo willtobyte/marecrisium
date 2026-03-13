@@ -43,8 +43,6 @@ static int newindex_callback(lua_State *state) {
   return luaL_error(state, "director: unknown property '%s'", key.data());
 }
 
-director::~director() = default;
-
 void director::wire() {
   lua_newtable(L);
 

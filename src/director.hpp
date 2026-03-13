@@ -6,7 +6,7 @@ class stage;
 class director final {
 public:
   director() = default;
-  ~director();
+  ~director() = default;
 
   void wire();
 
