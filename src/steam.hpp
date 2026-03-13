@@ -11,4 +11,4 @@ void* SteamFriends() noexcept;
 std::string GetPersonaName() noexcept;
 int GetFriendCount() noexcept;
 uint64_t GetFriendByIndex(int index) noexcept;
-std::string GetFriendPersonaName(uint64_t steamId) noexcept;
+std::string GetFriendPersonaName(uint64_t id) noexcept;

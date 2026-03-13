@@ -136,9 +136,9 @@ uint64_t GetFriendByIndex(int index) noexcept {
   return 0;
 }
 
-std::string GetFriendPersonaName(uint64_t steamId) noexcept {
+std::string GetFriendPersonaName(uint64_t id) noexcept {
   if (pGetFriendPersonaName) {
-    if (const char* name = pGetFriendPersonaName(SteamFriends(), steamId)) {
+    if (const char* name = pGetFriendPersonaName(SteamFriends(), id)) {
       return {name};
     }
   }
