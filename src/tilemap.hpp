@@ -12,8 +12,6 @@ public:
 
   ~tilemap() = default;
 
-  void set_camera(float x, float y, float w, float h) noexcept;
-
   void draw_background() noexcept;
 
   void draw_foreground() noexcept;
@@ -38,10 +36,10 @@ private:
   std::vector<SDL_Vertex> _foreground_vertices;
   std::vector<int32_t> _foreground_indices;
 
-  float _camera_x{};
-  float _camera_y{};
-  float _camera_w{};
-  float _camera_h{};
+  float _vp_x{};
+  float _vp_y{};
+  float _vp_w{};
+  float _vp_h{};
   bool _dirty{true};
 
   void build_layer(const uint32_t* tiles, const uv* uvs, std::vector<SDL_Vertex>& vertices, std::vector<int32_t>& indices) noexcept;

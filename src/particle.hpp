@@ -27,7 +27,7 @@ public:
   particle& operator=(particle&&) noexcept = default;
 
   void update(float delta) noexcept;
-  void draw(float camera_x, float camera_y) noexcept;
+  void draw() noexcept;
 
   [[nodiscard]] float x() const noexcept;
   void set_x(float value) noexcept;

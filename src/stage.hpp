@@ -58,8 +58,6 @@ private:
   b2WorldId _world;
   float _timestep = 1.f / 60.f;
   float _accumulator = .0f;
-  float _camera_x = .0f;
-  float _camera_y = .0f;
   uint32_t _mouse_previous_buttons{};
   int _substeps = 4;
   int _reference = LUA_NOREF;

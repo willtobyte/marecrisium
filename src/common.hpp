@@ -48,6 +48,8 @@ struct viewport {
   float width;
   float height;
   float scale;
+  float x;
+  float y;
 };
 
 extern struct viewport viewport;

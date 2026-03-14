@@ -136,7 +136,9 @@ engine::engine() {
   viewport = {
     static_cast<float>(width) / scale,
     static_cast<float>(height) / scale,
-    scale
+    scale,
+    .0f,
+    .0f
   };
 
   lua_newtable(L);

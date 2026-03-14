@@ -229,7 +229,7 @@ void particle::update(float delta) noexcept {
   }
 }
 
-void particle::draw(float camera_x, float camera_y) noexcept {
+void particle::draw() noexcept {
   const auto n = _count;
   const auto hw = _hw;
   const auto hh = _hh;
@@ -256,8 +256,8 @@ void particle::draw(float camera_x, float camera_y) noexcept {
 
     const auto sc = scales[i];
     const auto se = extent * sc;
-    const auto px = xs[i] - camera_x;
-    const auto py = ys[i] - camera_y;
+    const auto px = xs[i] - viewport.x;
+    const auto py = ys[i] - viewport.y;
 
     if (px + se < .0f || px - se > vw ||
         py + se < .0f || py - se > vh) [[unlikely]] {
@@ -309,8 +309,8 @@ void particle::draw(float camera_x, float camera_y) noexcept {
   }
 
   if (_sound) [[likely]] {
-    const auto cx = camera_x + viewport.width  * .5f;
-    const auto cy = camera_y + viewport.height * .5f;
+    const auto cx = viewport.x + viewport.width  * .5f;
+    const auto cy = viewport.y + viewport.height * .5f;
     const auto dx = _x - cx;
     const auto dy = _y - cy;
     const auto d = std::sqrt(dx * dx + dy * dy);

@@ -202,21 +202,12 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   }
 }
 
-void tilemap::set_camera(float x, float y, float w, float h) noexcept {
-  if (_camera_x == x && _camera_y == y && _camera_w == w && _camera_h == h) [[likely]]
-    return;
-
-  _camera_x = x;
-  _camera_y = y;
-  _camera_w = w;
-  _camera_h = h;
-
-  _dirty = true;
-}
-
 void tilemap::draw_background() noexcept {
   if (!_background_atlas) [[unlikely]]
     return;
+
+  if (_vp_x != viewport.x || _vp_y != viewport.y || _vp_w != viewport.width || _vp_h != viewport.height)
+    _dirty = true;
 
   if (_dirty) {
     build_layer(
@@ -252,6 +243,10 @@ void tilemap::draw_foreground() noexcept {
       _foreground_indices
     );
 
+    _vp_x = viewport.x;
+    _vp_y = viewport.y;
+    _vp_w = viewport.width;
+    _vp_h = viewport.height;
     _dirty = false;
   }
 
@@ -272,10 +267,10 @@ void tilemap::build_layer(const uint32_t* tiles, const uv* uvs, std::vector<SDL_
   vertices.clear();
   indices.clear();
 
-  const auto start_column = std::max(0, static_cast<int32_t>(_camera_x * _inv_size));
-  const auto start_row = std::max(0, static_cast<int32_t>(_camera_y * _inv_size));
-  const auto end_column = std::min(_width - 1, static_cast<int32_t>((_camera_x + _camera_w) * _inv_size) + 1);
-  const auto end_row = std::min(_height - 1, static_cast<int32_t>((_camera_y + _camera_h) * _inv_size) + 1);
+  const auto start_column = std::max(0, static_cast<int32_t>(viewport.x * _inv_size));
+  const auto start_row = std::max(0, static_cast<int32_t>(viewport.y * _inv_size));
+  const auto end_column = std::min(_width - 1, static_cast<int32_t>((viewport.x + viewport.width) * _inv_size) + 1);
+  const auto end_row = std::min(_height - 1, static_cast<int32_t>((viewport.y + viewport.height) * _inv_size) + 1);
 
   if (start_column > end_column || start_row > end_row) [[unlikely]]
     return;
@@ -283,7 +278,7 @@ void tilemap::build_layer(const uint32_t* tiles, const uv* uvs, std::vector<SDL_
   constexpr SDL_FColor white{1.f, 1.f, 1.f, 1.f};
 
   auto row_offset = start_row * _width;
-  auto dy = static_cast<float>(start_row) * _size - _camera_y;
+  auto dy = static_cast<float>(start_row) * _size - viewport.y;
 
   for (auto row = start_row; row <= end_row; ++row, row_offset += _width, dy += _size) {
     const auto snapped_y0 = std::roundf(dy);
@@ -295,7 +290,7 @@ void tilemap::build_layer(const uint32_t* tiles, const uv* uvs, std::vector<SDL_
         continue;
 
       const auto& entry = uvs[tile_id - 1];
-      const auto dx = static_cast<float>(column) * _size - _camera_x;
+      const auto dx = static_cast<float>(column) * _size - viewport.x;
       const auto snapped_x0 = std::roundf(dx);
       const auto snapped_x1 = std::roundf(dx + _size);
       const auto base = static_cast<int32_t>(vertices.size());

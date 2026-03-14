@@ -534,8 +534,8 @@ void stage::update(float delta) {
     const auto& frame = an.clips[an.active].frames[an.current];
     const auto width = frame.w * tf.scale;
     const auto height = frame.h * tf.scale;
-    const auto screen_x = tf.x - _camera_x;
-    const auto screen_y = tf.y - _camera_y;
+    const auto screen_x = tf.x - viewport.x;
+    const auto screen_y = tf.y - viewport.y;
 
     const auto offscreen =
       screen_x + width < -CULLING_MARGIN ||
@@ -568,6 +568,8 @@ void stage::update(float delta) {
   float x, y;
   const auto buttons = SDL_GetMouseState(&x, &y);
   SDL_RenderCoordinatesFromWindow(renderer, x, y, &x, &y);
+  x += viewport.x;
+  y += viewport.y;
 
   const auto pressed  = buttons & ~_mouse_previous_buttons;
   const auto released = _mouse_previous_buttons & ~buttons;
@@ -812,13 +814,13 @@ void stage::update(float delta) {
           const auto aabb = b2Shape_GetAABB(bd.shape);
 
           uint8_t current = 0;
-          if (aabb.upperBound.x < _camera_x)
+          if (aabb.upperBound.x < viewport.x)
             current |= boundary::left;
-          if (aabb.lowerBound.x > _camera_x + viewport.width)
+          if (aabb.lowerBound.x > viewport.x + viewport.width)
             current |= boundary::right;
-          if (aabb.upperBound.y < _camera_y)
+          if (aabb.upperBound.y < viewport.y)
             current |= boundary::top;
-          if (aabb.lowerBound.y > _camera_y + viewport.height)
+          if (aabb.lowerBound.y > viewport.y + viewport.height)
             current |= boundary::bottom;
 
           const auto exited = static_cast<uint8_t>(current & ~sb->previous);
@@ -904,8 +906,8 @@ void stage::update(float delta) {
 }
 
 void stage::draw() {
-  _camera_x = .0f;
-  _camera_y = .0f;
+  viewport.x = .0f;
+  viewport.y = .0f;
 
   if (_on_paint != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
@@ -918,9 +920,9 @@ void stage::draw() {
     }
 
     if (lua_isnumber(L, -2))
-      _camera_x = std::roundf(static_cast<float>(lua_tonumber(L, -2)));
+      viewport.x = std::roundf(static_cast<float>(lua_tonumber(L, -2)));
     if (lua_isnumber(L, -1))
-      _camera_y = std::roundf(static_cast<float>(lua_tonumber(L, -1)));
+      viewport.y = std::roundf(static_cast<float>(lua_tonumber(L, -1)));
     lua_pop(L, 2);
   }
 
@@ -931,7 +933,7 @@ void stage::draw() {
     .0f, .0f, viewport.width, viewport.height
   );
 
-  _tilemap.set_camera(_camera_x, _camera_y, viewport.width, viewport.height);
+
   _tilemap.draw_background();
 
   for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
@@ -946,8 +948,8 @@ void stage::draw() {
 
     const auto dw = fr.w * tf.scale;
     const auto dh = fr.h * tf.scale;
-    const auto sx = tf.x - _camera_x;
-    const auto sy = tf.y - _camera_y;
+    const auto sx = tf.x - viewport.x;
+    const auto sy = tf.y - viewport.y;
 
     if (sx + dw < .0f || sx > viewport.width ||
         sy + dh < .0f || sy > viewport.height)
@@ -962,16 +964,16 @@ void stage::draw() {
     );
   }
 
-  _particlesystem.draw(_camera_x, _camera_y);
+  _particlesystem.draw();
 
   _tilemap.draw_foreground();
 
 #ifdef DEBUG
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
 
-  const b2AABB aabb = {{_camera_x, _camera_y}, {_camera_x + viewport.width, _camera_y + viewport.height}};
+  const b2AABB aabb = {{viewport.x, viewport.y}, {viewport.x + viewport.width, viewport.y + viewport.height}};
   const b2QueryFilter filter = b2DefaultQueryFilter();
-  const float offset[] = {_camera_x, _camera_y};
+  const float offset[] = {viewport.x, viewport.y};
 
   b2World_OverlapAABB(_world, aabb, filter, [](b2ShapeId shape, void* userdata) -> bool {
     const auto* offset = static_cast<const float*>(userdata);
