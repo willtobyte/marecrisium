@@ -8,11 +8,11 @@ local camera = {}
 local state = {
 	x = 0,
 	y = 0,
-	velocity_x = 0,
-	velocity_y = 0,
+	vx = 0,
+	vy = 0,
 }
 
-local config = {
+local cfg = {
 	dead_zone_x = 16,
 	dead_zone_y = 16,
 	lookahead_x = 0,
@@ -20,79 +20,88 @@ local config = {
 	smoothing = 5,
 	damping = 0.85,
 	snap_threshold = 0.5,
-	bounds = nil,
 	offset_x = 0,
 	offset_y = 0,
+	bounds_min_x = nil,
+	bounds_min_y = nil,
+	bounds_max_x = nil,
+	bounds_max_y = nil,
 }
 
+local k = cfg.smoothing * cfg.smoothing
+local c = 2 * cfg.smoothing * cfg.damping
+
 function camera.configure(options)
-	for k, v in pairs(options) do
-		config[k] = v
+	for key, val in pairs(options) do
+		cfg[key] = val
 	end
+	k = cfg.smoothing * cfg.smoothing
+	c = 2 * cfg.smoothing * cfg.damping
 end
 
 function camera.reset(x, y)
 	state.x = x or 0
 	state.y = y or 0
-	state.velocity_x = 0
-	state.velocity_y = 0
+	state.vx = 0
+	state.vy = 0
 end
 
 function camera.set_bounds(min_x, min_y, max_x, max_y)
-	config.bounds = { min_x = min_x, min_y = min_y, max_x = max_x, max_y = max_y }
+	cfg.bounds_min_x = min_x
+	cfg.bounds_min_y = min_y
+	cfg.bounds_max_x = max_x
+	cfg.bounds_max_y = max_y
 end
 
 function camera.update(target_x, target_y, delta)
 	local dt = delta or (1 / 60)
 
-	local tx = target_x + config.offset_x + config.lookahead_x - viewport.width * 0.5
-	local ty = target_y + config.offset_y + config.lookahead_y - viewport.height * 0.5
+	local tx = target_x + cfg.offset_x + cfg.lookahead_x - viewport.width * 0.5
+	local ty = target_y + cfg.offset_y + cfg.lookahead_y - viewport.height * 0.5
 
-	local bounds = config.bounds
-	if bounds then
-		tx = max(bounds.min_x, min(bounds.max_x, tx))
-		ty = max(bounds.min_y, min(bounds.max_y, ty))
+	local bx1, by1, bx2, by2 = cfg.bounds_min_x, cfg.bounds_min_y, cfg.bounds_max_x, cfg.bounds_max_y
+	if bx1 then
+		tx = max(bx1, min(bx2, tx))
+		ty = max(by1, min(by2, ty))
 	end
 
 	local dx = tx - state.x
 	local dy = ty - state.y
 
-	if abs(dx) < config.dead_zone_x then
+	if abs(dx) < cfg.dead_zone_x then
 		dx = 0
 	end
-	if abs(dy) < config.dead_zone_y then
+	if abs(dy) < cfg.dead_zone_y then
 		dy = 0
 	end
 
-	local s = config.smoothing
-	local k = s * s
-	local c = 2 * s * config.damping
+	state.vx = state.vx + (dx * k - state.vx * c) * dt
+	state.vy = state.vy + (dy * k - state.vy * c) * dt
 
-	state.velocity_x = state.velocity_x + (dx * k - state.velocity_x * c) * dt
-	state.velocity_y = state.velocity_y + (dy * k - state.velocity_y * c) * dt
+	state.x = state.x + state.vx * dt
+	state.y = state.y + state.vy * dt
 
-	state.x = state.x + state.velocity_x * dt
-	state.y = state.y + state.velocity_y * dt
-
-	if bounds then
-		if state.x <= bounds.min_x or state.x >= bounds.max_x then
-			state.velocity_x = 0
+	if bx1 then
+		if state.x <= bx1 or state.x >= bx2 then
+			state.vx = 0
 		end
-		if state.y <= bounds.min_y or state.y >= bounds.max_y then
-			state.velocity_y = 0
+		if state.y <= by1 or state.y >= by2 then
+			state.vy = 0
 		end
-		state.x = max(bounds.min_x, min(bounds.max_x, state.x))
-		state.y = max(bounds.min_y, min(bounds.max_y, state.y))
+		state.x = max(bx1, min(bx2, state.x))
+		state.y = max(by1, min(by2, state.y))
 	end
 
-	local snap = config.snap_threshold
-	if abs(state.velocity_x) < snap and abs(dx) < snap then
-		state.velocity_x = 0
+	local snap = cfg.snap_threshold
+	if abs(state.vx) < snap and dx == 0 then
+		state.vx = 0
 	end
-	if abs(state.velocity_y) < snap and abs(dy) < snap then
-		state.velocity_y = 0
+	if abs(state.vy) < snap and dy == 0 then
+		state.vy = 0
 	end
+end
 
+function camera.position()
 	return state.x, state.y
 end
 

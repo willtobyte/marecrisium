@@ -47,39 +47,19 @@ return ticker.wrap({
 			offset_x = 8,
 			offset_y = 8,
 		})
-
-		self.ws = WebSocket.new("localhost:8080")
-
-		self.chat_echo = self.ws:subscribe("chat_echo", function(data)
-			print("[echo] " .. tostring(data.text))
-		end)
-
-		self.chat = self.ws:subscribe("chat", function() end)
-
-		self.r_was_down = false
 	end,
 
 	on_leave = function(self)
 		camera.reset()
 		self.chat_echo = nil
 		self.chat = nil
-		self.ws = nil
-		self.r_was_down = false
 	end,
 
-	on_loop = function(self)
-		if keyboard.r then
-			if not self.r_was_down then
-				self.r_was_down = true
-				self.chat:publish({ text = "hello world" })
-				print("[sent] hello world")
-			end
-		else
-			self.r_was_down = false
-		end
+	on_loop = function(self, delta)
+		camera.update(pool.player.x, pool.player.y, delta)
 	end,
 
-	on_paint = function()
-		return camera.update(pool.player.x, pool.player.y)
+	on_paint = function(self)
+		return camera.position()
 	end,
 })
