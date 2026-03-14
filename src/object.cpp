@@ -9,8 +9,10 @@ namespace {
       ox = fr.cx * tf.scale;
       oy = fr.cy * tf.scale;
     }
-    const auto rot = bd.type == body_type::stationary ? b2MakeRot(to_radians(tf.angle)) : b2MakeRot(.0f);
-    b2Body_SetTransform(bd.id, {tf.x + ox + bd.cached_hx, tf.y + oy + bd.cached_hy}, rot);
+
+    const auto r = bd.type == body_type::stationary ? b2MakeRot(to_radians(tf.angle)) : b2MakeRot(.0f);
+
+    b2Body_SetTransform(bd.id, {tf.x + ox + bd.cached_hx, tf.y + oy + bd.cached_hy}, r);
   }
 
   int object_die(lua_State* state) {
