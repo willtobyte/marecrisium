@@ -225,6 +225,12 @@ function Stage.on_tick(self, tick) end
 ---@param delta number Frame delta time in seconds.
 function Stage.on_loop(self, delta) end
 
+---Called when a mouse button is pressed but no collidable object is hit.
+---@param x number Press X position in world coordinates.
+---@param y number Press Y position in world coordinates.
+---@param button "left"|"middle"|"right" Which mouse button was pressed.
+function Stage.on_press(x, y, button) end
+
 ---Called when a click occurs but no collidable object is hit.
 ---@param x number Click X position in world coordinates.
 ---@param y number Click Y position in world coordinates.
@@ -353,6 +359,7 @@ viewport = {}
 ---@field on_screen_enter? fun(self: Object, direction: "left"|"right"|"top"|"bottom") Called when the object returns inside a screen edge.
 ---@field on_animation_end? fun(self: Object, clip_name: string) Called when an animation clip finishes or is replaced.
 ---@field on_animation_begin? fun(self: Object, clip_name: string) Called when a new animation clip starts playing.
+---@field on_press? fun(self: Object, x: number, y: number, button: "left"|"middle"|"right") Called when a mouse button is pressed over the object's hitbox.
 ---@field on_click? fun(self: Object, x: number, y: number, button: "left"|"middle"|"right") Called when the object is clicked.
 ---@field on_hover? fun(self: Object) Called when the mouse cursor enters the object's hitbox.
 ---@field on_unhover? fun(self: Object) Called when the mouse cursor leaves the object's hitbox.
@@ -439,6 +446,14 @@ function Object.on_animation_end(self, clip_name) end
 ---@param self Object
 ---@param clip_name string Name of the clip that started.
 function Object.on_animation_begin(self, clip_name) end
+
+---Called when a mouse button is pressed over the object's hitbox.
+---Only triggered for collidable objects. The topmost object receives the press.
+---@param self Object
+---@param x number Press X position in world coordinates.
+---@param y number Press Y position in world coordinates.
+---@param button "left"|"middle"|"right" Which mouse button was pressed.
+function Object.on_press(self, x, y, button) end
 
 ---Called when the object is clicked (mouse button released over its hitbox).
 ---Only triggered for collidable objects. The topmost object receives the click.

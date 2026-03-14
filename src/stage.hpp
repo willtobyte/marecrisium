@@ -28,6 +28,8 @@ public:
 protected:
   void dispatch_click(float x, float y, const char* button);
 
+  void dispatch_press(float x, float y, const char* button);
+
   void dispatch_hover(float x, float y);
 
   void dispatch_unhover(std::span<const entt::entity> current);
