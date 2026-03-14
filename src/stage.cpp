@@ -8,6 +8,11 @@ static entt::entity to_entity(const void* p) noexcept {
   return static_cast<entt::entity>(reinterpret_cast<uintptr_t>(p) - 1);
 }
 
+static b2Vec2 body_center(const transform& tf, const frame& fr, const body& bd) noexcept {
+  return {tf.x + fr.cx * tf.scale + bd.cached_hx,
+          tf.y + fr.cy * tf.scale + bd.cached_hy};
+}
+
 static void on_objectproxy_destroy(entt::registry& registry, entt::entity entity) {
   auto& proxy = registry.get<objectproxy>(entity);
 
@@ -248,15 +253,15 @@ stage::stage(std::string_view name)
           lua_pop(L, 2);
 
           const auto bt = str == "dynamic" ? body_type::dynamic
-                        : str == "static"  ? body_type::fixed
+                        : str == "static"  ? body_type::stationary
                                            : body_type::kinematic;
 
           b2BodyDef bdef = b2DefaultBodyDef();
           bdef.userData = to_userdata(entity);
 
-          bdef.type = bt == body_type::dynamic   ? b2_dynamicBody
-                   : bt == body_type::fixed     ? b2_staticBody
-                                                : b2_kinematicBody;
+          bdef.type = bt == body_type::dynamic     ? b2_dynamicBody
+                   : bt == body_type::stationary ? b2_staticBody
+                                                 : b2_kinematicBody;
 
           if (bt == body_type::dynamic) {
             bdef.isBullet = true;
@@ -473,7 +478,8 @@ void stage::on_enter() {
   lua_getfield(L, -1, "on_enter");
 
   if (lua_isfunction(L, -1)) {
-    if (lua_pcall(L, 0, 0, 0) != 0) [[unlikely]] {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
       lua_pop(L, 2);
       throw std::runtime_error{std::move(error)};
@@ -490,7 +496,8 @@ void stage::on_leave() {
   lua_getfield(L, -1, "on_leave");
 
   if (lua_isfunction(L, -1)) {
-    if (lua_pcall(L, 0, 0, 0) != 0) [[unlikely]] {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
       std::string error = lua_tostring(L, -1);
       lua_pop(L, 2);
       throw std::runtime_error{std::move(error)};
@@ -670,9 +677,10 @@ void stage::update(float delta) {
         continue;
       }
 
+      const auto hx = frame.cw * tf.scale * .5f;
+      const auto hy = frame.ch * tf.scale * .5f;
+
       if (!b2Shape_IsValid(bd.shape)) {
-        const auto hx = frame.cw * tf.scale * .5f;
-        const auto hy = frame.ch * tf.scale * .5f;
         const auto polygon = b2MakeBox(hx, hy);
 
         auto sdef = b2DefaultShapeDef();
@@ -689,23 +697,28 @@ void stage::update(float delta) {
         bd.cached_hx = hx;
         bd.cached_hy = hy;
 
-        const auto cx = tf.x + frame.cx * tf.scale + hx;
-        const auto cy = tf.y + frame.cy * tf.scale + hy;
+        const auto center = body_center(tf, frame, bd);
 
         if (bd.type == body_type::kinematic) {
-          b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(to_radians(tf.angle))}, _timestep);
+          b2Body_SetTargetTransform(bd.id, {center, b2MakeRot(to_radians(tf.angle))}, _timestep);
         } else {
           const auto rot = bd.type == body_type::dynamic ? b2MakeRot(.0f) : b2MakeRot(to_radians(tf.angle));
-          b2Body_SetTransform(bd.id, {cx, cy}, rot);
+          b2Body_SetTransform(bd.id, center, rot);
         }
 
         continue;
       }
 
+      if (hx != bd.cached_hx || hy != bd.cached_hy) {
+        const auto polygon = b2MakeBox(hx, hy);
+        b2Shape_SetPolygon(bd.shape, &polygon);
+        bd.cached_hx = hx;
+        bd.cached_hy = hy;
+      }
+
       if (bd.type == body_type::kinematic) {
-        const auto cx = tf.x + frame.cx * tf.scale + bd.cached_hx;
-        const auto cy = tf.y + frame.cy * tf.scale + bd.cached_hy;
-        b2Body_SetTargetTransform(bd.id, {{cx, cy}, b2MakeRot(to_radians(tf.angle))}, _timestep);
+        const auto center = body_center(tf, frame, bd);
+        b2Body_SetTargetTransform(bd.id, {center, b2MakeRot(to_radians(tf.angle))}, _timestep);
       }
     }
 
@@ -748,7 +761,7 @@ void stage::update(float delta) {
         entt::entity ride_target = entt::null;
 
         if (capacity > 0) {
-          std::array<b2ContactData, 8> contacts{};
+          std::array<b2ContactData, 16> contacts{};
           const auto count = b2Body_GetContactData(bd.id, contacts.data(), static_cast<int>(contacts.size()));
           const auto* user = b2Shape_GetUserData(bd.shape);
 
@@ -1249,18 +1262,12 @@ void stage::dispatch_collision(entt::entity entity, entt::entity other, const ch
 }
 
 int stage::raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance) {
-  struct hit {
-    entt::entity entity;
-    float fraction;
-  };
-
   struct context {
-    std::array<hit, 64>* buffer;
+    std::array<raycast_hit, 64>* buffer;
     uint8_t count;
   };
 
-  static std::array<hit, 64> hits;
-  context ctx{&hits, 0};
+  context ctx{&_raycast_hits, 0};
 
   const auto radians = to_radians(angle);
   auto sine = .0f, cosine = .0f;
@@ -1284,8 +1291,8 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     &ctx
   );
 
-  const auto result = std::span{hits.data(), ctx.count};
-  std::ranges::sort(result, {}, &hit::fraction);
+  const auto result = std::span{_raycast_hits.data(), ctx.count};
+  std::ranges::sort(result, {}, &raycast_hit::fraction);
 
   lua_newtable(state);
   int index = 1;

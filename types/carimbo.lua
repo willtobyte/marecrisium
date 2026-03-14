@@ -207,10 +207,12 @@ cassette = {}
 local Stage = {}
 
 ---Called when the director navigates to this stage.
-function Stage.on_enter() end
+---@param self table The stage table itself.
+function Stage.on_enter(self) end
 
 ---Called when the director navigates away from this stage.
-function Stage.on_leave() end
+---@param self table The stage table itself.
+function Stage.on_leave(self) end
 
 ---Called at fixed tick rate while this stage is active.
 ---Only fires when `ticks` is set in MainConfig.

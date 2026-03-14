@@ -63,9 +63,9 @@ function ticker.wrap(stage)
 		end
 	end
 
-	stage.on_leave = function()
+	stage.on_leave = function(self)
 		if original_on_leave then
-			original_on_leave()
+			original_on_leave(self)
 		end
 		ticker.clear()
 	end

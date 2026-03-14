@@ -59,7 +59,7 @@ static_assert(std::is_trivially_copyable_v<animation>);
 enum class body_type : uint8_t {
   kinematic,
   dynamic,
-  fixed,
+  stationary,
 };
 
 struct body final {

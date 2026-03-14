@@ -39,10 +39,16 @@ protected:
   void dispatch_dormancy(const objectproxy& proxy, const char* callback);
 
 private:
+  struct raycast_hit {
+    entt::entity entity;
+    float fraction;
+  };
+
   entt::registry _registry;
   std::string _name;
   std::vector<sound*> _sounds;
   std::vector<entt::entity> _hovering;
+  std::array<raycast_hit, 64> _raycast_hits{};
   stringpool _stringpool;
   particlesystem _particlesystem;
   const pixmap* _backdrop;

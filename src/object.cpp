@@ -1,6 +1,18 @@
 #include "object.hpp"
 
 namespace {
+  static void sync_body_position(body& bd, const transform& tf, const animation* an) noexcept {
+    auto ox = .0f;
+    auto oy = .0f;
+    if (an && an->playing && an->clip_count > 0) {
+      const auto& fr = an->clips[an->active].frames[an->current];
+      ox = fr.cx * tf.scale;
+      oy = fr.cy * tf.scale;
+    }
+    const auto rot = bd.type == body_type::stationary ? b2MakeRot(to_radians(tf.angle)) : b2MakeRot(.0f);
+    b2Body_SetTransform(bd.id, {tf.x + ox + bd.cached_hx, tf.y + oy + bd.cached_hy}, rot);
+  }
+
   int object_die(lua_State* state) {
     auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
     if (proxy->registry->valid(proxy->entity))
@@ -195,68 +207,22 @@ namespace {
 
     if (key == "x") {
       auto& tf = registry.get<transform>(entity);
-      const auto value = static_cast<float>(luaL_checknumber(state, 3));
-      tf.x = value;
+      tf.x = static_cast<float>(luaL_checknumber(state, 3));
 
       auto* bd = registry.try_get<body>(entity);
-      if (bd && b2Body_IsValid(bd->id)) {
-        switch (bd->type) {
-          case body_type::dynamic: {
-            auto offset = .0f;
-            const auto* an = registry.try_get<animation>(entity);
-            if (an && an->playing && an->clip_count > 0)
-              offset = an->clips[an->active].frames[an->current].cx * tf.scale;
-
-            const auto position = b2Body_GetPosition(bd->id);
-            b2Body_SetTransform(bd->id, {value + offset + bd->cached_hx, position.y}, b2MakeRot(.0f));
-          } break;
-          case body_type::fixed: {
-            auto offset = .0f;
-            const auto* an = registry.try_get<animation>(entity);
-            if (an && an->playing && an->clip_count > 0)
-              offset = an->clips[an->active].frames[an->current].cx * tf.scale;
-
-            const auto position = b2Body_GetPosition(bd->id);
-            b2Body_SetTransform(bd->id, {value + offset + bd->cached_hx, position.y}, b2MakeRot(to_radians(tf.angle)));
-          } break;
-          case body_type::kinematic:
-            break;
-        }
-      }
+      if (bd && bd->type != body_type::kinematic && b2Body_IsValid(bd->id))
+        sync_body_position(*bd, tf, registry.try_get<animation>(entity));
 
       return 0;
     }
 
     if (key == "y") {
       auto& tf = registry.get<transform>(entity);
-      const auto value = static_cast<float>(luaL_checknumber(state, 3));
-      tf.y = value;
+      tf.y = static_cast<float>(luaL_checknumber(state, 3));
 
       auto* bd = registry.try_get<body>(entity);
-      if (bd && b2Body_IsValid(bd->id)) {
-        switch (bd->type) {
-          case body_type::dynamic: {
-            auto offset = .0f;
-            const auto* an = registry.try_get<animation>(entity);
-            if (an && an->playing && an->clip_count > 0)
-              offset = an->clips[an->active].frames[an->current].cy * tf.scale;
-
-            const auto position = b2Body_GetPosition(bd->id);
-            b2Body_SetTransform(bd->id, {position.x, value + offset + bd->cached_hy}, b2MakeRot(.0f));
-          } break;
-          case body_type::fixed: {
-            auto offset = .0f;
-            const auto* an = registry.try_get<animation>(entity);
-            if (an && an->playing && an->clip_count > 0)
-              offset = an->clips[an->active].frames[an->current].cy * tf.scale;
-
-            const auto position = b2Body_GetPosition(bd->id);
-            b2Body_SetTransform(bd->id, {position.x, value + offset + bd->cached_hy}, b2MakeRot(to_radians(tf.angle)));
-          } break;
-          case body_type::kinematic:
-            break;
-        }
-      }
+      if (bd && bd->type != body_type::kinematic && b2Body_IsValid(bd->id))
+        sync_body_position(*bd, tf, registry.try_get<animation>(entity));
 
       return 0;
     }
@@ -356,7 +322,7 @@ namespace {
       auto* bd = registry.try_get<body>(entity);
       if (bd && b2Body_IsValid(bd->id)) {
         switch (bd->type) {
-          case body_type::fixed: {
+          case body_type::stationary: {
             const auto position = b2Body_GetPosition(bd->id);
             b2Body_SetTransform(bd->id, position, b2MakeRot(to_radians(tf.angle)));
           } break;
@@ -396,36 +362,8 @@ namespace {
       tf.y = py;
 
       auto* bd = registry.try_get<body>(entity);
-      if (bd && b2Body_IsValid(bd->id)) {
-        switch (bd->type) {
-          case body_type::dynamic: {
-            auto ox = .0f;
-            auto oy = .0f;
-            const auto* an = registry.try_get<animation>(entity);
-            if (an && an->playing && an->clip_count > 0) {
-              const auto& frame = an->clips[an->active].frames[an->current];
-              ox = frame.cx * tf.scale;
-              oy = frame.cy * tf.scale;
-            }
-
-            b2Body_SetTransform(bd->id, {px + ox + bd->cached_hx, py + oy + bd->cached_hy}, b2MakeRot(.0f));
-          } break;
-          case body_type::fixed: {
-            auto ox = .0f;
-            auto oy = .0f;
-            const auto* an = registry.try_get<animation>(entity);
-            if (an && an->playing && an->clip_count > 0) {
-              const auto& frame = an->clips[an->active].frames[an->current];
-              ox = frame.cx * tf.scale;
-              oy = frame.cy * tf.scale;
-            }
-
-            b2Body_SetTransform(bd->id, {px + ox + bd->cached_hx, py + oy + bd->cached_hy}, b2MakeRot(to_radians(tf.angle)));
-          } break;
-          case body_type::kinematic:
-            break;
-        }
-      }
+      if (bd && bd->type != body_type::kinematic && b2Body_IsValid(bd->id))
+        sync_body_position(*bd, tf, registry.try_get<animation>(entity));
 
       return 0;
     }
