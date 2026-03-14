@@ -8,6 +8,8 @@ static entt::entity to_entity(const void* p) noexcept {
   return static_cast<entt::entity>(reinterpret_cast<uintptr_t>(p) - 1);
 }
 
+static constexpr std::string_view directions[] = {"left", "right", "top", "bottom"};
+
 static b2Vec2 body_center(const transform& tf, const frame& fr, const body& bd) noexcept {
   return {tf.x + fr.cx * tf.scale + bd.cached_hx,
           tf.y + fr.cy * tf.scale + bd.cached_hy};
@@ -679,7 +681,7 @@ void stage::update(float delta) {
 
     a->elapsed += delta;
 
-    while (a->elapsed >= fr.duration && fr.duration > .0f) {
+    while (a->elapsed >= fr.duration) {
       a->elapsed -= fr.duration;
       ++a->current;
 
@@ -806,7 +808,8 @@ void stage::update(float delta) {
       tf.y = position.y - frame.cy * tf.scale - bd->cached_hy;
     }
 
-    static constexpr std::string_view directions[] = {"left", "right", "top", "bottom"};
+    const auto viewport_right  = viewport.x + viewport.width;
+    const auto viewport_bottom = viewport.y + viewport.height;
 
     for (auto&& [entity, bd] :
          _registry.view<const body>(entt::exclude<dormant>).each()) {
@@ -861,11 +864,11 @@ void stage::update(float delta) {
           uint8_t current = 0;
           if (aabb.upperBound.x < viewport.x)
             current |= boundary::left;
-          if (aabb.lowerBound.x > viewport.x + viewport.width)
+          if (aabb.lowerBound.x > viewport_right)
             current |= boundary::right;
           if (aabb.upperBound.y < viewport.y)
             current |= boundary::top;
-          if (aabb.lowerBound.y > viewport.y + viewport.height)
+          if (aabb.lowerBound.y > viewport_bottom)
             current |= boundary::bottom;
 
           const auto exited = static_cast<uint8_t>(current & ~sb->previous);
@@ -1038,6 +1041,9 @@ uint8_t stage::query_point(float x, float y, entt::entity* buffer, uint8_t capac
 }
 
 entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexcept {
+  if (hits.empty()) [[unlikely]]
+    return entt::null;
+
   entt::entity topmost = entt::null;
 
   for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {

@@ -115,10 +115,6 @@ void director::clear_overlay() {
 }
 
 void director::preload(std::string_view name) {
-  if (_stages.find(name) != _stages.end()) [[unlikely]] {
-    return;
-  }
-
   _stages.try_emplace(std::string{name}, std::make_unique<stage>(name));
 }
 

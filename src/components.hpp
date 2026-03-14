@@ -47,10 +47,10 @@ static_assert(std::is_trivially_copyable_v<clip>);
 struct animation final {
   const pixmap* pixmap{};
   std::array<clip, 8> clips{};
+  float elapsed{};
   uint8_t clip_count{};
   uint8_t active{};
   uint8_t current{};
-  float elapsed{};
   bool playing{};
 };
 

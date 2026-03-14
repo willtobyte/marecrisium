@@ -158,6 +158,7 @@ void particle::set_active(bool value) noexcept {
 void particle::set_sound(class sound* sound, float distance, float volume) noexcept {
   _sound = sound;
   _distance = distance;
+  _inverse_distance = 1.f / distance;
   _volume = volume;
 
   if (_active) {
@@ -314,9 +315,9 @@ void particle::draw() noexcept {
     const auto dx = _x - cx;
     const auto dy = _y - cy;
     const auto d = std::sqrt(dx * dx + dy * dy);
-    const auto t = std::clamp(d / _distance, .0f, 1.f);
+    const auto t = std::clamp(d * _inverse_distance, .0f, 1.f);
     const auto u = 1.f - t;
     _sound->set_volume(_volume * u * u);
-    _sound->set_pan(std::clamp(dx / _distance, -1.f, 1.f) * .3f);
+    _sound->set_pan(std::clamp(dx * _inverse_distance, -1.f, 1.f) * .3f);
   }
 }
