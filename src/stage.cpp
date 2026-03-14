@@ -31,6 +31,9 @@ static void on_objectproxy_destroy(entt::registry& registry, entt::entity entity
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_loop);
     userdata->on_loop = LUA_NOREF;
 
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_press);
+    userdata->on_press = LUA_NOREF;
+
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->prototype);
     userdata->prototype = LUA_NOREF;
   }
