@@ -45,23 +45,28 @@ static void on_objectproxy_destroy(entt::registry& registry, entt::entity entity
 static void dispatch_sensor_event(stage& self, b2ShapeId sensor_shape, b2ShapeId visitor_shape, const char* callback) {
   if (!b2Shape_IsValid(sensor_shape) || !b2Shape_IsValid(visitor_shape))
     return;
+
   const auto* sensor_data = b2Shape_GetUserData(sensor_shape);
   const auto* visitor_data = b2Shape_GetUserData(visitor_shape);
   if (!sensor_data || !visitor_data)
     return;
+
   self.dispatch_collision(to_entity(sensor_data), to_entity(visitor_data), callback);
 }
 
 static void dispatch_contact_begin_event(stage& self, b2ShapeId shape_a, b2ShapeId shape_b, const b2Manifold& manifold) {
   if (!b2Shape_IsValid(shape_a) || !b2Shape_IsValid(shape_b))
     return;
+
   const auto* data_a = b2Shape_GetUserData(shape_a);
   const auto* data_b = b2Shape_GetUserData(shape_b);
   if (!data_a || !data_b)
     return;
+
   const auto entity_a = to_entity(data_a);
   const auto entity_b = to_entity(data_b);
   const b2Vec2 flipped = {-manifold.normal.x, -manifold.normal.y};
+
   self.dispatch_collision(entity_a, entity_b, "on_collision_begin", &manifold.normal);
   self.dispatch_collision(entity_b, entity_a, "on_collision_begin", &flipped);
 }
@@ -69,12 +74,15 @@ static void dispatch_contact_begin_event(stage& self, b2ShapeId shape_a, b2Shape
 static void dispatch_contact_end_event(stage& self, b2ShapeId shape_a, b2ShapeId shape_b) {
   if (!b2Shape_IsValid(shape_a) || !b2Shape_IsValid(shape_b))
     return;
+
   const auto* data_a = b2Shape_GetUserData(shape_a);
   const auto* data_b = b2Shape_GetUserData(shape_b);
   if (!data_a || !data_b)
     return;
+
   const auto entity_a = to_entity(data_a);
   const auto entity_b = to_entity(data_b);
+
   self.dispatch_collision(entity_a, entity_b, "on_collision_end");
   self.dispatch_collision(entity_b, entity_a, "on_collision_end");
 }
