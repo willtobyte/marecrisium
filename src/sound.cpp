@@ -131,15 +131,6 @@ namespace {
 }
 
 sound::sound(std::string_view filename) {
-  if (luaL_newmetatable(L, "Sound")) {
-    lua_pushcfunction(L, sound_index);
-    lua_setfield(L, -2, "__index");
-
-    lua_pushcfunction(L, sound_newindex);
-    lua_setfield(L, -2, "__newindex");
-  }
-  lua_pop(L, 1);
-
   const auto buffer = io::read(filename);
 
   const std::unique_ptr<OggOpusFile, OggOpusFile_Deleter> codec{
@@ -253,4 +244,13 @@ void sound::poll() {
       throw std::runtime_error{std::move(error)};
     }
   }
+}
+
+void sound::wire() {
+  luaL_newmetatable(L, "Sound");
+  lua_pushcfunction(L, sound_index);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, sound_newindex);
+  lua_setfield(L, -2, "__newindex");
+  lua_pop(L, 1);
 }

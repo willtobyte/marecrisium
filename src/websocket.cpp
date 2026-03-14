@@ -201,14 +201,7 @@ int websocket_subscribe(lua_State* state) {
   auto** udata = static_cast<subscription**>(lua_newuserdata(state, sizeof(subscription*)));
   *udata = instance;
 
-  if (luaL_newmetatable(state, "Subscription")) {
-    lua_pushcfunction(state, subscription_index);
-    lua_setfield(state, -2, "__index");
-
-    lua_pushcfunction(state, subscription_gc);
-    lua_setfield(state, -2, "__gc");
-  }
-
+  luaL_getmetatable(state, "Subscription");
   lua_setmetatable(state, -2);
   return 1;
 }
@@ -244,14 +237,7 @@ int websocket_call(lua_State* state) {
   auto** udata = static_cast<socketconn**>(lua_newuserdata(state, sizeof(socketconn*)));
   *udata = connection;
 
-  if (luaL_newmetatable(state, "WebSocket")) {
-    lua_pushcfunction(state, websocket_index);
-    lua_setfield(state, -2, "__index");
-
-    lua_pushcfunction(state, websocket_gc);
-    lua_setfield(state, -2, "__gc");
-  }
-
+  luaL_getmetatable(state, "WebSocket");
   lua_setmetatable(state, -2);
   return 1;
 }
@@ -562,6 +548,20 @@ bool subscription::active() const noexcept {
 }
 
 void websocket::wire() {
+  luaL_newmetatable(L, "Subscription");
+  lua_pushcfunction(L, subscription_index);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, subscription_gc);
+  lua_setfield(L, -2, "__gc");
+  lua_pop(L, 1);
+
+  luaL_newmetatable(L, "WebSocket");
+  lua_pushcfunction(L, websocket_index);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, websocket_gc);
+  lua_setfield(L, -2, "__gc");
+  lua_pop(L, 1);
+
   lua_newtable(L);
   lua_pushcfunction(L, websocket_call);
   lua_setfield(L, -2, "new");

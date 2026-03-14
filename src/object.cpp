@@ -403,18 +403,6 @@ namespace {
 
 objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::string_view name, std::string_view kind, int environment)
     : registry(&registry), entity(entity), name(entt::hashed_string{name.data()}.value()), kind(entt::hashed_string{kind.data()}.value()) {
-  if (luaL_newmetatable(L, "Object")) {
-    lua_pushcfunction(L, object_index);
-    lua_setfield(L, -2, "__index");
-
-    lua_pushcfunction(L, object_newindex);
-    lua_setfield(L, -2, "__newindex");
-
-    lua_pushcfunction(L, object_gc);
-    lua_setfield(L, -2, "__gc");
-  }
-  lua_pop(L, 1);
-
   depot->source.insert(kind);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, environment);
@@ -462,4 +450,15 @@ objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::str
   lua_setmetatable(L, -2);
 
   handle = luaL_ref(L, LUA_REGISTRYINDEX);
+}
+
+void object::wire() {
+  luaL_newmetatable(L, "Object");
+  lua_pushcfunction(L, object_index);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, object_newindex);
+  lua_setfield(L, -2, "__newindex");
+  lua_pushcfunction(L, object_gc);
+  lua_setfield(L, -2, "__gc");
+  lua_pop(L, 1);
 }

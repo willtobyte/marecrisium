@@ -14,3 +14,7 @@ struct objectproxy final {
 
   objectproxy(entt::registry& registry, entt::entity entity, std::string_view name, std::string_view kind, int environment);
 };
+
+namespace object {
+  void wire();
+}

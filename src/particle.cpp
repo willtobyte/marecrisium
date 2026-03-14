@@ -113,15 +113,6 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
     , _lifed(std::min(config.life.first, config.life.second), std::max(config.life.first, config.life.second))
     , _rotforced(std::min(config.rforce.first, config.rforce.second), std::max(config.rforce.first, config.rforce.second))
     , _rotveld(std::min(config.rvel.first, config.rvel.second), std::max(config.rvel.first, config.rvel.second)) {
-  if (luaL_newmetatable(L, "Particle")) {
-    lua_pushcfunction(L, particle_index);
-    lua_setfield(L, -2, "__index");
-
-    lua_pushcfunction(L, particle_newindex);
-    lua_setfield(L, -2, "__newindex");
-  }
-  lua_pop(L, 1);
-
   const auto n = _count;
 
   _px.resize(n);
@@ -320,4 +311,13 @@ void particle::draw() noexcept {
     _sound->set_volume(_volume * u * u);
     _sound->set_pan(std::clamp(dx * _inverse_distance, -1.f, 1.f) * .3f);
   }
+}
+
+void particle::wire() {
+  luaL_newmetatable(L, "Particle");
+  lua_pushcfunction(L, particle_index);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, particle_newindex);
+  lua_setfield(L, -2, "__newindex");
+  lua_pop(L, 1);
 }

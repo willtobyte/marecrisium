@@ -107,7 +107,7 @@ void director::set_overlay(std::string_view name) {
   }
 
   _overlay = it->second.get();
-  _overlay->wire();
+  _overlay->expose();
 }
 
 void director::clear_overlay() {

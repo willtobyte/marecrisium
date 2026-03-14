@@ -39,6 +39,8 @@ public:
   void set_sound(class sound* sound, float distance, float volume) noexcept;
   [[nodiscard]] class sound* sound() const noexcept;
 
+  static void wire();
+
 private:
   size_t _count;
 

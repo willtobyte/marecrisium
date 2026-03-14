@@ -15,6 +15,8 @@ public:
   void set_pan(float pan) noexcept;
   [[nodiscard]] float pan() const noexcept;
 
+  static void wire();
+
   void set_loop(bool loop) noexcept;
   [[nodiscard]] bool loop() const noexcept;
 

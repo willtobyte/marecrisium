@@ -32,13 +32,17 @@ void scriptengine::run() {
   achievement::wire();
   cassette::wire();
   gamepad::wire();
+  internet::wire();
   keyboard::wire();
   locales::wire();
   mouse::wire();
+  object::wire();
+  overlay::wire();
+  particle::wire();
   platform::wire();
   runtime::wire();
+  sound::wire();
   user::wire();
-  internet::wire();
   websocket::wire();
 
   auto e = engine();
