@@ -25,6 +25,8 @@ public:
 
   [[nodiscard]] int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
 
+  void dispatch_collision(entt::entity entity, entt::entity other, const char* callback, const b2Vec2* normal = nullptr);
+
 protected:
   void dispatch_click(float x, float y, const char* button);
 
@@ -34,11 +36,15 @@ protected:
 
   void dispatch_unhover(std::span<const entt::entity> current);
 
-  void dispatch_collision(entt::entity entity, entt::entity other, const char* callback, const b2Vec2* normal = nullptr);
-
   void dispatch_screen_event(const objectproxy& proxy, const char* callback, std::string_view direction);
 
   void dispatch_dormancy(const objectproxy& proxy, const char* callback);
+
+  [[nodiscard]] uint8_t query_point(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
+
+  [[nodiscard]] entt::entity find_topmost(std::span<const entt::entity> hits) const noexcept;
+
+  void dispatch_miss(const char* callback, float x, float y, const char* button);
 
 private:
   struct raycast_hit {

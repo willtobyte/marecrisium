@@ -42,6 +42,43 @@ static void on_objectproxy_destroy(entt::registry& registry, entt::entity entity
   luaL_unref(L, LUA_REGISTRYINDEX, proxy.handle);
 }
 
+static void dispatch_sensor_event(stage& self, b2ShapeId sensor_shape, b2ShapeId visitor_shape, const char* callback) {
+  if (!b2Shape_IsValid(sensor_shape) || !b2Shape_IsValid(visitor_shape))
+    return;
+  const auto* sensor_data = b2Shape_GetUserData(sensor_shape);
+  const auto* visitor_data = b2Shape_GetUserData(visitor_shape);
+  if (!sensor_data || !visitor_data)
+    return;
+  self.dispatch_collision(to_entity(sensor_data), to_entity(visitor_data), callback);
+}
+
+static void dispatch_contact_begin_event(stage& self, b2ShapeId shape_a, b2ShapeId shape_b, const b2Manifold& manifold) {
+  if (!b2Shape_IsValid(shape_a) || !b2Shape_IsValid(shape_b))
+    return;
+  const auto* data_a = b2Shape_GetUserData(shape_a);
+  const auto* data_b = b2Shape_GetUserData(shape_b);
+  if (!data_a || !data_b)
+    return;
+  const auto entity_a = to_entity(data_a);
+  const auto entity_b = to_entity(data_b);
+  const b2Vec2 flipped = {-manifold.normal.x, -manifold.normal.y};
+  self.dispatch_collision(entity_a, entity_b, "on_collision_begin", &manifold.normal);
+  self.dispatch_collision(entity_b, entity_a, "on_collision_begin", &flipped);
+}
+
+static void dispatch_contact_end_event(stage& self, b2ShapeId shape_a, b2ShapeId shape_b) {
+  if (!b2Shape_IsValid(shape_a) || !b2Shape_IsValid(shape_b))
+    return;
+  const auto* data_a = b2Shape_GetUserData(shape_a);
+  const auto* data_b = b2Shape_GetUserData(shape_b);
+  if (!data_a || !data_b)
+    return;
+  const auto entity_a = to_entity(data_a);
+  const auto entity_b = to_entity(data_b);
+  self.dispatch_collision(entity_a, entity_b, "on_collision_end");
+  self.dispatch_collision(entity_b, entity_a, "on_collision_end");
+}
+
 static void on_object_destroy(entt::registry& registry, entt::entity entity) {
   auto& bo = registry.get<body>(entity);
   if (b2Body_IsValid(bo.id))
@@ -841,59 +878,19 @@ void stage::update(float delta) {
 
     const auto sensor_events = b2World_GetSensorEvents(_world);
 
-    for (int i = 0; i < sensor_events.beginCount; ++i) {
-      const auto& event = sensor_events.beginEvents[i];
-      if (!b2Shape_IsValid(event.sensorShapeId) || !b2Shape_IsValid(event.visitorShapeId))
-        continue;
-      const auto* sensor_data = b2Shape_GetUserData(event.sensorShapeId);
-      const auto* visitor_data = b2Shape_GetUserData(event.visitorShapeId);
-      if (!sensor_data || !visitor_data) continue;
-      const auto sensor = to_entity(sensor_data);
-      const auto visitor = to_entity(visitor_data);
-      dispatch_collision(sensor, visitor, "on_collision_begin");
-    }
+    for (int i = 0; i < sensor_events.beginCount; ++i)
+      dispatch_sensor_event(*this, sensor_events.beginEvents[i].sensorShapeId, sensor_events.beginEvents[i].visitorShapeId, "on_collision_begin");
 
-    for (int i = 0; i < sensor_events.endCount; ++i) {
-      const auto& event = sensor_events.endEvents[i];
-      if (!b2Shape_IsValid(event.sensorShapeId) || !b2Shape_IsValid(event.visitorShapeId))
-        continue;
-      const auto* sensor_data = b2Shape_GetUserData(event.sensorShapeId);
-      const auto* visitor_data = b2Shape_GetUserData(event.visitorShapeId);
-      if (!sensor_data || !visitor_data) continue;
-      const auto sensor = to_entity(sensor_data);
-      const auto visitor = to_entity(visitor_data);
-      dispatch_collision(sensor, visitor, "on_collision_end");
-    }
+    for (int i = 0; i < sensor_events.endCount; ++i)
+      dispatch_sensor_event(*this, sensor_events.endEvents[i].sensorShapeId, sensor_events.endEvents[i].visitorShapeId, "on_collision_end");
 
     const auto contact_events = b2World_GetContactEvents(_world);
 
-    for (int i = 0; i < contact_events.beginCount; ++i) {
-      const auto& event = contact_events.beginEvents[i];
-      if (!b2Shape_IsValid(event.shapeIdA) || !b2Shape_IsValid(event.shapeIdB))
-        continue;
-      const auto* data_a = b2Shape_GetUserData(event.shapeIdA);
-      const auto* data_b = b2Shape_GetUserData(event.shapeIdB);
-      if (!data_a || !data_b) continue;
-      const auto entity_a = to_entity(data_a);
-      const auto entity_b = to_entity(data_b);
-      const auto& normal = event.manifold.normal;
-      const b2Vec2 flipped = {-normal.x, -normal.y};
-      dispatch_collision(entity_a, entity_b, "on_collision_begin", &normal);
-      dispatch_collision(entity_b, entity_a, "on_collision_begin", &flipped);
-    }
+    for (int i = 0; i < contact_events.beginCount; ++i)
+      dispatch_contact_begin_event(*this, contact_events.beginEvents[i].shapeIdA, contact_events.beginEvents[i].shapeIdB, contact_events.beginEvents[i].manifold);
 
-    for (int i = 0; i < contact_events.endCount; ++i) {
-      const auto& event = contact_events.endEvents[i];
-      if (!b2Shape_IsValid(event.shapeIdA) || !b2Shape_IsValid(event.shapeIdB))
-        continue;
-      const auto* data_a = b2Shape_GetUserData(event.shapeIdA);
-      const auto* data_b = b2Shape_GetUserData(event.shapeIdB);
-      if (!data_a || !data_b) continue;
-      const auto entity_a = to_entity(data_a);
-      const auto entity_b = to_entity(data_b);
-      dispatch_collision(entity_a, entity_b, "on_collision_end");
-      dispatch_collision(entity_b, entity_a, "on_collision_end");
-    }
+    for (int i = 0; i < contact_events.endCount; ++i)
+      dispatch_contact_end_event(*this, contact_events.endEvents[i].shapeIdA, contact_events.endEvents[i].shapeIdB);
 
     _accumulator -= _timestep;
   }
@@ -1005,60 +1002,41 @@ void stage::draw() {
 #endif
 }
 
-void stage::dispatch_press(float x, float y, const char* button) {
+uint8_t stage::query_point(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept {
   constexpr auto HALF = .5f;
   const b2AABB aabb = {{x - HALF, y - HALF}, {x + HALF, y + HALF}};
   const auto filter = b2DefaultQueryFilter();
 
   struct context {
     entt::entity* hits;
+    uint8_t capacity;
     uint8_t count;
   };
 
-  std::array<entt::entity, 32> buffer{};
-  context ctx{buffer.data(), 0};
+  context ctx{buffer, capacity, 0};
 
   b2World_OverlapAABB(
     _world, aabb, filter,
     [](b2ShapeId shape, void* userdata) -> bool {
       auto* ctx = static_cast<context*>(userdata);
-      if (ctx->count >= 32) [[unlikely]]
+      if (ctx->count >= ctx->capacity) [[unlikely]]
         return false;
       ctx->hits[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
       return true;
     },
     &ctx);
 
-  if (ctx.count == 0) [[likely]] {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    lua_getfield(L, -1, "on_press");
+  return ctx.count;
+}
 
-    if (lua_isfunction(L, -1)) {
-      lua_pushnumber(L, static_cast<lua_Number>(x));
-      lua_pushnumber(L, static_cast<lua_Number>(y));
-      lua_pushstring(L, button);
-
-      if (lua_pcall(L, 3, 0, 0) != 0) [[unlikely]] {
-        std::string error = lua_tostring(L, -1);
-        lua_pop(L, 2);
-        throw std::runtime_error{std::move(error)};
-      }
-    } else {
-      lua_pop(L, 1);
-    }
-
-    lua_pop(L, 1);
-    return;
-  }
-
-  const auto span = std::span{buffer.data(), ctx.count};
+entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexcept {
   entt::entity topmost = entt::null;
 
   for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
     if (!tf.shown || tf.alpha <= .0f) [[unlikely]]
       continue;
 
-    for (const auto hit : span) {
+    for (const auto hit : hits) {
       if (hit == entity) {
         topmost = entity;
         break;
@@ -1066,6 +1044,40 @@ void stage::dispatch_press(float x, float y, const char* button) {
     }
   }
 
+  return topmost;
+}
+
+void stage::dispatch_miss(const char* callback, float x, float y, const char* button) {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_getfield(L, -1, callback);
+
+  if (lua_isfunction(L, -1)) {
+    lua_pushnumber(L, static_cast<lua_Number>(x));
+    lua_pushnumber(L, static_cast<lua_Number>(y));
+    lua_pushstring(L, button);
+
+    if (lua_pcall(L, 3, 0, 0) != 0) [[unlikely]] {
+      std::string error = lua_tostring(L, -1);
+      lua_pop(L, 2);
+      throw std::runtime_error{std::move(error)};
+    }
+  } else {
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
+}
+
+void stage::dispatch_press(float x, float y, const char* button) {
+  std::array<entt::entity, 32> buffer{};
+  const auto count = query_point(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
+
+  if (count == 0) [[likely]] {
+    dispatch_miss("on_press", x, y, button);
+    return;
+  }
+
+  const auto topmost = find_topmost(std::span{buffer.data(), count});
   if (topmost == entt::null) [[unlikely]]
     return;
 
@@ -1092,66 +1104,15 @@ void stage::dispatch_press(float x, float y, const char* button) {
 }
 
 void stage::dispatch_click(float x, float y, const char* button) {
-  constexpr auto HALF = .5f;
-  const b2AABB aabb = {{x - HALF, y - HALF}, {x + HALF, y + HALF}};
-  const auto filter = b2DefaultQueryFilter();
-
-  struct context {
-    entt::entity* hits;
-    uint8_t count;
-  };
-
   std::array<entt::entity, 32> buffer{};
-  context ctx{buffer.data(), 0};
+  const auto count = query_point(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
-  b2World_OverlapAABB(
-    _world, aabb, filter,
-    [](b2ShapeId shape, void* userdata) -> bool {
-      auto* ctx = static_cast<context*>(userdata);
-      if (ctx->count >= 32) [[unlikely]]
-        return false;
-      ctx->hits[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
-      return true;
-    },
-    &ctx);
-
-  if (ctx.count == 0) [[likely]] {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    lua_getfield(L, -1, "on_click");
-
-    if (lua_isfunction(L, -1)) {
-      lua_pushnumber(L, static_cast<lua_Number>(x));
-      lua_pushnumber(L, static_cast<lua_Number>(y));
-      lua_pushstring(L, button);
-
-      if (lua_pcall(L, 3, 0, 0) != 0) [[unlikely]] {
-        std::string error = lua_tostring(L, -1);
-        lua_pop(L, 2);
-        throw std::runtime_error{std::move(error)};
-      }
-    } else {
-      lua_pop(L, 1);
-    }
-
-    lua_pop(L, 1);
+  if (count == 0) [[likely]] {
+    dispatch_miss("on_click", x, y, button);
     return;
   }
 
-  const auto span = std::span{buffer.data(), ctx.count};
-  entt::entity topmost = entt::null;
-
-  for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
-    if (!tf.shown || tf.alpha <= .0f) [[unlikely]]
-      continue;
-
-    for (const auto hit : span) {
-      if (hit == entity) {
-        topmost = entity;
-        break;
-      }
-    }
-  }
-
+  const auto topmost = find_topmost(std::span{buffer.data(), count});
   if (topmost == entt::null) [[unlikely]]
     return;
 
@@ -1184,30 +1145,10 @@ void stage::dispatch_click(float x, float y, const char* button) {
 }
 
 void stage::dispatch_hover(float x, float y) {
-  constexpr auto HALF = .5f;
-  const b2AABB aabb = {{x - HALF, y - HALF}, {x + HALF, y + HALF}};
-  const auto filter = b2DefaultQueryFilter();
-
-  struct context {
-    entt::entity* hits;
-    uint8_t count;
-  };
-
   std::array<entt::entity, 16> buffer{};
-  context ctx{buffer.data(), 0};
+  const auto count = query_point(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
-  b2World_OverlapAABB(
-    _world, aabb, filter,
-    [](b2ShapeId shape, void* userdata) -> bool {
-      auto* ctx = static_cast<context*>(userdata);
-      if (ctx->count >= 16) [[unlikely]]
-        return false;
-      ctx->hits[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
-      return true;
-    },
-    &ctx);
-
-  const auto hits = std::span{buffer.data(), ctx.count};
+  const auto hits = std::span{buffer.data(), count};
   std::ranges::sort(hits);
 
   dispatch_unhover(hits);
