@@ -46,6 +46,9 @@ return {
 
 	on_press = function(self, x, y, button)
 		print("on_press", self.name, x, y, button)
+		pool.smoke1.active = false
+		pool.smoke2.active = false
+		pool.smoke3.active = false
 	end,
 
 	on_click = function(self, x, y, button)
