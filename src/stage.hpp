@@ -40,7 +40,7 @@ protected:
 
   void dispatch_dormancy(const objectproxy& proxy, const char* callback);
 
-  [[nodiscard]] uint8_t query_point(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
+  [[nodiscard]] uint8_t pick_at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
 
   [[nodiscard]] entt::entity find_topmost(std::span<const entt::entity> hits) const noexcept;
 

@@ -1013,7 +1013,7 @@ void stage::draw() {
 #endif
 }
 
-uint8_t stage::query_point(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept {
+uint8_t stage::pick_at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept {
   constexpr auto HALF = .5f;
   const b2AABB aabb = {{x - HALF, y - HALF}, {x + HALF, y + HALF}};
   const auto filter = b2DefaultQueryFilter();
@@ -1084,7 +1084,7 @@ void stage::dispatch_miss(const char* callback, float x, float y, const char* bu
 
 void stage::dispatch_press(float x, float y, const char* button) {
   std::array<entt::entity, 32> buffer{};
-  const auto count = query_point(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
+  const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
   if (count == 0) [[likely]] {
     dispatch_miss("on_press", x, y, button);
@@ -1119,7 +1119,7 @@ void stage::dispatch_press(float x, float y, const char* button) {
 
 void stage::dispatch_click(float x, float y, const char* button) {
   std::array<entt::entity, 32> buffer{};
-  const auto count = query_point(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
+  const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
   if (count == 0) [[likely]] {
     dispatch_miss("on_click", x, y, button);
@@ -1160,7 +1160,7 @@ void stage::dispatch_click(float x, float y, const char* button) {
 
 void stage::dispatch_hover(float x, float y) {
   std::array<entt::entity, 16> buffer{};
-  const auto count = query_point(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
+  const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
   const auto hits = std::span{buffer.data(), count};
   std::ranges::sort(hits);
