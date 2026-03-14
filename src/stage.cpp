@@ -1083,7 +1083,7 @@ void stage::dispatch_miss(const char* callback, float x, float y, const char* bu
 }
 
 void stage::dispatch_press(float x, float y, const char* button) {
-  std::array<entt::entity, 32> buffer{};
+  std::array<entt::entity, 16> buffer{};
   const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
   if (count == 0) [[likely]] {
@@ -1118,7 +1118,7 @@ void stage::dispatch_press(float x, float y, const char* button) {
 }
 
 void stage::dispatch_click(float x, float y, const char* button) {
-  std::array<entt::entity, 32> buffer{};
+  std::array<entt::entity, 16> buffer{};
   const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
   if (count == 0) [[likely]] {
