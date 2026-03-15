@@ -40,6 +40,12 @@
 #include <spng.h>
 #include <yyjson.h>
 
+#ifdef _MSC_VER
+#  define noalias __restrict
+#else
+#  define noalias __restrict__
+#endif
+
 extern lua_State* L;
 extern SDL_Renderer* renderer;
 extern ma_engine* audioengine;

@@ -163,17 +163,17 @@ void particle::update(float delta) noexcept {
   const auto n = _count;
   auto& eng = rng();
 
-  auto* RESTRICT xs = _px.data();
-  auto* RESTRICT ys = _py.data();
-  auto* RESTRICT vxs = _vx.data();
-  auto* RESTRICT vys = _vy.data();
-  auto* RESTRICT gxs = _gx.data();
-  auto* RESTRICT gys = _gy.data();
-  auto* RESTRICT lifes = _life.data();
-  auto* RESTRICT scales = _scale.data();
-  auto* RESTRICT angles = _angle.data();
-  auto* RESTRICT avs = _av.data();
-  auto* RESTRICT afs = _af.data();
+  auto* noalias xs = _px.data();
+  auto* noalias ys = _py.data();
+  auto* noalias vxs = _vx.data();
+  auto* noalias vys = _vy.data();
+  auto* noalias gxs = _gx.data();
+  auto* noalias gys = _gy.data();
+  auto* noalias lifes = _life.data();
+  auto* noalias scales = _scale.data();
+  auto* noalias angles = _angle.data();
+  auto* noalias avs = _av.data();
+  auto* noalias afs = _af.data();
 
   for (auto i = 0uz; i < n; ++i) {
     lifes[i] -= delta;
@@ -190,7 +190,7 @@ void particle::update(float delta) noexcept {
   if (_active) {
     const auto px = _x;
     const auto py = _y;
-    auto* RESTRICT respawn = _respawn.data();
+    auto* noalias respawn = _respawn.data();
     auto count = 0uz;
 
     for (auto i = 0uz; i < n; ++i) {
@@ -231,11 +231,11 @@ void particle::draw() noexcept {
   auto* verts = _vertices.data();
   auto* idxs = _indices.data();
 
-  const auto* RESTRICT xs = _px.data();
-  const auto* RESTRICT ys = _py.data();
-  const auto* RESTRICT lifes = _life.data();
-  const auto* RESTRICT scales = _scale.data();
-  const auto* RESTRICT angles = _angle.data();
+  const auto* noalias xs = _px.data();
+  const auto* noalias ys = _py.data();
+  const auto* noalias lifes = _life.data();
+  const auto* noalias scales = _scale.data();
+  const auto* noalias angles = _angle.data();
 
   auto visible = 0uz;
 
