@@ -18,7 +18,7 @@ void sourcepool::insert(std::string_view name) {
     const auto size = bytecode.size();
 
     if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
-      std::string error = lua_tostring(L, -1);
+      std::string error{lua_tostring(L, -1)};
       lua_pop(L, 1);
       throw std::runtime_error{std::move(error)};
     }
@@ -34,7 +34,7 @@ void sourcepool::insert(std::string_view name) {
   const auto size = buffer.size();
 
   if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
-    std::string error = lua_tostring(L, -1);
+    std::string error{lua_tostring(L, -1)};
     lua_pop(L, 1);
     throw std::runtime_error{std::move(error)};
   }

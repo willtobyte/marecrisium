@@ -32,13 +32,13 @@ config& particlepool::get(std::string_view kind) {
   const auto label = std::format("@{}", filename);
 
   if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
-    std::string error = lua_tostring(L, -1);
+    std::string error{lua_tostring(L, -1)};
     lua_pop(L, 1);
     throw std::runtime_error{std::move(error)};
   }
 
   if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
-    std::string error = lua_tostring(L, -1);
+    std::string error{lua_tostring(L, -1)};
     lua_pop(L, 1);
     throw std::runtime_error{std::move(error)};
   }

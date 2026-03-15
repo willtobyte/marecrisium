@@ -61,7 +61,7 @@ engine::engine() {
   const auto size = buffer.size();
 
   if (luaL_loadbuffer(L, data, size, "@main.lua") != 0 || lua_pcall(L, 0, 1, 0) != 0) {
-    std::string error = lua_tostring(L, -1);
+    std::string error{lua_tostring(L, -1)};
     lua_pop(L, 1);
     throw std::runtime_error{std::move(error)};
   }
@@ -155,7 +155,7 @@ engine::engine() {
   lua_getfield(L, -1, "on_begin");
   if (lua_isfunction(L, -1)) {
     if (lua_pcall(L, 0, 0, 0) != 0) {
-      std::string error = lua_tostring(L, -1);
+      std::string error{lua_tostring(L, -1)};
       lua_pop(L, 1);
       throw std::runtime_error{std::move(error)};
     }

@@ -30,9 +30,9 @@ public:
 
 private:
   static constexpr size_t MASK = N - 1;
-  std::array<T, N> _data{};
   alignas(64) std::atomic<size_t> _head{0};
   alignas(64) std::atomic<size_t> _tail{0};
+  std::array<T, N> _data{};
 };
 
 struct netloc {

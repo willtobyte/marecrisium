@@ -1,7 +1,7 @@
 #include "websocket.hpp"
 
 namespace {
-socketconn* connection{nullptr};
+std::unique_ptr<socketconn> connection;
 
 [[nodiscard]] int abs_index(lua_State* state, int index) noexcept {
   return (index > 0 || index <= LUA_REGISTRYINDEX)
@@ -73,8 +73,8 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
     ++count;
   }
 
-  const auto len = static_cast<int>(lua_objlen(state, abs));
-  return len > 0 && len == count;
+  const auto length = static_cast<int>(lua_objlen(state, abs));
+  return length > 0 && length == count;
 }
 
 [[nodiscard]] yyjson_mut_val* lua_to_yyjson(lua_State* state, int index, yyjson_mut_doc* document) {
@@ -101,8 +101,8 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
     case LUA_TTABLE: {
       if (lua_table_is_array(state, abs)) [[likely]] {
         auto* arr = yyjson_mut_arr(document);
-        const auto len = static_cast<int>(lua_objlen(state, abs));
-        for (auto i = 1; i <= len; ++i) {
+        const auto length = static_cast<int>(lua_objlen(state, abs));
+        for (auto i = 1; i <= length; ++i) {
           lua_rawgeti(state, abs, i);
           yyjson_mut_arr_append(arr, lua_to_yyjson(state, -1, document));
           lua_pop(state, 1);
@@ -145,15 +145,15 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
 }
 
 int subscription_publish(lua_State* state) {
-  auto** pointer = static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
+  auto* ptr = static_cast<std::unique_ptr<subscription>*>(luaL_checkudata(state, 1, "Subscription"));
   luaL_checktype(state, 2, LUA_TTABLE);
-  (*pointer)->publish(state, 2);
+  (*ptr)->publish(state, 2);
   return 0;
 }
 
 int subscription_unsubscribe(lua_State* state) {
-  auto** pointer = static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
-  (*pointer)->unsubscribe();
+  auto* ptr = static_cast<std::unique_ptr<subscription>*>(luaL_checkudata(state, 1, "Subscription"));
+  (*ptr)->unsubscribe();
   return 0;
 }
 
@@ -172,8 +172,8 @@ int subscription_index(lua_State* state) {
   }
 
   if (key == "topic") {
-    auto** pointer = static_cast<subscription**>(lua_touserdata(state, 1));
-    lua_pushstring(state, (*pointer)->topic().c_str());
+    auto* ptr = static_cast<std::unique_ptr<subscription>*>(lua_touserdata(state, 1));
+    lua_pushstring(state, (*ptr)->topic().c_str());
     return 1;
   }
 
@@ -181,13 +181,8 @@ int subscription_index(lua_State* state) {
 }
 
 int subscription_gc(lua_State* state) {
-  auto** pointer = static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
-  if (*pointer) {
-    (*pointer)->unsubscribe();
-    delete *pointer;
-    *pointer = nullptr;
-  }
-
+  auto* ptr = static_cast<std::unique_ptr<subscription>*>(luaL_checkudata(state, 1, "Subscription"));
+  std::destroy_at(ptr);
   return 0;
 }
 
@@ -199,10 +194,8 @@ int websocket_subscribe(lua_State* state) {
   lua_pushvalue(state, 3);
   const auto ref = luaL_ref(state, LUA_REGISTRYINDEX);
 
-  auto* instance = new subscription(*ws_ptr, std::string{topic}, ref);
-
-  auto** udata = static_cast<subscription**>(lua_newuserdata(state, sizeof(subscription*)));
-  *udata = instance;
+  auto* udata = static_cast<std::unique_ptr<subscription>*>(lua_newuserdata(state, sizeof(std::unique_ptr<subscription>)));
+  std::construct_at(udata, std::make_unique<subscription>(*ws_ptr, std::string{topic}, ref));
 
   luaL_getmetatable(state, "Subscription");
   lua_setmetatable(state, -2);
@@ -223,9 +216,8 @@ int websocket_index(lua_State* state) {
 
 int websocket_gc(lua_State* state) {
   auto** pointer = static_cast<socketconn**>(luaL_checkudata(state, 1, "WebSocket"));
-  if (*pointer == connection) {
-    delete connection;
-    connection = nullptr;
+  if (*pointer == connection.get()) {
+    connection.reset();
   }
   *pointer = nullptr;
   return 0;
@@ -234,11 +226,10 @@ int websocket_gc(lua_State* state) {
 int websocket_call(lua_State* state) {
   const auto* const url = luaL_checkstring(state, 1);
 
-  delete connection;
-  connection = new socketconn(std::string{url});
+  connection = std::make_unique<socketconn>(std::string{url});
 
   auto** udata = static_cast<socketconn**>(lua_newuserdata(state, sizeof(socketconn*)));
-  *udata = connection;
+  *udata = connection.get();
 
   luaL_getmetatable(state, "WebSocket");
   lua_setmetatable(state, -2);
@@ -262,7 +253,7 @@ netloc::netloc(std::string_view url) {
   }
 }
 
-int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user*/, void* in, size_t len) {
+int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user*/, void* in, size_t length) {
   auto* context = lws_get_context(wsi);
   auto* ws = static_cast<socketconn*>(lws_context_user(context));
 
@@ -275,7 +266,7 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
 
     case LWS_CALLBACK_CLIENT_RECEIVE: [[likely]] {
       const auto* const text = static_cast<const char*>(in);
-      auto* document = yyjson_read(text, len, 0);
+      auto* document = yyjson_read(text, length, 0);
       if (!document) [[unlikely]]
         break;
 
@@ -294,7 +285,7 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
 
       ws->_inbound.push(message{
         std::string{topic_string},
-        std::string(text, len)
+        std::string{text, length}
       });
 
       yyjson_doc_free(document);
@@ -329,7 +320,7 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
 
 namespace {
 
-static const struct lws_protocols protocols[] = {
+const struct lws_protocols protocols[] = {
   {"carimbo", lws_callback, 0, 4096, 0, nullptr, 0},
   {nullptr, nullptr, 0, 0, 0, nullptr, 0}
 };
@@ -380,7 +371,7 @@ void socketconn::reconnect() {
   ccinfo.host = _netloc.host.c_str();
   ccinfo.origin = _netloc.host.c_str();
   ccinfo.protocol = protocols[0].name;
-  ccinfo.ssl_connection = _netloc .ssl ? LCCSCF_USE_SSL : 0;
+  ccinfo.ssl_connection = _netloc.ssl ? LCCSCF_USE_SSL : 0;
 
   _wsi.store(lws_client_connect_via_info(&ccinfo), std::memory_order_release);
 }
@@ -454,7 +445,7 @@ void socketconn::poll() {
         lua_pushnil(L);
 
       if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-        std::string error = lua_tostring(L, -1);
+        std::string error{lua_tostring(L, -1)};
         lua_pop(L, 1);
         yyjson_doc_free(document);
         throw std::runtime_error{std::move(error)};

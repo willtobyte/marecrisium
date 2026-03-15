@@ -10,7 +10,7 @@ namespace {
       lua_rawgeti(state, LUA_REGISTRYINDEX, instance->on_begin);
 
       if (lua_pcall(state, 0, 0, 0) != 0) [[unlikely]] {
-        std::string error = lua_tostring(state, -1);
+        std::string error{lua_tostring(state, -1)};
         lua_pop(state, 1);
         throw std::runtime_error{std::move(error)};
       }
@@ -239,7 +239,7 @@ void sound::poll() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, on_end);
 
     if (lua_pcall(L, 0, 0, 0) != 0) [[unlikely]] {
-      std::string error = lua_tostring(L, -1);
+      std::string error{lua_tostring(L, -1)};
       lua_pop(L, 1);
       throw std::runtime_error{std::move(error)};
     }

@@ -299,7 +299,7 @@ namespace {
                 lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
                 lua_pushstring(state, strings->get(previous));
                 if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]] {
-                  std::string error = lua_tostring(state, -1);
+                  std::string error{lua_tostring(state, -1)};
                   lua_pop(state, 1);
                   throw std::runtime_error{std::move(error)};
                 }
@@ -310,7 +310,7 @@ namespace {
                 lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
                 lua_pushstring(state, strings->get(hash));
                 if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]] {
-                  std::string error = lua_tostring(state, -1);
+                  std::string error{lua_tostring(state, -1)};
                   lua_pop(state, 1);
                   throw std::runtime_error{std::move(error)};
                 }
@@ -422,7 +422,7 @@ objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::str
   lua_setfenv(L, -2);
 
   if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
-    std::string error = lua_tostring(L, -1);
+    std::string error{lua_tostring(L, -1)};
     lua_pop(L, 1);
     throw std::runtime_error{std::move(error)};
   }
