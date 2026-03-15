@@ -298,8 +298,8 @@ stage::stage(std::string_view name)
           lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
           lua_getfield(L, -1, "body");
           const auto str = lua_isstring(L, -1)
-            ? std::string_view{lua_tostring(L, -1)}
-            : std::string_view{};
+            ? std::string{lua_tostring(L, -1)}
+            : std::string{};
           lua_pop(L, 2);
 
           const auto bt = str == "dynamic" ? body_type::dynamic

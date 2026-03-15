@@ -93,10 +93,11 @@ engine::engine() {
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "title");
-  const std::string_view title = lua_isstring(L, -1) ? lua_tostring(L, -1) : "Untitled";
+  const std::string title = lua_isstring(L, -1) ? lua_tostring(L, -1) : "Untitled";
+  lua_pop(L, 1);
 
 #ifndef DEBUG
-  lua_getfield(L, -2, "sentry");
+  lua_getfield(L, -1, "sentry");
   if (lua_isstring(L, -1)) {
     const std::string_view dsn = lua_tostring(L, -1);
     if (!dsn.empty()) {
@@ -118,7 +119,6 @@ engine::engine() {
 
   static const auto window = SDL_CreateWindow(
     title.data(), width, height, fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
-  lua_pop(L, 1);
 
   const auto vsync = std::getenv("NOVSYNC") ? 0 : 1;
   const auto properties = SDL_CreateProperties();
