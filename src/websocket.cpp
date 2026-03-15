@@ -107,6 +107,7 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
           yyjson_mut_arr_append(arr, lua_to_yyjson(state, -1, document));
           lua_pop(state, 1);
         }
+
         return arr;
       }
 
@@ -120,6 +121,7 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
         }
         lua_pop(state, 1);
       }
+
       return obj;
     }
 
@@ -185,6 +187,7 @@ int subscription_gc(lua_State* state) {
     delete *pointer;
     *pointer = nullptr;
   }
+
   return 0;
 }
 

@@ -24,6 +24,7 @@ static int platform_index(lua_State *state) {
     } else {
       lua_pushstring(state, locales[0]->language);
     }
+
     return 1;
   }
 
