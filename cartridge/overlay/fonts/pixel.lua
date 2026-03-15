@@ -1,3 +1,3 @@
 return {
-	glyphs = ' abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?-+/():;%&`\180*#=[]"(){}^~|_@$',
+	glyphs = ' abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?-+/():;%&`´*#=[]"(){}^~|_@$',
 }
