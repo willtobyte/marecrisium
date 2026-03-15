@@ -19,6 +19,7 @@ namespace {
     auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
     if (proxy->registry->valid(proxy->entity))
       proxy->registry->destroy(proxy->entity);
+
     return 0;
   }
 
@@ -53,7 +54,9 @@ namespace {
         lua_pushnumber(state, static_cast<double>(b2Body_GetLinearVelocity(bd->id).x));
         return 1;
       }
+
       lua_pushnumber(state, .0);
+
       return 1;
     }
 
@@ -63,7 +66,9 @@ namespace {
         lua_pushnumber(state, static_cast<double>(b2Body_GetLinearVelocity(bd->id).y));
         return 1;
       }
+
       lua_pushnumber(state, .0);
+
       return 1;
     }
 
@@ -82,6 +87,7 @@ namespace {
           lua_pushstring(state, "none");
         } break;
       }
+
       return 1;
     }
 
@@ -99,6 +105,7 @@ namespace {
           return 1;
         }
       }
+
       return lua_pushnil(state), 1;
     }
 
@@ -130,6 +137,7 @@ namespace {
         lua_pushstring(state, strings->get(target_proxy.name));
         return 1;
       }
+
       return lua_pushnil(state), 1;
     }
 
@@ -178,6 +186,7 @@ namespace {
       lua_remove(state, -2);
       return 1;
     }
+
     lua_pop(state, 1);
 
     std::array<char, 64> buffer;
@@ -235,6 +244,7 @@ namespace {
         const auto current = b2Body_GetLinearVelocity(bd->id);
         b2Body_SetLinearVelocity(bd->id, {static_cast<float>(luaL_checknumber(state, 3)), current.y});
       }
+
       return 0;
     }
 
@@ -244,6 +254,7 @@ namespace {
         const auto current = b2Body_GetLinearVelocity(bd->id);
         b2Body_SetLinearVelocity(bd->id, {current.x, static_cast<float>(luaL_checknumber(state, 3))});
       }
+
       return 0;
     }
 
@@ -261,6 +272,7 @@ namespace {
       } else {
         return luaL_error(state, "invalid flip value: %s", value.data());
       }
+
       return 0;
     }
 
@@ -309,6 +321,7 @@ namespace {
           }
         }
       }
+
       return 0;
     }
 
