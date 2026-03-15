@@ -1,6 +1,7 @@
 #include "overlay.hpp"
 
-static bool on_event(void *, SDL_Event *event) {
+static bool on_event(void *userdata, SDL_Event *event) {
+  auto *self = static_cast<overlay *>(userdata);
   switch (event->type) {
     case SDL_EVENT_TEXT_INPUT: {
       // std::println("{}", event->text.text);
@@ -153,13 +154,13 @@ overlay::overlay(std::string_view name)
   lua_setmetatable(L, -2);
   _userdata_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  SDL_AddEventWatch(on_event, nullptr);
+  SDL_AddEventWatch(on_event, this);
   SDL_StartTextInput(SDL_GetRenderWindow(renderer));
 }
 
 overlay::~overlay() {
   SDL_StopTextInput(SDL_GetRenderWindow(renderer));
-  SDL_RemoveEventWatch(on_event, nullptr);
+  SDL_RemoveEventWatch(on_event, this);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
