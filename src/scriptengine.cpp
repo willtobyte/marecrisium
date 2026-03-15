@@ -45,6 +45,6 @@ void scriptengine::run() {
   user::wire();
   websocket::wire();
 
-  auto e = engine();
+  engine e;
   e.run();
 }

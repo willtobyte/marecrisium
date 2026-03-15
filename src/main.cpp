@@ -30,10 +30,10 @@ int main(int argc, char **argv) {
 
   int result;
   {
-    resources resources{};
+    resources resources;
     depot = &resources;
 
-    application app{};
+    application app;
     result = app.run();
   }
 
