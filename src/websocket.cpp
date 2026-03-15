@@ -326,7 +326,7 @@ const struct lws_protocols protocols[] = {
 };
 }
 
-socketconn::socketconn(std::string url)
+socketconn::socketconn(std::string_view url)
   : _url(std::move(url)), _netloc(_url) {
   _sendbuffer.reserve(LWS_PRE + 4096);
   _thread = std::thread{[this] { run(); }};

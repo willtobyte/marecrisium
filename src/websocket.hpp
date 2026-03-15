@@ -48,7 +48,7 @@ class subscription;
 
 class socketconn final {
 public:
-  explicit socketconn(std::string url);
+  explicit socketconn(std::string_view url);
   ~socketconn();
 
   socketconn(const socketconn&) = delete;
