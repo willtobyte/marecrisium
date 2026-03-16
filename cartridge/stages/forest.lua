@@ -67,7 +67,7 @@ return scheduler.wrap({
 	end,
 
 	on_loop = function(self, delta)
-		camera.update(pool.player.x, pool.player.y, delta)
+		camera.update(pool.player, delta)
 
 		if keyboard.space and not self._jumping then
 			self._jumping = true

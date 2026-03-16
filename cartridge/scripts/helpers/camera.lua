@@ -12,7 +12,7 @@ local state = {
 	vy = 0,
 }
 
-local cfg = {
+local config = {
 	dead_zone_x = 16,
 	dead_zone_y = 16,
 	lookahead_x = 0,
@@ -28,15 +28,15 @@ local cfg = {
 	bounds_max_y = nil,
 }
 
-local k = cfg.smoothing * cfg.smoothing
-local c = 2 * cfg.smoothing * cfg.damping
+local k = config.smoothing * config.smoothing
+local c = 2 * config.smoothing * config.damping
 
 function camera.configure(options)
 	for key, val in pairs(options) do
-		cfg[key] = val
+		config[key] = val
 	end
-	k = cfg.smoothing * cfg.smoothing
-	c = 2 * cfg.smoothing * cfg.damping
+	k = config.smoothing * config.smoothing
+	c = 2 * config.smoothing * config.damping
 end
 
 function camera.reset(x, y)
@@ -47,19 +47,19 @@ function camera.reset(x, y)
 end
 
 function camera.set_bounds(min_x, min_y, max_x, max_y)
-	cfg.bounds_min_x = min_x
-	cfg.bounds_min_y = min_y
-	cfg.bounds_max_x = max_x
-	cfg.bounds_max_y = max_y
+	config.bounds_min_x = min_x
+	config.bounds_min_y = min_y
+	config.bounds_max_x = max_x
+	config.bounds_max_y = max_y
 end
 
-function camera.update(target_x, target_y, delta)
+function camera.update(target, delta)
 	local dt = delta or (1 / 60)
 
-	local tx = target_x + cfg.offset_x + cfg.lookahead_x - viewport.width * 0.5
-	local ty = target_y + cfg.offset_y + cfg.lookahead_y - viewport.height * 0.5
+	local tx = target.x + config.offset_x + config.lookahead_x - viewport.width * 0.5
+	local ty = target.y + config.offset_y + config.lookahead_y - viewport.height * 0.5
 
-	local bx1, by1, bx2, by2 = cfg.bounds_min_x, cfg.bounds_min_y, cfg.bounds_max_x, cfg.bounds_max_y
+	local bx1, by1, bx2, by2 = config.bounds_min_x, config.bounds_min_y, config.bounds_max_x, config.bounds_max_y
 	if bx1 then
 		tx = max(bx1, min(bx2, tx))
 		ty = max(by1, min(by2, ty))
@@ -68,10 +68,10 @@ function camera.update(target_x, target_y, delta)
 	local dx = tx - state.x
 	local dy = ty - state.y
 
-	if abs(dx) < cfg.dead_zone_x then
+	if abs(dx) < config.dead_zone_x then
 		dx = 0
 	end
-	if abs(dy) < cfg.dead_zone_y then
+	if abs(dy) < config.dead_zone_y then
 		dy = 0
 	end
 
@@ -92,7 +92,7 @@ function camera.update(target_x, target_y, delta)
 		state.y = max(by1, min(by2, state.y))
 	end
 
-	local snap = cfg.snap_threshold
+	local snap = config.snap_threshold
 	if abs(state.vx) < snap and dx == 0 then
 		state.vx = 0
 	end
