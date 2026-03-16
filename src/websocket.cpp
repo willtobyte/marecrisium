@@ -1,7 +1,7 @@
 #include "websocket.hpp"
 
 namespace {
-std::unique_ptr<socketconn> connection;
+std::unique_ptr<channel> connection;
 
 [[nodiscard]] int abs_index(lua_State* state, int index) noexcept {
   return (index > 0 || index <= LUA_REGISTRYINDEX)
@@ -184,7 +184,7 @@ int subscription_gc(lua_State* state) {
 }
 
 int websocket_on_connect(lua_State* state) {
-  auto** ptr = static_cast<socketconn**>(luaL_checkudata(state, 1, "WebSocket"));
+  auto** ptr = static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
   luaL_checktype(state, 2, LUA_TFUNCTION);
   lua_pushvalue(state, 2);
   (*ptr)->set_on_connect(luaL_ref(state, LUA_REGISTRYINDEX));
@@ -192,7 +192,7 @@ int websocket_on_connect(lua_State* state) {
 }
 
 int websocket_on_disconnect(lua_State* state) {
-  auto** ptr = static_cast<socketconn**>(luaL_checkudata(state, 1, "WebSocket"));
+  auto** ptr = static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
   luaL_checktype(state, 2, LUA_TFUNCTION);
   lua_pushvalue(state, 2);
   (*ptr)->set_on_disconnect(luaL_ref(state, LUA_REGISTRYINDEX));
@@ -200,7 +200,7 @@ int websocket_on_disconnect(lua_State* state) {
 }
 
 int websocket_subscribe(lua_State* state) {
-  auto** ptr = static_cast<socketconn**>(luaL_checkudata(state, 1, "WebSocket"));
+  auto** ptr = static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
   const auto* const topic = luaL_checkstring(state, 2);
   luaL_checktype(state, 3, LUA_TFUNCTION);
 
@@ -243,7 +243,7 @@ int websocket_index(lua_State* state) {
 }
 
 int websocket_gc(lua_State* state) {
-  auto** pointer = static_cast<socketconn**>(luaL_checkudata(state, 1, "WebSocket"));
+  auto** pointer = static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
   if (*pointer == connection.get())
     connection.reset();
   *pointer = nullptr;
@@ -253,9 +253,9 @@ int websocket_gc(lua_State* state) {
 int websocket_call(lua_State* state) {
   const auto* const url = luaL_checkstring(state, 1);
 
-  connection = std::make_unique<socketconn>(url);
+  connection = std::make_unique<channel>(url);
 
-  auto** userdata = static_cast<socketconn**>(lua_newuserdata(state, sizeof(socketconn*)));
+  auto** userdata = static_cast<channel**>(lua_newuserdata(state, sizeof(channel*)));
   *userdata = connection.get();
 
   luaL_getmetatable(state, "WebSocket");
@@ -282,7 +282,7 @@ netloc::netloc(std::string_view url) {
 
 int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user*/, void* in, size_t length) {
   auto* context = lws_get_context(wsi);
-  auto* ws = static_cast<socketconn*>(lws_context_user(context));
+  auto* ws = static_cast<channel*>(lws_context_user(context));
 
   switch (reason) {
     case LWS_CALLBACK_CLIENT_ESTABLISHED: {
@@ -360,13 +360,14 @@ const struct lws_protocols protocols[] = {
 };
 }
 
-socketconn::socketconn(std::string_view url)
+channel::channel(std::string_view url)
   : _url(std::move(url)), _netloc(_url) {
+  lws_set_log_level(0, nullptr);
   _sendbuffer.reserve(LWS_PRE + 4096);
   _thread = std::thread([this] { run(); });
 }
 
-socketconn::~socketconn() {
+channel::~channel() {
   if (_on_disconnect != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disconnect);
     if (lua_pcall(L, 0, 0, 0) != 0) [[unlikely]]
@@ -395,7 +396,7 @@ socketconn::~socketconn() {
     _thread.join();
 }
 
-void socketconn::connect() {
+void channel::connect() {
   struct lws_context_creation_info creation{};
   creation.port = CONTEXT_PORT_NO_LISTEN;
   creation.protocols = protocols;
@@ -409,7 +410,7 @@ void socketconn::connect() {
   _context = lws_create_context(&creation);
 }
 
-void socketconn::reconnect() {
+void channel::reconnect() {
   struct lws_client_connect_info connect_info{};
   connect_info.context = _context;
   connect_info.address = _netloc.host.c_str();
@@ -423,7 +424,7 @@ void socketconn::reconnect() {
   _wsi.store(lws_client_connect_via_info(&connect_info), std::memory_order_release);
 }
 
-void socketconn::run() {
+void channel::run() {
   connect();
   reconnect();
 
@@ -453,13 +454,13 @@ void socketconn::run() {
   }
 }
 
-void socketconn::send(message message) noexcept {
+void channel::send(message message) noexcept {
   _outbound.push(std::move(message));
   if (_context) [[likely]]
     lws_cancel_service(_context);
 }
 
-void socketconn::fire(int ref) {
+void channel::fire(int ref) {
   if (ref == LUA_NOREF) [[unlikely]]
     return;
 
@@ -471,7 +472,7 @@ void socketconn::fire(int ref) {
   }
 }
 
-void socketconn::poll() {
+void channel::poll() {
   if (_pending_connect.exchange(false, std::memory_order_acq_rel))
     fire(_on_connect);
 
@@ -518,17 +519,17 @@ void socketconn::poll() {
   }
 }
 
-void socketconn::set_on_connect(int ref) noexcept {
+void channel::set_on_connect(int ref) noexcept {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_connect);
   _on_connect = ref;
 }
 
-void socketconn::set_on_disconnect(int ref) noexcept {
+void channel::set_on_disconnect(int ref) noexcept {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_disconnect);
   _on_disconnect = ref;
 }
 
-void socketconn::add_subscription(subscription* subscriber) {
+void channel::add_subscription(subscription* subscriber) {
   {
     std::scoped_lock lock(_mutex);
     _subscriptions[subscriber->topic()].emplace_back(subscriber);
@@ -540,7 +541,7 @@ void socketconn::add_subscription(subscription* subscriber) {
   }
 }
 
-void socketconn::remove_subscription(subscription* subscriber) {
+void channel::remove_subscription(subscription* subscriber) {
   auto payload = build_action_json("unsubscribe", subscriber->topic().c_str());
   send(message{subscriber->topic(), std::move(payload)});
 
@@ -553,7 +554,7 @@ void socketconn::remove_subscription(subscription* subscriber) {
   }
 }
 
-void socketconn::resubscribe() {
+void channel::resubscribe() {
   std::scoped_lock lock(_mutex);
   for (const auto& [topic, subscribers] : _subscriptions) {
     for (const auto* subscriber : subscribers) {
@@ -565,7 +566,7 @@ void socketconn::resubscribe() {
   }
 }
 
-subscription::subscription(socketconn* owner, std::string topic, int callback_ref)
+subscription::subscription(channel* owner, std::string topic, int callback_ref)
   : _owner(owner), _topic(std::move(topic)), _callback(callback_ref) {
   _owner->add_subscription(this);
 }

@@ -46,15 +46,15 @@ struct netloc {
 
 class subscription;
 
-class socketconn final {
+class channel final {
 public:
-  explicit socketconn(std::string_view url);
-  ~socketconn();
+  explicit channel(std::string_view url);
+  ~channel();
 
-  socketconn(const socketconn&) = delete;
-  socketconn& operator=(const socketconn&) = delete;
-  socketconn(socketconn&&) = delete;
-  socketconn& operator=(socketconn&&) = delete;
+  channel(const channel&) = delete;
+  channel& operator=(const channel&) = delete;
+  channel(channel&&) = delete;
+  channel& operator=(channel&&) = delete;
 
   void send(message message) noexcept;
   void poll();
@@ -100,7 +100,7 @@ private:
 
 class subscription final {
 public:
-  subscription(socketconn* owner, std::string topic, int callback_ref);
+  subscription(channel* owner, std::string topic, int callback_ref);
   ~subscription();
 
   subscription(const subscription&) = delete;
@@ -116,8 +116,8 @@ public:
   [[nodiscard]] bool active() const noexcept;
 
 private:
-  friend class socketconn;
-  socketconn* _owner;
+  friend class channel;
+  channel* _owner;
   std::string _topic;
   int _callback{LUA_NOREF};
   bool _active{true};
