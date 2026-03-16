@@ -3,7 +3,6 @@ build/
 
 # Cache
 .cache/
-.opencode
 .ruff_cache
 .rumdl_cache
 
