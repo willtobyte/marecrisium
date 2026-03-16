@@ -14,7 +14,7 @@ CMakeUserPresets.json
 .DS_Store
 
 # Engine
-cassette.tape
+cassette.tape*
 stderr.txt
 stdout.txt
 

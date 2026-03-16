@@ -31,11 +31,11 @@ return ticker.wrap({
 
 	on_enter = function(self)
 		self.socket = WebSocket.new("localhost:8080")
-		self.subscriptions = {}
-		self.subscriptions["health"] = self.socket:subscribe("health", function() end)
+
+		local subscription = self.socket:subscribe("health", function() end)
 
 		ticker.every(10, function()
-			self.subscriptions["health"]:publish({ action = "ping" })
+			subscription:publish({ action = "ping" })
 		end)
 
 		director.overlay = "hud"
@@ -54,7 +54,6 @@ return ticker.wrap({
 
 	on_leave = function(self)
 		camera.reset()
-		self.subscriptions = nil
 		self.socket = nil
 	end,
 
