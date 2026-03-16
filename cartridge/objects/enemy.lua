@@ -4,7 +4,6 @@ local speed = 30
 
 return {
 	body = "kinematic",
-	cullable = true,
 
 	animation = {
 		running = {

@@ -41,25 +41,6 @@ return {
 		self.vx = vx
 	end,
 
-	on_press = function(self, x, y, button)
-		print("on_press", self.name, x, y, button)
-		pool.smoke1.active = false
-		pool.smoke2.active = false
-		pool.smoke3.active = false
-	end,
-
-	on_click = function(self, x, y, button)
-		print("on_click", self.name, x, y, button)
-	end,
-
-	on_hover = function(self)
-		print("on_hover", self.name)
-	end,
-
-	on_unhover = function(self)
-		print("on_unhover", self.name)
-	end,
-
 	on_damage = function(self)
 		print("on damage " .. self.name)
 	end,

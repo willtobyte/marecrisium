@@ -163,16 +163,6 @@ namespace {
       return 1;
     }
 
-    if (key == "dormant") {
-      lua_pushboolean(state, registry.all_of<dormant>(entity));
-      return 1;
-    }
-
-    if (key == "cullable") {
-      lua_pushboolean(state, registry.all_of<cullable>(entity));
-      return 1;
-    }
-
     if (key == "die") {
       lua_pushcfunction(state, object_die);
       return 1;
@@ -403,9 +393,6 @@ namespace {
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_loop);
     proxy->on_loop = LUA_NOREF;
 
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_press);
-    proxy->on_press = LUA_NOREF;
-
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->prototype);
     proxy->prototype = LUA_NOREF;
 
@@ -446,12 +433,6 @@ objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::str
   lua_getfield(L, -1, "on_animation_begin");
   if (lua_isfunction(L, -1))
     on_animation_begin = luaL_ref(L, LUA_REGISTRYINDEX);
-  else
-    lua_pop(L, 1);
-
-  lua_getfield(L, -1, "on_press");
-  if (lua_isfunction(L, -1))
-    on_press = luaL_ref(L, LUA_REGISTRYINDEX);
   else
     lua_pop(L, 1);
 

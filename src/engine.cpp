@@ -6,15 +6,11 @@ SDL_Renderer *renderer = nullptr;
 struct viewport viewport{};
 struct resources* depot = nullptr;
 
-static constexpr std::array<SDL_EventType, 46> disabled_events{
+static constexpr std::array<SDL_EventType, 42> disabled_events{
   SDL_EVENT_KEY_DOWN,
   SDL_EVENT_TEXT_EDITING,
   SDL_EVENT_TEXT_EDITING_CANDIDATES,
   SDL_EVENT_KEYMAP_CHANGED,
-  SDL_EVENT_MOUSE_MOTION,
-  SDL_EVENT_MOUSE_BUTTON_DOWN,
-  SDL_EVENT_MOUSE_BUTTON_UP,
-  SDL_EVENT_MOUSE_WHEEL,
   SDL_EVENT_GAMEPAD_AXIS_MOTION,
   SDL_EVENT_GAMEPAD_BUTTON_DOWN,
   SDL_EVENT_GAMEPAD_BUTTON_UP,

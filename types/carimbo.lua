@@ -71,21 +71,6 @@
 keyboard = {}
 
 --------------------------------------------------------------------------------
--- Mouse
---------------------------------------------------------------------------------
-
----@class Mouse
----@field x number Mouse X position in render coordinates (read-only).
----@field y number Mouse Y position in render coordinates (read-only).
----@field xy number, number Mouse X and Y as two return values (read-only). Usage: `local x, y = mouse.xy`
----@field button integer Currently pressed button: 1=left, 2=middle, 3=right, 0=none (read-only).
----@field shown boolean Whether the cursor is visible (read/write).
-
----Global mouse state.
----@type Mouse
-mouse = {}
-
---------------------------------------------------------------------------------
 -- Gamepad
 --------------------------------------------------------------------------------
 
@@ -225,18 +210,6 @@ function Stage.on_tick(self, tick) end
 ---@param delta number Frame delta time in seconds.
 function Stage.on_loop(self, delta) end
 
----Called when a mouse button is pressed but no collidable object is hit.
----@param x number Press X position in world coordinates.
----@param y number Press Y position in world coordinates.
----@param button "left"|"middle"|"right" Which mouse button was pressed.
-function Stage.on_press(x, y, button) end
-
----Called when a click occurs but no collidable object is hit.
----@param x number Click X position in world coordinates.
----@param y number Click Y position in world coordinates.
----@param button "left"|"middle"|"right" Which mouse button was released.
-function Stage.on_click(x, y, button) end
-
 ---Called every frame before rendering.
 ---Return camera_x, camera_y to offset object and tilemap rendering.
 ---The engine automatically applies the returned camera to the tilemap.
@@ -349,22 +322,13 @@ viewport = {}
 
 ---@class ObjectPrototype
 ---@field body? "dynamic"|"kinematic"|"static" Physics body type. Default is "kinematic".
----@field cullable? boolean Whether this object can become dormant when off-screen. Only applies to non-dynamic bodies. Default is false.
 ---@field animation table<string, number[][]> Animation clips. Each clip is an array of frames: {sx, sy, sw, sh, duration_ms [, cx, cy, cw, ch]}.
 ---@field on_spawn? fun(self: Object) Called once when the object is created.
 ---@field on_loop? fun(self: Object, delta: number) Called every frame.
 ---@field on_collision_begin? fun(self: Object, name: string, kind: string, normal_x?: number, normal_y?: number) Called on physics contact begin. `name` and `kind` refer to the other object involved in the collision.
 ---@field on_collision_end? fun(self: Object, name: string, kind: string) Called on physics contact end. `name` and `kind` refer to the other object involved in the collision.
----@field on_screen_exit? fun(self: Object, direction: "left"|"right"|"top"|"bottom") Called when the object moves fully outside a screen edge.
----@field on_screen_enter? fun(self: Object, direction: "left"|"right"|"top"|"bottom") Called when the object returns inside a screen edge.
 ---@field on_animation_end? fun(self: Object, clip_name: string) Called when an animation clip finishes or is replaced.
 ---@field on_animation_begin? fun(self: Object, clip_name: string) Called when a new animation clip starts playing.
----@field on_press? fun(self: Object, x: number, y: number, button: "left"|"middle"|"right") Called when a mouse button is pressed over the object's hitbox.
----@field on_click? fun(self: Object, x: number, y: number, button: "left"|"middle"|"right") Called when the object is clicked.
----@field on_hover? fun(self: Object) Called when the mouse cursor enters the object's hitbox.
----@field on_unhover? fun(self: Object) Called when the mouse cursor leaves the object's hitbox.
----@field on_sleep? fun(self: Object) Called when the object becomes dormant (off-screen).
----@field on_wake? fun(self: Object) Called when the object wakes from dormancy.
 ---@field [string] any Custom properties accessible via the object instance.
 
 --------------------------------------------------------------------------------
@@ -385,8 +349,6 @@ viewport = {}
 ---@field name string The object's name (read-only).
 ---@field kind string The kind/type string of this object (read-only).
 ---@field alive boolean Whether the object is still alive (read-only).
----@field cullable boolean Whether this object participates in off-screen dormancy (read-only, set via prototype).
----@field dormant boolean Whether this object is currently dormant/sleeping because it is off-screen (read-only).
 ---@field grounded boolean Whether this dynamic body is touching a surface below it (read-only). Always false for non-dynamic bodies.
 ---@field riding string|nil Name of the kinematic object this dynamic body is standing on (read-only). Nil when not riding anything.
 ---@field animation string|nil Currently playing animation clip name. Assign to switch clips.
@@ -427,16 +389,6 @@ function Object.on_collision_begin(self, name, kind, normal_x, normal_y) end
 ---@param kind string Kind/type of the other object involved in the collision.
 function Object.on_collision_end(self, name, kind) end
 
----Called when the object moves fully outside a screen edge.
----@param self Object
----@param direction "left"|"right"|"top"|"bottom" Which edge was crossed.
-function Object.on_screen_exit(self, direction) end
-
----Called when the object returns inside a screen edge it had previously exited.
----@param self Object
----@param direction "left"|"right"|"top"|"bottom" Which edge was crossed.
-function Object.on_screen_enter(self, direction) end
-
 ---Called when an animation clip finishes (loops or is replaced).
 ---@param self Object
 ---@param clip_name string Name of the clip that ended.
@@ -446,43 +398,6 @@ function Object.on_animation_end(self, clip_name) end
 ---@param self Object
 ---@param clip_name string Name of the clip that started.
 function Object.on_animation_begin(self, clip_name) end
-
----Called when a mouse button is pressed over the object's hitbox.
----Only triggered for collidable objects. The topmost object receives the press.
----@param self Object
----@param x number Press X position in world coordinates.
----@param y number Press Y position in world coordinates.
----@param button "left"|"middle"|"right" Which mouse button was pressed.
-function Object.on_press(self, x, y, button) end
-
----Called when the object is clicked (mouse button released over its hitbox).
----Only triggered for collidable objects. The topmost object receives the click.
----@param self Object
----@param x number Click X position in world coordinates.
----@param y number Click Y position in world coordinates.
----@param button "left"|"middle"|"right" Which mouse button was released.
-function Object.on_click(self, x, y, button) end
-
----Called when the mouse cursor enters the object's hitbox.
----Only triggered for collidable objects.
----@param self Object
-function Object.on_hover(self) end
-
----Called when the mouse cursor leaves the object's hitbox.
----Only triggered for collidable objects.
----@param self Object
-function Object.on_unhover(self) end
-
----Called when the object goes dormant (fully off-screen with margin).
----Only triggered for objects with `cullable = true` in their prototype.
----While dormant, the object receives no updates, physics, rendering, or other callbacks.
----@param self Object
-function Object.on_sleep(self) end
-
----Called when the object wakes up (returns to screen after being dormant).
----Only triggered for objects with `cullable = true` in their prototype.
----@param self Object
-function Object.on_wake(self) end
 
 --------------------------------------------------------------------------------
 -- Sound (audio handle userdata, available in `pool`)
