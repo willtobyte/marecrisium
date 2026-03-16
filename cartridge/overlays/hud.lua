@@ -5,8 +5,9 @@ local format = string.format
 local elapsed = 0
 local title = _("nostalgia")
 local effects = {}
+local length = #title
 
-for i = 1, #title do
+for i = 1, length do
 	effects[i] = {}
 end
 
@@ -29,10 +30,10 @@ return {
 	on_loop = function(self, delta)
 		elapsed = elapsed + delta
 
-		for i = 1, #title do
+		for i = 1, length do
 			local phase = elapsed * 3 + (i - 1) * 0.7
 			local wave = sin(phase) * 2
-			local hue = ((i - 1) / #title + elapsed * 0.1) % 1
+			local hue = ((i - 1) / length + elapsed * 0.1) % 1
 
 			local r, g, b
 			local sector = hue * 6
