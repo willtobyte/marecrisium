@@ -32,6 +32,14 @@ return ticker.wrap({
 	on_enter = function(self)
 		self.socket = WebSocket.new("localhost:8080")
 
+		self.socket:on_connect(function()
+			print("websocket connected")
+		end)
+
+		self.socket:on_disconnect(function()
+			print("websocket disconnected")
+		end)
+
 		local subscription = self.socket:subscribe("health", function() end)
 
 		ticker.every(10, function()

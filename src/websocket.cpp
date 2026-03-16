@@ -183,6 +183,22 @@ int subscription_gc(lua_State* state) {
   return 0;
 }
 
+int websocket_on_connect(lua_State* state) {
+  auto** ptr = static_cast<socketconn**>(luaL_checkudata(state, 1, "WebSocket"));
+  luaL_checktype(state, 2, LUA_TFUNCTION);
+  lua_pushvalue(state, 2);
+  (*ptr)->set_on_connect(luaL_ref(state, LUA_REGISTRYINDEX));
+  return 0;
+}
+
+int websocket_on_disconnect(lua_State* state) {
+  auto** ptr = static_cast<socketconn**>(luaL_checkudata(state, 1, "WebSocket"));
+  luaL_checktype(state, 2, LUA_TFUNCTION);
+  lua_pushvalue(state, 2);
+  (*ptr)->set_on_disconnect(luaL_ref(state, LUA_REGISTRYINDEX));
+  return 0;
+}
+
 int websocket_subscribe(lua_State* state) {
   auto** ptr = static_cast<socketconn**>(luaL_checkudata(state, 1, "WebSocket"));
   const auto* const topic = luaL_checkstring(state, 2);
@@ -205,6 +221,16 @@ int websocket_index(lua_State* state) {
 
   if (key == "subscribe") {
     lua_pushcfunction(state, websocket_subscribe);
+    return 1;
+  }
+
+  if (key == "on_connect") {
+    lua_pushcfunction(state, websocket_on_connect);
+    return 1;
+  }
+
+  if (key == "on_disconnect") {
+    lua_pushcfunction(state, websocket_on_disconnect);
     return 1;
   }
 
@@ -257,6 +283,7 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
   switch (reason) {
     case LWS_CALLBACK_CLIENT_ESTABLISHED: {
       ws->_connected.store(true, std::memory_order_release);
+      ws->_pending_connect.store(true, std::memory_order_release);
       ws->resubscribe();
       lws_callback_on_writable(wsi);
     } break;
@@ -300,6 +327,7 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
     case LWS_CALLBACK_CLIENT_CLOSED: [[unlikely]] {
       ws->_connected.store(false, std::memory_order_release);
       ws->_wsi.store(nullptr, std::memory_order_release);
+      ws->_pending_disconnect.store(true, std::memory_order_release);
     } break;
 
     default:
@@ -324,6 +352,15 @@ socketconn::socketconn(std::string_view url)
 }
 
 socketconn::~socketconn() {
+  if (_on_disconnect != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disconnect);
+    if (lua_pcall(L, 0, 0, 0) != 0) [[unlikely]]
+      lua_pop(L, 1);
+  }
+
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_connect);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_disconnect);
+
   for (auto& [topic, subscribers] : _subscriptions) {
     for (auto* subscriber : subscribers) {
       luaL_unref(L, LUA_REGISTRYINDEX, subscriber->_callback);
@@ -404,6 +441,28 @@ void socketconn::send(message message) noexcept {
 }
 
 void socketconn::poll() {
+  if (_pending_connect.exchange(false, std::memory_order_acq_rel)) {
+    if (_on_connect != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _on_connect);
+      if (lua_pcall(L, 0, 0, 0) != 0) [[unlikely]] {
+        std::string error(lua_tostring(L, -1));
+        lua_pop(L, 1);
+        throw std::runtime_error(std::move(error));
+      }
+    }
+  }
+
+  if (_pending_disconnect.exchange(false, std::memory_order_acq_rel)) {
+    if (_on_disconnect != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disconnect);
+      if (lua_pcall(L, 0, 0, 0) != 0) [[unlikely]] {
+        std::string error(lua_tostring(L, -1));
+        lua_pop(L, 1);
+        throw std::runtime_error(std::move(error));
+      }
+    }
+  }
+
   message message;
   while (_inbound.try_pop(message)) {
     auto document = std::unique_ptr<yyjson_doc, decltype(&yyjson_doc_free)>(yyjson_read(message.payload.c_str(), message.payload.size(), 0), yyjson_doc_free);
@@ -442,6 +501,16 @@ void socketconn::poll() {
       }
     }
   }
+}
+
+void socketconn::set_on_connect(int ref) noexcept {
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_connect);
+  _on_connect = ref;
+}
+
+void socketconn::set_on_disconnect(int ref) noexcept {
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_disconnect);
+  _on_disconnect = ref;
 }
 
 void socketconn::add_subscription(subscription* subscriber) {

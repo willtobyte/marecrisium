@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import signal
 from collections import defaultdict
 
 import websockets
@@ -66,9 +67,14 @@ async def handler(socket) -> None:
 async def main() -> None:
     host = "localhost"
     port = 8080
+    loop = asyncio.get_running_loop()
+    stop = loop.create_future()
+    loop.add_signal_handler(signal.SIGINT, stop.set_result, None)
+    loop.add_signal_handler(signal.SIGTERM, stop.set_result, None)
     print(f"[*] listening on ws://{host}:{port}")
     async with websockets.serve(handler, host, port):
-        await asyncio.Future()
+        await stop
+    print("[*] shutting down")
 
 
 if __name__ == "__main__":

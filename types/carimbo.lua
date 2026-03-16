@@ -637,6 +637,14 @@ local WebSocket = {}
 ---@return Subscription subscription Handle to publish or unsubscribe.
 function WebSocket:subscribe(topic, callback) end
 
+---Set a callback invoked when the connection is established (including reconnects).
+---@param callback fun() Called with no arguments.
+function WebSocket:on_connect(callback) end
+
+---Set a callback invoked when the connection is closed or lost (including on GC).
+---@param callback fun() Called with no arguments.
+function WebSocket:on_disconnect(callback) end
+
 ---@class Subscription
 ---A subscription to a topic on a WebSocket connection.
 ---Automatically unsubscribes on garbage collection.

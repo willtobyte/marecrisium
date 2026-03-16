@@ -62,6 +62,9 @@ public:
   void add_subscription(subscription* subscription);
   void remove_subscription(subscription* subscription);
 
+  void set_on_connect(int ref) noexcept;
+  void set_on_disconnect(int ref) noexcept;
+
 private:
   friend int lws_callback(struct lws*, enum lws_callback_reasons, void*, void*, size_t);
 
@@ -76,6 +79,8 @@ private:
   struct lws_context* _context{nullptr};
   std::atomic<struct lws*> _wsi{nullptr};
   std::atomic<bool> _connected{false};
+  std::atomic<bool> _pending_connect{false};
+  std::atomic<bool> _pending_disconnect{false};
 
   ringbuffer<message> _inbound;
   ringbuffer<message> _outbound;
@@ -86,6 +91,9 @@ private:
 
   std::atomic<bool> _stop{false};
   std::thread _thread;
+
+  int _on_connect{LUA_NOREF};
+  int _on_disconnect{LUA_NOREF};
 };
 
 class subscription final {
