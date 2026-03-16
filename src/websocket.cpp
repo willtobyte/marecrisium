@@ -450,8 +450,10 @@ void socketconn::add_subscription(subscription* subscriber) {
     _subscriptions[subscriber->topic()].emplace_back(subscriber);
   }
 
-  auto payload = build_action_json("subscribe", subscriber->topic().c_str());
-  send(message{subscriber->topic(), std::move(payload)});
+  if (_connected.load(std::memory_order_acquire)) {
+    auto payload = build_action_json("subscribe", subscriber->topic().c_str());
+    send(message{subscriber->topic(), std::move(payload)});
+  }
 }
 
 void socketconn::remove_subscription(subscription* subscriber) {
