@@ -100,6 +100,17 @@ struct PHYSFS_Deleter final {
   }
 };
 
+struct YYJSON_Deleter final {
+  template <typename T>
+  void operator()(T* ptr) const noexcept {
+    if (!ptr) [[unlikely]] return;
+
+    if constexpr (std::is_same_v<T, yyjson_doc>) yyjson_doc_free(ptr);
+    else if constexpr (std::is_same_v<T, yyjson_mut_doc>) yyjson_mut_doc_free(ptr);
+    else free(ptr);
+  }
+};
+
 [[nodiscard]] constexpr float to_radians(float degrees) noexcept {
   return degrees * (std::numbers::pi_v<float> / 180.f);
 }

@@ -119,9 +119,9 @@ stage::stage(std::string_view name)
   const auto label = std::format("@{}", filename);
 
   if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
+    std::string error(lua_tostring(L, -1));
     lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
+    throw std::runtime_error(std::move(error));
   }
 
   lua_newtable(L);
@@ -148,9 +148,9 @@ stage::stage(std::string_view name)
   lua_setfenv(L, -2);
 
   if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
+    std::string error(lua_tostring(L, -1));
     lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
+    throw std::runtime_error(std::move(error));
   }
 
   b2Vec2 gravity{.0f, .0f};
@@ -178,11 +178,11 @@ stage::stage(std::string_view name)
       lua_rawgeti(L, -1, i);
 
       lua_getfield(L, -1, "name");
-      const std::string object_name{lua_tostring(L, -1)};
+      const std::string object_name(lua_tostring(L, -1));
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "kind");
-      const std::string object_kind{lua_tostring(L, -1)};
+      const std::string object_kind(lua_tostring(L, -1));
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "x");
@@ -298,8 +298,8 @@ stage::stage(std::string_view name)
           lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
           lua_getfield(L, -1, "body");
           const auto str = lua_isstring(L, -1)
-            ? std::string{lua_tostring(L, -1)}
-            : std::string{};
+            ? std::string(lua_tostring(L, -1))
+            : std::string();
           lua_pop(L, 2);
 
           const auto bt = str == "dynamic" ? body_type::dynamic
@@ -346,9 +346,9 @@ stage::stage(std::string_view name)
         lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
 
         if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-          std::string error{lua_tostring(L, -1)};
+          std::string error(lua_tostring(L, -1));
           lua_pop(L, 2);
-          throw std::runtime_error{std::move(error)};
+          throw std::runtime_error(std::move(error));
         }
       } else {
         lua_pop(L, 1);
@@ -374,7 +374,7 @@ stage::stage(std::string_view name)
 
       if (lua_istable(L, -1)) {
         lua_getfield(L, -1, "name");
-        const std::string sound_name{lua_tostring(L, -1)};
+        const std::string sound_name(lua_tostring(L, -1));
         lua_pop(L, 1);
 
         lua_getfield(L, -1, "autoplay");
@@ -428,11 +428,11 @@ stage::stage(std::string_view name)
       lua_rawgeti(L, -1, i);
 
       lua_getfield(L, -1, "name");
-      const std::string particle_name{lua_tostring(L, -1)};
+      const std::string particle_name(lua_tostring(L, -1));
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "kind");
-      const std::string particle_kind{lua_tostring(L, -1)};
+      const std::string particle_kind(lua_tostring(L, -1));
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "x");
@@ -530,9 +530,9 @@ void stage::on_enter() {
   if (lua_isfunction(L, -1)) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
+      std::string error(lua_tostring(L, -1));
       lua_pop(L, 2);
-      throw std::runtime_error{std::move(error)};
+      throw std::runtime_error(std::move(error));
     }
   } else {
     lua_pop(L, 1);
@@ -548,9 +548,9 @@ void stage::on_leave() {
   if (lua_isfunction(L, -1)) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
+      std::string error(lua_tostring(L, -1));
       lua_pop(L, 2);
-      throw std::runtime_error{std::move(error)};
+      throw std::runtime_error(std::move(error));
     }
   } else {
     lua_pop(L, 1);
@@ -566,9 +566,9 @@ void stage::on_tick(uint64_t tick) {
     lua_pushnumber(L, static_cast<lua_Number>(tick));
 
     if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
+      std::string error(lua_tostring(L, -1));
       lua_pop(L, 1);
-      throw std::runtime_error{std::move(error)};
+      throw std::runtime_error(std::move(error));
     }
   }
 }
@@ -644,9 +644,9 @@ void stage::update(float delta) {
     lua_pushnumber(L, static_cast<lua_Number>(delta));
 
     if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
+      std::string error(lua_tostring(L, -1));
       lua_pop(L, 1);
-      throw std::runtime_error{std::move(error)};
+      throw std::runtime_error(std::move(error));
     }
   }
 
@@ -660,9 +660,9 @@ void stage::update(float delta) {
       lua_pushnumber(L, static_cast<lua_Number>(delta));
 
       if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-        std::string error{lua_tostring(L, -1)};
+        std::string error(lua_tostring(L, -1));
         lua_pop(L, 1);
-        throw std::runtime_error{std::move(error)};
+        throw std::runtime_error(std::move(error));
       }
     }
 
@@ -694,9 +694,9 @@ void stage::update(float delta) {
           lua_pushstring(L, _stringpool.get(c.name));
 
           if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-            std::string error{lua_tostring(L, -1)};
+            std::string error(lua_tostring(L, -1));
             lua_pop(L, 1);
-            throw std::runtime_error{std::move(error)};
+            throw std::runtime_error(std::move(error));
           }
         }
 
@@ -706,9 +706,9 @@ void stage::update(float delta) {
           lua_pushstring(L, _stringpool.get(c.name));
 
           if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-            std::string error{lua_tostring(L, -1)};
+            std::string error(lua_tostring(L, -1));
             lua_pop(L, 1);
-            throw std::runtime_error{std::move(error)};
+            throw std::runtime_error(std::move(error));
           }
         }
       }
@@ -922,9 +922,9 @@ void stage::draw() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
     if (lua_pcall(L, 1, 2, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
+      std::string error(lua_tostring(L, -1));
       lua_pop(L, 1);
-      throw std::runtime_error{std::move(error)};
+      throw std::runtime_error(std::move(error));
     }
 
     if (lua_isnumber(L, -2))
@@ -1071,9 +1071,9 @@ void stage::dispatch_miss(const char* callback, float x, float y, const char* bu
     lua_pushstring(L, button);
 
     if (lua_pcall(L, 3, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
+      std::string error(lua_tostring(L, -1));
       lua_pop(L, 2);
-      throw std::runtime_error{std::move(error)};
+      throw std::runtime_error(std::move(error));
     }
   } else {
     lua_pop(L, 1);
@@ -1091,7 +1091,7 @@ void stage::dispatch_press(float x, float y, const char* button) {
     return;
   }
 
-  const auto topmost = find_topmost(std::span{buffer.data(), count});
+  const auto topmost = find_topmost(std::span(buffer.data(), count));
   if (topmost == entt::null) [[unlikely]]
     return;
 
@@ -1110,9 +1110,9 @@ void stage::dispatch_press(float x, float y, const char* button) {
     lua_pushstring(L, button);
 
     if (lua_pcall(L, 4, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
+      std::string error(lua_tostring(L, -1));
       lua_pop(L, 1);
-      throw std::runtime_error{std::move(error)};
+      throw std::runtime_error(std::move(error));
     }
   }
 }
@@ -1126,7 +1126,7 @@ void stage::dispatch_click(float x, float y, const char* button) {
     return;
   }
 
-  const auto topmost = find_topmost(std::span{buffer.data(), count});
+  const auto topmost = find_topmost(std::span(buffer.data(), count));
   if (topmost == entt::null) [[unlikely]]
     return;
 
@@ -1147,9 +1147,9 @@ void stage::dispatch_click(float x, float y, const char* button) {
     lua_pushstring(L, button);
 
     if (lua_pcall(L, 4, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
+      std::string error(lua_tostring(L, -1));
       lua_pop(L, 2);
-      throw std::runtime_error{std::move(error)};
+      throw std::runtime_error(std::move(error));
     }
   } else {
     lua_pop(L, 1);
@@ -1162,7 +1162,7 @@ void stage::dispatch_hover(float x, float y) {
   std::array<entt::entity, 16> buffer{};
   const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
-  const auto hits = std::span{buffer.data(), count};
+  const auto hits = std::span(buffer.data(), count);
   std::ranges::sort(hits);
 
   dispatch_unhover(hits);
@@ -1185,9 +1185,9 @@ void stage::dispatch_hover(float x, float y) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
 
       if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-        std::string error{lua_tostring(L, -1)};
+        std::string error(lua_tostring(L, -1));
         lua_pop(L, 2);
-        throw std::runtime_error{std::move(error)};
+        throw std::runtime_error(std::move(error));
       }
     } else {
       lua_pop(L, 1);
@@ -1218,9 +1218,9 @@ void stage::dispatch_unhover(std::span<const entt::entity> current) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
 
       if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-        std::string error{lua_tostring(L, -1)};
+        std::string error(lua_tostring(L, -1));
         lua_pop(L, 2);
-        throw std::runtime_error{std::move(error)};
+        throw std::runtime_error(std::move(error));
       }
     } else {
       lua_pop(L, 1);
@@ -1243,9 +1243,9 @@ void stage::dispatch_screen_event(const objectproxy& proxy, const char* callback
     lua_pushlstring(L, direction.data(), direction.size());
 
     if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
+      std::string error(lua_tostring(L, -1));
       lua_pop(L, 2);
-      throw std::runtime_error{std::move(error)};
+      throw std::runtime_error(std::move(error));
     }
   } else {
     lua_pop(L, 1);
@@ -1266,9 +1266,9 @@ void stage::dispatch_dormancy(const objectproxy& proxy, const char* callback) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
 
     if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
+      std::string error(lua_tostring(L, -1));
       lua_pop(L, 2);
-      throw std::runtime_error{std::move(error)};
+      throw std::runtime_error(std::move(error));
     }
   } else {
     lua_pop(L, 1);
@@ -1304,9 +1304,9 @@ void stage::dispatch_collision(entt::entity entity, entt::entity other, const ch
     }
 
     if (lua_pcall(L, argc, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
+      std::string error(lua_tostring(L, -1));
       lua_pop(L, 2);
-      throw std::runtime_error{std::move(error)};
+      throw std::runtime_error(std::move(error));
     }
   } else {
     lua_pop(L, 1);
@@ -1345,7 +1345,7 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     &ctx
   );
 
-  const auto result = std::span{_raycast_hits.data(), ctx.count};
+  const auto result = std::span(_raycast_hits.data(), ctx.count);
   std::ranges::sort(result, {}, &raycast_hit::fraction);
 
   lua_newtable(state);
