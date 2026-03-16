@@ -23,6 +23,7 @@ std::vector<std::string> io::enumerate(std::string_view directory) {
     throw std::runtime_error{std::format("[PHYSFS_enumerateFiles] error while enumerating directory: {}", directory)};
 
   auto **data = ptr.get();
+
   while (*data) ++data;
 
   return {ptr.get(), data};
