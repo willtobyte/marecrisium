@@ -243,7 +243,7 @@ function Stage.on_click(x, y, button) end
 ---@param self table The stage table itself.
 ---@return number|nil camera_x Camera X offset for rendering.
 ---@return number|nil camera_y Camera Y offset for rendering.
-function Stage.on_paint(self) end
+function Stage.on_camera(self) end
 
 --------------------------------------------------------------------------------
 -- Director (stage navigation)

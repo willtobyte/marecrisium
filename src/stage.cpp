@@ -498,9 +498,9 @@ stage::stage(std::string_view name)
   else
     lua_pop(L, 1);
 
-  lua_getfield(L, -1, "on_paint");
+  lua_getfield(L, -1, "on_camera");
   if (lua_isfunction(L, -1))
-    _on_paint = luaL_ref(L, LUA_REGISTRYINDEX);
+    _on_camera = luaL_ref(L, LUA_REGISTRYINDEX);
   else
     lua_pop(L, 1);
 
@@ -515,7 +515,7 @@ stage::stage(std::string_view name)
 
 stage::~stage() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_tick);
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_camera);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   luaL_unref(L, LUA_REGISTRYINDEX, _pool_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _environment_reference);
@@ -917,8 +917,8 @@ void stage::draw() {
   viewport.x = .0f;
   viewport.y = .0f;
 
-  if (_on_paint != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
+  if (_on_camera != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
     if (lua_pcall(L, 1, 2, 0) != 0) [[unlikely]] {

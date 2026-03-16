@@ -77,7 +77,7 @@ return scheduler.wrap({
 		end
 	end,
 
-	on_paint = function(self)
+	on_camera = function(self)
 		return camera.position()
 	end,
 })
