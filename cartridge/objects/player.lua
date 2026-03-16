@@ -33,12 +33,9 @@ return {
 			self.vy = jump
 		end
 
-		local target = self.riding
-		if target then
-			local enemy = pool[target]
-			if enemy then
-				vx = vx + (enemy.speed_x or 0)
-			end
+		local riding = self.riding and pool[self.riding]
+		if riding then
+			vx = vx + (riding.speed_x or 0)
 		end
 
 		self.vx = vx

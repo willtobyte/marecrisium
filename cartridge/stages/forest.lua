@@ -1,11 +1,11 @@
-local ticker = require("helpers/ticker")
+local scheduler = require("helpers/scheduler")
 local camera = require("helpers/camera")
 
 local WebSocket = WebSocket
 local keyboard = keyboard
 local print = print
 
-return ticker.wrap({
+return scheduler.wrap({
 	gravity = { 0, 980 },
 
 	tilemap = "forest",

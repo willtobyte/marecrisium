@@ -761,3 +761,53 @@ function Ticker.wrap(stage) end
 ---@field attack boolean Keyboard Z or gamepad west (X / Square).
 ---@field start boolean Keyboard Enter or gamepad Start.
 local Controls = {}
+
+--------------------------------------------------------------------------------
+-- Scheduler (coroutine-based task scheduler)
+--------------------------------------------------------------------------------
+
+---@class Scheduler
+---Pure Lua coroutine scheduler driven by the engine's fixed tick rate.
+---Require via `require("helpers/scheduler")`.
+---
+---Usage:
+---```lua
+---local scheduler = require("helpers/scheduler")
+---
+---scheduler.spawn(function()
+---    while self.alive do
+---        self.direction = 1
+---        scheduler.wait(20)
+---        self.direction = -1
+---        scheduler.wait(20)
+---    end
+---end)
+---
+---return scheduler.wrap({
+---    ...
+---})
+---```
+local Scheduler = {}
+
+---Launch a function as a managed coroutine.
+---Begins executing on the next scheduler advance.
+---@param fn fun() The function to run as a coroutine.
+function Scheduler.spawn(fn) end
+
+---Suspend the current coroutine for N ticks.
+---Must be called from inside a coroutine managed by this scheduler.
+---@param ticks? integer Number of ticks to wait. Defaults to 1.
+function Scheduler.wait(ticks) end
+
+---Advance all ready coroutines. Called internally by `wrap`.
+---@param current_tick integer The current tick counter.
+function Scheduler.advance(current_tick) end
+
+---Cancel all active coroutines.
+function Scheduler.clear() end
+
+---Decorate a stage to auto-advance on `on_tick` and auto-clear on `on_leave`.
+---Chains with existing callbacks.
+---@param stage Stage The stage table to wrap.
+---@return Stage stage The same table, modified in place.
+function Scheduler.wrap(stage) end
