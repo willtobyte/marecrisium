@@ -1,7 +1,6 @@
 local ticker = require("helpers/ticker")
 local camera = require("helpers/camera")
 
-local print = print
 local WebSocket = WebSocket
 local keyboard = keyboard
 
@@ -31,8 +30,11 @@ return ticker.wrap({
 	},
 
 	on_enter = function(self)
-		ticker.every(50, function()
-			print("5 seconds elapsed")
+		self.socket = WebSocket.new("localhost:8080")
+		self.ping_subscription = self.socket:subscribe("health", function() end)
+
+		ticker.every(10, function()
+			self.ping_subscription:publish({ action = "ping" })
 		end)
 
 		director.overlay = "hud"
@@ -51,8 +53,8 @@ return ticker.wrap({
 
 	on_leave = function(self)
 		camera.reset()
-		self.chat_echo = nil
-		self.chat = nil
+		self.ping_subscription = nil
+		self.socket = nil
 	end,
 
 	on_loop = function(self, delta)
