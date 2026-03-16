@@ -4,14 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import signal
 from collections import defaultdict
 
 import websockets
-
-logging.basicConfig(level=logging.DEBUG)
-logging.getLogger("websockets.server").setLevel(logging.DEBUG)
 
 subscribers: dict[str, set] = defaultdict(set)
 
