@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import signal
 from collections import defaultdict
 
 import websockets
+
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("websockets.server").setLevel(logging.DEBUG)
 
 subscribers: dict[str, set] = defaultdict(set)
 
@@ -38,21 +42,12 @@ async def handler(socket) -> None:
                     print(f"[<] {socket.remote_address} unsubscribed from '{topic}'")
 
                 case "publish":
-                    match topic:
-                        case "health":
-                            print(f"[~] ping from {socket.remote_address}")
-                            await socket.send(json.dumps({"action": "pong"}))
-
-                        case _:
-                            data = message.get("data")
-                            echo_topic = f"{topic}_echo"
-                            echo = json.dumps({"topic": echo_topic, "data": data})
-                            print(
-                                f"[~] publish on '{topic}', echoing to '{echo_topic}': {data!r}"
-                            )
-                            targets = set(subscribers.get(echo_topic, set()))
-                            if targets:
-                                await asyncio.gather(*[t.send(echo) for t in targets])
+                    data = message.get("data")
+                    echo = json.dumps({"topic": topic, "data": data})
+                    print(f"[~] publish on '{topic}': {data!r}")
+                    targets = set(subscribers.get(topic, set())) - {socket}
+                    if targets:
+                        await asyncio.gather(*[t.send(echo) for t in targets])
 
     except websockets.ConnectionClosedOK:
         pass

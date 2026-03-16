@@ -208,7 +208,12 @@ int websocket_subscribe(lua_State* state) {
   const auto reference = luaL_ref(state, LUA_REGISTRYINDEX);
 
   auto* userdata = static_cast<std::unique_ptr<subscription>*>(lua_newuserdata(state, sizeof(std::unique_ptr<subscription>)));
-  std::construct_at(userdata, std::make_unique<subscription>(*ptr, topic, reference));
+  try {
+    std::construct_at(userdata, std::make_unique<subscription>(*ptr, topic, reference));
+  } catch (...) {
+    luaL_unref(state, LUA_REGISTRYINDEX, reference);
+    throw;
+  }
 
   luaL_getmetatable(state, "Subscription");
   lua_setmetatable(state, -2);
@@ -239,9 +244,8 @@ int websocket_index(lua_State* state) {
 
 int websocket_gc(lua_State* state) {
   auto** pointer = static_cast<socketconn**>(luaL_checkudata(state, 1, "WebSocket"));
-  if (*pointer == connection.get()) {
+  if (*pointer == connection.get())
     connection.reset();
-  }
   *pointer = nullptr;
   return 0;
 }
@@ -285,6 +289,13 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
       ws->_connected.store(true, std::memory_order_release);
       ws->_pending_connect.store(true, std::memory_order_release);
       ws->resubscribe();
+      lws_set_timer_usecs(wsi, 15 * LWS_USEC_PER_SEC);
+      lws_callback_on_writable(wsi);
+    } break;
+
+    case LWS_CALLBACK_TIMER: {
+      ws->_pending_ping.store(true, std::memory_order_release);
+      lws_set_timer_usecs(wsi, 15 * LWS_USEC_PER_SEC);
       lws_callback_on_writable(wsi);
     } break;
 
@@ -320,6 +331,10 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
         std::memcpy(ws->_sendbuffer.data() + LWS_PRE, payload.data(), size);
         lws_write(wsi, ws->_sendbuffer.data() + LWS_PRE, size, LWS_WRITE_TEXT);
         lws_callback_on_writable(wsi);
+      } else if (ws->_pending_ping.exchange(false, std::memory_order_acq_rel)) {
+        if (ws->_sendbuffer.size() < LWS_PRE) [[unlikely]]
+          ws->_sendbuffer.resize(LWS_PRE);
+        lws_write(wsi, ws->_sendbuffer.data() + LWS_PRE, 0, LWS_WRITE_PING);
       }
     } break;
 
@@ -381,27 +396,31 @@ socketconn::~socketconn() {
 }
 
 void socketconn::connect() {
-  struct lws_context_creation_info info{};
-  info.port = CONTEXT_PORT_NO_LISTEN;
-  info.protocols = protocols;
-  info.user = this;
-  info.options = LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
+  struct lws_context_creation_info creation{};
+  creation.port = CONTEXT_PORT_NO_LISTEN;
+  creation.protocols = protocols;
+  creation.user = this;
+  creation.options = LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
+  creation.ka_time = 10;
+  creation.ka_probes = 3;
+  creation.ka_interval = 5;
+  creation.timeout_secs = 30;
 
-  _context = lws_create_context(&info);
+  _context = lws_create_context(&creation);
 }
 
 void socketconn::reconnect() {
-  struct lws_client_connect_info ccinfo{};
-  ccinfo.context = _context;
-  ccinfo.address = _netloc.host.c_str();
-  ccinfo.port = _netloc.port;
-  ccinfo.path = _netloc.path.c_str();
-  ccinfo.host = _netloc.host.c_str();
-  ccinfo.origin = _netloc.host.c_str();
-  ccinfo.protocol = protocols[0].name;
-  ccinfo.ssl_connection = _netloc.ssl ? LCCSCF_USE_SSL : 0;
+  struct lws_client_connect_info connect_info{};
+  connect_info.context = _context;
+  connect_info.address = _netloc.host.c_str();
+  connect_info.port = _netloc.port;
+  connect_info.path = _netloc.path.c_str();
+  connect_info.host = _netloc.host.c_str();
+  connect_info.origin = _netloc.host.c_str();
+  connect_info.protocol = protocols[0].name;
+  connect_info.ssl_connection = _netloc.ssl ? LCCSCF_USE_SSL : 0;
 
-  _wsi.store(lws_client_connect_via_info(&ccinfo), std::memory_order_release);
+  _wsi.store(lws_client_connect_via_info(&connect_info), std::memory_order_release);
 }
 
 void socketconn::run() {
@@ -440,28 +459,24 @@ void socketconn::send(message message) noexcept {
     lws_cancel_service(_context);
 }
 
-void socketconn::poll() {
-  if (_pending_connect.exchange(false, std::memory_order_acq_rel)) {
-    if (_on_connect != LUA_NOREF) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _on_connect);
-      if (lua_pcall(L, 0, 0, 0) != 0) [[unlikely]] {
-        std::string error(lua_tostring(L, -1));
-        lua_pop(L, 1);
-        throw std::runtime_error(std::move(error));
-      }
-    }
-  }
+void socketconn::fire(int ref) {
+  if (ref == LUA_NOREF) [[unlikely]]
+    return;
 
-  if (_pending_disconnect.exchange(false, std::memory_order_acq_rel)) {
-    if (_on_disconnect != LUA_NOREF) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disconnect);
-      if (lua_pcall(L, 0, 0, 0) != 0) [[unlikely]] {
-        std::string error(lua_tostring(L, -1));
-        lua_pop(L, 1);
-        throw std::runtime_error(std::move(error));
-      }
-    }
+  lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+  if (lua_pcall(L, 0, 0, 0) != 0) [[unlikely]] {
+    std::string error(lua_tostring(L, -1));
+    lua_pop(L, 1);
+    throw std::runtime_error(std::move(error));
   }
+}
+
+void socketconn::poll() {
+  if (_pending_connect.exchange(false, std::memory_order_acq_rel))
+    fire(_on_connect);
+
+  if (_pending_disconnect.exchange(false, std::memory_order_acq_rel))
+    fire(_on_disconnect);
 
   message message;
   while (_inbound.try_pop(message)) {

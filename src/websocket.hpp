@@ -68,6 +68,7 @@ public:
 private:
   friend int lws_callback(struct lws*, enum lws_callback_reasons, void*, void*, size_t);
 
+  void fire(int ref);
   void run();
   void connect();
   void reconnect();
@@ -90,6 +91,7 @@ private:
   std::vector<uint8_t> _sendbuffer;
 
   std::atomic<bool> _stop{false};
+  std::atomic<bool> _pending_ping{false};
   std::thread _thread;
 
   int _on_connect{LUA_NOREF};

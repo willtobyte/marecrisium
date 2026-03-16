@@ -3,6 +3,7 @@ local camera = require("helpers/camera")
 
 local WebSocket = WebSocket
 local keyboard = keyboard
+local print = print
 
 return ticker.wrap({
 	gravity = { 0, 980 },
@@ -40,10 +41,8 @@ return ticker.wrap({
 			print("websocket disconnected")
 		end)
 
-		local subscription = self.socket:subscribe("health", function() end)
-
-		ticker.every(10, function()
-			subscription:publish({ action = "ping" })
+		self.subscription = self.socket:subscribe("jump", function(data)
+			print("jump received", data)
 		end)
 
 		director.overlay = "hud"
@@ -67,6 +66,13 @@ return ticker.wrap({
 
 	on_loop = function(self, delta)
 		camera.update(pool.player.x, pool.player.y, delta)
+
+		if keyboard.space and not self._jumping then
+			self._jumping = true
+			self.subscription:publish({ action = "jump" })
+		elseif not keyboard.space then
+			self._jumping = false
+		end
 	end,
 
 	on_paint = function(self)
