@@ -42,7 +42,9 @@ return ticker.wrap({
 		end)
 
 		self.subscription = self.socket:subscribe("jump", function(data)
-			print("jump received", data)
+			for k, v in pairs(data) do
+				print(k, v)
+			end
 		end)
 
 		director.overlay = "hud"
