@@ -266,7 +266,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2) 
     return 1;
   }
 
-  const auto idx = [&](int32_t c, int32_t r) { return r * w + c; };
+  const auto index = [&](int32_t c, int32_t r) { return r * w + c; };
   const auto total = static_cast<size_t>(w * h);
 
   std::vector<float> g(total, std::numeric_limits<float>::max());
@@ -283,8 +283,8 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2) 
 
   std::priority_queue<node, std::vector<node>, node_cmp> open;
 
-  const auto start = idx(start_column_index, start_row_index);
-  const auto goal  = idx(end_column_index, end_row_index);
+  const auto start = index(start_column_index, start_row_index);
+  const auto goal  = index(end_column_index, end_row_index);
 
   g[static_cast<size_t>(start)] = .0f;
   const auto hdx = static_cast<float>(std::abs(end_column_index - start_column_index));
