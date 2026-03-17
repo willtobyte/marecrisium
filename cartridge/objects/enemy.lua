@@ -41,6 +41,14 @@ return {
 		self._last_y = nil
 	end,
 
+	on_wake = function(self)
+		print("enemy wake", self.name, self.x, self.y)
+	end,
+
+	on_sleep = function(self)
+		print("enemy sleep", self.name, self.x, self.y)
+	end,
+
 	on_loop = function(self, delta)
 		local player = pool.player
 		if not player or not player.alive then

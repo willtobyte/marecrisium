@@ -657,7 +657,7 @@ void stage::update(float delta) {
 
         if (auto* bd = _registry.try_get<body>(entity);
             bd && b2Body_IsValid(bd->id)) {
-          bd->shape     = b2_nullShapeId;
+          bd->shape = b2_nullShapeId;
           bd->cached_hx = .0f;
           bd->cached_hy = .0f;
           b2Body_Disable(bd->id);
@@ -1035,7 +1035,6 @@ void stage::draw() {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 #endif
 }
-
 
 void stage::dispatch_dormancy(const objectproxy& proxy, const char* callback) {
   if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
