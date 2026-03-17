@@ -4,6 +4,7 @@ int application::run() {
   try {
     const auto* const rom = std::getenv("CARTRIDGE");
     filesystem::mount(rom ? rom : "cartridge.rom", "/");
+    filesystem::try_mount("mods", "/");
 
     auto se = scriptengine();
     se.run();

@@ -8,3 +8,7 @@ void filesystem::mount(std::string_view filename, std::string_view mountpoint) {
     throw std::runtime_error{std::move(error)};
   }
 }
+
+void filesystem::try_mount(std::string_view filename, std::string_view mountpoint) {
+  PHYSFS_mount(filename.data(), mountpoint.data(), false);
+}
