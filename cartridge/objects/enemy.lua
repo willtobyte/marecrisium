@@ -6,16 +6,20 @@ local random = math.random
 
 local pi = math.pi
 local radians_to_degrees = 180 / pi
+local degrees_to_radians = pi / 180
 
 local DETECT_RADIUS = 200
 local SPEED = 55
 local WAYPOINT_REACH = 10
 local PATH_INTERVAL = 20
 local PROBE_DISTANCE = 32
-local PROBE_ANGLE = 45
 local BODY_RADIUS = 6
+local STALL_THRESHOLD = 10
+local STALL_MIN_DIST_SQ = 1
 
 local DETECT_RADIUS_SQUARED = DETECT_RADIUS * DETECT_RADIUS
+
+local PROBE_OFFSETS = { 45, -45, 90, -90, 135, -135, 180 }
 
 return {
 	body = "dynamic",
@@ -31,6 +35,9 @@ return {
 		self._path = {}
 		self._wp = 1
 		self._timer = random(1, PATH_INTERVAL)
+		self._stall = 0
+		self._last_x = nil
+		self._last_y = nil
 	end,
 
 	on_loop = function(self, delta)
@@ -80,19 +87,42 @@ return {
 			return
 		end
 
+		if self._last_x then
+			local ddx = self.x - self._last_x
+			local ddy = self.y - self._last_y
+			if ddx * ddx + ddy * ddy < STALL_MIN_DIST_SQ then
+				self._stall = self._stall + 1
+				if self._stall >= STALL_THRESHOLD then
+					self._stall = 0
+					self._timer = 0
+				end
+			else
+				self._stall = 0
+			end
+		end
+		self._last_x = self.x
+		self._last_y = self.y
+
 		local angle = atan2(dy, dx)
 		local adeg = angle * radians_to_degrees
 		local hit = world.raycast(self, self.x, self.y, adeg, PROBE_DISTANCE)[1]
 
 		if hit and hit.kind ~= "player" then
-			local r = world.raycast(self, self.x, self.y, adeg + PROBE_ANGLE, PROBE_DISTANCE)[1]
-			local l = world.raycast(self, self.x, self.y, adeg - PROBE_ANGLE, PROBE_DISTANCE)[1]
-			if not r or r.kind == "player" then
-				angle = angle + PROBE_ANGLE * (pi / 180)
-			elseif not l or l.kind == "player" then
-				angle = angle - PROBE_ANGLE * (pi / 180)
+			local chosen = nil
+			for _, offset in ipairs(PROBE_OFFSETS) do
+				local probe = world.raycast(self, self.x, self.y, adeg + offset, PROBE_DISTANCE)[1]
+				if not probe or probe.kind == "player" then
+					chosen = angle + offset * degrees_to_radians
+					break
+				end
+			end
+			if chosen then
+				angle = chosen
 			else
+				self.vx = 0
+				self.vy = 0
 				self._timer = 0
+				return
 			end
 		end
 
