@@ -57,6 +57,7 @@ static void dispatch_contact_begin_event(stage& self, b2ShapeId shape_a, b2Shape
 
   const auto* data_a = b2Shape_GetUserData(shape_a);
   const auto* data_b = b2Shape_GetUserData(shape_b);
+
   if (!data_a || !data_b)
     return;
 
@@ -102,19 +103,21 @@ static int world_raycast(lua_State* state) {
 
 static int world_radar(lua_State* state) {
   auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
-  const auto x = static_cast<float>(luaL_checknumber(state, 1));
-  const auto y = static_cast<float>(luaL_checknumber(state, 2));
-  const auto radius = static_cast<float>(luaL_checknumber(state, 3));
-  return self->radar(state, x, y, radius);
+  const auto* caller = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
+  const auto x = static_cast<float>(luaL_checknumber(state, 2));
+  const auto y = static_cast<float>(luaL_checknumber(state, 3));
+  const auto radius = static_cast<float>(luaL_checknumber(state, 4));
+  return self->radar(state, caller->entity, x, y, radius);
 }
 
 static int world_pathfind(lua_State* state) {
-  auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto* self    = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
   const auto x1 = static_cast<float>(luaL_checknumber(state, 1));
   const auto y1 = static_cast<float>(luaL_checknumber(state, 2));
   const auto x2 = static_cast<float>(luaL_checknumber(state, 3));
   const auto y2 = static_cast<float>(luaL_checknumber(state, 4));
-  return self->pathfind(state, x1, y1, x2, y2);
+  const auto r  = static_cast<float>(luaL_checknumber(state, 5));
+  return self->pathfind(state, x1, y1, x2, y2, r);
 }
 
 stage::stage(std::string_view name)
@@ -1077,7 +1080,8 @@ void stage::dispatch_collision(entt::entity entity, entt::entity other, const ch
   lua_pop(L, 1);
 }
 
-int stage::radar(lua_State* state, float x, float y, float radius) {
+
+int stage::radar(lua_State* state, entt::entity caller, float x, float y, float radius) {
   struct context {
     std::array<entt::entity, 64>* buffer;
     uint8_t count;
@@ -1106,6 +1110,9 @@ int stage::radar(lua_State* state, float x, float y, float radius) {
 
   const auto result = std::span(_radar_hits.data(), ctx.count);
   for (const auto entity : result) {
+    if (entity == caller)
+      continue;
+
     if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
       continue;
 
@@ -1157,6 +1164,9 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
   int index = 1;
 
   for (const auto& [entity, fraction] : result) {
+    if (entity == entt::null)
+      continue;
+
     if (entity == caller)
       continue;
 
@@ -1174,6 +1184,6 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
   return 1;
 }
 
-int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2) noexcept {
-  return _tilemap.pathfind(state, x1, y1, x2, y2);
+int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept {
+  return _tilemap.pathfind(state, x1, y1, x2, y2, radius);
 }

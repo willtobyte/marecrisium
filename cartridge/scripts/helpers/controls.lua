@@ -15,12 +15,6 @@ setmetatable(controls, {
 			return keyboard.up or gamepad.up or gamepad.left_y < -threshold
 		elseif key == "down" then
 			return keyboard.down or gamepad.down or gamepad.left_y > threshold
-		elseif key == "jump" then
-			return keyboard.space or gamepad.south
-		elseif key == "attack" then
-			return keyboard.b or gamepad.west
-		elseif key == "start" then
-			return keyboard.enter or gamepad.start
 		end
 	end,
 })

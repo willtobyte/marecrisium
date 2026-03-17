@@ -106,7 +106,6 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
     }
     lua_pop(L, 1);
 
-    const auto half = _size * .5f;
     const auto w = static_cast<size_t>(_width);
     const auto h = static_cast<size_t>(_height);
 
@@ -151,21 +150,17 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
           std::memset(visited_data + (row + dy) * w + column, 1, run_width);
         }
 
-        const auto box_hx = static_cast<float>(run_width) * half;
+        const auto half  = _size * .5f;
+        const auto box_hx = static_cast<float>(run_width)  * half;
         const auto box_hy = static_cast<float>(run_height) * half;
 
-        const auto position_x = static_cast<float>(column) * _size + box_hx;
-        const auto position_y = static_cast<float>(row) * _size + box_hy;
-
         auto bdef = b2DefaultBodyDef();
-        bdef.type = b2_staticBody;
-        bdef.position = {position_x, position_y};
-        const auto body_id = b2CreateBody(world, &bdef);
-
+        bdef.type     = b2_staticBody;
+        bdef.position = {static_cast<float>(column) * _size + box_hx,
+                         static_cast<float>(row)    * _size + box_hy};
+        const auto sdef    = b2DefaultShapeDef();
         const auto polygon = b2MakeBox(box_hx, box_hy);
-        auto sdef = b2DefaultShapeDef();
-        sdef.enableContactEvents = true;
-        b2CreatePolygonShape(body_id, &sdef, &polygon);
+        b2CreatePolygonShape(b2CreateBody(world, &bdef), &sdef, &polygon);
       }
     }
   }
@@ -247,7 +242,7 @@ void tilemap::draw_foreground() noexcept {
   );
 }
 
-int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2) noexcept {
+int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept {
   if (_collision.empty() || _width == 0 || _height == 0) [[unlikely]] {
     lua_newtable(state);
     return 1;
@@ -256,36 +251,36 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2) 
   const auto width  = static_cast<int32_t>(_width);
   const auto height = static_cast<int32_t>(_height);
 
-  const auto start_column = to_column(x1, _inverse_size, width);
-  const auto start_row    = to_row(y1, _inverse_size, height);
-  const auto end_column   = to_column(x2, _inverse_size, width);
-  const auto end_row      = to_row(y2, _inverse_size, height);
+  const auto sc = to_column(x1, _inverse_size, width);
+  const auto sr = to_row(y1, _inverse_size, height);
+  const auto ec = to_column(x2, _inverse_size, width);
+  const auto er = to_row(y2, _inverse_size, height);
 
-  if (start_column == end_column && start_row == end_row) {
+  if (sc == ec && sr == er) {
     lua_newtable(state);
     return 1;
   }
 
-  const auto index = [width](int32_t column, int32_t row) { return row * width + column; };
-  const auto total = static_cast<size_t>(width * height);
+  const auto margin = static_cast<int32_t>(radius * _inverse_size);
+  const auto total  = static_cast<size_t>(width * height);
+  const auto* noalias collision = _collision.data();
 
   _pathfinder.g.assign(total, std::numeric_limits<float>::max());
   _pathfinder.parent.assign(total, -1);
   _pathfinder.path.clear();
   _pathfinder.heap.clear();
 
-  const auto start = index(start_column, start_row);
-  const auto goal  = index(end_column, end_row);
+  const auto start = sr * width + sc;
+  const auto goal  = er * width + ec;
 
   _pathfinder.g[static_cast<size_t>(start)] = .0f;
-  _pathfinder.heap.push_back({static_cast<float>(std::abs(end_column - start_column) + std::abs(end_row - start_row)), start});
+  _pathfinder.heap.push_back({static_cast<float>(std::abs(ec - sc) + std::abs(er - sr)), start});
 
-  constexpr int32_t dx[8] = { 1, -1,  0,  0,  1,  1, -1, -1 };
-  constexpr int32_t dy[8] = { 0,  0,  1, -1,  1, -1,  1, -1 };
-  constexpr float   dc[8] = { 1.f, 1.f, 1.f, 1.f, 1.41421356f, 1.41421356f, 1.41421356f, 1.41421356f };
+  constexpr int32_t ddx[8] = {  1, -1,  0,  0,  1,  1, -1, -1 };
+  constexpr int32_t ddy[8] = {  0,  0,  1, -1,  1, -1,  1, -1 };
+  constexpr float   ddc[8] = { 1.f, 1.f, 1.f, 1.f, 1.41421356f, 1.41421356f, 1.41421356f, 1.41421356f };
 
   const auto cmp = [](const node& a, const node& b) noexcept { return a.f > b.f; };
-
   std::push_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), cmp);
 
   while (!_pathfinder.heap.empty()) {
@@ -295,29 +290,46 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2) 
 
     if (current == goal) break;
 
-    const auto current_row    = current / width;
-    const auto current_column = current % width;
+    const auto cr = current / width;
+    const auto cc = current % width;
 
     for (int d = 0; d < 8; ++d) {
-      const auto neighbor_column = current_column + dx[d];
-      const auto neighbor_row    = current_row    + dy[d];
+      const auto nc = cc + ddx[d];
+      const auto nr = cr + ddy[d];
 
-      if (neighbor_column < 0 || neighbor_column >= width || neighbor_row < 0 || neighbor_row >= height) [[unlikely]]
+      if (nc < 0 || nc >= width || nr < 0 || nr >= height) [[unlikely]]
         continue;
 
-      const auto neighbor_index   = index(neighbor_column, neighbor_row);
-      const auto neighbor_index_u = static_cast<size_t>(neighbor_index);
+      bool solid = false;
+      for (int32_t mr = nr - margin; mr <= nr + margin && !solid; ++mr)
+        for (int32_t mc = nc - margin; mc <= nc + margin && !solid; ++mc)
+          if (mc < 0 || mc >= width || mr < 0 || mr >= height || collision[static_cast<size_t>(mr * width + mc)] != 0)
+            solid = true;
+      if (solid) continue;
 
-      if (_collision[neighbor_index_u] != 0) continue;
+      if (d >= 4) {
+        bool corner = false;
+        for (int32_t mr = cr - margin; mr <= cr + margin && !corner; ++mr)
+          for (int32_t mc = nc - margin; mc <= nc + margin && !corner; ++mc)
+            if (mc < 0 || mc >= width || mr < 0 || mr >= height || collision[static_cast<size_t>(mr * width + mc)] != 0)
+              corner = true;
+        for (int32_t mr = nr - margin; mr <= nr + margin && !corner; ++mr)
+          for (int32_t mc = cc - margin; mc <= cc + margin && !corner; ++mc)
+            if (mc < 0 || mc >= width || mr < 0 || mr >= height || collision[static_cast<size_t>(mr * width + mc)] != 0)
+              corner = true;
+        if (corner) continue;
+      }
 
-      const auto cost = _pathfinder.g[static_cast<size_t>(current)] + dc[d];
-      if (cost >= _pathfinder.g[neighbor_index_u]) continue;
+      const auto ni = static_cast<size_t>(nr * width + nc);
+      const auto g  = _pathfinder.g[static_cast<size_t>(current)] + ddc[d];
 
-      _pathfinder.g[neighbor_index_u]      = cost;
-      _pathfinder.parent[neighbor_index_u] = current;
+      if (g >= _pathfinder.g[ni]) continue;
 
-      const auto heuristic = static_cast<float>(std::abs(neighbor_column - end_column) + std::abs(neighbor_row - end_row));
-      _pathfinder.heap.push_back({cost + heuristic, neighbor_index});
+      _pathfinder.g[ni]      = g;
+      _pathfinder.parent[ni] = current;
+
+      const auto h = static_cast<float>(std::abs(nc - ec) + std::abs(nr - er));
+      _pathfinder.heap.push_back({g + h, static_cast<int32_t>(ni)});
       std::push_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), cmp);
     }
   }
@@ -331,13 +343,11 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2) 
   lua_newtable(state);
   const auto half = _size * .5f;
   int i = 1;
-  for (const auto node_index : _pathfinder.path) {
-    const auto wx = static_cast<float>(node_index % width) * _size + half;
-    const auto wy = static_cast<float>(node_index / width) * _size + half;
+  for (const auto ni : _pathfinder.path) {
     lua_newtable(state);
-    lua_pushnumber(state, static_cast<double>(wx));
+    lua_pushnumber(state, static_cast<double>(static_cast<float>(ni % width) * _size + half));
     lua_rawseti(state, -2, 1);
-    lua_pushnumber(state, static_cast<double>(wy));
+    lua_pushnumber(state, static_cast<double>(static_cast<float>(ni / width) * _size + half));
     lua_rawseti(state, -2, 2);
     lua_rawseti(state, -2, i++);
   }

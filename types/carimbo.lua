@@ -114,6 +114,36 @@ function Gamepad:rumble(low, high, duration) end
 gamepad = {}
 
 --------------------------------------------------------------------------------
+-- Mouse
+--------------------------------------------------------------------------------
+
+---@class Mouse
+---Read-only fields return values in logical (world-space) coordinates,
+---translated from window pixels through the renderer and then offset by
+---the current viewport position.
+---
+---`button` returns the SDL button constant of the first pressed button
+---(left=1, middle=2, right=3), or 0 when no button is held.
+---
+---`shown` is read/write: assign `true` to show the cursor, `false` to hide it.
+---
+---Usage:
+---```lua
+---local wx, wy = mouse.xy
+---if mouse.button == 1 then ... end
+---mouse.shown = false
+---```
+---@field x number Cursor X in world coordinates (read-only).
+---@field y number Cursor Y in world coordinates (read-only).
+---@field xy number, number Cursor X and Y in world coordinates as two return values (read-only).
+---@field button integer Pressed button constant: 1=left, 2=middle, 3=right, 0=none (read-only).
+---@field shown boolean Whether the system cursor is visible (read/write).
+
+---Global mouse state.
+---@type Mouse
+mouse = {}
+
+--------------------------------------------------------------------------------
 -- Cassette (persistent key-value store)
 --------------------------------------------------------------------------------
 
@@ -452,30 +482,38 @@ local Particle = {}
 ---@class World
 local World = {}
 
----Cast a ray and return all hit objects sorted by distance.
+---Cast a ray and return all hits sorted by distance.
+---Tilemap solid tiles have no user data and are skipped; only Object entities are returned.
 ---@param caller Object The object casting the ray (excluded from results).
 ---@param x number Ray origin X.
 ---@param y number Ray origin Y.
 ---@param angle number Ray angle in degrees.
 ---@param distance number Maximum ray distance.
----@return Object[] hits Array of hit objects.
+---@return Object[] hits Sorted array of hit objects.
 function World.raycast(caller, x, y, angle, distance) end
 
----Return all objects within a circular area.
+---Return all objects within a circular area, excluding the caller.
+---@param caller Object The object performing the scan (excluded from results).
 ---@param x number Center X.
 ---@param y number Center Y.
 ---@param radius number Circle radius.
 ---@return Object[] hits Array of objects within the area.
-function World.radar(x, y, radius) end
+function World.radar(caller, x, y, radius) end
 
 ---Find a path between two world positions avoiding solid tilemap tiles.
----Uses A* on the tilemap collision grid. Returns an empty table when no path exists.
+---Uses A* on the tilemap collision grid with corner-cutting prevention.
+---Returns an empty table when no path exists.
+---
+---`radius` inflates the collision check around each candidate tile: a tile is
+---treated as blocked if any tile within `floor(radius / tile_size)` tiles of it
+---is solid. Pass the caller's half-body size to keep the path clear of walls.
 ---@param x1 number Start X in world coordinates.
 ---@param y1 number Start Y in world coordinates.
 ---@param x2 number End X in world coordinates.
 ---@param y2 number End Y in world coordinates.
+---@param radius? number Agent half-size in world units. Default 0.
 ---@return number[][] path Array of {x, y} waypoints in world coordinates (tile centers).
-function World.pathfind(x1, y1, x2, y2) end
+function World.pathfind(x1, y1, x2, y2, radius) end
 
 ---Physics world (available inside stage scripts).
 ---@type World
@@ -680,21 +718,16 @@ function Ticker.wrap(stage) end
 ---semantic game actions. Require via `require("helpers/controls")`.
 ---
 ---Directional inputs combine arrow keys, d-pad, and left stick.
----Action buttons combine keyboard keys and gamepad face buttons.
 ---
 ---Usage:
 ---```lua
 ---local controls = require("helpers/controls")
 ---if controls.left then ... end
----if controls.jump then ... end
 ---```
 ---@field left boolean Arrow left, d-pad left, or left stick left.
 ---@field right boolean Arrow right, d-pad right, or left stick right.
 ---@field up boolean Arrow up, d-pad up, or left stick up.
 ---@field down boolean Arrow down, d-pad down, or left stick down.
----@field jump boolean Keyboard Space or gamepad south (A / Cross).
----@field attack boolean Keyboard Z or gamepad west (X / Square).
----@field start boolean Keyboard Enter or gamepad Start.
 local Controls = {}
 
 --------------------------------------------------------------------------------

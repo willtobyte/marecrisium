@@ -25,9 +25,9 @@ public:
 
   [[nodiscard]] int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
 
-  [[nodiscard]] int radar(lua_State* state, float x, float y, float radius);
+  [[nodiscard]] int radar(lua_State* state, entt::entity caller, float x, float y, float radius);
 
-  [[nodiscard]] int pathfind(lua_State* state, float x1, float y1, float x2, float y2) noexcept;
+  [[nodiscard]] int pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept;
 
   void dispatch_collision(entt::entity entity, entt::entity other, const char* callback, const b2Vec2* normal = nullptr);
 

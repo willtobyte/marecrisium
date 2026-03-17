@@ -1,10 +1,21 @@
 local sqrt = math.sqrt
+local cos = math.cos
+local sin = math.sin
+local atan2 = math.atan2
 local random = math.random
+
+local pi = math.pi
+local radians_to_degrees = 180 / pi
 
 local DETECT_RADIUS = 200
 local SPEED = 55
 local WAYPOINT_REACH = 10
 local PATH_INTERVAL = 20
+local PROBE_DISTANCE = 32
+local PROBE_ANGLE = 45
+local BODY_RADIUS = 6
+
+local DETECT_RADIUS_SQUARED = DETECT_RADIUS * DETECT_RADIUS
 
 return {
 	body = "dynamic",
@@ -33,13 +44,11 @@ return {
 		if self._timer <= 0 then
 			self._timer = PATH_INTERVAL
 
-			local px = player.x
-			local py = player.y
-			local dx = px - self.x
-			local dy = py - self.y
+			local px, py = player.x, player.y
+			local dx, dy = px - self.x, py - self.y
 
-			if dx * dx + dy * dy <= DETECT_RADIUS * DETECT_RADIUS then
-				local path = world.pathfind(self.x, self.y, px, py)
+			if dx * dx + dy * dy <= DETECT_RADIUS_SQUARED then
+				local path = world.pathfind(self.x, self.y, px, py, BODY_RADIUS)
 				if path and #path > 0 then
 					self._path = path
 					self._wp = 2
@@ -53,47 +62,51 @@ return {
 			end
 		end
 
-		local path = self._path
 		local wp = self._wp
-
-		if not path or wp > #path then
+		if wp > #self._path then
 			self.vx = 0
 			self.vy = 0
 			return
 		end
 
-		local target = path[wp]
-		local tx = target[1]
-		local ty = target[2]
-		local dx = tx - self.x
-		local dy = ty - self.y
-		local dist = sqrt(dx * dx + dy * dy)
+		local target = self._path[wp]
+		local dx = target[1] - self.x
+		local dy = target[2] - self.y
 
-		if dist < WAYPOINT_REACH then
+		if sqrt(dx * dx + dy * dy) < WAYPOINT_REACH then
 			self._wp = wp + 1
 			self.vx = 0
 			self.vy = 0
 			return
 		end
 
-		local inv = SPEED / dist
-		local vx = dx * inv
-		local vy = dy * inv
+		local angle = atan2(dy, dx)
+		local adeg = angle * radians_to_degrees
+		local hit = world.raycast(self, self.x, self.y, adeg, PROBE_DISTANCE)[1]
 
-		if vx < 0 then
-			self.flip = "horizontal"
-		elseif vx > 0 then
-			self.flip = "none"
+		if hit and hit.kind ~= "player" then
+			local r = world.raycast(self, self.x, self.y, adeg + PROBE_ANGLE, PROBE_DISTANCE)[1]
+			local l = world.raycast(self, self.x, self.y, adeg - PROBE_ANGLE, PROBE_DISTANCE)[1]
+			if not r or r.kind == "player" then
+				angle = angle + PROBE_ANGLE * (pi / 180)
+			elseif not l or l.kind == "player" then
+				angle = angle - PROBE_ANGLE * (pi / 180)
+			else
+				self._timer = 0
+			end
 		end
 
+		local vx = cos(angle) * SPEED
+		local vy = sin(angle) * SPEED
+
+		self.flip = vx < 0 and "horizontal" or vx > 0 and "none" or self.flip
 		self.vx = vx
 		self.vy = vy
 	end,
 
 	on_collision_begin = function(self, name, kind)
-		if kind ~= "player" then
-			return
+		if kind == "player" then
+			pool.player:damage()
 		end
-		pool.player:damage()
 	end,
 }

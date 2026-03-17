@@ -7,6 +7,7 @@ return {
 	fullscreen = os.getenv("WINDOWED") ~= "1",
 	sentry = "https://b73cc92e6e405d9dc02c2f6f040d6ac7@o4509972952907776.ingest.us.sentry.io/4511022227849216",
 	on_begin = function()
+		mouse.shown = false
 		director.navigate("forest")
 	end,
 }

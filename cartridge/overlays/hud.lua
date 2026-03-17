@@ -14,19 +14,6 @@ end
 return {
 	fonts = { "pixel" },
 
-	layers = {
-		"background",
-		10,
-		10,
-		30,
-		30,
-		"health100",
-		10,
-		10,
-		30,
-		30,
-	},
-
 	on_loop = function(self, delta)
 		elapsed = elapsed + delta
 
@@ -59,7 +46,6 @@ return {
 			effect.g = g
 			effect.b = b
 			effect.angle = sin(elapsed * 2 + (i - 1) * 0.5) * 20
-			-- effect.alpha = 0.6 + 0.4 * math.sin(elapsed * 4 + (i - 1) * 0.9)
 		end
 	end,
 
