@@ -27,7 +27,20 @@ public:
   [[nodiscard]] int pathfind(lua_State* state, float x1, float y1, float x2, float y2) noexcept;
 
 private:
+  struct node final {
+    float f;
+    int32_t index;
+  };
+
+  struct pathfind final {
+    std::vector<float>   g;
+    std::vector<int32_t> parent;
+    std::vector<int32_t> path;
+    std::vector<node>    heap;
+  };
+
   std::vector<uint8_t> _collision;
+  struct pathfind      _pathfinder;
 
   layer _background;
   layer _foreground;

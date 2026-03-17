@@ -253,109 +253,93 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2) 
     return 1;
   }
 
-  const auto w = static_cast<int32_t>(_width);
-  const auto h = static_cast<int32_t>(_height);
+  const auto width  = static_cast<int32_t>(_width);
+  const auto height = static_cast<int32_t>(_height);
 
-  const auto start_column_index = to_column(x1, _inverse_size, w);
-  const auto start_row_index = to_row(y1, _inverse_size, h);
-  const auto end_column_index = to_column(x2, _inverse_size, w);
-  const auto end_row_index = to_row(y2, _inverse_size, h);
+  const auto start_column = to_column(x1, _inverse_size, width);
+  const auto start_row    = to_row(y1, _inverse_size, height);
+  const auto end_column   = to_column(x2, _inverse_size, width);
+  const auto end_row      = to_row(y2, _inverse_size, height);
 
-  if (start_column_index == end_column_index && start_row_index == end_row_index) {
+  if (start_column == end_column && start_row == end_row) {
     lua_newtable(state);
     return 1;
   }
 
-  const auto index = [&](int32_t c, int32_t r) { return r * w + c; };
-  const auto total = static_cast<size_t>(w * h);
+  const auto index = [width](int32_t column, int32_t row) { return row * width + column; };
+  const auto total = static_cast<size_t>(width * height);
 
-  std::vector<float> g(total, std::numeric_limits<float>::max());
-  std::vector<int32_t> parent(total, -1);
+  _pathfinder.g.assign(total, std::numeric_limits<float>::max());
+  _pathfinder.parent.assign(total, -1);
+  _pathfinder.path.clear();
+  _pathfinder.heap.clear();
 
-  struct node final {
-    float f;
-    int32_t index;
-  };
+  const auto start = index(start_column, start_row);
+  const auto goal  = index(end_column, end_row);
 
-  struct node_cmp final {
-    bool operator()(const node& a, const node& b) const noexcept { return a.f > b.f; }
-  };
+  _pathfinder.g[static_cast<size_t>(start)] = .0f;
+  _pathfinder.heap.push_back({static_cast<float>(std::abs(end_column - start_column) + std::abs(end_row - start_row)), start});
 
-  std::priority_queue<node, std::vector<node>, node_cmp> open;
+  constexpr int32_t dx[8] = { 1, -1,  0,  0,  1,  1, -1, -1 };
+  constexpr int32_t dy[8] = { 0,  0,  1, -1,  1, -1,  1, -1 };
+  constexpr float   dc[8] = { 1.f, 1.f, 1.f, 1.f, 1.41421356f, 1.41421356f, 1.41421356f, 1.41421356f };
 
-  const auto start = index(start_column_index, start_row_index);
-  const auto goal  = index(end_column_index, end_row_index);
+  const auto cmp = [](const node& a, const node& b) noexcept { return a.f > b.f; };
 
-  g[static_cast<size_t>(start)] = .0f;
-  const auto hdx = static_cast<float>(std::abs(end_column_index - start_column_index));
-  const auto hdy = static_cast<float>(std::abs(end_row_index - start_row_index));
-  open.push({hdx + hdy, start});
+  std::push_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), cmp);
 
-  constexpr int32_t dx[4] = {1, -1, 0,  0};
-  constexpr int32_t dy[4] = {0,  0, 1, -1};
+  while (!_pathfinder.heap.empty()) {
+    std::pop_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), cmp);
+    const auto [f, current] = _pathfinder.heap.back();
+    _pathfinder.heap.pop_back();
 
-  while (!open.empty()) {
-    const auto [f, current] = open.top();
-    open.pop();
+    if (current == goal) break;
 
-    if (current == static_cast<int32_t>(goal))
-      break;
+    const auto current_row    = current / width;
+    const auto current_column = current % width;
 
-    const auto current_row = current / w;
-    const auto current_column = current % w;
-
-    for (int d = 0; d < 4; ++d) {
+    for (int d = 0; d < 8; ++d) {
       const auto neighbor_column = current_column + dx[d];
-      const auto neighbor_row = current_row + dy[d];
+      const auto neighbor_row    = current_row    + dy[d];
 
-      if (neighbor_column < 0 || neighbor_column >= w || neighbor_row < 0 || neighbor_row >= h) [[unlikely]]
+      if (neighbor_column < 0 || neighbor_column >= width || neighbor_row < 0 || neighbor_row >= height) [[unlikely]]
         continue;
 
-      const auto neighbor_index = idx(neighbor_column, neighbor_row);
+      const auto neighbor_index   = index(neighbor_column, neighbor_row);
+      const auto neighbor_index_u = static_cast<size_t>(neighbor_index);
 
-      if (_collision[static_cast<size_t>(neighbor_index)] != 0)
-        continue;
+      if (_collision[neighbor_index_u] != 0) continue;
 
-      const auto next_cost = g[static_cast<size_t>(current)] + 1.f;
+      const auto cost = _pathfinder.g[static_cast<size_t>(current)] + dc[d];
+      if (cost >= _pathfinder.g[neighbor_index_u]) continue;
 
-      if (next_cost >= g[static_cast<size_t>(neighbor_index)])
-        continue;
+      _pathfinder.g[neighbor_index_u]      = cost;
+      _pathfinder.parent[neighbor_index_u] = current;
 
-      g[static_cast<size_t>(neighbor_index)] = next_cost;
-      parent[static_cast<size_t>(neighbor_index)] = current;
-
-      const auto hx = static_cast<float>(std::abs(neighbor_column - end_column_index));
-      const auto hy = static_cast<float>(std::abs(neighbor_row - end_row_index));
-      open.push({next_cost + hx + hy, static_cast<int32_t>(neighbor_index)});
+      const auto heuristic = static_cast<float>(std::abs(neighbor_column - end_column) + std::abs(neighbor_row - end_row));
+      _pathfinder.heap.push_back({cost + heuristic, neighbor_index});
+      std::push_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), cmp);
     }
   }
 
-  std::vector<int32_t> path;
-  if (parent[static_cast<size_t>(goal)] != -1 || goal == start) {
-    auto cur = goal;
-    while (cur != -1) {
-      path.emplace_back(cur);
-      cur = parent[static_cast<size_t>(cur)];
-    }
-    std::reverse(path.begin(), path.end());
+  if (_pathfinder.parent[static_cast<size_t>(goal)] != -1) {
+    for (auto cur = goal; cur != -1; cur = _pathfinder.parent[static_cast<size_t>(cur)])
+      _pathfinder.path.emplace_back(cur);
+    std::reverse(_pathfinder.path.begin(), _pathfinder.path.end());
   }
 
   lua_newtable(state);
   const auto half = _size * .5f;
-
-  for (int i = 0; i < static_cast<int>(path.size()); ++i) {
-    const auto node_idx = path[static_cast<size_t>(i)];
-    const auto column = node_idx % w;
-    const auto row = node_idx / w;
-    const auto wx = static_cast<float>(column) * _size + half;
-    const auto wy = static_cast<float>(row) * _size + half;
-
+  int i = 1;
+  for (const auto node_index : _pathfinder.path) {
+    const auto wx = static_cast<float>(node_index % width) * _size + half;
+    const auto wy = static_cast<float>(node_index / width) * _size + half;
     lua_newtable(state);
     lua_pushnumber(state, static_cast<double>(wx));
     lua_rawseti(state, -2, 1);
     lua_pushnumber(state, static_cast<double>(wy));
     lua_rawseti(state, -2, 2);
-    lua_rawseti(state, -2, i + 1);
+    lua_rawseti(state, -2, i++);
   }
 
   return 1;
