@@ -23,6 +23,7 @@ local PROBE_OFFSETS = { 45, -45, 90, -90, 135, -135, 180 }
 
 return {
 	body = "dynamic",
+	sleepable = true,
 
 	animation = {
 		idle = {
