@@ -457,6 +457,13 @@ local World = {}
 ---@return Object[] hits Array of hit objects.
 function World.raycast(caller, x, y, angle, distance) end
 
+---Return all objects within a circular area.
+---@param x number Center X.
+---@param y number Center Y.
+---@param radius number Circle radius.
+---@return Object[] hits Array of objects within the area.
+function World.radar(x, y, radius) end
+
 ---Physics world (available inside stage scripts).
 ---@type World
 world = {}

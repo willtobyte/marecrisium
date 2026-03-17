@@ -25,6 +25,8 @@ public:
 
   [[nodiscard]] int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
 
+  [[nodiscard]] int radar(lua_State* state, float x, float y, float radius);
+
   void dispatch_collision(entt::entity entity, entt::entity other, const char* callback, const b2Vec2* normal = nullptr);
 
 private:
@@ -37,6 +39,7 @@ private:
   std::string _name;
   std::vector<sound*> _sounds;
   std::array<raycast_hit, 64> _raycast_hits{};
+  std::array<entt::entity, 64> _radar_hits{};
   stringpool _stringpool;
   particlesystem _particlesystem;
   const pixmap* _backdrop;

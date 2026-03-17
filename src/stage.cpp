@@ -100,6 +100,14 @@ static int world_raycast(lua_State* state) {
   return self->raycast(state, caller->entity, x, y, angle, distance);
 }
 
+static int world_radar(lua_State* state) {
+  auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
+  const auto x = static_cast<float>(luaL_checknumber(state, 1));
+  const auto y = static_cast<float>(luaL_checknumber(state, 2));
+  const auto radius = static_cast<float>(luaL_checknumber(state, 3));
+  return self->radar(state, x, y, radius);
+}
+
 stage::stage(std::string_view name)
     : _name(name) {
   _registry.on_destroy<objectproxy>().connect<&on_objectproxy_destroy>();
@@ -136,6 +144,9 @@ stage::stage(std::string_view name)
   lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, world_raycast, 1);
   lua_setfield(L, -2, "raycast");
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_radar, 1);
+  lua_setfield(L, -2, "radar");
   lua_setfield(L, -2, "world");
   lua_pop(L, 1);
 
@@ -932,6 +943,49 @@ void stage::dispatch_collision(entt::entity entity, entt::entity other, const ch
   }
 
   lua_pop(L, 1);
+}
+
+int stage::radar(lua_State* state, float x, float y, float radius) {
+  struct context {
+    std::array<entt::entity, 64>* buffer;
+    uint8_t count;
+  };
+
+  context ctx{&_radar_hits, 0};
+
+  const b2Vec2 center{x, y};
+  const auto proxy = b2MakeProxy(&center, 1, radius);
+  const auto filter = b2DefaultQueryFilter();
+
+  b2World_OverlapShape(
+    _world, &proxy, filter,
+    [](b2ShapeId shape, void* userdata) -> bool {
+      auto* ctx = static_cast<context*>(userdata);
+      if (ctx->count >= 64) [[unlikely]]
+        return false;
+      (*ctx->buffer)[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
+      return true;
+    },
+    &ctx
+  );
+
+  lua_newtable(state);
+  int index = 1;
+
+  const auto result = std::span(_radar_hits.data(), ctx.count);
+  for (const auto entity : result) {
+    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
+      continue;
+
+    const auto& proxy_obj = _registry.get<objectproxy>(entity);
+    if (proxy_obj.handle == LUA_NOREF)
+      continue;
+
+    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy_obj.handle);
+    lua_rawseti(state, -2, index++);
+  }
+
+  return 1;
 }
 
 int stage::raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance) {
