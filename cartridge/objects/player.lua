@@ -1,44 +1,54 @@
 local controls = require("helpers/controls")
+local sqrt = math.sqrt
 
-local speed = 100
-local jump = -360
+local speed = 90
 
 return {
 	body = "dynamic",
 
 	animation = {
-		running = {
-			{ 0, 0, 16, 16, 200, 0, 0, 16, 16 },
+		idle = {
+			{ 0, 0, 16, 24, 200, 2, 10, 12, 12 },
 		},
 	},
 
 	on_spawn = function(self)
-		self.animation = "running"
-		self.x = 60
-		self.y = 800
+		self.animation = "idle"
+		self.x = 3840
+		self.y = 2176
 	end,
 
 	on_loop = function(self, delta)
 		local vx = 0
+		local vy = 0
 
 		if controls.left then
-			vx = -speed
+			vx = vx - speed
+		end
+		if controls.right then
+			vx = vx + speed
+		end
+		if controls.up then
+			vy = vy - speed
+		end
+		if controls.down then
+			vy = vy + speed
+		end
+
+		if vx ~= 0 and vy ~= 0 then
+			local inv = speed / sqrt(vx * vx + vy * vy)
+			vx = vx * inv
+			vy = vy * inv
+		end
+
+		if vx < 0 then
 			self.flip = "horizontal"
-		elseif controls.right then
-			vx = speed
+		elseif vx > 0 then
 			self.flip = "none"
 		end
 
-		if self.grounded and controls.jump then
-			self.vy = jump
-		end
-
-		local riding = self.riding and pool[self.riding]
-		if riding then
-			vx = vx + (riding.speed_x or 0)
-		end
-
 		self.vx = vx
+		self.vy = vy
 	end,
 
 	on_damage = function(self)

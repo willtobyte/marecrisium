@@ -108,6 +108,15 @@ static int world_radar(lua_State* state) {
   return self->radar(state, x, y, radius);
 }
 
+static int world_pathfind(lua_State* state) {
+  auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
+  const auto x1 = static_cast<float>(luaL_checknumber(state, 1));
+  const auto y1 = static_cast<float>(luaL_checknumber(state, 2));
+  const auto x2 = static_cast<float>(luaL_checknumber(state, 3));
+  const auto y2 = static_cast<float>(luaL_checknumber(state, 4));
+  return self->pathfind(state, x1, y1, x2, y2);
+}
+
 stage::stage(std::string_view name)
     : _name(name) {
   _registry.on_destroy<objectproxy>().connect<&on_objectproxy_destroy>();
@@ -147,6 +156,9 @@ stage::stage(std::string_view name)
   lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, world_radar, 1);
   lua_setfield(L, -2, "radar");
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_pathfind, 1);
+  lua_setfield(L, -2, "pathfind");
   lua_setfield(L, -2, "world");
   lua_pop(L, 1);
 
@@ -1170,4 +1182,8 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
   }
 
   return 1;
+}
+
+int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2) noexcept {
+  return _tilemap.pathfind(state, x1, y1, x2, y2);
 }

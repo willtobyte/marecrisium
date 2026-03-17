@@ -59,13 +59,13 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   lua_pop(L, 1);
 
   {
-    std::vector<uint8_t> collision(total);
+    _collision.resize(total);
 
     lua_getfield(L, -1, "collision");
     if (lua_istable(L, -1)) {
       for (size_t i = 0; i < total; ++i) {
         lua_rawgeti(L, -1, static_cast<int>(i + 1));
-        collision[i] = static_cast<uint8_t>(lua_tonumber(L, -1));
+        _collision[i] = static_cast<uint8_t>(lua_tonumber(L, -1));
         lua_pop(L, 1);
       }
     }
@@ -76,7 +76,7 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
     const auto h = static_cast<size_t>(_height);
 
     std::vector<uint8_t> visited(total);
-    const auto* noalias tiles = collision.data();
+    const auto* noalias tiles = _collision.data();
     auto* noalias visited_data = visited.data();
 
     for (size_t row = 0; row < h; ++row) {
@@ -261,6 +261,123 @@ void tilemap::draw_foreground() noexcept {
     _foreground_indices.data(),
     static_cast<int>(_foreground_indices.size())
   );
+}
+
+int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2) noexcept {
+  if (_collision.empty() || _width == 0 || _height == 0) [[unlikely]] {
+    lua_newtable(state);
+    return 1;
+  }
+
+  const auto w = static_cast<int32_t>(_width);
+  const auto h = static_cast<int32_t>(_height);
+
+  const auto to_col = [&](float x) { return std::clamp(static_cast<int32_t>(x * _inv_size), 0, w - 1); };
+  const auto to_row = [&](float y) { return std::clamp(static_cast<int32_t>(y * _inv_size), 0, h - 1); };
+
+  const auto sc = to_col(x1);
+  const auto sr = to_row(y1);
+  const auto ec = to_col(x2);
+  const auto er = to_row(y2);
+
+  if (sc == ec && sr == er) {
+    lua_newtable(state);
+    return 1;
+  }
+
+  const auto idx = [&](int32_t c, int32_t r) { return r * w + c; };
+  const auto total = static_cast<size_t>(w * h);
+
+  std::vector<float> g(total, std::numeric_limits<float>::max());
+  std::vector<int32_t> parent(total, -1);
+
+  struct node final {
+    float f;
+    int32_t index;
+  };
+
+  struct node_cmp final {
+    bool operator()(const node& a, const node& b) const noexcept { return a.f > b.f; }
+  };
+
+  std::priority_queue<node, std::vector<node>, node_cmp> open;
+
+  const auto start = idx(sc, sr);
+  const auto goal  = idx(ec, er);
+
+  g[static_cast<size_t>(start)] = .0f;
+  const auto hdx = static_cast<float>(std::abs(ec - sc));
+  const auto hdy = static_cast<float>(std::abs(er - sr));
+  open.push({hdx + hdy, start});
+
+  constexpr int32_t dx[4] = {1, -1, 0,  0};
+  constexpr int32_t dy[4] = {0,  0, 1, -1};
+
+  while (!open.empty()) {
+    const auto [f, current] = open.top();
+    open.pop();
+
+    if (current == static_cast<int32_t>(goal))
+      break;
+
+    const auto cr = current / w;
+    const auto cc = current % w;
+
+    for (int d = 0; d < 4; ++d) {
+      const auto nc = cc + dx[d];
+      const auto nr = cr + dy[d];
+
+      if (nc < 0 || nc >= w || nr < 0 || nr >= h) [[unlikely]]
+        continue;
+
+      const auto ni = idx(nc, nr);
+
+      if (_collision[static_cast<size_t>(ni)] != 0)
+        continue;
+
+      const auto ng = g[static_cast<size_t>(current)] + 1.f;
+
+      if (ng >= g[static_cast<size_t>(ni)])
+        continue;
+
+      g[static_cast<size_t>(ni)] = ng;
+      parent[static_cast<size_t>(ni)] = current;
+
+      const auto hx = static_cast<float>(std::abs(nc - ec));
+      const auto hy = static_cast<float>(std::abs(nr - er));
+      open.push({ng + hx + hy, static_cast<int32_t>(ni)});
+    }
+  }
+
+  std::vector<int32_t> path;
+  if (parent[static_cast<size_t>(goal)] != -1 || goal == start) {
+    auto cur = goal;
+    while (cur != -1) {
+      path.emplace_back(cur);
+      cur = parent[static_cast<size_t>(cur)];
+    }
+    std::reverse(path.begin(), path.end());
+  }
+
+  lua_newtable(state);
+  const auto half = _size * .5f;
+
+  for (int i = 0; i < static_cast<int>(path.size()); ++i) {
+    const auto node_idx = path[static_cast<size_t>(i)];
+    const auto col = node_idx % w;
+    const auto row = node_idx / w;
+    const auto wx = static_cast<float>(col) * _size + half;
+    const auto wy = static_cast<float>(row) * _size + half;
+
+    lua_newtable(state);
+    lua_pushnumber(state, static_cast<double>(wx));
+    lua_rawseti(state, -2, 1);
+    lua_pushnumber(state, static_cast<double>(wy));
+    lua_rawseti(state, -2, 2);
+    lua_rawseti(state, -2, i + 1);
+  }
+
+  return 1;
 }
 
 void tilemap::build_layer(const uint32_t* tiles, const uv* uvs, std::vector<SDL_Vertex>& vertices, std::vector<int32_t>& indices) noexcept {

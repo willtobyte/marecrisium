@@ -27,6 +27,8 @@ public:
 
   [[nodiscard]] int radar(lua_State* state, float x, float y, float radius);
 
+  [[nodiscard]] int pathfind(lua_State* state, float x1, float y1, float x2, float y2) noexcept;
+
   void dispatch_collision(entt::entity entity, entt::entity other, const char* callback, const b2Vec2* normal = nullptr);
 
   void dispatch_dormancy(const objectproxy& proxy, const char* callback);

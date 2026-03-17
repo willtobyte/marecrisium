@@ -470,6 +470,15 @@ function World.raycast(caller, x, y, angle, distance) end
 ---@return Object[] hits Array of objects within the area.
 function World.radar(x, y, radius) end
 
+---Find a path between two world positions avoiding solid tilemap tiles.
+---Uses A* on the tilemap collision grid. Returns an empty table when no path exists.
+---@param x1 number Start X in world coordinates.
+---@param y1 number Start Y in world coordinates.
+---@param x2 number End X in world coordinates.
+---@param y2 number End Y in world coordinates.
+---@return number[][] path Array of {x, y} waypoints in world coordinates (tile centers).
+function World.pathfind(x1, y1, x2, y2) end
+
 ---Physics world (available inside stage scripts).
 ---@type World
 world = {}
