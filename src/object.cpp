@@ -91,6 +91,11 @@ namespace {
       return 1;
     }
 
+    if (key == "dormant") {
+      lua_pushboolean(state, registry.all_of<dormant>(entity));
+      return 1;
+    }
+
     if (key == "grounded") {
       lua_pushboolean(state, registry.all_of<grounded>(entity));
       return 1;

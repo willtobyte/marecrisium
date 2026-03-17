@@ -323,8 +323,13 @@ viewport = {}
 ---@class ObjectPrototype
 ---@field body? "dynamic"|"kinematic"|"static" Physics body type. Default is "kinematic".
 ---@field animation table<string, number[][]> Animation clips. Each clip is an array of frames: {sx, sy, sw, sh, duration_ms [, cx, cy, cw, ch]}.
+---@field sleepable? boolean If true, the object sleeps (pauses all callbacks) when off-screen by more than 32 px. Default false.
 ---@field on_spawn? fun(self: Object) Called once when the object is created.
----@field on_loop? fun(self: Object, delta: number) Called every frame.
+---@field on_loop? fun(self: Object, delta: number) Called every frame. Not called while the object is dormant.
+---@field on_sleep? fun(self: Object) Called when the object goes off-screen and enters sleep (only on sleepable objects).
+---@field on_wake? fun(self: Object) Called when the object returns on-screen and wakes up (only on sleepable objects).
+---@field on_screen_exit? fun(self: Object, direction: "left"|"right"|"top"|"bottom") Called when the object's physics body exits the viewport on the given side.
+---@field on_screen_enter? fun(self: Object, direction: "left"|"right"|"top"|"bottom") Called when the object's physics body re-enters the viewport from the given side.
 ---@field on_collision_begin? fun(self: Object, name: string, kind: string, normal_x?: number, normal_y?: number) Called on physics contact begin. `name` and `kind` refer to the other object involved in the collision.
 ---@field on_collision_end? fun(self: Object, name: string, kind: string) Called on physics contact end. `name` and `kind` refer to the other object involved in the collision.
 ---@field on_animation_end? fun(self: Object, clip_name: string) Called when an animation clip finishes or is replaced.
@@ -349,6 +354,7 @@ viewport = {}
 ---@field name string The object's name (read-only).
 ---@field kind string The kind/type string of this object (read-only).
 ---@field alive boolean Whether the object is still alive (read-only).
+---@field dormant boolean Whether this object is currently sleeping (read-only). Always false for non-sleepable objects.
 ---@field grounded boolean Whether this dynamic body is touching a surface below it (read-only). Always false for non-dynamic bodies.
 ---@field riding string|nil Name of the kinematic object this dynamic body is standing on (read-only). Nil when not riding anything.
 ---@field animation string|nil Currently playing animation clip name. Assign to switch clips.

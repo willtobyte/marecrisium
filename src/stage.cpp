@@ -326,10 +326,21 @@ stage::stage(std::string_view name)
 
           const auto id = b2CreateBody(_world, &bdef);
           _registry.emplace<body>(entity, id, b2_nullShapeId, .0f, .0f, bt);
+          _registry.emplace<boundary>(entity);
         }
       }
 
       lua_pop(L, 2);
+
+      {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
+        lua_getfield(L, -1, "sleepable");
+        const auto wants_sleepable = lua_toboolean(L, -1) != 0;
+        lua_pop(L, 2);
+
+        if (wants_sleepable)
+          _registry.emplace<sleepable>(entity);
+      }
 
       lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
       lua_getfield(L, -1, "on_spawn");
@@ -566,6 +577,44 @@ void stage::on_tick(uint64_t tick) {
 }
 
 void stage::update(float delta) {
+  static constexpr float CULLING_MARGIN = 32.f;
+
+  for (auto&& [entity, proxy, tf, an] :
+       _registry.view<sleepable, objectproxy, transform, animation>().each()) {
+    const auto& frame = an.clips[an.active].frames[an.current];
+    const auto width  = frame.w * tf.scale;
+    const auto height = frame.h * tf.scale;
+    const auto screen_x = tf.x - viewport.x;
+    const auto screen_y = tf.y - viewport.y;
+
+    const auto offscreen =
+      screen_x + width  < -CULLING_MARGIN ||
+      screen_x          >  viewport.width  + CULLING_MARGIN ||
+      screen_y + height < -CULLING_MARGIN ||
+      screen_y          >  viewport.height + CULLING_MARGIN;
+
+    if (offscreen) {
+      if (!_registry.all_of<dormant>(entity)) {
+        _registry.emplace<dormant>(entity);
+
+        if (auto* bd = _registry.try_get<body>(entity);
+            bd && b2Shape_IsValid(bd->shape)) {
+          b2DestroyShape(bd->shape, false);
+          bd->shape     = b2_nullShapeId;
+          bd->cached_hx = .0f;
+          bd->cached_hy = .0f;
+        }
+
+        dispatch_dormancy(proxy, "on_sleep");
+      }
+    } else {
+      if (_registry.all_of<dormant>(entity)) {
+        _registry.remove<dormant>(entity);
+        dispatch_dormancy(proxy, "on_wake");
+      }
+    }
+  }
+
   if (_on_loop != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
@@ -578,7 +627,7 @@ void stage::update(float delta) {
     }
   }
 
-  for (auto&& [entity, proxy] : _registry.view<objectproxy>().each()) {
+  for (auto&& [entity, proxy] : _registry.view<objectproxy>(entt::exclude<dormant>).each()) {
     if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
       continue;
 
@@ -649,7 +698,7 @@ void stage::update(float delta) {
 
   while (_accumulator >= _timestep) {
     for (auto&& [en, bd, an, tf] :
-         _registry.view<body, animation, transform>().each()) {
+         _registry.view<body, animation, transform>(entt::exclude<dormant>).each()) {
       const auto active = an.playing && an.clip_count > 0;
       const auto& frame = an.clips[an.active].frames[an.current];
       const auto visible = active && frame.collidable &&
@@ -736,7 +785,12 @@ void stage::update(float delta) {
       tf.y = position.y - frame.cy * tf.scale - bd->cached_hy;
     }
 
-    for (auto&& [entity, bd] : _registry.view<const body>().each()) {
+    static constexpr std::string_view directions[] = {"left", "right", "top", "bottom"};
+
+    const auto viewport_right  = viewport.x + viewport.width;
+    const auto viewport_bottom = viewport.y + viewport.height;
+
+    for (auto&& [entity, bd] : _registry.view<const body>(entt::exclude<dormant>).each()) {
       if (!b2Body_IsValid(bd.id))
         continue;
 
@@ -777,6 +831,37 @@ void stage::update(float delta) {
         }
 
         _registry.emplace_or_replace<riding>(entity, ride_target);
+      }
+
+      if (auto* sb = _registry.try_get<boundary>(entity);
+          sb && b2Shape_IsValid(bd.shape)) {
+        const auto* proxy = _registry.try_get<objectproxy>(entity);
+        if (proxy) {
+          const auto aabb = b2Shape_GetAABB(bd.shape);
+
+          uint8_t current = 0;
+          if (aabb.upperBound.x < viewport.x)
+            current |= boundary::left;
+          if (aabb.lowerBound.x > viewport_right)
+            current |= boundary::right;
+          if (aabb.upperBound.y < viewport.y)
+            current |= boundary::top;
+          if (aabb.lowerBound.y > viewport_bottom)
+            current |= boundary::bottom;
+
+          const auto exited  = static_cast<uint8_t>(current & ~sb->previous);
+          const auto entered = static_cast<uint8_t>(sb->previous & ~current);
+
+          for (uint8_t bit = 0; bit < 4; ++bit) {
+            const auto mask = static_cast<uint8_t>(1u << bit);
+            if (exited & mask)
+              dispatch_screen_event(*proxy, "on_screen_exit", directions[bit]);
+            if (entered & mask)
+              dispatch_screen_event(*proxy, "on_screen_enter", directions[bit]);
+          }
+
+          sb->previous = current;
+        }
       }
     }
 
@@ -837,7 +922,7 @@ void stage::draw() {
 
   _tilemap.draw_background();
 
-  for (auto&& [entity, a, tf] : _registry.view<animation, transform>().each()) {
+  for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
     if (!tf.shown || !a.playing || !a.pixmap || a.clip_count == 0) [[unlikely]]
       continue;
 
@@ -906,6 +991,51 @@ void stage::draw() {
 #endif
 }
 
+
+void stage::dispatch_dormancy(const objectproxy& proxy, const char* callback) {
+  if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+  lua_getfield(L, -1, callback);
+
+  if (lua_isfunction(L, -1)) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+
+    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
+      std::string error(lua_tostring(L, -1));
+      lua_pop(L, 2);
+      throw std::runtime_error(std::move(error));
+    }
+  } else {
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
+}
+
+void stage::dispatch_screen_event(const objectproxy& proxy, const char* callback, std::string_view direction) {
+  if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+  lua_getfield(L, -1, callback);
+
+  if (lua_isfunction(L, -1)) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+    lua_pushlstring(L, direction.data(), direction.size());
+
+    if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
+      std::string error(lua_tostring(L, -1));
+      lua_pop(L, 2);
+      throw std::runtime_error(std::move(error));
+    }
+  } else {
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
+}
 
 void stage::dispatch_collision(entt::entity entity, entt::entity other, const char* callback, const b2Vec2* normal) {
   if (!_registry.valid(entity) || !_registry.valid(other)) return;

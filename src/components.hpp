@@ -72,6 +72,25 @@ struct body final {
 
 static_assert(std::is_trivially_copyable_v<body>);
 
+struct boundary final {
+  uint8_t previous{};
+
+  static constexpr uint8_t left   = 1 << 0;
+  static constexpr uint8_t right  = 1 << 1;
+  static constexpr uint8_t top    = 1 << 2;
+  static constexpr uint8_t bottom = 1 << 3;
+};
+
+static_assert(std::is_trivially_copyable_v<boundary>);
+
+struct sleepable final {};
+
+static_assert(std::is_trivially_copyable_v<sleepable>);
+
+struct dormant final {};
+
+static_assert(std::is_trivially_copyable_v<dormant>);
+
 struct grounded final {};
 
 static_assert(std::is_trivially_copyable_v<grounded>);
