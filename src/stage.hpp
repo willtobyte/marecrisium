@@ -50,7 +50,8 @@ private:
   particlesystem _particlesystem{};
   tilemap _tilemap{};
   b2WorldId _world{};
-  float _wake_radius_squared{};
+  float _sleep_margin{};
+  float _wake_margin{};
   float _timestep{1.f / 60.f};
   float _accumulator{};
   int _substeps{4};

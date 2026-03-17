@@ -1,6 +1,6 @@
 #include "stage.hpp"
 
-static constexpr float SLEEP_MARGIN = 32.f;
+
 
 static void* to_userdata(entt::entity e) noexcept {
   return reinterpret_cast<void*>(static_cast<uintptr_t>(e) + 1);
@@ -193,8 +193,8 @@ stage::stage(std::string_view name)
   def.gravity = gravity;
   _world = b2CreateWorld(&def);
 
-  const auto wake_radius = std::hypot(viewport.width, viewport.height);
-  _wake_radius_squared = wake_radius * wake_radius;
+  _sleep_margin = std::min(viewport.width, viewport.height) * .3f;
+  _wake_margin  = std::hypot(viewport.width, viewport.height) * 2.f;
 
   lua_getfield(L, -1, "objects");
   if (lua_istable(L, -1)) {
@@ -393,13 +393,22 @@ stage::stage(std::string_view name)
         const auto  sy = tf.y - viewport.y;
 
         const auto offscreen =
-          sx + w < -SLEEP_MARGIN ||
-          sx     >  viewport.width  + SLEEP_MARGIN ||
-          sy + h < -SLEEP_MARGIN ||
-          sy     >  viewport.height + SLEEP_MARGIN;
+          sx + w < -_sleep_margin ||
+          sx     >  viewport.width  + _sleep_margin ||
+          sy + h < -_sleep_margin ||
+          sy     >  viewport.height + _sleep_margin;
 
-        if (offscreen)
+        if (offscreen) {
           _registry.emplace<dormant>(entity);
+
+          if (auto* bd = _registry.try_get<body>(entity);
+              bd && b2Body_IsValid(bd->id)) {
+            bd->shape     = b2_nullShapeId;
+            bd->cached_hx = .0f;
+            bd->cached_hy = .0f;
+            b2Body_Disable(bd->id);
+          }
+        }
       }
     }
   }
@@ -622,33 +631,39 @@ void stage::update(float delta) {
     const auto screen_y = tf.y - viewport.y;
 
     const auto offscreen =
-      screen_x + width  < -SLEEP_MARGIN ||
-      screen_x          >  viewport.width  + SLEEP_MARGIN ||
-      screen_y + height < -SLEEP_MARGIN ||
-      screen_y          >  viewport.height + SLEEP_MARGIN;
+      screen_x + width  < -_sleep_margin ||
+      screen_x          >  viewport.width  + _sleep_margin ||
+      screen_y + height < -_sleep_margin ||
+      screen_y          >  viewport.height + _sleep_margin;
 
-    const auto cx  = tf.x - (viewport.x + viewport.width  * .5f);
-    const auto cy  = tf.y - (viewport.y + viewport.height * .5f);
-    const auto nearscreen = cx * cx + cy * cy <= _wake_radius_squared;
+    const auto nearscreen =
+      screen_x + width  >= -_wake_margin &&
+      screen_x          <   viewport.width  + _wake_margin &&
+      screen_y + height >= -_wake_margin &&
+      screen_y          <   viewport.height + _wake_margin;
 
-    if (offscreen) {
+    if (nearscreen) {
+      if (_registry.all_of<dormant>(entity)) {
+        if (auto* bd = _registry.try_get<body>(entity);
+            bd && b2Body_IsValid(bd->id)) {
+          b2Body_Enable(bd->id);
+        }
+        _registry.remove<dormant>(entity);
+        dispatch_dormancy(proxy, "on_wake");
+      }
+    } else if (offscreen) {
       if (!_registry.all_of<dormant>(entity)) {
         _registry.emplace<dormant>(entity);
 
         if (auto* bd = _registry.try_get<body>(entity);
-            bd && b2Shape_IsValid(bd->shape)) {
-          b2DestroyShape(bd->shape, false);
+            bd && b2Body_IsValid(bd->id)) {
           bd->shape     = b2_nullShapeId;
           bd->cached_hx = .0f;
           bd->cached_hy = .0f;
+          b2Body_Disable(bd->id);
         }
 
         dispatch_dormancy(proxy, "on_sleep");
-      }
-    } else if (nearscreen) {
-      if (_registry.all_of<dormant>(entity)) {
-        _registry.remove<dormant>(entity);
-        dispatch_dormancy(proxy, "on_wake");
       }
     }
   }
