@@ -426,8 +426,6 @@ stage::stage(std::string_view name)
   }
   lua_pop(L, 1);
 
-  _backdrop = &depot->pixmap.get(std::format("stages/{}", _name));
-
   lua_getfield(L, -1, "tilemap");
   if (lua_isstring(L, -1)) {
     const std::string_view tilemap_name = lua_tostring(L, -1);
@@ -923,14 +921,6 @@ void stage::draw() {
       viewport.y = std::roundf(static_cast<float>(lua_tonumber(L, -1)));
     lua_pop(L, 2);
   }
-
-  _backdrop->draw(
-    .0f, .0f,
-    static_cast<float>(_backdrop->width()),
-    static_cast<float>(_backdrop->height()),
-    .0f, .0f, viewport.width, viewport.height
-  );
-
 
   _tilemap.draw_background();
 

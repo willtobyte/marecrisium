@@ -6,6 +6,14 @@ struct alignas(16) uv final {
 
 class tilemap final {
 public:
+  struct layer final {
+    const pixmap* atlas{};
+    std::vector<SDL_Vertex> vertices;
+    std::vector<int32_t> indices;
+    std::vector<uint32_t> tiles;
+    std::vector<uv> uvs;
+  };
+
   tilemap() = default;
 
   tilemap(std::string_view name, b2WorldId world);
@@ -21,31 +29,20 @@ public:
 private:
   std::vector<uint8_t> _collision;
 
-  std::vector<uint32_t> _background_tiles;
-  std::vector<uint32_t> _foreground_tiles;
-
-  std::vector<uv> _background_uvs;
-  std::vector<uv> _foreground_uvs;
-
-  std::vector<SDL_Vertex> _background_vertices;
-  std::vector<int32_t> _background_indices;
-  std::vector<SDL_Vertex> _foreground_vertices;
-  std::vector<int32_t> _foreground_indices;
-
-  const pixmap* _background_atlas{};
-  const pixmap* _foreground_atlas{};
+  layer _background;
+  layer _foreground;
 
   float _size{};
-  float _inv_size{};
-  float _vp_x{};
-  float _vp_y{};
-  float _vp_w{};
-  float _vp_h{};
+  float _inverse_size{};
+  float _viewport_x{};
+  float _viewport_y{};
+  float _viewport_width{};
+  float _viewport_height{};
 
   int32_t _width{};
   int32_t _height{};
 
   bool _dirty{true};
 
-  void build_layer(const uint32_t* tiles, const uv* uvs, std::vector<SDL_Vertex>& vertices, std::vector<int32_t>& indices) noexcept;
+  void build_layer(layer& layer) noexcept;
 };

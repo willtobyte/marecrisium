@@ -48,7 +48,6 @@ private:
   std::array<entt::entity, 64> _radar_hits{};
   stringpool _stringpool;
   particlesystem _particlesystem;
-  const pixmap* _backdrop;
   tilemap _tilemap;
   b2WorldId _world;
   float _timestep = 1.f / 60.f;

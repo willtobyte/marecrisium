@@ -1,5 +1,60 @@
 #include "tilemap.hpp"
 
+static int32_t to_column(float x, float inverse_size, int32_t width) noexcept {
+  return std::clamp(static_cast<int32_t>(x * inverse_size), 0, width - 1);
+}
+
+static int32_t to_row(float y, float inverse_size, int32_t height) noexcept {
+  return std::clamp(static_cast<int32_t>(y * inverse_size), 0, height - 1);
+}
+
+static void load_tiles(tilemap::layer& layer, const char* field, size_t total) {
+  lua_getfield(L, -1, field);
+  if (!lua_istable(L, -1)) {
+    lua_pop(L, 1);
+    return;
+  }
+
+  layer.tiles.reserve(total);
+  for (size_t i = 0; i < total; ++i) {
+    lua_rawgeti(L, -1, static_cast<int>(i + 1));
+    layer.tiles.emplace_back(static_cast<uint32_t>(lua_tonumber(L, -1)));
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
+  if (std::ranges::none_of(layer.tiles, [](const uint32_t id) { return id != 0; }))
+    layer.tiles.clear();
+}
+
+static void load_atlas(tilemap::layer& layer, std::string_view name, const char* path, float size, float inverse_size) {
+  if (layer.tiles.empty())
+    return;
+
+  layer.atlas = &depot->pixmap.get(std::format("tilemaps/{}/{}", name, path));
+  const auto atlas_width = static_cast<float>(layer.atlas->width());
+  const auto atlas_height = static_cast<float>(layer.atlas->height());
+  const auto u_scale = size / atlas_width;
+  const auto v_scale = size / atlas_height;
+  const auto tiles_per_row = static_cast<size_t>(atlas_width * inverse_size);
+  const auto tiles_per_column = static_cast<size_t>(atlas_height * inverse_size);
+  const auto count = tiles_per_row * tiles_per_column;
+  const auto half_texel_u = .5f / atlas_width;
+  const auto half_texel_v = .5f / atlas_height;
+
+  layer.uvs.reserve(count);
+  for (size_t id = 0; id < count; ++id) {
+    const auto column = static_cast<float>(id % tiles_per_row);
+    const auto row = static_cast<float>(id / tiles_per_row);
+    layer.uvs.emplace_back(uv{
+      column * u_scale + half_texel_u,
+      row * v_scale + half_texel_v,
+      (column + 1.f) * u_scale - half_texel_u,
+      (row + 1.f) * v_scale - half_texel_v
+    });
+  }
+}
+
 tilemap::tilemap(std::string_view name, b2WorldId world) {
   const auto filename = std::format("tilemaps/{}.lua", name);
   const auto buffer = io::read(filename);
@@ -8,13 +63,13 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   const auto label = std::format("@{}", filename);
 
   if (luaL_loadbuffer(L, data, length, label.c_str()) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
+    std::string error(lua_tostring(L, -1));
     lua_pop(L, 1);
     throw std::runtime_error{std::move(error)};
   }
 
   if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
+    std::string error(lua_tostring(L, -1));
     lua_pop(L, 1);
     throw std::runtime_error{std::move(error)};
   }
@@ -31,32 +86,12 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   _height = static_cast<int32_t>(lua_tonumber(L, -1));
   lua_pop(L, 1);
 
-  _inv_size = 1.f / _size;
+  _inverse_size = 1.f / _size;
 
   const auto total = static_cast<size_t>(_width) * static_cast<size_t>(_height);
 
-  _background_tiles.resize(total);
-  _foreground_tiles.resize(total);
-
-  lua_getfield(L, -1, "background");
-  if (lua_istable(L, -1)) {
-    for (size_t i = 0; i < total; ++i) {
-      lua_rawgeti(L, -1, static_cast<int>(i + 1));
-      _background_tiles[i] = static_cast<uint32_t>(lua_tonumber(L, -1));
-      lua_pop(L, 1);
-    }
-  }
-  lua_pop(L, 1);
-
-  lua_getfield(L, -1, "foreground");
-  if (lua_istable(L, -1)) {
-    for (size_t i = 0; i < total; ++i) {
-      lua_rawgeti(L, -1, static_cast<int>(i + 1));
-      _foreground_tiles[i] = static_cast<uint32_t>(lua_tonumber(L, -1));
-      lua_pop(L, 1);
-    }
-  }
-  lua_pop(L, 1);
+  load_tiles(_background, "background", total);
+  load_tiles(_foreground, "foreground", total);
 
   {
     _collision.resize(total);
@@ -137,129 +172,78 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
   lua_pop(L, 1);
 
-  _background_atlas = &depot->pixmap.get(std::format("tilemaps/{}/background", name));
-  _foreground_atlas = &depot->pixmap.get(std::format("tilemaps/{}/foreground", name));
+  load_atlas(_background, name, "background", _size, _inverse_size);
+  load_atlas(_foreground, name, "foreground", _size, _inverse_size);
 
   {
-    const auto atlas_width = static_cast<float>(_background_atlas->width());
-    const auto atlas_height = static_cast<float>(_background_atlas->height());
-    const auto u_scale = _size / atlas_width;
-    const auto v_scale = _size / atlas_height;
-    const auto tiles_per_row = static_cast<size_t>(atlas_width * _inv_size);
-    const auto tiles_per_column = static_cast<size_t>(atlas_height * _inv_size);
-    const auto count = tiles_per_row * tiles_per_column;
-
-    _background_uvs.resize(count);
-
-    const auto half_texel_u = .5f / atlas_width;
-    const auto half_texel_v = .5f / atlas_height;
-
-    for (size_t id = 0; id < count; ++id) {
-      const auto column = static_cast<float>(id % tiles_per_row);
-      const auto row = static_cast<float>(id / tiles_per_row);
-      auto& entry = _background_uvs[id];
-      entry.u0 = column * u_scale + half_texel_u;
-      entry.v0 = row * v_scale + half_texel_v;
-      entry.u1 = (column + 1.f) * u_scale - half_texel_u;
-      entry.v1 = (row + 1.f) * v_scale - half_texel_v;
-    }
-  }
-
-  {
-    const auto atlas_width = static_cast<float>(_foreground_atlas->width());
-    const auto atlas_height = static_cast<float>(_foreground_atlas->height());
-    const auto u_scale = _size / atlas_width;
-    const auto v_scale = _size / atlas_height;
-    const auto tiles_per_row = static_cast<size_t>(atlas_width * _inv_size);
-    const auto tiles_per_column = static_cast<size_t>(atlas_height * _inv_size);
-    const auto count = tiles_per_row * tiles_per_column;
-
-    _foreground_uvs.resize(count);
-
-    const auto half_texel_u = .5f / atlas_width;
-    const auto half_texel_v = .5f / atlas_height;
-
-    for (size_t id = 0; id < count; ++id) {
-      const auto column = static_cast<float>(id % tiles_per_row);
-      const auto row = static_cast<float>(id / tiles_per_row);
-      auto& entry = _foreground_uvs[id];
-      entry.u0 = column * u_scale + half_texel_u;
-      entry.v0 = row * v_scale + half_texel_v;
-      entry.u1 = (column + 1.f) * u_scale - half_texel_u;
-      entry.v1 = (row + 1.f) * v_scale - half_texel_v;
-    }
-  }
-
-  {
-    const auto tiles_x = static_cast<size_t>(viewport.width * _inv_size) + 2;
-    const auto tiles_y = static_cast<size_t>(viewport.height * _inv_size) + 2;
+    const auto tiles_x = static_cast<size_t>(viewport.width * _inverse_size) + 2;
+    const auto tiles_y = static_cast<size_t>(viewport.height * _inverse_size) + 2;
     const auto max_tiles = tiles_x * tiles_y;
-
-    _background_vertices.reserve(max_tiles * 4);
-    _background_indices.reserve(max_tiles * 6);
-    _foreground_vertices.reserve(max_tiles * 4);
-    _foreground_indices.reserve(max_tiles * 6);
+    if (_background.atlas) {
+      _background.vertices.reserve(max_tiles * 4);
+      _background.indices.reserve(max_tiles * 6);
+    }
+    if (_foreground.atlas) {
+      _foreground.vertices.reserve(max_tiles * 4);
+      _foreground.indices.reserve(max_tiles * 6);
+    }
   }
 }
 
 void tilemap::draw_background() noexcept {
-  if (!_background_atlas) [[unlikely]]
+  if (!_background.atlas) [[unlikely]]
     return;
 
-  if (_vp_x != viewport.x || _vp_y != viewport.y || _vp_w != viewport.width || _vp_h != viewport.height)
+  if (_viewport_x != viewport.x || _viewport_y != viewport.y || _viewport_width != viewport.width || _viewport_height != viewport.height)
     _dirty = true;
 
-  if (_dirty) {
-    build_layer(
-      _background_tiles.data(),
-      _background_uvs.data(),
-      _background_vertices,
-      _background_indices
-    );
-  }
+  if (_dirty)
+    build_layer(_background);
 
-  if (_background_vertices.empty()) [[unlikely]]
+  if (_background.vertices.empty()) [[unlikely]]
     return;
 
   SDL_RenderGeometry(
     renderer,
-    static_cast<SDL_Texture*>(*_background_atlas),
-    _background_vertices.data(),
-    static_cast<int>(_background_vertices.size()),
-    _background_indices.data(),
-    static_cast<int>(_background_indices.size())
+    static_cast<SDL_Texture*>(*_background.atlas),
+    _background.vertices.data(),
+    static_cast<int>(_background.vertices.size()),
+    _background.indices.data(),
+    static_cast<int>(_background.indices.size())
   );
+
+  if (!_foreground.atlas) {
+    _viewport_x = viewport.x;
+    _viewport_y = viewport.y;
+    _viewport_width = viewport.width;
+    _viewport_height = viewport.height;
+    _dirty = false;
+  }
 }
 
 void tilemap::draw_foreground() noexcept {
-  if (!_foreground_atlas) [[unlikely]]
+  if (!_foreground.atlas) [[unlikely]]
     return;
 
-  if (_dirty) {
-    build_layer(
-      _foreground_tiles.data(),
-      _foreground_uvs.data(),
-      _foreground_vertices,
-      _foreground_indices
-    );
+  if (_dirty)
+    build_layer(_foreground);
 
-    _vp_x = viewport.x;
-    _vp_y = viewport.y;
-    _vp_w = viewport.width;
-    _vp_h = viewport.height;
-    _dirty = false;
-  }
+  _viewport_x = viewport.x;
+  _viewport_y = viewport.y;
+  _viewport_width = viewport.width;
+  _viewport_height = viewport.height;
+  _dirty = false;
 
-  if (_foreground_vertices.empty()) [[unlikely]]
+  if (_foreground.vertices.empty()) [[unlikely]]
     return;
 
   SDL_RenderGeometry(
     renderer,
-    static_cast<SDL_Texture*>(*_foreground_atlas),
-    _foreground_vertices.data(),
-    static_cast<int>(_foreground_vertices.size()),
-    _foreground_indices.data(),
-    static_cast<int>(_foreground_indices.size())
+    static_cast<SDL_Texture*>(*_foreground.atlas),
+    _foreground.vertices.data(),
+    static_cast<int>(_foreground.vertices.size()),
+    _foreground.indices.data(),
+    static_cast<int>(_foreground.indices.size())
   );
 }
 
@@ -272,15 +256,12 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2) 
   const auto w = static_cast<int32_t>(_width);
   const auto h = static_cast<int32_t>(_height);
 
-  const auto to_col = [&](float x) { return std::clamp(static_cast<int32_t>(x * _inv_size), 0, w - 1); };
-  const auto to_row = [&](float y) { return std::clamp(static_cast<int32_t>(y * _inv_size), 0, h - 1); };
+  const auto start_column_index = to_column(x1, _inverse_size, w);
+  const auto start_row_index = to_row(y1, _inverse_size, h);
+  const auto end_column_index = to_column(x2, _inverse_size, w);
+  const auto end_row_index = to_row(y2, _inverse_size, h);
 
-  const auto sc = to_col(x1);
-  const auto sr = to_row(y1);
-  const auto ec = to_col(x2);
-  const auto er = to_row(y2);
-
-  if (sc == ec && sr == er) {
+  if (start_column_index == end_column_index && start_row_index == end_row_index) {
     lua_newtable(state);
     return 1;
   }
@@ -302,12 +283,12 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2) 
 
   std::priority_queue<node, std::vector<node>, node_cmp> open;
 
-  const auto start = idx(sc, sr);
-  const auto goal  = idx(ec, er);
+  const auto start = idx(start_column_index, start_row_index);
+  const auto goal  = idx(end_column_index, end_row_index);
 
   g[static_cast<size_t>(start)] = .0f;
-  const auto hdx = static_cast<float>(std::abs(ec - sc));
-  const auto hdy = static_cast<float>(std::abs(er - sr));
+  const auto hdx = static_cast<float>(std::abs(end_column_index - start_column_index));
+  const auto hdy = static_cast<float>(std::abs(end_row_index - start_row_index));
   open.push({hdx + hdy, start});
 
   constexpr int32_t dx[4] = {1, -1, 0,  0};
@@ -320,32 +301,32 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2) 
     if (current == static_cast<int32_t>(goal))
       break;
 
-    const auto cr = current / w;
-    const auto cc = current % w;
+    const auto current_row = current / w;
+    const auto current_column = current % w;
 
     for (int d = 0; d < 4; ++d) {
-      const auto nc = cc + dx[d];
-      const auto nr = cr + dy[d];
+      const auto neighbor_column = current_column + dx[d];
+      const auto neighbor_row = current_row + dy[d];
 
-      if (nc < 0 || nc >= w || nr < 0 || nr >= h) [[unlikely]]
+      if (neighbor_column < 0 || neighbor_column >= w || neighbor_row < 0 || neighbor_row >= h) [[unlikely]]
         continue;
 
-      const auto ni = idx(nc, nr);
+      const auto neighbor_index = idx(neighbor_column, neighbor_row);
 
-      if (_collision[static_cast<size_t>(ni)] != 0)
+      if (_collision[static_cast<size_t>(neighbor_index)] != 0)
         continue;
 
-      const auto ng = g[static_cast<size_t>(current)] + 1.f;
+      const auto next_cost = g[static_cast<size_t>(current)] + 1.f;
 
-      if (ng >= g[static_cast<size_t>(ni)])
+      if (next_cost >= g[static_cast<size_t>(neighbor_index)])
         continue;
 
-      g[static_cast<size_t>(ni)] = ng;
-      parent[static_cast<size_t>(ni)] = current;
+      g[static_cast<size_t>(neighbor_index)] = next_cost;
+      parent[static_cast<size_t>(neighbor_index)] = current;
 
-      const auto hx = static_cast<float>(std::abs(nc - ec));
-      const auto hy = static_cast<float>(std::abs(nr - er));
-      open.push({ng + hx + hy, static_cast<int32_t>(ni)});
+      const auto hx = static_cast<float>(std::abs(neighbor_column - end_column_index));
+      const auto hy = static_cast<float>(std::abs(neighbor_row - end_row_index));
+      open.push({next_cost + hx + hy, static_cast<int32_t>(neighbor_index)});
     }
   }
 
@@ -364,9 +345,9 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2) 
 
   for (int i = 0; i < static_cast<int>(path.size()); ++i) {
     const auto node_idx = path[static_cast<size_t>(i)];
-    const auto col = node_idx % w;
+    const auto column = node_idx % w;
     const auto row = node_idx / w;
-    const auto wx = static_cast<float>(col) * _size + half;
+    const auto wx = static_cast<float>(column) * _size + half;
     const auto wy = static_cast<float>(row) * _size + half;
 
     lua_newtable(state);
@@ -380,14 +361,14 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2) 
   return 1;
 }
 
-void tilemap::build_layer(const uint32_t* tiles, const uv* uvs, std::vector<SDL_Vertex>& vertices, std::vector<int32_t>& indices) noexcept {
-  vertices.clear();
-  indices.clear();
+void tilemap::build_layer(layer& layer) noexcept {
+  layer.vertices.clear();
+  layer.indices.clear();
 
-  const auto start_column = std::max(0, static_cast<int32_t>(viewport.x * _inv_size));
-  const auto start_row = std::max(0, static_cast<int32_t>(viewport.y * _inv_size));
-  const auto end_column = std::min(_width - 1, static_cast<int32_t>((viewport.x + viewport.width) * _inv_size) + 1);
-  const auto end_row = std::min(_height - 1, static_cast<int32_t>((viewport.y + viewport.height) * _inv_size) + 1);
+  const auto start_column = std::max(0, static_cast<int32_t>(viewport.x * _inverse_size));
+  const auto start_row = std::max(0, static_cast<int32_t>(viewport.y * _inverse_size));
+  const auto end_column = std::min(_width - 1, static_cast<int32_t>((viewport.x + viewport.width) * _inverse_size) + 1);
+  const auto end_row = std::min(_height - 1, static_cast<int32_t>((viewport.y + viewport.height) * _inverse_size) + 1);
 
   if (start_column > end_column || start_row > end_row) [[unlikely]]
     return;
@@ -402,27 +383,27 @@ void tilemap::build_layer(const uint32_t* tiles, const uv* uvs, std::vector<SDL_
     const auto snapped_y1 = std::roundf(dy + _size);
 
     for (auto column = start_column; column <= end_column; ++column) {
-      const auto tile_id = tiles[row_offset + column];
+      const auto tile_id = layer.tiles[static_cast<size_t>(row_offset + column)];
       if (tile_id == 0) [[likely]]
         continue;
 
-      const auto& entry = uvs[tile_id - 1];
+      const auto& entry = layer.uvs[tile_id - 1];
       const auto dx = static_cast<float>(column) * _size - viewport.x;
       const auto snapped_x0 = std::roundf(dx);
       const auto snapped_x1 = std::roundf(dx + _size);
-      const auto base = static_cast<int32_t>(vertices.size());
+      const auto base = static_cast<int32_t>(layer.vertices.size());
 
-      vertices.emplace_back(SDL_Vertex{{snapped_x0, snapped_y0}, white, {entry.u0, entry.v0}});
-      vertices.emplace_back(SDL_Vertex{{snapped_x1, snapped_y0}, white, {entry.u1, entry.v0}});
-      vertices.emplace_back(SDL_Vertex{{snapped_x1, snapped_y1}, white, {entry.u1, entry.v1}});
-      vertices.emplace_back(SDL_Vertex{{snapped_x0, snapped_y1}, white, {entry.u0, entry.v1}});
+      layer.vertices.emplace_back(SDL_Vertex{{snapped_x0, snapped_y0}, white, {entry.u0, entry.v0}});
+      layer.vertices.emplace_back(SDL_Vertex{{snapped_x1, snapped_y0}, white, {entry.u1, entry.v0}});
+      layer.vertices.emplace_back(SDL_Vertex{{snapped_x1, snapped_y1}, white, {entry.u1, entry.v1}});
+      layer.vertices.emplace_back(SDL_Vertex{{snapped_x0, snapped_y1}, white, {entry.u0, entry.v1}});
 
-      indices.emplace_back(base);
-      indices.emplace_back(base + 1);
-      indices.emplace_back(base + 2);
-      indices.emplace_back(base);
-      indices.emplace_back(base + 2);
-      indices.emplace_back(base + 3);
+      layer.indices.emplace_back(base);
+      layer.indices.emplace_back(base + 1);
+      layer.indices.emplace_back(base + 2);
+      layer.indices.emplace_back(base);
+      layer.indices.emplace_back(base + 2);
+      layer.indices.emplace_back(base + 3);
     }
   }
 }
