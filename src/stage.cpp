@@ -1,5 +1,7 @@
 #include "stage.hpp"
 
+static constexpr float SLEEP_MARGIN = 32.f;
+
 static void* to_userdata(entt::entity e) noexcept {
   return reinterpret_cast<void*>(static_cast<uintptr_t>(e) + 1);
 }
@@ -191,6 +193,9 @@ stage::stage(std::string_view name)
   def.gravity = gravity;
   _world = b2CreateWorld(&def);
 
+  const auto wake_radius = std::hypot(viewport.width, viewport.height);
+  _wake_radius_squared = wake_radius * wake_radius;
+
   lua_getfield(L, -1, "objects");
   if (lua_istable(L, -1)) {
     const auto count = static_cast<int>(lua_objlen(L, -1));
@@ -378,6 +383,24 @@ stage::stage(std::string_view name)
       lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
       lua_setfield(L, -2, object_name.data());
       lua_pop(L, 1);
+
+      if (_registry.all_of<sleepable, animation>(entity)) {
+        const auto& an = _registry.get<animation>(entity);
+        const auto& fr = an.clips[an.active].frames[an.current];
+        const auto  w  = fr.w * tf.scale;
+        const auto  h  = fr.h * tf.scale;
+        const auto  sx = tf.x - viewport.x;
+        const auto  sy = tf.y - viewport.y;
+
+        const auto offscreen =
+          sx + w < -SLEEP_MARGIN ||
+          sx     >  viewport.width  + SLEEP_MARGIN ||
+          sy + h < -SLEEP_MARGIN ||
+          sy     >  viewport.height + SLEEP_MARGIN;
+
+        if (offscreen)
+          _registry.emplace<dormant>(entity);
+      }
     }
   }
   lua_pop(L, 1);
@@ -590,8 +613,6 @@ void stage::on_tick(uint64_t tick) {
 }
 
 void stage::update(float delta) {
-  static constexpr float CULLING_MARGIN = 32.f;
-
   for (auto&& [entity, proxy, tf, an] :
        _registry.view<sleepable, objectproxy, transform, animation>().each()) {
     const auto& frame = an.clips[an.active].frames[an.current];
@@ -601,10 +622,14 @@ void stage::update(float delta) {
     const auto screen_y = tf.y - viewport.y;
 
     const auto offscreen =
-      screen_x + width  < -CULLING_MARGIN ||
-      screen_x          >  viewport.width  + CULLING_MARGIN ||
-      screen_y + height < -CULLING_MARGIN ||
-      screen_y          >  viewport.height + CULLING_MARGIN;
+      screen_x + width  < -SLEEP_MARGIN ||
+      screen_x          >  viewport.width  + SLEEP_MARGIN ||
+      screen_y + height < -SLEEP_MARGIN ||
+      screen_y          >  viewport.height + SLEEP_MARGIN;
+
+    const auto cx  = tf.x - (viewport.x + viewport.width  * .5f);
+    const auto cy  = tf.y - (viewport.y + viewport.height * .5f);
+    const auto nearscreen = cx * cx + cy * cy <= _wake_radius_squared;
 
     if (offscreen) {
       if (!_registry.all_of<dormant>(entity)) {
@@ -620,7 +645,7 @@ void stage::update(float delta) {
 
         dispatch_dormancy(proxy, "on_sleep");
       }
-    } else {
+    } else if (nearscreen) {
       if (_registry.all_of<dormant>(entity)) {
         _registry.remove<dormant>(entity);
         dispatch_dormancy(proxy, "on_wake");

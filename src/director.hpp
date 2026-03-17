@@ -31,8 +31,8 @@ public:
   void draw();
 
 private:
-  stage *_current = nullptr;
-  overlay *_overlay = nullptr;
+  stage *_current{nullptr};
+  overlay *_overlay{nullptr};
   std::optional<std::string> _pending;
   std::unordered_map<std::string, std::unique_ptr<stage>, transparent_hash, std::equal_to<>> _stages;
   std::unordered_map<std::string, std::unique_ptr<overlay>, transparent_hash, std::equal_to<>> _overlays;

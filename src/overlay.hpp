@@ -17,9 +17,9 @@ public:
   void render_label(std::string_view family, std::string_view text, float x, float y, std::span<const glypheffect> effects);
 
 private:
-  std::string _name;
-  int _userdata_reference = LUA_NOREF;
-  int _reference = LUA_NOREF;
-  int _on_loop = LUA_NOREF;
-  int _on_paint = LUA_NOREF;
+  std::string _name{};
+  int _userdata_reference{LUA_NOREF};
+  int _reference{LUA_NOREF};
+  int _on_loop{LUA_NOREF};
+  int _on_paint{LUA_NOREF};
 };
