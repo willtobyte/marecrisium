@@ -193,8 +193,9 @@ stage::stage(std::string_view name)
   def.gravity = gravity;
   _world = b2CreateWorld(&def);
 
-  _sleep_margin = std::min(viewport.width, viewport.height) * .3f;
-  _wake_margin  = std::hypot(viewport.width, viewport.height) * 2.f;
+  const auto largest = std::max(viewport.width, viewport.height);
+  _sleep_margin = largest * 1.f;
+  _wake_margin  = largest * .5f;
 
   lua_getfield(L, -1, "objects");
   if (lua_istable(L, -1)) {
