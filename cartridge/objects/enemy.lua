@@ -21,6 +21,11 @@ local DETECT_RADIUS_SQUARED = DETECT_RADIUS * DETECT_RADIUS
 
 local PROBE_OFFSETS = { 45, -45, 90, -90, 135, -135, 180 }
 
+local function clear_path(self)
+	self._path = {}
+	self._wp = 1
+end
+
 return {
 	body = "dynamic",
 	sleepable = true,
@@ -33,20 +38,9 @@ return {
 
 	on_spawn = function(self)
 		self.animation = "idle"
-		self._path = {}
-		self._wp = 1
+		clear_path(self)
 		self._timer = random(1, PATH_INTERVAL)
 		self._stall = 0
-		self._last_x = nil
-		self._last_y = nil
-	end,
-
-	on_wake = function(self)
-		print("enemy wake", self.name, self.x, self.y)
-	end,
-
-	on_sleep = function(self)
-		print("enemy sleep", self.name, self.x, self.y)
 	end,
 
 	on_loop = function(self, delta)
@@ -63,18 +57,16 @@ return {
 			local px, py = player.x, player.y
 			local dx, dy = px - self.x, py - self.y
 
+			local path
 			if dx * dx + dy * dy <= DETECT_RADIUS_SQUARED then
-				local path = world.pathfind(self.x, self.y, px, py, BODY_RADIUS)
-				if path and #path > 0 then
-					self._path = path
-					self._wp = 2
-				else
-					self._path = {}
-					self._wp = 1
-				end
+				path = world.pathfind(self.x, self.y, px, py, BODY_RADIUS)
+			end
+
+			if path and #path > 0 then
+				self._path = path
+				self._wp = 2
 			else
-				self._path = {}
-				self._wp = 1
+				clear_path(self)
 			end
 		end
 
