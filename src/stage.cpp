@@ -122,6 +122,20 @@ static int world_pathfind(lua_State* state) {
   return self->pathfind(state, x1, y1, x2, y2, r);
 }
 
+static int world_spawn(lua_State* state) {
+  auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
+  const std::string_view name(luaL_checkstring(state, 1));
+  const std::string_view kind(luaL_checkstring(state, 2));
+  const auto x = static_cast<float>(luaL_checknumber(state, 3));
+  const auto y = static_cast<float>(luaL_checknumber(state, 4));
+  return self->spawn(state, name, kind, x, y);
+}
+
+static int world_destroy(lua_State* state) {
+  auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
+  return self->destroy(state);
+}
+
 stage::stage(std::string_view name)
     : _name(name) {
   _registry.on_destroy<objectproxy>().connect<&on_objectproxy_destroy>();
@@ -164,6 +178,12 @@ stage::stage(std::string_view name)
   lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, world_pathfind, 1);
   lua_setfield(L, -2, "pathfind");
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_spawn, 1);
+  lua_setfield(L, -2, "spawn");
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_destroy, 1);
+  lua_setfield(L, -2, "destroy");
   lua_setfield(L, -2, "world");
   lua_pop(L, 1);
 
@@ -222,195 +242,8 @@ stage::stage(std::string_view name)
 
       lua_pop(L, 1);
 
-      const auto entity = _registry.create();
-      auto& tf = _registry.emplace<transform>(entity);
-      tf.x = ox;
-      tf.y = oy;
-      const auto& proxy = _registry.emplace<objectproxy>(entity, _registry, entity, object_name, object_kind, _environment_reference);
-      const auto prototype = proxy.prototype;
-      const auto handle = proxy.handle;
-
-      static_cast<void>(_stringpool.insert(object_name));
-      static_cast<void>(_stringpool.insert(object_kind));
-
-      lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
-      lua_getfield(L, -1, "animation");
-
-      if (lua_istable(L, -1)) {
-        auto& a = _registry.emplace<animation>(entity);
-        a.pixmap = &depot->pixmap.get(std::format("objects/{}", object_kind));
-
-        lua_pushnil(L);
-        while (lua_next(L, -2) != 0) {
-          if (a.clip_count >= a.clips.size()) {
-            lua_pop(L, 2);
-            break;
-          }
-
-          const std::string_view clip_name = lua_tostring(L, -2);
-          const auto cid = _stringpool.insert(clip_name);
-
-          auto& c = a.clips[a.clip_count];
-          c.name = cid;
-          c.count = 0;
-
-          if (lua_istable(L, -1)) {
-            const auto frame_count = static_cast<int>(lua_objlen(L, -1));
-
-            for (int f = 1; f <= frame_count && c.count < c.frames.size(); ++f) {
-              lua_rawgeti(L, -1, f);
-
-              if (lua_istable(L, -1)) {
-                auto& fr = c.frames[c.count];
-
-                lua_rawgeti(L, -1, 1);
-                fr.x = static_cast<float>(lua_tonumber(L, -1));
-                lua_pop(L, 1);
-
-                lua_rawgeti(L, -1, 2);
-                fr.y = static_cast<float>(lua_tonumber(L, -1));
-                lua_pop(L, 1);
-
-                lua_rawgeti(L, -1, 3);
-                fr.w = static_cast<float>(lua_tonumber(L, -1));
-                lua_pop(L, 1);
-
-                lua_rawgeti(L, -1, 4);
-                fr.h = static_cast<float>(lua_tonumber(L, -1));
-                lua_pop(L, 1);
-
-                lua_rawgeti(L, -1, 5);
-                fr.duration = static_cast<float>(lua_tonumber(L, -1)) / 1000.f;
-                lua_pop(L, 1);
-
-                lua_rawgeti(L, -1, 6);
-                if (!lua_isnil(L, -1)) {
-                  fr.cx = static_cast<float>(lua_tonumber(L, -1));
-                  lua_pop(L, 1);
-
-                  lua_rawgeti(L, -1, 7);
-                  fr.cy = static_cast<float>(lua_tonumber(L, -1));
-                  lua_pop(L, 1);
-
-                  lua_rawgeti(L, -1, 8);
-                  fr.cw = static_cast<float>(lua_tonumber(L, -1));
-                  lua_pop(L, 1);
-
-                  lua_rawgeti(L, -1, 9);
-                  fr.ch = static_cast<float>(lua_tonumber(L, -1));
-                  lua_pop(L, 1);
-
-                  fr.collidable = true;
-                } else {
-                  lua_pop(L, 1);
-                }
-
-                ++c.count;
-              }
-
-              lua_pop(L, 1);
-            }
-          }
-
-          ++a.clip_count;
-          lua_pop(L, 1);
-        }
-
-        bool collidable = false;
-        for (uint8_t ci = 0; ci < a.clip_count && !collidable; ++ci)
-          for (uint8_t fi = 0; fi < a.clips[ci].count && !collidable; ++fi)
-            collidable = a.clips[ci].frames[fi].collidable;
-
-        if (collidable) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
-          lua_getfield(L, -1, "body");
-          const auto str = lua_isstring(L, -1)
-            ? std::string(lua_tostring(L, -1))
-            : std::string();
-          lua_pop(L, 2);
-
-          const auto bt = str == "dynamic" ? body_type::dynamic
-                        : str == "static"  ? body_type::stationary
-                                           : body_type::kinematic;
-
-          b2BodyDef bdef = b2DefaultBodyDef();
-          bdef.userData = to_userdata(entity);
-
-          bdef.type = bt == body_type::dynamic     ? b2_dynamicBody
-                   : bt == body_type::stationary ? b2_staticBody
-                                                 : b2_kinematicBody;
-
-          if (bt == body_type::dynamic) {
-            bdef.isBullet = true;
-            bdef.fixedRotation = true;
-          }
-
-          const auto id = b2CreateBody(_world, &bdef);
-          _registry.emplace<body>(entity, id, b2_nullShapeId, .0f, .0f, bt);
-          _registry.emplace<boundary>(entity);
-        }
-      }
-
-      lua_pop(L, 2);
-
-      {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
-        lua_getfield(L, -1, "sleepable");
-        const auto wants_sleepable = lua_toboolean(L, -1) != 0;
-        lua_pop(L, 2);
-
-        if (wants_sleepable)
-          _registry.emplace<sleepable>(entity);
-      }
-
-      lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
-      lua_getfield(L, -1, "on_spawn");
-
-      if (lua_isfunction(L, -1)) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
-
-        if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-          std::string error(lua_tostring(L, -1));
-          lua_pop(L, 2);
-          throw std::runtime_error(std::move(error));
-        }
-      } else {
-        lua_pop(L, 1);
-      }
-
+      std::ignore = spawn(L, object_name, object_kind, ox, oy);
       lua_pop(L, 1);
-
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
-      lua_setfield(L, -2, object_name.data());
-      lua_pop(L, 1);
-
-      if (_registry.all_of<sleepable, animation>(entity)) {
-        const auto& an = _registry.get<animation>(entity);
-        const auto& fr = an.clips[an.active].frames[an.current];
-        const auto  w  = fr.w * tf.scale;
-        const auto  h  = fr.h * tf.scale;
-        const auto  sx = tf.x - viewport.x;
-        const auto  sy = tf.y - viewport.y;
-
-        const auto offscreen =
-          sx + w < -_sleep_margin ||
-          sx     >  viewport.width  + _sleep_margin ||
-          sy + h < -_sleep_margin ||
-          sy     >  viewport.height + _sleep_margin;
-
-        if (offscreen) {
-          _registry.emplace<dormant>(entity);
-
-          if (auto* bd = _registry.try_get<body>(entity);
-              bd && b2Body_IsValid(bd->id)) {
-            bd->shape     = b2_nullShapeId;
-            bd->cached_hx = .0f;
-            bd->cached_hy = .0f;
-            b2Body_Disable(bd->id);
-          }
-        }
-      }
     }
   }
   lua_pop(L, 1);
@@ -1236,4 +1069,215 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
 
 int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept {
   return _tilemap.pathfind(state, x1, y1, x2, y2, radius);
+}
+
+int stage::spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y) {
+  const auto entity = _registry.create();
+  auto& tf = _registry.emplace<transform>(entity);
+  tf.x = x;
+  tf.y = y;
+  const auto& proxy = _registry.emplace<objectproxy>(entity, _registry, entity, name, kind, _environment_reference);
+  const auto prototype = proxy.prototype;
+  const auto handle = proxy.handle;
+
+  static_cast<void>(_stringpool.insert(name));
+  static_cast<void>(_stringpool.insert(kind));
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
+  lua_getfield(L, -1, "animation");
+
+  if (lua_istable(L, -1)) {
+    auto& a = _registry.emplace<animation>(entity);
+    a.pixmap = &depot->pixmap.get(std::format("objects/{}", kind));
+
+    lua_pushnil(L);
+    while (lua_next(L, -2) != 0) {
+      if (a.clip_count >= a.clips.size()) {
+        lua_pop(L, 2);
+        break;
+      }
+
+      const std::string_view clip_name = lua_tostring(L, -2);
+      const auto cid = _stringpool.insert(clip_name);
+
+      auto& c = a.clips[a.clip_count];
+      c.name = cid;
+      c.count = 0;
+
+      if (lua_istable(L, -1)) {
+        const auto frame_count = static_cast<int>(lua_objlen(L, -1));
+
+        for (int f = 1; f <= frame_count && c.count < c.frames.size(); ++f) {
+          lua_rawgeti(L, -1, f);
+
+          if (lua_istable(L, -1)) {
+            auto& fr = c.frames[c.count];
+
+            lua_rawgeti(L, -1, 1);
+            fr.x = static_cast<float>(lua_tonumber(L, -1));
+            lua_pop(L, 1);
+
+            lua_rawgeti(L, -1, 2);
+            fr.y = static_cast<float>(lua_tonumber(L, -1));
+            lua_pop(L, 1);
+
+            lua_rawgeti(L, -1, 3);
+            fr.w = static_cast<float>(lua_tonumber(L, -1));
+            lua_pop(L, 1);
+
+            lua_rawgeti(L, -1, 4);
+            fr.h = static_cast<float>(lua_tonumber(L, -1));
+            lua_pop(L, 1);
+
+            lua_rawgeti(L, -1, 5);
+            fr.duration = static_cast<float>(lua_tonumber(L, -1)) / 1000.f;
+            lua_pop(L, 1);
+
+            lua_rawgeti(L, -1, 6);
+            if (!lua_isnil(L, -1)) {
+              fr.cx = static_cast<float>(lua_tonumber(L, -1));
+              lua_pop(L, 1);
+
+              lua_rawgeti(L, -1, 7);
+              fr.cy = static_cast<float>(lua_tonumber(L, -1));
+              lua_pop(L, 1);
+
+              lua_rawgeti(L, -1, 8);
+              fr.cw = static_cast<float>(lua_tonumber(L, -1));
+              lua_pop(L, 1);
+
+              lua_rawgeti(L, -1, 9);
+              fr.ch = static_cast<float>(lua_tonumber(L, -1));
+              lua_pop(L, 1);
+
+              fr.collidable = true;
+            } else {
+              lua_pop(L, 1);
+            }
+
+            ++c.count;
+          }
+
+          lua_pop(L, 1);
+        }
+      }
+
+      ++a.clip_count;
+      lua_pop(L, 1);
+    }
+
+    bool collidable = false;
+    for (uint8_t ci = 0; ci < a.clip_count && !collidable; ++ci)
+      for (uint8_t fi = 0; fi < a.clips[ci].count && !collidable; ++fi)
+        collidable = a.clips[ci].frames[fi].collidable;
+
+    if (collidable) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
+      lua_getfield(L, -1, "body");
+      const auto str = lua_isstring(L, -1)
+        ? std::string(lua_tostring(L, -1))
+        : std::string();
+      lua_pop(L, 2);
+
+      const auto bt = str == "dynamic" ? body_type::dynamic
+                    : str == "static"  ? body_type::stationary
+                                       : body_type::kinematic;
+
+      b2BodyDef bdef = b2DefaultBodyDef();
+      bdef.userData = to_userdata(entity);
+
+      bdef.type = bt == body_type::dynamic     ? b2_dynamicBody
+               : bt == body_type::stationary ? b2_staticBody
+                                             : b2_kinematicBody;
+
+      if (bt == body_type::dynamic) {
+        bdef.isBullet = true;
+        bdef.fixedRotation = true;
+      }
+
+      const auto id = b2CreateBody(_world, &bdef);
+      _registry.emplace<body>(entity, id, b2_nullShapeId, .0f, .0f, bt);
+      _registry.emplace<boundary>(entity);
+    }
+  }
+
+  lua_pop(L, 2);
+
+  {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
+    lua_getfield(L, -1, "sleepable");
+    const auto wants_sleepable = lua_toboolean(L, -1) != 0;
+    lua_pop(L, 2);
+
+    if (wants_sleepable)
+      _registry.emplace<sleepable>(entity);
+  }
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
+  lua_getfield(L, -1, "on_spawn");
+
+  if (lua_isfunction(L, -1)) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
+
+    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
+      std::string error(lua_tostring(L, -1));
+      lua_pop(L, 2);
+      throw std::runtime_error(std::move(error));
+    }
+  } else {
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
+  lua_setfield(L, -2, name.data());
+  lua_pop(L, 1);
+
+  if (_registry.all_of<sleepable, animation>(entity)) {
+    const auto& an = _registry.get<animation>(entity);
+    const auto& fr = an.clips[an.active].frames[an.current];
+    const auto  w  = fr.w * tf.scale;
+    const auto  h  = fr.h * tf.scale;
+    const auto  sx = tf.x - viewport.x;
+    const auto  sy = tf.y - viewport.y;
+
+    const auto offscreen =
+      sx + w < -_sleep_margin ||
+      sx     >  viewport.width  + _sleep_margin ||
+      sy + h < -_sleep_margin ||
+      sy     >  viewport.height + _sleep_margin;
+
+    if (offscreen) {
+      _registry.emplace<dormant>(entity);
+
+      if (auto* bd = _registry.try_get<body>(entity);
+          bd && b2Body_IsValid(bd->id)) {
+        bd->shape     = b2_nullShapeId;
+        bd->cached_hx = .0f;
+        bd->cached_hy = .0f;
+        b2Body_Disable(bd->id);
+      }
+    }
+  }
+
+  lua_rawgeti(state, LUA_REGISTRYINDEX, handle);
+  return 1;
+}
+
+int stage::destroy(lua_State* state) {
+  auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
+  if (!_registry.valid(proxy->entity))
+    return 0;
+
+  const auto* object_name = _stringpool.get(proxy->name);
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+  lua_pushnil(L);
+  lua_setfield(L, -2, object_name);
+  lua_pop(L, 1);
+
+  _registry.destroy(proxy->entity);
+  return 0;
 }

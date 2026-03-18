@@ -15,14 +15,6 @@ namespace {
     b2Body_SetTransform(bd.id, {tf.x + ox + bd.cached_hx, tf.y + oy + bd.cached_hy}, r);
   }
 
-  int object_die(lua_State* state) {
-    auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
-    if (proxy->registry->valid(proxy->entity))
-      proxy->registry->destroy(proxy->entity);
-
-    return 0;
-  }
-
   int object_index(lua_State* state) {
     const auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
     const std::string_view key = luaL_checkstring(state, 2);
@@ -165,11 +157,6 @@ namespace {
       lua_rawseti(state, -2, 1);
       lua_pushnumber(state, static_cast<double>(tf.y));
       lua_rawseti(state, -2, 2);
-      return 1;
-    }
-
-    if (key == "die") {
-      lua_pushcfunction(state, object_die);
       return 1;
     }
 

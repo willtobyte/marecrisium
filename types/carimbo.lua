@@ -395,9 +395,6 @@ viewport = {}
 ---in the player's prototype (`objects/player.lua`).
 local Object = {}
 
----Destroy this object. After calling, `alive` returns false and all property access returns nil.
-function Object:die() end
-
 ---Called once when the object is created during stage construction.
 ---@param self Object
 function Object.on_spawn(self) end
@@ -481,6 +478,18 @@ local Particle = {}
 
 ---@class World
 local World = {}
+
+---Spawn a new object at runtime and return it.
+---@param name string Unique name for the object (used in pool).
+---@param kind string Object kind (loads objects/<kind>.lua prototype).
+---@param x number Initial X position.
+---@param y number Initial Y position.
+---@return Object object The newly created object.
+function World.spawn(name, kind, x, y) end
+
+---Destroy an object, removing it from the world and pool.
+---@param object Object The object to destroy.
+function World.destroy(object) end
 
 ---Cast a ray and return all hits sorted by distance.
 ---Tilemap solid tiles have no user data and are skipped; only Object entities are returned.
