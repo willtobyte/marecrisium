@@ -53,6 +53,22 @@ function camera.set_bounds(min_x, min_y, max_x, max_y)
 	config.bounds_max_y = max_y
 end
 
+function camera.snap(target)
+	local tx = target.x + config.offset_x + config.lookahead_x - viewport.width * 0.5
+	local ty = target.y + config.offset_y + config.lookahead_y - viewport.height * 0.5
+
+	local bx1, by1, bx2, by2 = config.bounds_min_x, config.bounds_min_y, config.bounds_max_x, config.bounds_max_y
+	if bx1 then
+		tx = max(bx1, min(bx2, tx))
+		ty = max(by1, min(by2, ty))
+	end
+
+	state.x = tx
+	state.y = ty
+	state.vx = 0
+	state.vy = 0
+end
+
 function camera.update(target, delta)
 	local dt = delta or (1 / 60)
 
