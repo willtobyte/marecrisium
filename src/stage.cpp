@@ -469,6 +469,12 @@ stage::stage(std::string_view name)
   }
   lua_pop(L, 1);
 
+  lua_getfield(L, -1, "overlay");
+  if (lua_isstring(L, -1)) {
+    _overlay = lua_tostring(L, -1);
+  }
+  lua_pop(L, 1);
+
   lua_getfield(L, -1, "particles");
   if (lua_istable(L, -1)) {
     const auto count = static_cast<int>(lua_objlen(L, -1));
@@ -570,6 +576,10 @@ stage::~stage() {
   luaL_unref(L, LUA_REGISTRYINDEX, _environment_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
   b2DestroyWorld(_world);
+}
+
+auto stage::overlay() const noexcept -> const std::optional<std::string>& {
+  return _overlay;
 }
 
 void stage::on_enter() {

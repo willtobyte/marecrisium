@@ -13,6 +13,8 @@ public:
   explicit stage(std::string_view name);
   ~stage();
 
+  [[nodiscard]] auto overlay() const noexcept -> const std::optional<std::string>&;
+
   void on_enter();
 
   void on_leave();
@@ -43,6 +45,7 @@ private:
 
   entt::registry _registry{};
   std::string _name{};
+  std::optional<std::string> _overlay{};
   std::vector<sound*> _sounds{};
   std::array<raycast_hit, 64> _raycast_hits{};
   std::array<entt::entity, 64> _radar_hits{};

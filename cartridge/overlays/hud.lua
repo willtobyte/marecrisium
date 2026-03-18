@@ -3,12 +3,31 @@ local floor = math.floor
 local format = string.format
 
 local elapsed = 0
-local title = _("nostalgia")
-local effects = {}
+local title = _("Mare Crisium")
 local length = #title
+local effects = {}
 
 for i = 1, length do
 	effects[i] = {}
+end
+
+local function hue2rgb(h)
+	local s = h * 6
+	local f = s - floor(s)
+
+	if s < 1 then
+		return 1, f, 0
+	elseif s < 2 then
+		return 1 - f, 1, 0
+	elseif s < 3 then
+		return 0, 1, f
+	elseif s < 4 then
+		return 0, 1 - f, 1
+	elseif s < 5 then
+		return f, 0, 1
+	else
+		return 1, 0, 1 - f
+	end
 end
 
 return {
@@ -18,43 +37,20 @@ return {
 		elapsed = elapsed + delta
 
 		for i = 1, length do
-			local phase = elapsed * 3 + (i - 1) * 0.7
-			local wave = sin(phase) * 2
-			local hue = ((i - 1) / length + elapsed * 0.1) % 1
-
-			local r, g, b
-			local sector = hue * 6
-			local frac = sector - floor(sector)
-
-			if sector < 1 then
-				r, g, b = 1, frac, 0
-			elseif sector < 2 then
-				r, g, b = 1 - frac, 1, 0
-			elseif sector < 3 then
-				r, g, b = 0, 1, frac
-			elseif sector < 4 then
-				r, g, b = 0, 1 - frac, 1
-			elseif sector < 5 then
-				r, g, b = frac, 0, 1
-			else
-				r, g, b = 1, 0, 1 - frac
-			end
-
+			local k = i - 1
 			local effect = effects[i]
-			effect.yoffset = wave
-			effect.r = r
-			effect.g = g
-			effect.b = b
-			effect.angle = sin(elapsed * 2 + (i - 1) * 0.5) * 20
+
+			effect.r, effect.g, effect.b = hue2rgb((k / length + elapsed * 0.1) % 1)
+			effect.yoffset = sin(elapsed * 3 + k * 0.7) * 2
+			effect.angle = sin(elapsed * 2 + k * 0.5) * 20
 		end
 	end,
 
 	on_paint = function(self)
 		local minutes = floor(elapsed / 60)
 		local seconds = floor(elapsed % 60)
-		local time = format("%02d:%02d", minutes, seconds)
 
 		overlay:label("pixel", title, 3, 3, effects)
-		overlay:label("pixel", time, 3, 18)
+		overlay:label("pixel", format("%02d:%02d", minutes, seconds), 3, 18)
 	end,
 }

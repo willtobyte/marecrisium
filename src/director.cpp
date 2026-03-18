@@ -125,6 +125,7 @@ void director::transition() {
 
   if (_current) [[likely]] {
     _current->on_leave();
+    clear_overlay();
   }
 
   auto it = _stages.find(*_pending);
@@ -137,6 +138,11 @@ void director::transition() {
 
   _pending.reset();
   _current = it->second.get();
+
+  if (const auto& o = _current->overlay(); o.has_value()) {
+    set_overlay(o.value());
+  }
+
   _current->on_enter();
 }
 
