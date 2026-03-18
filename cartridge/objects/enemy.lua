@@ -9,7 +9,7 @@ local radians_to_degrees = 180 / pi
 local degrees_to_radians = pi / 180
 
 local DETECT_RADIUS = 200
-local SPEED = 55
+local SPEED = 95
 local WAYPOINT_REACH = 10
 local PATH_INTERVAL = 20
 local PROBE_DISTANCE = 32
