@@ -41,11 +41,18 @@ return {
 		clear_path(self)
 		self._timer = random(1, PATH_INTERVAL)
 		self._stall = 0
+		self._touching_player = false
 	end,
 
 	on_loop = function(self, delta)
 		local player = pool.player
 		if not player or not player.alive then
+			return
+		end
+
+		if self._touching_player then
+			self.vx = 0
+			self.vy = 0
 			return
 		end
 
@@ -72,8 +79,18 @@ return {
 
 		local wp = self._wp
 		if wp > #self._path then
-			self.vx = 0
-			self.vy = 0
+			local px, py = player.x, player.y
+			local dx, dy = px - self.x, py - self.y
+			local dist_sq = dx * dx + dy * dy
+			if dist_sq > 0 and dist_sq <= DETECT_RADIUS_SQUARED then
+				local angle = atan2(dy, dx)
+				self.vx = cos(angle) * SPEED
+				self.vy = sin(angle) * SPEED
+				self.flip = self.vx < 0 and "horizontal" or self.vx > 0 and "none" or self.flip
+			else
+				self.vx = 0
+				self.vy = 0
+			end
 			return
 		end
 
@@ -82,10 +99,12 @@ return {
 		local dy = target[2] - self.y
 
 		if sqrt(dx * dx + dy * dy) < WAYPOINT_REACH then
-			self._wp = wp + 1
-			self.vx = 0
-			self.vy = 0
-			return
+			if wp < #self._path then
+				self._wp = wp + 1
+				self.vx = 0
+				self.vy = 0
+				return
+			end
 		end
 
 		if self._last_x then
@@ -137,7 +156,18 @@ return {
 
 	on_collision_begin = function(self, name, kind)
 		if kind == "player" then
+			self._touching_player = true
+			self.vx = 0
+			self.vy = 0
+			clear_path(self)
 			pool.player:damage()
+		end
+	end,
+
+	on_collision_end = function(self, name, kind)
+		if kind == "player" then
+			self._touching_player = false
+			self._timer = 0
 		end
 	end,
 }
