@@ -87,7 +87,23 @@ return {
 
 			if path and #path > 0 then
 				self._path = path
-				self._wp = 2
+
+				local best_wp = 2
+				local best_dist = nil
+				for i = 2, #path do
+					local wx = path[i][1] - self.x
+					local wy = path[i][2] - self.y
+					local d = wx * wx + wy * wy
+					if d < WAYPOINT_REACH_SQ then
+						best_wp = i + 1
+					elseif best_dist == nil or d < best_dist then
+						best_dist = d
+						best_wp = i
+					else
+						break
+					end
+				end
+				self._wp = best_wp
 			else
 				clear_path(self)
 			end
@@ -127,6 +143,7 @@ return {
 		if dist_sq <= 0 or dist_sq > DETECT_RADIUS_SQUARED then
 			self.vx = 0
 			self.vy = 0
+			self._angle = nil
 			return
 		end
 
@@ -164,6 +181,7 @@ return {
 			else
 				self.vx = 0
 				self.vy = 0
+				self._angle = nil
 				self._timer = 0
 				return
 			end
