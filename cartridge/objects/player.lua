@@ -14,8 +14,8 @@ return {
 
 	on_spawn = function(self)
 		self.animation = "idle"
-		self.x = 3840
-		self.y = 2176
+		self.x = 0
+		self.y = 0
 	end,
 
 	on_loop = function(self, delta)
