@@ -130,7 +130,7 @@ jobs:
         run: zip -3 -r ../cartridge.rom .
 
       - name: Clone Steam SDK
-        run: git clone https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/willtobyte/steamworks.git steamworks
+        run: git clone --depth 1 https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/willtobyte/steamworks.git steamworks
 
       - name: Assemble output
         run: |
