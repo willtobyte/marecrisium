@@ -100,3 +100,21 @@ struct riding final {
 };
 
 static_assert(std::is_trivially_copyable_v<riding>);
+
+struct renderable final {
+  int z{};
+};
+
+static_assert(std::is_trivially_copyable_v<renderable>);
+
+struct renderstate final {
+  int next_z{};
+  bool z_dirty{false};
+
+  [[nodiscard]] int acquire_z() noexcept {
+    z_dirty = true;
+    return next_z++;
+  }
+};
+
+static_assert(std::is_trivially_copyable_v<renderstate>);

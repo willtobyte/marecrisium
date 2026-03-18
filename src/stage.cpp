@@ -142,6 +142,7 @@ stage::stage(std::string_view name)
   _registry.on_destroy<body>().connect<&on_object_destroy>();
 
   _registry.ctx().emplace<stringpool*>(&_stringpool);
+  _registry.ctx().emplace<renderstate>();
 
   const auto filename = std::format("stages/{}.lua", name);
   const auto buffer = io::read(filename);
@@ -786,6 +787,15 @@ void stage::update(float delta) {
   }
 
   _particlesystem.update(delta);
+
+  auto& rs = _registry.ctx().get<renderstate>();
+  if (rs.z_dirty) {
+    _registry.sort<renderable>([](const renderable& lhs, const renderable& rhs) noexcept {
+      return lhs.z < rhs.z;
+    }, entt::insertion_sort{});
+
+    rs.z_dirty = false;
+  }
 }
 
 void stage::draw() {
@@ -811,7 +821,9 @@ void stage::draw() {
 
   _tilemap.draw_background();
 
-  for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
+  for (auto entity : _registry.view<renderable>(entt::exclude<dormant>)) {
+    const auto& [a, tf] = _registry.get<animation, transform>(entity);
+
     if (!tf.shown || !a.playing || !a.pixmap || a.clip_count == 0) [[unlikely]]
       continue;
 
@@ -1073,6 +1085,8 @@ int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2, fl
 
 int stage::spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y) {
   const auto entity = _registry.create();
+  auto& rs = _registry.ctx().get<renderstate>();
+  _registry.emplace<renderable>(entity, rs.acquire_z());
   auto& tf = _registry.emplace<transform>(entity);
   tf.x = x;
   tf.y = y;

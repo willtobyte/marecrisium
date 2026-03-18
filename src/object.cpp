@@ -40,6 +40,11 @@ namespace {
       return 1;
     }
 
+    if (key == "z") {
+      lua_pushinteger(state, registry.get<renderable>(entity).z);
+      return 1;
+    }
+
     if (key == "vx") {
       const auto* bd = registry.try_get<body>(entity);
       if (bd && b2Body_IsValid(bd->id)) {
@@ -216,6 +221,17 @@ namespace {
       auto* bd = registry.try_get<body>(entity);
       if (bd && bd->type != body_type::kinematic && b2Body_IsValid(bd->id))
         sync_body_position(*bd, tf, registry.try_get<animation>(entity));
+
+      return 0;
+    }
+
+    if (key == "z") {
+      auto& r = registry.get<renderable>(entity);
+      const auto value = static_cast<int>(luaL_checkinteger(state, 3));
+      if (r.z != value) {
+        r.z = value;
+        registry.ctx().get<renderstate>().z_dirty = true;
+      }
 
       return 0;
     }
