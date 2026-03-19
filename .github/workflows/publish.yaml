@@ -50,7 +50,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: macos-build
-          path: build/carimbo
+          path: |
+            build/carimbo
+            build/LICENSES
 
   windows:
     runs-on: windows-latest
@@ -103,7 +105,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: windows-build
-          path: build/carimbo.exe
+          path: |
+            build/carimbo.exe
+            build/LICENSES
 
   publish:
     runs-on: ubuntu-latest
@@ -141,9 +145,11 @@ jobs:
           cp cartridge.rom output/content/
 
           cp macos-build/carimbo output/macos/
+          cp macos-build/LICENSES output/macos/
           cp steamworks/redistributable_bin/osx/libsteam_api.dylib output/macos/
 
           cp windows-build/carimbo.exe output/windows/
+          cp windows-build/LICENSES output/windows/
           cp steamworks/redistributable_bin/win64/steam_api64.dll output/windows/
 
       - name: Upload to Steam
