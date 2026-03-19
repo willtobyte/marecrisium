@@ -93,8 +93,7 @@ static int overlay_index(lua_State *state) {
   return lua_pushnil(state), 1;
 }
 
-overlay::overlay(std::string_view name)
-    : _name(name) {
+overlay::overlay(std::string_view name) {
   const auto filename = std::format("overlays/{}.lua", name);
   const auto buffer = io::read(filename);
   const auto *data = reinterpret_cast<const char *>(buffer.data());
