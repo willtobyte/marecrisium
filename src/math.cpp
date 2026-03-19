@@ -18,7 +18,8 @@ constexpr float QUADRANT_SIGNS[8] = {1.f, 1.f, 1.f, -1.f, -1.f, -1.f, -1.f, 1.f}
 }
 
 void sincos(float x, float& osin, float& ocos) noexcept {
-  const auto q = static_cast<int>(std::floor(x * INV_HALF_PI));
+  const auto raw = x * INV_HALF_PI;
+  const auto q = static_cast<int>(raw) - (raw < .0f ? 1 : 0);
   const auto t = x - static_cast<float>(q) * HALF_PI;
   const auto t2 = t * t;
 
