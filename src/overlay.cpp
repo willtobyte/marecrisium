@@ -166,6 +166,13 @@ overlay::~overlay() {
   luaL_unref(L, LUA_REGISTRYINDEX, _userdata_reference);
 }
 
+void overlay::wire() {
+  luaL_newmetatable(L, "Overlay");
+  lua_pushcfunction(L, overlay_index);
+  lua_setfield(L, -2, "__index");
+  lua_pop(L, 1);
+}
+
 void overlay::update(float delta) {
   if (_on_loop != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
@@ -196,13 +203,6 @@ void overlay::draw() {
 void overlay::expose() {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_reference);
   lua_setglobal(L, "overlay");
-}
-
-void overlay::wire() {
-  luaL_newmetatable(L, "Overlay");
-  lua_pushcfunction(L, overlay_index);
-  lua_setfield(L, -2, "__index");
-  lua_pop(L, 1);
 }
 
 void overlay::render_label(std::string_view family, std::string_view text, float x, float y) {
