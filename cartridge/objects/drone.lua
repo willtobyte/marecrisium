@@ -2,7 +2,7 @@ local agent = require("helpers/agent")
 
 local chaser = agent.new({
 	detect_radius = 250,
-	speed = 140,
+	speed = 108,
 	waypoint_reach = 12,
 	path_interval = 12,
 	probe_distance = 40,
