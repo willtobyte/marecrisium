@@ -5,11 +5,11 @@ public:
   explicit overlay(std::string_view name);
   ~overlay();
 
+  static void wire();
+
   void update(float delta);
 
   void draw();
-
-  static void wire();
 
   void expose();
 
