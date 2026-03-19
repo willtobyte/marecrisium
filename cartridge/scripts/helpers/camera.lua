@@ -28,15 +28,15 @@ local config = {
 	bounds_max_y = nil,
 }
 
-local k = config.smoothing * config.smoothing
-local c = 2 * config.smoothing * config.damping
+local stiffness = config.smoothing * config.smoothing
+local damping_coefficient = 2 * config.smoothing * config.damping
 
 function camera.configure(options)
 	for key, val in pairs(options) do
 		config[key] = val
 	end
-	k = config.smoothing * config.smoothing
-	c = 2 * config.smoothing * config.damping
+	stiffness = config.smoothing * config.smoothing
+	damping_coefficient = 2 * config.smoothing * config.damping
 end
 
 function camera.reset(x, y)
@@ -54,65 +54,67 @@ function camera.set_bounds(min_x, min_y, max_x, max_y)
 end
 
 function camera.snap(target)
-	local tx = target.x + config.offset_x + config.lookahead_x - viewport.width * 0.5
-	local ty = target.y + config.offset_y + config.lookahead_y - viewport.height * 0.5
+	local target_x = target.x + config.offset_x + config.lookahead_x - viewport.width * 0.5
+	local target_y = target.y + config.offset_y + config.lookahead_y - viewport.height * 0.5
 
-	local bx1, by1, bx2, by2 = config.bounds_min_x, config.bounds_min_y, config.bounds_max_x, config.bounds_max_y
-	if bx1 then
-		tx = max(bx1, min(bx2, tx))
-		ty = max(by1, min(by2, ty))
+	local bounds_x_min, bounds_y_min, bounds_x_max, bounds_y_max =
+		config.bounds_min_x, config.bounds_min_y, config.bounds_max_x, config.bounds_max_y
+	if bounds_x_min then
+		target_x = max(bounds_x_min, min(bounds_x_max, target_x))
+		target_y = max(bounds_y_min, min(bounds_y_max, target_y))
 	end
 
-	state.x = tx
-	state.y = ty
+	state.x = target_x
+	state.y = target_y
 	state.vx = 0
 	state.vy = 0
 end
 
 function camera.update(target, delta)
-	local dt = delta or (1 / 60)
+	delta = delta or (1 / 60)
 
-	local tx = target.x + config.offset_x + config.lookahead_x - viewport.width * 0.5
-	local ty = target.y + config.offset_y + config.lookahead_y - viewport.height * 0.5
+	local target_x = target.x + config.offset_x + config.lookahead_x - viewport.width * 0.5
+	local target_y = target.y + config.offset_y + config.lookahead_y - viewport.height * 0.5
 
-	local bx1, by1, bx2, by2 = config.bounds_min_x, config.bounds_min_y, config.bounds_max_x, config.bounds_max_y
-	if bx1 then
-		tx = max(bx1, min(bx2, tx))
-		ty = max(by1, min(by2, ty))
+	local bounds_x_min, bounds_y_min, bounds_x_max, bounds_y_max =
+		config.bounds_min_x, config.bounds_min_y, config.bounds_max_x, config.bounds_max_y
+	if bounds_x_min then
+		target_x = max(bounds_x_min, min(bounds_x_max, target_x))
+		target_y = max(bounds_y_min, min(bounds_y_max, target_y))
 	end
 
-	local dx = tx - state.x
-	local dy = ty - state.y
+	local delta_x = target_x - state.x
+	local delta_y = target_y - state.y
 
-	if abs(dx) < config.dead_zone_x then
-		dx = 0
+	if abs(delta_x) < config.dead_zone_x then
+		delta_x = 0
 	end
-	if abs(dy) < config.dead_zone_y then
-		dy = 0
+	if abs(delta_y) < config.dead_zone_y then
+		delta_y = 0
 	end
 
-	state.vx = state.vx + (dx * k - state.vx * c) * dt
-	state.vy = state.vy + (dy * k - state.vy * c) * dt
+	state.vx = state.vx + (delta_x * stiffness - state.vx * damping_coefficient) * delta
+	state.vy = state.vy + (delta_y * stiffness - state.vy * damping_coefficient) * delta
 
-	state.x = state.x + state.vx * dt
-	state.y = state.y + state.vy * dt
+	state.x = state.x + state.vx * delta
+	state.y = state.y + state.vy * delta
 
-	if bx1 then
-		if state.x <= bx1 or state.x >= bx2 then
+	if bounds_x_min then
+		if state.x <= bounds_x_min or state.x >= bounds_x_max then
 			state.vx = 0
 		end
-		if state.y <= by1 or state.y >= by2 then
+		if state.y <= bounds_y_min or state.y >= bounds_y_max then
 			state.vy = 0
 		end
-		state.x = max(bx1, min(bx2, state.x))
-		state.y = max(by1, min(by2, state.y))
+		state.x = max(bounds_x_min, min(bounds_x_max, state.x))
+		state.y = max(bounds_y_min, min(bounds_y_max, state.y))
 	end
 
 	local snap = config.snap_threshold
-	if abs(state.vx) < snap and dx == 0 then
+	if abs(state.vx) < snap and delta_x == 0 then
 		state.vx = 0
 	end
-	if abs(state.vy) < snap and dy == 0 then
+	if abs(state.vy) < snap and delta_y == 0 then
 		state.vy = 0
 	end
 end

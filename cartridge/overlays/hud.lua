@@ -11,22 +11,22 @@ for i = 1, length do
 	effects[i] = {}
 end
 
-local function hue2rgb(h)
-	local s = h * 6
-	local f = s - floor(s)
+local function hue2rgb(hue)
+	local sector = hue * 6
+	local fraction = sector - floor(sector)
 
-	if s < 1 then
-		return 1, f, 0
-	elseif s < 2 then
-		return 1 - f, 1, 0
-	elseif s < 3 then
-		return 0, 1, f
-	elseif s < 4 then
-		return 0, 1 - f, 1
-	elseif s < 5 then
-		return f, 0, 1
+	if sector < 1 then
+		return 1, fraction, 0
+	elseif sector < 2 then
+		return 1 - fraction, 1, 0
+	elseif sector < 3 then
+		return 0, 1, fraction
+	elseif sector < 4 then
+		return 0, 1 - fraction, 1
+	elseif sector < 5 then
+		return fraction, 0, 1
 	else
-		return 1, 0, 1 - f
+		return 1, 0, 1 - fraction
 	end
 end
 
@@ -37,12 +37,12 @@ return {
 		elapsed = elapsed + delta
 
 		for i = 1, length do
-			local k = i - 1
+			local offset = i - 1
 			local effect = effects[i]
 
-			effect.r, effect.g, effect.b = hue2rgb((k / length + elapsed * 0.1) % 1)
-			effect.yoffset = sin(elapsed * 3 + k * 0.7) * 2
-			effect.angle = sin(elapsed * 2 + k * 0.5) * 20
+			effect.r, effect.g, effect.b = hue2rgb((offset / length + elapsed * 0.1) % 1)
+			effect.yoffset = sin(elapsed * 3 + offset * 0.7) * 2
+			effect.angle = sin(elapsed * 2 + offset * 0.5) * 20
 		end
 	end,
 

@@ -3,9 +3,9 @@ local cos = math.cos
 local sin = math.sin
 local atan2 = math.atan2
 
-local ATTACK_RANGE_SQ = 120 * 120
+local ATTACK_RANGE_SQUARED = 120 * 120
 local ATTACK_COOLDOWN = 60
-local KEEP_DISTANCE_SQ = 80 * 80
+local KEEP_DISTANCE_SQUARED = 80 * 80
 
 local chaser = agent.new({
 	detect_radius = 250,
@@ -50,31 +50,31 @@ return {
 
 		self._cooldown = self._cooldown - 1
 
-		local dx = player.x - self.x
-		local dy = player.y - self.y
-		local dist_sq = dx * dx + dy * dy
+		local delta_x = player.x - self.x
+		local delta_y = player.y - self.y
+		local distance_squared = delta_x * delta_x + delta_y * delta_y
 
-		if dist_sq <= ATTACK_RANGE_SQ and dist_sq > 0 then
+		if distance_squared <= ATTACK_RANGE_SQUARED and distance_squared > 0 then
 			self.vx = 0
 			self.vy = 0
 
-			local angle = atan2(dy, dx)
-			self.flip = dx < 0 and "horizontal" or dx > 0 and "none" or self.flip
+			local angle = atan2(delta_y, delta_x)
+			self.flip = delta_x < 0 and "horizontal" or delta_x > 0 and "none" or self.flip
 
 			if self._cooldown <= 0 then
 				self._cooldown = ATTACK_COOLDOWN
 				self._fireball_id = self._fireball_id + 1
-				local name = self.name .. "_fb_" .. self._fireball_id
-				local fx = self.x + cos(angle) * 12
-				local fy = self.y + sin(angle) * 12
-				world.spawn(name, "fireball", fx, fy)
+				local name = self.name .. "_fireball_" .. self._fireball_id
+				local fireball_x = self.x + cos(angle) * 12
+				local fireball_y = self.y + sin(angle) * 12
+				world.spawn(name, "fireball", fireball_x, fireball_y)
 				if pool[name] then
 					pool[name]._angle = angle
 				end
 			end
 
-			if dist_sq < KEEP_DISTANCE_SQ then
-				local retreat_angle = atan2(-dy, -dx)
+			if distance_squared < KEEP_DISTANCE_SQUARED then
+				local retreat_angle = atan2(-delta_y, -delta_x)
 				self.vx = cos(retreat_angle) * chaser.speed
 				self.vy = sin(retreat_angle) * chaser.speed
 			end

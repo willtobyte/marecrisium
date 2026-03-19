@@ -21,12 +21,12 @@ function scheduler.advance(current_tick)
 	while i <= n do
 		local entry = list[i]
 		if current_tick >= entry.resume_at then
-			local ok, result = resume(entry.co)
-			if ok and result then
+			local success, result = resume(entry.co)
+			if success and result then
 				entry.resume_at = current_tick + result
 				i = i + 1
 			else
-				if not ok then
+				if not success then
 					print("[scheduler] " .. tostring(result))
 				end
 				list[i] = list[n]
@@ -59,8 +59,8 @@ local function chain(original, fn)
 end
 
 function scheduler.wrap(stage)
-	stage.on_tick = chain(stage.on_tick, function(_, t)
-		scheduler.advance(t)
+	stage.on_tick = chain(stage.on_tick, function(_, tick)
+		scheduler.advance(tick)
 	end)
 	stage.on_leave = chain(stage.on_leave, function()
 		scheduler.clear()

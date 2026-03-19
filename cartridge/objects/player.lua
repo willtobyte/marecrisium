@@ -19,36 +19,36 @@ return {
 	end,
 
 	on_loop = function(self, delta)
-		local vx = 0
-		local vy = 0
+		local velocity_x = 0
+		local velocity_y = 0
 
 		if controls.left then
-			vx = vx - speed
+			velocity_x = velocity_x - speed
 		end
 		if controls.right then
-			vx = vx + speed
+			velocity_x = velocity_x + speed
 		end
 		if controls.up then
-			vy = vy - speed
+			velocity_y = velocity_y - speed
 		end
 		if controls.down then
-			vy = vy + speed
+			velocity_y = velocity_y + speed
 		end
 
-		if vx ~= 0 and vy ~= 0 then
-			local inv = speed / sqrt(vx * vx + vy * vy)
-			vx = vx * inv
-			vy = vy * inv
+		if velocity_x ~= 0 and velocity_y ~= 0 then
+			local inverse_magnitude = speed / sqrt(velocity_x * velocity_x + velocity_y * velocity_y)
+			velocity_x = velocity_x * inverse_magnitude
+			velocity_y = velocity_y * inverse_magnitude
 		end
 
-		if vx < 0 then
+		if velocity_x < 0 then
 			self.flip = "horizontal"
-		elseif vx > 0 then
+		elseif velocity_x > 0 then
 			self.flip = "none"
 		end
 
-		self.vx = vx
-		self.vy = vy
+		self.vx = velocity_x
+		self.vy = velocity_y
 	end,
 
 	on_damage = function(self)
