@@ -10,6 +10,7 @@ public:
   void draw();
 
   static void wire();
+
   void expose();
 
   void render_label(std::string_view family, std::string_view text, float x, float y);
