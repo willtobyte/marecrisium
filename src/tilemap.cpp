@@ -316,17 +316,17 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   }
 
   const auto generation = _pathfinder.current_generation;
-  auto* noalias costs       = _pathfinder.g.data();
+  auto* noalias costs = _pathfinder.g.data();
   auto* noalias generations = _pathfinder.generation.data();
-  auto* noalias parents     = _pathfinder.parent.data();
+  auto* noalias parents = _pathfinder.parent.data();
 
   _pathfinder.path.clear();
   _pathfinder.heap.clear();
 
   const auto start_index = static_cast<size_t>(start);
-  costs[start_index]       = .0f;
+  costs[start_index] = .0f;
   generations[start_index] = generation;
-  parents[start_index]     = -1;
+  parents[start_index] = -1;
 
   constexpr int32_t direction_column[] = {  1, -1,  0,  0,  1,  1, -1, -1 };
   constexpr int32_t direction_row[]    = {  0,  0,  1, -1,  1, -1,  1, -1 };
