@@ -38,11 +38,11 @@ private:
     std::vector<int32_t> parent;
     std::vector<int32_t> path;
     std::vector<node> heap;
+    std::vector<uint8_t> local_blocked;
     uint32_t current_generation{};
   };
 
   std::vector<uint8_t> _collision;
-  std::vector<uint8_t> _expanded;
   pathfinder _pathfinder;
 
   layer _background;
@@ -57,7 +57,6 @@ private:
 
   int32_t _width{};
   int32_t _height{};
-  int32_t _last_margin{-1};
 
   bool _dirty{true};
 

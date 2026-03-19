@@ -248,13 +248,10 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
     return 1;
   }
 
-  const auto width  = _width;
-  const auto height = _height;
-
-  const auto start_column = to_column(x1, _inverse_size, width);
-  const auto start_row    = to_row(y1, _inverse_size, height);
-  const auto end_column   = to_column(x2, _inverse_size, width);
-  const auto end_row      = to_row(y2, _inverse_size, height);
+  const auto start_column = to_column(x1, _inverse_size, _width);
+  const auto start_row = to_row(y1, _inverse_size, _height);
+  const auto end_column = to_column(x2, _inverse_size, _width);
+  const auto end_row = to_row(y2, _inverse_size, _height);
 
   if (start_column == end_column && start_row == end_row) {
     lua_newtable(state);
@@ -262,50 +259,72 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   }
 
   const auto margin = static_cast<int32_t>(radius * _inverse_size);
-  const auto total  = static_cast<size_t>(width) * static_cast<size_t>(height);
+  const auto padding = margin + 8;
 
-  if (margin != _last_margin) {
-    _last_margin = margin;
-    _expanded.resize(total);
+  const auto box_x0 = std::max(0, std::min(start_column, end_column) - padding);
+  const auto box_y0 = std::max(0, std::min(start_row, end_row) - padding);
+  const auto box_x1 = std::min(_width - 1, std::max(start_column, end_column) + padding);
+  const auto box_y1 = std::min(_height - 1, std::max(start_row, end_row) + padding);
 
-    const auto* noalias collision = _collision.data();
-    auto* noalias expanded = _expanded.data();
+  const auto box_w = box_x1 - box_x0 + 1;
+  const auto box_h = box_y1 - box_y0 + 1;
+  const auto local_total = static_cast<size_t>(box_w) * static_cast<size_t>(box_h);
 
-    if (margin == 0) {
-      std::memcpy(expanded, collision, total);
-    } else {
-      std::memset(expanded, 0, total);
-      for (int32_t row = 0; row < height; ++row) {
-        for (int32_t column = 0; column < width; ++column) {
-          if (collision[static_cast<size_t>(row * width + column)] == 0)
-            continue;
-          const auto min_row    = std::max(0, row - margin);
-          const auto max_row    = std::min(height - 1, row + margin);
-          const auto min_column = std::max(0, column - margin);
-          const auto max_column = std::min(width - 1, column + margin);
-          for (auto expand_row = min_row; expand_row <= max_row; ++expand_row) {
-            const auto row_offset = static_cast<size_t>(expand_row * width);
-            for (auto expand_column = min_column; expand_column <= max_column; ++expand_column)
-              expanded[row_offset + static_cast<size_t>(expand_column)] = 1;
-          }
+  _pathfinder.local_blocked.resize(local_total);
+  auto* noalias blocked = _pathfinder.local_blocked.data();
+  const auto* noalias collision = _collision.data();
+
+  if (margin == 0) {
+    for (int32_t row = 0; row < box_h; ++row) {
+      const auto global_offset = static_cast<size_t>((row + box_y0) * _width + box_x0);
+      const auto local_offset = static_cast<size_t>(row * box_w);
+      std::memcpy(blocked + local_offset, collision + global_offset, static_cast<size_t>(box_w));
+    }
+  } else {
+    std::memset(blocked, 0, local_total);
+
+    const auto src_x0 = std::max(0, box_x0 - margin);
+    const auto src_y0 = std::max(0, box_y0 - margin);
+    const auto src_x1 = std::min(_width - 1, box_x1 + margin);
+    const auto src_y1 = std::min(_height - 1, box_y1 + margin);
+
+    for (int32_t row = src_y0; row <= src_y1; ++row) {
+      const auto row_offset = static_cast<size_t>(row) * static_cast<size_t>(_width);
+      for (int32_t column = src_x0; column <= src_x1; ++column) {
+        if (collision[row_offset + static_cast<size_t>(column)] == 0)
+          continue;
+
+        const auto min_row = std::max(box_y0, row - margin);
+        const auto max_row = std::min(box_y1, row + margin);
+        const auto min_column = std::max(box_x0, column - margin);
+        const auto max_column = std::min(box_x1, column + margin);
+
+        for (auto er = min_row; er <= max_row; ++er) {
+          const auto local_row_offset = static_cast<size_t>(er - box_y0) * static_cast<size_t>(box_w);
+          for (auto ec = min_column; ec <= max_column; ++ec)
+            blocked[local_row_offset + static_cast<size_t>(ec - box_x0)] = 1;
         }
       }
     }
   }
 
-  const auto* noalias blocked = _expanded.data();
-  const auto start = start_row * width + start_column;
-  const auto goal  = end_row * width + end_column;
+  const auto local_start_column = start_column - box_x0;
+  const auto local_start_row = start_row - box_y0;
+  const auto local_end_column = end_column - box_x0;
+  const auto local_end_row = end_row - box_y0;
+
+  const auto start = local_start_row * box_w + local_start_column;
+  const auto goal = local_end_row * box_w + local_end_column;
 
   if (blocked[static_cast<size_t>(start)] != 0 || blocked[static_cast<size_t>(goal)] != 0) [[unlikely]] {
     lua_newtable(state);
     return 1;
   }
 
-  if (_pathfinder.g.size() != total) {
-    _pathfinder.g.resize(total);
-    _pathfinder.generation.resize(total, 0);
-    _pathfinder.parent.resize(total);
+  if (_pathfinder.g.size() < local_total) {
+    _pathfinder.g.resize(local_total);
+    _pathfinder.generation.resize(local_total, 0);
+    _pathfinder.parent.resize(local_total);
     _pathfinder.current_generation = 0;
   }
 
@@ -328,26 +347,27 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   generations[start_index] = generation;
   parents[start_index] = -1;
 
-  constexpr int32_t direction_column[] = {  1, -1,  0,  0,  1,  1, -1, -1 };
-  constexpr int32_t direction_row[] = {  0,  0,  1, -1,  1, -1,  1, -1 };
+  constexpr int32_t direction_column[] = { 1, -1, 0, 0, 1, 1, -1, -1 };
+  constexpr int32_t direction_row[] = { 0, 0, 1, -1, 1, -1, 1, -1 };
   constexpr float direction_cost[] = { 1.f, 1.f, 1.f, 1.f, 1.41421356f, 1.41421356f, 1.41421356f, 1.41421356f };
 
   constexpr auto SQRT2_MINUS_1 = .41421356f;
 
-  const auto octile = [end_column, end_row](int32_t column, int32_t row) noexcept -> float {
-    const auto delta_column = static_cast<float>(std::abs(column - end_column));
-    const auto delta_row = static_cast<float>(std::abs(row - end_row));
-
+  const auto octile = [local_end_column, local_end_row](int32_t column, int32_t row) noexcept -> float {
+    const auto delta_column = static_cast<float>(std::abs(column - local_end_column));
+    const auto delta_row = static_cast<float>(std::abs(row - local_end_row));
     return delta_column > delta_row
       ? delta_column + SQRT2_MINUS_1 * delta_row
       : delta_row + SQRT2_MINUS_1 * delta_column;
   };
 
-  _pathfinder.heap.push_back({octile(start_column, start_row), start});
+  _pathfinder.heap.push_back({octile(local_start_column, local_start_row), start});
 
   const auto compare = [](const node& a, const node& b) noexcept { return a.f > b.f; };
 
-  while (!_pathfinder.heap.empty()) {
+  auto iterations = local_total;
+  while (!_pathfinder.heap.empty() && iterations > 0) {
+    --iterations;
     std::pop_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), compare);
     const auto [priority, current] = _pathfinder.heap.back();
     _pathfinder.heap.pop_back();
@@ -356,29 +376,29 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
 
     const auto current_index = static_cast<size_t>(current);
     if (generations[current_index] == generation &&
-        priority > costs[current_index] + octile(current % width, current / width))
+        priority > costs[current_index] + octile(current % box_w, current / box_w))
       continue;
 
-    const auto current_row = current / width;
-    const auto current_column = current % width;
+    const auto current_row = current / box_w;
+    const auto current_column = current % box_w;
     const auto current_cost = costs[current_index];
 
     for (int direction = 0; direction < 8; ++direction) {
       const auto neighbor_column = current_column + direction_column[direction];
       const auto neighbor_row = current_row + direction_row[direction];
 
-      if (static_cast<uint32_t>(neighbor_column) >= static_cast<uint32_t>(width) ||
-          static_cast<uint32_t>(neighbor_row) >= static_cast<uint32_t>(height)) [[unlikely]]
+      if (static_cast<uint32_t>(neighbor_column) >= static_cast<uint32_t>(box_w) ||
+          static_cast<uint32_t>(neighbor_row) >= static_cast<uint32_t>(box_h)) [[unlikely]]
         continue;
 
-      const auto neighbor_index = static_cast<size_t>(neighbor_row * width + neighbor_column);
+      const auto neighbor_index = static_cast<size_t>(neighbor_row * box_w + neighbor_column);
 
       if (blocked[neighbor_index] != 0)
         continue;
 
       if (direction >= 4) {
-        if (blocked[static_cast<size_t>(current_row * width + neighbor_column)] != 0 ||
-            blocked[static_cast<size_t>(neighbor_row * width + current_column)] != 0)
+        if (blocked[static_cast<size_t>(current_row * box_w + neighbor_column)] != 0 ||
+            blocked[static_cast<size_t>(neighbor_row * box_w + current_column)] != 0)
           continue;
       }
 
@@ -392,7 +412,6 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
       parents[neighbor_index] = current;
 
       _pathfinder.heap.push_back({neighbor_cost + octile(neighbor_column, neighbor_row), static_cast<int32_t>(neighbor_index)});
-
       std::push_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), compare);
     }
   }
@@ -400,7 +419,6 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   if (generations[static_cast<size_t>(goal)] == generation && parents[static_cast<size_t>(goal)] != -1) {
     for (auto current = goal; current != -1; current = parents[static_cast<size_t>(current)])
       _pathfinder.path.emplace_back(current);
-
     std::reverse(_pathfinder.path.begin(), _pathfinder.path.end());
   }
 
@@ -408,10 +426,14 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   const auto half = _size * .5f;
   int index = 1;
   for (const auto cell : _pathfinder.path) {
+    const auto local_column = cell % box_w;
+    const auto local_row = cell / box_w;
+    const auto global_column = local_column + box_x0;
+    const auto global_row = local_row + box_y0;
     lua_newtable(state);
-    lua_pushnumber(state, static_cast<double>(static_cast<float>(cell % width) * _size + half));
+    lua_pushnumber(state, static_cast<double>(static_cast<float>(global_column) * _size + half));
     lua_rawseti(state, -2, 1);
-    lua_pushnumber(state, static_cast<double>(static_cast<float>(cell / width) * _size + half));
+    lua_pushnumber(state, static_cast<double>(static_cast<float>(global_row) * _size + half));
     lua_rawseti(state, -2, 2);
     lua_rawseti(state, -2, index++);
   }
