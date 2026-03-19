@@ -248,108 +248,169 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
     return 1;
   }
 
-  const auto width  = static_cast<int32_t>(_width);
-  const auto height = static_cast<int32_t>(_height);
+  const auto width  = _width;
+  const auto height = _height;
 
-  const auto sc = to_column(x1, _inverse_size, width);
-  const auto sr = to_row(y1, _inverse_size, height);
-  const auto ec = to_column(x2, _inverse_size, width);
-  const auto er = to_row(y2, _inverse_size, height);
+  const auto start_column = to_column(x1, _inverse_size, width);
+  const auto start_row    = to_row(y1, _inverse_size, height);
+  const auto end_column   = to_column(x2, _inverse_size, width);
+  const auto end_row      = to_row(y2, _inverse_size, height);
 
-  if (sc == ec && sr == er) {
+  if (start_column == end_column && start_row == end_row) {
     lua_newtable(state);
     return 1;
   }
 
   const auto margin = static_cast<int32_t>(radius * _inverse_size);
-  const auto total  = static_cast<size_t>(width * height);
-  const auto* noalias collision = _collision.data();
+  const auto total  = static_cast<size_t>(width) * static_cast<size_t>(height);
 
-  _pathfinder.g.assign(total, std::numeric_limits<float>::max());
-  _pathfinder.parent.assign(total, -1);
+  if (margin != _last_margin) {
+    _last_margin = margin;
+    _expanded.resize(total);
+
+    const auto* noalias collision = _collision.data();
+    auto* noalias expanded = _expanded.data();
+
+    if (margin == 0) {
+      std::memcpy(expanded, collision, total);
+    } else {
+      std::memset(expanded, 0, total);
+      for (int32_t row = 0; row < height; ++row) {
+        for (int32_t column = 0; column < width; ++column) {
+          if (collision[static_cast<size_t>(row * width + column)] == 0)
+            continue;
+          const auto min_row    = std::max(0, row - margin);
+          const auto max_row    = std::min(height - 1, row + margin);
+          const auto min_column = std::max(0, column - margin);
+          const auto max_column = std::min(width - 1, column + margin);
+          for (auto expand_row = min_row; expand_row <= max_row; ++expand_row) {
+            const auto row_offset = static_cast<size_t>(expand_row * width);
+            for (auto expand_column = min_column; expand_column <= max_column; ++expand_column)
+              expanded[row_offset + static_cast<size_t>(expand_column)] = 1;
+          }
+        }
+      }
+    }
+  }
+
+  const auto* noalias blocked = _expanded.data();
+  const auto start = start_row * width + start_column;
+  const auto goal  = end_row * width + end_column;
+
+  if (blocked[static_cast<size_t>(start)] != 0 || blocked[static_cast<size_t>(goal)] != 0) [[unlikely]] {
+    lua_newtable(state);
+    return 1;
+  }
+
+  if (_pathfinder.g.size() != total) {
+    _pathfinder.g.resize(total);
+    _pathfinder.generation.resize(total, 0);
+    _pathfinder.parent.resize(total);
+    _pathfinder.current_generation = 0;
+  }
+
+  ++_pathfinder.current_generation;
+  if (_pathfinder.current_generation == 0) [[unlikely]] {
+    std::fill(_pathfinder.generation.begin(), _pathfinder.generation.end(), 0u);
+    _pathfinder.current_generation = 1;
+  }
+
+  const auto generation = _pathfinder.current_generation;
+  auto* noalias costs       = _pathfinder.g.data();
+  auto* noalias generations = _pathfinder.generation.data();
+  auto* noalias parents     = _pathfinder.parent.data();
+
   _pathfinder.path.clear();
   _pathfinder.heap.clear();
 
-  const auto start = sr * width + sc;
-  const auto goal  = er * width + ec;
+  const auto start_index = static_cast<size_t>(start);
+  costs[start_index]       = .0f;
+  generations[start_index] = generation;
+  parents[start_index]     = -1;
 
-  _pathfinder.g[static_cast<size_t>(start)] = .0f;
-  _pathfinder.heap.push_back({static_cast<float>(std::abs(ec - sc) + std::abs(er - sr)), start});
+  constexpr int32_t direction_column[] = {  1, -1,  0,  0,  1,  1, -1, -1 };
+  constexpr int32_t direction_row[]    = {  0,  0,  1, -1,  1, -1,  1, -1 };
+  constexpr float   direction_cost[]   = { 1.f, 1.f, 1.f, 1.f, 1.41421356f, 1.41421356f, 1.41421356f, 1.41421356f };
 
-  constexpr int32_t ddx[8] = {  1, -1,  0,  0,  1,  1, -1, -1 };
-  constexpr int32_t ddy[8] = {  0,  0,  1, -1,  1, -1,  1, -1 };
-  constexpr float   ddc[8] = { 1.f, 1.f, 1.f, 1.f, 1.41421356f, 1.41421356f, 1.41421356f, 1.41421356f };
+  constexpr auto SQRT2_MINUS_1 = .41421356f;
 
-  const auto cmp = [](const node& a, const node& b) noexcept { return a.f > b.f; };
-  std::push_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), cmp);
+  const auto octile = [end_column, end_row](int32_t column, int32_t row) noexcept -> float {
+    const auto delta_column = static_cast<float>(std::abs(column - end_column));
+    const auto delta_row    = static_cast<float>(std::abs(row - end_row));
+    return delta_column > delta_row
+      ? delta_column + SQRT2_MINUS_1 * delta_row
+      : delta_row + SQRT2_MINUS_1 * delta_column;
+  };
+
+  _pathfinder.heap.push_back({octile(start_column, start_row), start});
+
+  const auto compare = [](const node& a, const node& b) noexcept { return a.f > b.f; };
 
   while (!_pathfinder.heap.empty()) {
-    std::pop_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), cmp);
-    const auto [f, current] = _pathfinder.heap.back();
+    std::pop_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), compare);
+    const auto [priority, current] = _pathfinder.heap.back();
     _pathfinder.heap.pop_back();
 
     if (current == goal) break;
 
-    const auto cr = current / width;
-    const auto cc = current % width;
+    const auto current_index = static_cast<size_t>(current);
+    if (generations[current_index] == generation &&
+        priority > costs[current_index] + octile(current % width, current / width))
+      continue;
 
-    for (int d = 0; d < 8; ++d) {
-      const auto nc = cc + ddx[d];
-      const auto nr = cr + ddy[d];
+    const auto current_row    = current / width;
+    const auto current_column = current % width;
+    const auto current_cost   = costs[current_index];
 
-      if (nc < 0 || nc >= width || nr < 0 || nr >= height) [[unlikely]]
+    for (int direction = 0; direction < 8; ++direction) {
+      const auto neighbor_column = current_column + direction_column[direction];
+      const auto neighbor_row    = current_row + direction_row[direction];
+
+      if (static_cast<uint32_t>(neighbor_column) >= static_cast<uint32_t>(width) ||
+          static_cast<uint32_t>(neighbor_row) >= static_cast<uint32_t>(height)) [[unlikely]]
         continue;
 
-      bool solid = false;
-      for (int32_t mr = nr - margin; mr <= nr + margin && !solid; ++mr)
-        for (int32_t mc = nc - margin; mc <= nc + margin && !solid; ++mc)
-          if (mc < 0 || mc >= width || mr < 0 || mr >= height || collision[static_cast<size_t>(mr * width + mc)] != 0)
-            solid = true;
-      if (solid) continue;
+      const auto neighbor_index = static_cast<size_t>(neighbor_row * width + neighbor_column);
 
-      if (d >= 4) {
-        bool corner = false;
-        for (int32_t mr = cr - margin; mr <= cr + margin && !corner; ++mr)
-          for (int32_t mc = nc - margin; mc <= nc + margin && !corner; ++mc)
-            if (mc < 0 || mc >= width || mr < 0 || mr >= height || collision[static_cast<size_t>(mr * width + mc)] != 0)
-              corner = true;
-        for (int32_t mr = nr - margin; mr <= nr + margin && !corner; ++mr)
-          for (int32_t mc = cc - margin; mc <= cc + margin && !corner; ++mc)
-            if (mc < 0 || mc >= width || mr < 0 || mr >= height || collision[static_cast<size_t>(mr * width + mc)] != 0)
-              corner = true;
-        if (corner) continue;
+      if (blocked[neighbor_index] != 0)
+        continue;
+
+      if (direction >= 4) {
+        if (blocked[static_cast<size_t>(current_row * width + neighbor_column)] != 0 ||
+            blocked[static_cast<size_t>(neighbor_row * width + current_column)] != 0)
+          continue;
       }
 
-      const auto ni = static_cast<size_t>(nr * width + nc);
-      const auto g  = _pathfinder.g[static_cast<size_t>(current)] + ddc[d];
+      const auto neighbor_cost = current_cost + direction_cost[direction];
 
-      if (g >= _pathfinder.g[ni]) continue;
+      if (generations[neighbor_index] == generation && neighbor_cost >= costs[neighbor_index])
+        continue;
 
-      _pathfinder.g[ni]      = g;
-      _pathfinder.parent[ni] = current;
+      costs[neighbor_index]       = neighbor_cost;
+      generations[neighbor_index] = generation;
+      parents[neighbor_index]     = current;
 
-      const auto h = static_cast<float>(std::abs(nc - ec) + std::abs(nr - er));
-      _pathfinder.heap.push_back({g + h, static_cast<int32_t>(ni)});
-      std::push_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), cmp);
+      _pathfinder.heap.push_back({neighbor_cost + octile(neighbor_column, neighbor_row), static_cast<int32_t>(neighbor_index)});
+      std::push_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), compare);
     }
   }
 
-  if (_pathfinder.parent[static_cast<size_t>(goal)] != -1) {
-    for (auto cur = goal; cur != -1; cur = _pathfinder.parent[static_cast<size_t>(cur)])
-      _pathfinder.path.emplace_back(cur);
+  if (generations[static_cast<size_t>(goal)] == generation && parents[static_cast<size_t>(goal)] != -1) {
+    for (auto current = goal; current != -1; current = parents[static_cast<size_t>(current)])
+      _pathfinder.path.emplace_back(current);
     std::reverse(_pathfinder.path.begin(), _pathfinder.path.end());
   }
 
   lua_newtable(state);
   const auto half = _size * .5f;
-  int i = 1;
-  for (const auto ni : _pathfinder.path) {
+  int index = 1;
+  for (const auto cell : _pathfinder.path) {
     lua_newtable(state);
-    lua_pushnumber(state, static_cast<double>(static_cast<float>(ni % width) * _size + half));
+    lua_pushnumber(state, static_cast<double>(static_cast<float>(cell % width) * _size + half));
     lua_rawseti(state, -2, 1);
-    lua_pushnumber(state, static_cast<double>(static_cast<float>(ni / width) * _size + half));
+    lua_pushnumber(state, static_cast<double>(static_cast<float>(cell / width) * _size + half));
     lua_rawseti(state, -2, 2);
-    lua_rawseti(state, -2, i++);
+    lua_rawseti(state, -2, index++);
   }
 
   return 1;

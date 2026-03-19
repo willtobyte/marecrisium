@@ -32,15 +32,18 @@ private:
     int32_t index;
   };
 
-  struct pathfind final {
+  struct pathfinder final {
     std::vector<float> g;
+    std::vector<uint32_t> generation;
     std::vector<int32_t> parent;
     std::vector<int32_t> path;
     std::vector<node> heap;
+    uint32_t current_generation{};
   };
 
   std::vector<uint8_t> _collision;
-  struct pathfind _pathfinder;
+  std::vector<uint8_t> _expanded;
+  pathfinder _pathfinder;
 
   layer _background;
   layer _foreground;
@@ -54,6 +57,7 @@ private:
 
   int32_t _width{};
   int32_t _height{};
+  int32_t _last_margin{-1};
 
   bool _dirty{true};
 
