@@ -111,18 +111,18 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
         return arr;
       }
 
-      auto* obj = yyjson_mut_obj(document);
+      auto* object = yyjson_mut_obj(document);
       lua_pushnil(state);
       while (lua_next(state, abs) != 0) {
         if (lua_type(state, -2) == LUA_TSTRING) {
           auto* key = yyjson_mut_str(document, lua_tostring(state, -2));
           auto* val = lua_to_yyjson(state, -1, document);
-          yyjson_mut_obj_add(obj, key, val);
+          yyjson_mut_obj_add(object, key, val);
         }
         lua_pop(state, 1);
       }
 
-      return obj;
+      return object;
     }
 
     default: [[unlikely]] {

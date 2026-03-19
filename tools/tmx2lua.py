@@ -118,11 +118,11 @@ def convert(tmx_path: str, output_dir: str) -> None:
         group_name = (objgroup.get("name") or "").strip().lower()
         if group_name != "objects":
             continue
-        for obj in objgroup.findall("object"):
-            obj_name = (obj.get("name") or "").strip()
-            obj_kind = (obj.get("class") or obj.get("type") or "").strip()
-            obj_x = float(obj.get("x", "0"))
-            obj_y = float(obj.get("y", "0"))
+        for object in objgroup.findall("object"):
+            obj_name = (object.get("name") or "").strip()
+            obj_kind = (object.get("class") or object.get("type") or "").strip()
+            obj_x = float(object.get("x", "0"))
+            obj_y = float(object.get("y", "0"))
             if obj_name and obj_kind:
                 objects.append(
                     {"name": obj_name, "kind": obj_kind, "x": obj_x, "y": obj_y}
@@ -201,18 +201,20 @@ def convert(tmx_path: str, output_dir: str) -> None:
         if objects:
             f.write("\n")
             f.write("\tobjects = {\n")
-            for obj in objects:
-                f.write(f'\t\t{{ name = "{obj["name"]}", kind = "{obj["kind"]}" }},\n')
+            for object in objects:
+                f.write(
+                    f'\t\t{{ name = "{object["name"]}", kind = "{object["kind"]}" }},\n'
+                )
             f.write("\t},\n")
 
             f.write("\n")
             f.write("\ton_enter = function()\n")
-            for obj in objects:
-                ox = float(obj["x"])
-                oy = float(obj["y"])
+            for object in objects:
+                ox = float(object["x"])
+                oy = float(object["y"])
                 x: int | float = int(ox) if ox == math.floor(ox) else ox
                 y: int | float = int(oy) if oy == math.floor(oy) else oy
-                f.write(f"\t\tpool.{obj['name']}.position = {{ {x}, {y} }}\n")
+                f.write(f"\t\tpool.{object['name']}.position = {{ {x}, {y} }}\n")
             f.write("\tend,\n")
 
         f.write("})\n")
