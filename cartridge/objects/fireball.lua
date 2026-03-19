@@ -2,7 +2,7 @@ local cos = math.cos
 local sin = math.sin
 
 local SPEED = 160
-local TTL = 60
+local TTL = 0.7
 
 return {
 	body = "dynamic",
@@ -24,7 +24,7 @@ return {
 			return
 		end
 
-		self._ttl = self._ttl - 1
+		self._ttl = self._ttl - delta
 		if self._ttl <= 0 then
 			self._alive = false
 			world.destroy(self)

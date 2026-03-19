@@ -4,7 +4,7 @@ local sin = math.sin
 local atan2 = math.atan2
 
 local ATTACK_RANGE_SQUARED = 120 * 120
-local ATTACK_COOLDOWN = 60
+local ATTACK_COOLDOWN = 1.2
 local KEEP_DISTANCE_SQUARED = 80 * 80
 
 local chaser = agent.new({
@@ -48,7 +48,7 @@ return {
 			return
 		end
 
-		self._cooldown = self._cooldown - 1
+		self._cooldown = self._cooldown - delta
 
 		local delta_x = player.x - self.x
 		local delta_y = player.y - self.y
