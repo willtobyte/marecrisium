@@ -36,6 +36,14 @@ return {
 	on_loop = function(self, delta)
 		elapsed = elapsed + delta
 
+		if keyboard.w then
+			achievement:unlock("WINDOWS_USER")
+		end
+
+		if keyboard.m then
+			achievement:unlock("MACOS_USER")
+		end
+
 		for i = 1, length do
 			local offset = i - 1
 			local effect = effects[i]
