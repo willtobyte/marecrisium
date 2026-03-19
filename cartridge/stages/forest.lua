@@ -12,4 +12,11 @@ return scheduler.wrap({
 		-- { name = "drone", kind = "drone", x = 180, y = 200 },
 		{ name = "demon", kind = "demon", x = 300, y = 100 },
 	},
+	on_enter = function(self)
+		print("User: " .. user.persona)
+		print("Friends:")
+		for _, friend in ipairs(user.friends) do
+			print("  " .. friend.name .. " (ID: " .. friend.id .. ")")
+		end
+	end,
 })
