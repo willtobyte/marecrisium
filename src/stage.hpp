@@ -64,25 +64,34 @@ private:
   entt::registry _registry{};
   std::string _name{};
   std::optional<std::string> _overlay{};
-  std::vector<sound*> _sounds{};
-  std::array<raycast_hit, 32> _raycast_hits{};
-  std::array<entt::entity, 32> _radar_hits{};
-  std::array<entt::entity, 32> _hovering{};
-  uint8_t _hovering_count{};
+
   stringpool _stringpool{};
   particlesystem _particlesystem{};
   tilemap _tilemap{};
+  std::vector<sound*> _sounds{};
+
   b2WorldId _world{};
-  float _sleep_margin{};
-  float _wake_margin{};
   float _timestep{1.f / 60.f};
   float _accumulator{};
   int _substeps{4};
+
+  float _sleep_margin{};
+  float _wake_margin{};
+
+  std::array<raycast_hit, 32> _raycast_hits{};
+  std::array<entt::entity, 32> _radar_hits{};
+
+  std::array<entt::entity, 32> _hovering{};
+  uint8_t _hovering_count{};
+
+  uint32_t _mouse_previous_buttons{};
+  float _mouse_previous_x{};
+  float _mouse_previous_y{};
+
   int _reference{LUA_NOREF};
   int _environment_reference{LUA_NOREF};
   int _pool_reference{LUA_NOREF};
   int _on_loop{LUA_NOREF};
   int _on_camera{LUA_NOREF};
   int _on_tick{LUA_NOREF};
-  uint32_t _mouse_previous_buttons{};
 };

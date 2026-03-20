@@ -540,7 +540,11 @@ void stage::update(float delta) {
   else if (released & SDL_BUTTON_RMASK) [[unlikely]]
     dispatch_mouse_up(mx, my, "right");
 
-  dispatch_hover(mx, my);
+  if (mx != _mouse_previous_x || my != _mouse_previous_y) {
+    _mouse_previous_x = mx;
+    _mouse_previous_y = my;
+    dispatch_hover(mx, my);
+  }
 
   if (_on_loop != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
