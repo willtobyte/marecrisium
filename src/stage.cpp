@@ -589,17 +589,13 @@ void stage::update(float delta) {
       continue;
 
     const auto& c = a->clips[a->active];
-    if (c.count == 0)
-      continue;
-
     const auto& fr = c.frames[a->current];
-
-    if (fr.duration < .0f)
+    if (c.count == 0 || fr.duration < .0f)
       continue;
 
     a->elapsed += delta;
 
-    while (a->elapsed >= fr.duration) {
+    if (a->elapsed >= fr.duration) {
       a->elapsed -= fr.duration;
       ++a->current;
 
@@ -630,8 +626,6 @@ void stage::update(float delta) {
           }
         }
       }
-
-      break;
     }
   }
 
@@ -704,8 +698,7 @@ void stage::update(float delta) {
 
     const auto body_events = b2World_GetBodyEvents(_world);
 
-    for (int i = 0; i < body_events.moveCount; ++i) {
-      const auto& event = body_events.moveEvents[i];
+    for (const auto& event : std::span(body_events.moveEvents, static_cast<size_t>(body_events.moveCount))) {
       const auto entity = to_entity(event.userData);
 
       if (!_registry.valid(entity)) [[unlikely]]
@@ -747,14 +740,14 @@ void stage::update(float delta) {
           const auto count = b2Body_GetContactData(bd.id, contacts.data(), static_cast<int>(contacts.size()));
           const auto* user = b2Shape_GetUserData(bd.shape);
 
-          for (auto j = 0uz; j < static_cast<size_t>(count); ++j) {
-            const auto& manifold = contacts[j].manifold;
-            const auto is_shape_a = b2Shape_GetUserData(contacts[j].shapeIdA) == user;
+          for (const auto& contact : std::span(contacts.data(), static_cast<size_t>(count))) {
+            const auto& manifold = contact.manifold;
+            const auto is_shape_a = b2Shape_GetUserData(contact.shapeIdA) == user;
             const auto normal_y = is_shape_a ? manifold.normal.y : -manifold.normal.y;
             if (normal_y > .5f) {
               on_ground = true;
 
-              const auto other_shape = is_shape_a ? contacts[j].shapeIdB : contacts[j].shapeIdA;
+              const auto other_shape = is_shape_a ? contact.shapeIdB : contact.shapeIdA;
               const auto other_body = b2Shape_GetBody(other_shape);
               if (b2Body_GetType(other_body) == b2_kinematicBody) {
                 const auto* other_data = b2Shape_GetUserData(other_shape);
@@ -767,11 +760,8 @@ void stage::update(float delta) {
           }
         }
 
-        if (on_ground) {
-          _registry.emplace_or_replace<grounded>(entity);
-        } else {
-          _registry.remove<grounded>(entity);
-        }
+        _registry.remove<grounded>(entity);
+        if (on_ground) _registry.emplace<grounded>(entity);
 
         _registry.emplace_or_replace<riding>(entity, ride_target);
       }
@@ -810,26 +800,24 @@ void stage::update(float delta) {
 
     const auto sensor_events = b2World_GetSensorEvents(_world);
 
-    for (int i = 0; i < sensor_events.beginCount; ++i)
-      dispatch_sensor_event(*this, sensor_events.beginEvents[i].sensorShapeId, sensor_events.beginEvents[i].visitorShapeId, "on_collision_begin");
+    for (const auto& event : std::span(sensor_events.beginEvents, static_cast<size_t>(sensor_events.beginCount)))
+      dispatch_sensor_event(*this, event.sensorShapeId, event.visitorShapeId, "on_collision_begin");
 
-    for (int i = 0; i < sensor_events.endCount; ++i)
-      dispatch_sensor_event(*this, sensor_events.endEvents[i].sensorShapeId, sensor_events.endEvents[i].visitorShapeId, "on_collision_end");
+    for (const auto& event : std::span(sensor_events.endEvents, static_cast<size_t>(sensor_events.endCount)))
+      dispatch_sensor_event(*this, event.sensorShapeId, event.visitorShapeId, "on_collision_end");
 
     const auto contact_events = b2World_GetContactEvents(_world);
 
-    for (int i = 0; i < contact_events.beginCount; ++i)
-      dispatch_contact_begin_event(*this, contact_events.beginEvents[i].shapeIdA, contact_events.beginEvents[i].shapeIdB, contact_events.beginEvents[i].manifold);
+    for (const auto& event : std::span(contact_events.beginEvents, static_cast<size_t>(contact_events.beginCount)))
+      dispatch_contact_begin_event(*this, event.shapeIdA, event.shapeIdB, event.manifold);
 
-    for (int i = 0; i < contact_events.endCount; ++i)
-      dispatch_contact_end_event(*this, contact_events.endEvents[i].shapeIdA, contact_events.endEvents[i].shapeIdB);
+    for (const auto& event : std::span(contact_events.endEvents, static_cast<size_t>(contact_events.endCount)))
+      dispatch_contact_end_event(*this, event.shapeIdA, event.shapeIdB);
 
     _accumulator -= _timestep;
   }
 
-  for (auto* sound : _sounds) {
-    sound->poll();
-  }
+  for (auto* sound : _sounds) sound->poll();
 
   _particlesystem.update(delta);
 
