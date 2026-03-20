@@ -19,12 +19,6 @@ static int mouse_index(lua_State *state) {
     return 1;
   }
 
-  if (key == "xy") {
-    lua_pushnumber(state, static_cast<double>(x));
-    lua_pushnumber(state, static_cast<double>(y));
-    return 2;
-  }
-
   if (key == "button") {
     if (button & SDL_BUTTON_MASK(SDL_BUTTON_LEFT))
       return lua_pushinteger(state, SDL_BUTTON_LEFT), 1;

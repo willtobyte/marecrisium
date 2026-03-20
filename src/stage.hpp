@@ -49,7 +49,9 @@ public:
 
   void dispatch_unhover(std::span<const entt::entity> current);
 
-  [[nodiscard]] uint8_t pick_at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
+  [[nodiscard]] uint8_t at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
+
+  int at(lua_State* state, float x, float y);
 
   [[nodiscard]] entt::entity find_topmost(std::span<const entt::entity> hits) const noexcept;
 

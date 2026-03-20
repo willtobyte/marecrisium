@@ -115,6 +115,13 @@ static int world_radar(lua_State* state) {
   return self->radar(state, caller->entity, x, y, radius);
 }
 
+static int world_at(lua_State* state) {
+  auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
+  const auto x = static_cast<float>(luaL_checknumber(state, 1));
+  const auto y = static_cast<float>(luaL_checknumber(state, 2));
+  return self->at(state, x, y);
+}
+
 static int world_pathfind(lua_State* state) {
   auto* self    = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
   const auto x1 = static_cast<float>(luaL_checknumber(state, 1));
@@ -1329,7 +1336,7 @@ int stage::destroy(lua_State* state) {
   return 0;
 }
 
-uint8_t stage::pick_at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept {
+uint8_t stage::at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept {
   constexpr auto HALF = .5f;
   const b2AABB aabb = {{x - HALF, y - HALF}, {x + HALF, y + HALF}};
   const auto filter = b2DefaultQueryFilter();
@@ -1354,6 +1361,29 @@ uint8_t stage::pick_at(float x, float y, entt::entity* buffer, uint8_t capacity)
     &ctx);
 
   return ctx.count;
+}
+
+int stage::at(lua_State* state, float x, float y) {
+  std::array<entt::entity, 32> buffer;
+  const auto count = at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
+
+  lua_newtable(state);
+  int index = 1;
+
+  for (uint8_t i = 0; i < count; ++i) {
+    const auto entity = buffer[i];
+    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
+      continue;
+
+    const auto& proxy = _registry.get<objectproxy>(entity);
+    if (proxy.handle == LUA_NOREF)
+      continue;
+
+    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy.handle);
+    lua_rawseti(state, -2, index++);
+  }
+
+  return 1;
 }
 
 entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexcept {
@@ -1400,7 +1430,7 @@ void stage::dispatch_miss(const char* callback, float x, float y, const char* bu
 
 void stage::dispatch_mouse_down(float x, float y, const char* button) {
   std::array<entt::entity, 16> buffer{};
-  const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
+  const auto count = at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
   if (count == 0) [[likely]] {
     dispatch_miss("on_mouse_down", x, y, button);
@@ -1435,7 +1465,7 @@ void stage::dispatch_mouse_down(float x, float y, const char* button) {
 
 void stage::dispatch_mouse_up(float x, float y, const char* button) {
   std::array<entt::entity, 16> buffer{};
-  const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
+  const auto count = at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
   if (count == 0) [[likely]] {
     dispatch_miss("on_mouse_up", x, y, button);
@@ -1476,7 +1506,7 @@ void stage::dispatch_mouse_up(float x, float y, const char* button) {
 
 void stage::dispatch_hover(float x, float y) {
   std::array<entt::entity, 32> buffer{};
-  const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
+  const auto count = at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
   const auto hits = std::span(buffer.data(), count);
   std::ranges::sort(hits);

@@ -20,6 +20,15 @@ return scheduler.wrap({
 		end
 	end,
 
+	on_loop = function(self, dt)
+		if mouse.button == 1 then
+			local hits = world.at(mouse.x, mouse.y)
+			for _, obj in ipairs(hits) do
+				print("at " .. mouse.x .. "," .. mouse.y .. ": " .. obj.name)
+			end
+		end
+	end,
+
 	on_mouse_down = function(x, y, button)
 		print("stage on_mouse_down miss " .. button .. " at " .. x .. "," .. y)
 	end,
