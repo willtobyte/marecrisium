@@ -356,8 +356,8 @@ stage::stage(std::string_view name)
         auto& fx = depot->sound.get(std::format("sounds/{}", sound_name));
         fx.set_loop(true);
 
-        if (std::ranges::find(_sounds, &fx) == _sounds.end())
-          _sounds.emplace_back(&fx);
+        // if (std::ranges::find(_sounds, &fx) == _sounds.end())
+        //   _sounds.emplace_back(&fx);
 
         instance.set_sound(&fx, particle_distance, particle_volume);
       }
