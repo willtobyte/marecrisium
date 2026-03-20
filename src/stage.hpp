@@ -41,6 +41,20 @@ public:
 
   void dispatch_screen_event(const objectproxy& proxy, const char* callback, std::string_view direction);
 
+  void dispatch_mouse_up(float x, float y, const char* button);
+
+  void dispatch_mouse_down(float x, float y, const char* button);
+
+  void dispatch_hover(float x, float y);
+
+  void dispatch_unhover(std::span<const entt::entity> current);
+
+  [[nodiscard]] uint8_t pick_at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
+
+  [[nodiscard]] entt::entity find_topmost(std::span<const entt::entity> hits) const noexcept;
+
+  void dispatch_miss(const char* callback, float x, float y, const char* button);
+
 private:
   struct raycast_hit {
     entt::entity entity;
@@ -51,8 +65,10 @@ private:
   std::string _name{};
   std::optional<std::string> _overlay{};
   std::vector<sound*> _sounds{};
-  std::array<raycast_hit, 64> _raycast_hits{};
-  std::array<entt::entity, 64> _radar_hits{};
+  std::array<raycast_hit, 32> _raycast_hits{};
+  std::array<entt::entity, 32> _radar_hits{};
+  std::array<entt::entity, 32> _hovering{};
+  uint8_t _hovering_count{};
   stringpool _stringpool{};
   particlesystem _particlesystem{};
   tilemap _tilemap{};
@@ -68,4 +84,5 @@ private:
   int _on_loop{LUA_NOREF};
   int _on_camera{LUA_NOREF};
   int _on_tick{LUA_NOREF};
+  uint32_t _mouse_previous_buttons{};
 };

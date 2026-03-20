@@ -401,6 +401,9 @@ namespace {
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_loop);
     proxy->on_loop = LUA_NOREF;
 
+    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_mouse_down);
+    proxy->on_mouse_down = LUA_NOREF;
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->prototype);
     proxy->prototype = LUA_NOREF;
 
@@ -441,6 +444,12 @@ objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::str
   lua_getfield(L, -1, "on_animation_begin");
   if (lua_isfunction(L, -1))
     on_animation_begin = luaL_ref(L, LUA_REGISTRYINDEX);
+  else
+    lua_pop(L, 1);
+
+  lua_getfield(L, -1, "on_mouse_down");
+  if (lua_isfunction(L, -1))
+    on_mouse_down = luaL_ref(L, LUA_REGISTRYINDEX);
   else
     lua_pop(L, 1);
 

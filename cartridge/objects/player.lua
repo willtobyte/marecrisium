@@ -54,4 +54,20 @@ return {
 	on_damage = function(self)
 		print("on damage " .. self.name)
 	end,
+
+	on_mouse_down = function(self, x, y, button)
+		print("on_mouse_down " .. self.name .. " " .. button .. " at " .. x .. "," .. y)
+	end,
+
+	on_mouse_up = function(self, x, y, button)
+		print("on_mouse_up " .. self.name .. " " .. button .. " at " .. x .. "," .. y)
+	end,
+
+	on_hover = function(self)
+		print("on_hover " .. self.name)
+	end,
+
+	on_unhover = function(self)
+		print("on_unhover " .. self.name)
+	end,
 }

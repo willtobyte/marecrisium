@@ -19,4 +19,12 @@ return scheduler.wrap({
 			print("  " .. friend.name .. " (ID: " .. friend.id .. ")")
 		end
 	end,
+
+	on_mouse_down = function(x, y, button)
+		print("stage on_mouse_down miss " .. button .. " at " .. x .. "," .. y)
+	end,
+
+	on_mouse_up = function(x, y, button)
+		print("stage on_mouse_up miss " .. button .. " at " .. x .. "," .. y)
+	end,
 })
