@@ -1244,18 +1244,18 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
         : std::string();
       lua_pop(L, 2);
 
-      const auto bt = str == "dynamic" ? body_type::dynamic
-                    : str == "static"  ? body_type::stationary
-                                       : body_type::kinematic;
+      const auto type = str == "dynamic" ? body_type::dynamic
+                    : str == "static" ? body_type::stationary
+                                    : body_type::kinematic;
 
       b2BodyDef bdef = b2DefaultBodyDef();
       bdef.userData = to_userdata(entity);
 
-      bdef.type = bt == body_type::dynamic     ? b2_dynamicBody
-               : bt == body_type::stationary ? b2_staticBody
+      bdef.type = type == body_type::dynamic ? b2_dynamicBody
+               : type == body_type::stationary ? b2_staticBody
                                              : b2_kinematicBody;
 
-      if (bt == body_type::dynamic) {
+      if (type == body_type::dynamic) {
         bdef.isBullet = true;
         bdef.fixedRotation = true;
       }

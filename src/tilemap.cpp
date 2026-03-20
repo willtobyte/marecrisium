@@ -301,8 +301,8 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
 
         for (auto er = min_row; er <= max_row; ++er) {
           const auto local_row_offset = static_cast<size_t>(er - box_y0) * static_cast<size_t>(box_w);
-          for (auto ec = min_column; ec <= max_column; ++ec)
-            blocked[local_row_offset + static_cast<size_t>(ec - box_x0)] = 1;
+          std::memset(blocked + local_row_offset + static_cast<size_t>(min_column - box_x0), 1,
+                      static_cast<size_t>(max_column - min_column + 1));
         }
       }
     }
