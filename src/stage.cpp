@@ -760,8 +760,12 @@ void stage::update(float delta) {
           }
         }
 
-        _registry.remove<grounded>(entity);
-        if (on_ground) _registry.emplace<grounded>(entity);
+        if (on_ground) {
+          if (!_registry.all_of<grounded>(entity))
+            _registry.emplace<grounded>(entity);
+        } else {
+          _registry.remove<grounded>(entity);
+        }
 
         _registry.emplace_or_replace<riding>(entity, ride_target);
       }
@@ -1261,7 +1265,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       }
 
       const auto id = b2CreateBody(_world, &bdef);
-      _registry.emplace<body>(entity, id, b2_nullShapeId, .0f, .0f, bt);
+      _registry.emplace<body>(entity, id, b2_nullShapeId, .0f, .0f, type);
       _registry.emplace<boundary>(entity);
     }
   }
