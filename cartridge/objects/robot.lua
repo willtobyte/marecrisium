@@ -46,7 +46,6 @@ return {
 			self._touching_player = true
 			chaser:stop(self)
 			pool.player:damage()
-			pool.player:damage()
 		end
 	end,
 
