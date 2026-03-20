@@ -33,12 +33,12 @@ int particle_index(lua_State* state) {
   }
 
   if (key == "sound") {
-    auto* s = self->sound();
-    if (!s)
+    auto* fx = self->sound();
+    if (!fx)
       return lua_pushnil(state), 1;
 
     auto** memory = static_cast<sound**>(lua_newuserdata(state, sizeof(sound*)));
-    *memory = s;
+    *memory = fx;
     luaL_getmetatable(state, "Sound");
     lua_setmetatable(state, -2);
 
@@ -85,7 +85,6 @@ int particle_newindex(lua_State* state) {
 
   return 0;
 }
-
 }
 
 std::mt19937& particle::rng() noexcept {
