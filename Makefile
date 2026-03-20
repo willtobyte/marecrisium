@@ -14,14 +14,16 @@ DEBUG_CFLAGS := \
 	-Wshadow -Wconversion -Wsign-conversion \
 	-Wimplicit-fallthrough -Wdouble-promotion \
 	-Wformat=2 -Wnull-dereference -Wnon-virtual-dtor \
-	-fsanitize=address,undefined \
+	-fsanitize=address,undefined,nullability,implicit-conversion,float-divide-by-zero,local-bounds \
 	-fsanitize-address-use-after-scope \
-	-fno-omit-frame-pointer
+	-fno-omit-frame-pointer \
+	-fstack-protector-strong \
+	-ftrivial-auto-var-init=pattern
 
 DEBUG_LDFLAGS := \
 	-g3 \
 	-fno-optimize-sibling-calls \
-	-fsanitize=address,undefined \
+	-fsanitize=address,undefined,nullability,implicit-conversion,float-divide-by-zero,local-bounds \
 	-fsanitize-address-use-after-scope \
 	-fno-omit-frame-pointer
 
