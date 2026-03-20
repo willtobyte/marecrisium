@@ -14,7 +14,6 @@ return {
 	},
 
 	on_spawn = function(self)
-		self.animation = "idle"
 		self._ttl = TTL
 		self._alive = true
 	end,

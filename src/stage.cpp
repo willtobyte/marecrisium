@@ -1149,6 +1149,11 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 
     lua_pushnil(L);
     while (lua_next(L, -2) != 0) {
+      if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        continue;
+      }
+
       if (a.clip_count >= a.clips.size()) {
         lua_pop(L, 2);
         break;
@@ -1161,7 +1166,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       c.name = cid;
       c.count = 0;
 
-      if (lua_istable(L, -1)) {
+      {
         const auto frame_count = static_cast<int>(lua_objlen(L, -1));
 
         for (int f = 1; f <= frame_count && c.count < c.frames.size(); ++f) {
@@ -1220,6 +1225,22 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       }
 
       ++a.clip_count;
+      lua_pop(L, 1);
+    }
+
+    if (a.clip_count > 0) {
+      a.playing = true;
+
+      lua_getfield(L, -1, "default");
+      if (lua_isstring(L, -1)) {
+        const auto hash = entt::hashed_string{lua_tostring(L, -1)}.value();
+        for (uint8_t i = 0; i < a.clip_count; ++i) {
+          if (a.clips[i].name == hash) {
+            a.active = i;
+            break;
+          }
+        }
+      }
       lua_pop(L, 1);
     }
 

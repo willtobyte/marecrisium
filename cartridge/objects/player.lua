@@ -13,7 +13,6 @@ return {
 	},
 
 	on_spawn = function(self)
-		self.animation = "idle"
 		self.x = 0
 		self.y = 0
 	end,

@@ -29,7 +29,6 @@ return {
 	},
 
 	on_spawn = function(self)
-		self.animation = "idle"
 		self._touching_player = false
 		self._cooldown = 0
 		self._fireball_id = 0
