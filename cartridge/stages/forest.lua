@@ -22,9 +22,10 @@ return scheduler.wrap({
 
 	on_loop = function(self, dt)
 		if mouse.button == 1 then
-			local hits = world.at(mouse.x, mouse.y)
+			local x, y = mouse.position()
+			local hits = world.at(x, y)
 			for _, obj in ipairs(hits) do
-				print("at " .. mouse.x .. "," .. mouse.y .. ": " .. obj.name)
+				print("at " .. x .. "," .. y .. ": " .. obj.name)
 			end
 		end
 	end,

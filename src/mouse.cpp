@@ -1,5 +1,16 @@
 #include "mouse.hpp"
 
+static int mouse_position(lua_State *state) {
+  float x, y;
+  SDL_GetMouseState(&x, &y);
+  SDL_RenderCoordinatesFromWindow(renderer, x, y, &x, &y);
+  x += viewport.x;
+  y += viewport.y;
+  lua_pushnumber(state, static_cast<double>(x));
+  lua_pushnumber(state, static_cast<double>(y));
+  return 2;
+}
+
 static int mouse_index(lua_State *state) {
   const std::string_view key = luaL_checkstring(state, 2);
 
@@ -16,6 +27,11 @@ static int mouse_index(lua_State *state) {
 
   if (key == "y") {
     lua_pushnumber(state, static_cast<double>(y));
+    return 1;
+  }
+
+  if (key == "position") {
+    lua_pushcfunction(state, mouse_position);
     return 1;
   }
 

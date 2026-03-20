@@ -187,6 +187,9 @@ stage::stage(std::string_view name)
   lua_pushcclosure(L, world_radar, 1);
   lua_setfield(L, -2, "radar");
   lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_at, 1);
+  lua_setfield(L, -2, "at");
+  lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, world_pathfind, 1);
   lua_setfield(L, -2, "pathfind");
   lua_pushlightuserdata(L, this);
