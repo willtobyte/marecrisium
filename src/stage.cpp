@@ -152,7 +152,7 @@ stage::stage(std::string_view name)
   _registry.on_destroy<body>().connect<&on_object_destroy>();
 
   _registry.ctx().emplace<stringpool*>(&_stringpool);
-  _registry.ctx().emplace<renderstate>();
+
 
   const auto filename = std::format("stages/{}.lua", name);
   const auto buffer = io::read(filename);
@@ -724,6 +724,8 @@ void stage::update(float delta) {
       const auto position = event.transform.p;
       tf.x = position.x - frame.cx * tf.scale - bd->cached_hx;
       tf.y = position.y - frame.cy * tf.scale - bd->cached_hy;
+
+      _registry.get<renderable>(entity).z = static_cast<int>(tf.y + frame.h * tf.scale);
     }
 
     static constexpr std::string_view directions[] = {"left", "right", "top", "bottom"};
@@ -831,14 +833,9 @@ void stage::update(float delta) {
 
   _particlesystem.update(delta);
 
-  auto& rs = _registry.ctx().get<renderstate>();
-  if (rs.z_dirty) {
-    _registry.sort<renderable>([](const renderable& lhs, const renderable& rhs) noexcept {
-      return lhs.z < rhs.z;
-    }, entt::insertion_sort{});
-
-    rs.z_dirty = false;
-  }
+  _registry.sort<renderable>([](const renderable& lhs, const renderable& rhs) noexcept {
+    return lhs.z < rhs.z;
+  }, entt::insertion_sort{});
 }
 
 void stage::draw() {
@@ -1128,8 +1125,7 @@ int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2, fl
 
 int stage::spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y) {
   const auto entity = _registry.create();
-  auto& rs = _registry.ctx().get<renderstate>();
-  _registry.emplace<renderable>(entity, rs.acquire_z());
+  _registry.emplace<renderable>(entity);
   auto& tf = _registry.emplace<transform>(entity);
   tf.x = x;
   tf.y = y;
@@ -1243,6 +1239,9 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       }
       lua_pop(L, 1);
     }
+
+    const auto& fr = a.clips[a.active].frames[0];
+    _registry.get<renderable>(entity).z = static_cast<int>(tf.y + fr.h * tf.scale);
 
     bool collidable = false;
     for (uint8_t ci = 0; ci < a.clip_count && !collidable; ++ci)

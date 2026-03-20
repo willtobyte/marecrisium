@@ -228,10 +228,7 @@ namespace {
     if (key == "z") {
       auto& r = registry.get<renderable>(entity);
       const auto value = static_cast<int>(luaL_checkinteger(state, 3));
-      if (r.z != value) {
-        r.z = value;
-        registry.ctx().get<renderstate>().z_dirty = true;
-      }
+      r.z = value;
 
       return 0;
     }
