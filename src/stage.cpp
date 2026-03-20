@@ -553,6 +553,7 @@ void stage::update(float delta) {
   if (mx != _mouse_previous_x || my != _mouse_previous_y) {
     _mouse_previous_x = mx;
     _mouse_previous_y = my;
+
     dispatch_hover(mx, my);
   }
 
