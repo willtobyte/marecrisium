@@ -1,4 +1,5 @@
 #include "object.hpp"
+#include "sound.hpp"
 
 namespace {
   static void sync_body_position(body& bd, const transform& tf, const animation* an) noexcept {
@@ -285,6 +286,10 @@ namespace {
             a.current = 0;
             a.elapsed = .0f;
             a.playing = true;
+
+            if (a.clips[i].fx) {
+              a.clips[i].fx->play();
+            }
 
             if (proxy->handle != LUA_NOREF) {
               const auto* strings = registry.ctx().get<stringpool*>();

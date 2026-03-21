@@ -1213,6 +1213,12 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
         }
       }
 
+      lua_getfield(L, -1, "sound");
+      if (lua_isstring(L, -1)) {
+        c.fx = &depot->sound.get(std::format("sounds/{}", lua_tostring(L, -1)));
+      }
+      lua_pop(L, 1);
+
       ++a.clip_count;
       lua_pop(L, 1);
     }

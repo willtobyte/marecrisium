@@ -1,6 +1,7 @@
 #pragma once
 
 class pixmap;
+class sound;
 
 enum class flipmode : uint8_t {
   none = SDL_FLIP_NONE,
@@ -40,6 +41,7 @@ struct clip final {
   entt::id_type name{};
   std::array<frame, 16> frames{};
   uint8_t count{};
+  sound* fx{};
 };
 
 static_assert(std::is_trivially_copyable_v<clip>);
