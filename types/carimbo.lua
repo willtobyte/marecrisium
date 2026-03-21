@@ -350,7 +350,13 @@ viewport = {}
 
 ---@class ObjectPrototype
 ---@field body? "dynamic"|"kinematic"|"static" Physics body type. Default is "kinematic".
----@field animation table<string, number[][]> Animation clips. Each clip is an array of frames: {sx, sy, sw, sh, duration_ms [, cx, cy, cw, ch]}.
+---@field animation table<string, AnimationClip> Animation clips. Each clip is named and contains frames plus an optional sound.
+
+---@class AnimationClip
+---An animation clip is an array of frames with an optional sound effect.
+---Each frame is: {source_x, source_y, source_width, source_height, duration_ms [, collider_x, collider_y, collider_width, collider_height]}.
+---@field sound? string Optional sound name. Loads `blobs/sounds/<name>.opus` and plays automatically when this clip is activated via `self.animation = "clip_name"`.
+---@field [integer] number[] Frame data: {source_x, source_y, source_width, source_height, duration_ms [, collider_x, collider_y, collider_width, collider_height]}.
 ---@field sleepable? boolean If true, the object sleeps (pauses all callbacks) when off-screen by more than 32 px. Default false.
 ---@field on_spawn? fun(self: Object) Called once when the object is created.
 ---@field on_loop? fun(self: Object, delta: number) Called every frame. Not called while the object is dormant.
