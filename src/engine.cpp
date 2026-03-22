@@ -14,40 +14,24 @@ engine::engine() {
 
   pcall(L, 0, 1);
 
-  lua_getfield(L, -1, "width");
-  const auto width = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 1920;
-  lua_pop(L, 1);
-
-  lua_getfield(L, -1, "height");
-  const auto height = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 1080;
-  lua_pop(L, 1);
-
-  lua_getfield(L, -1, "scale");
-  const auto scale = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 1.f;
-  lua_pop(L, 1);
-
-  lua_getfield(L, -1, "fullscreen");
-  const auto fullscreen = lua_isboolean(L, -1) ? lua_toboolean(L, -1) : 0;
-  lua_pop(L, 1);
+  const auto width = get<int>(L, -1, "width", 1920);
+  const auto height = get<int>(L, -1, "height", 1080);
+  const auto scale = get<float>(L, -1, "scale", 1.f);
+  const auto fullscreen = get<bool>(L, -1, "fullscreen");
 
   b2SetLengthUnitsPerMeter(100.f);
 
-  lua_getfield(L, -1, "ticks");
-  if (lua_isnumber(L, -1)) {
-    const auto ticks = static_cast<int>(lua_tonumber(L, -1));
+  {
+    const auto ticks = get<int>(L, -1, "ticks");
     if (ticks > 0)
       _tick_interval = 1.f / static_cast<float>(ticks);
   }
-  lua_pop(L, 1);
 
-  lua_getfield(L, -1, "title");
-  const std::string title = lua_isstring(L, -1) ? lua_tostring(L, -1) : "Untitled";
-  lua_pop(L, 1);
+  const auto title = get<std::string_view>(L, -1, "title", "Untitled");
 
 #ifndef DEBUG
-  lua_getfield(L, -1, "sentry");
-  if (lua_isstring(L, -1)) {
-    const std::string_view dsn = lua_tostring(L, -1);
+  {
+    const auto dsn = get<std::string_view>(L, -1, "sentry");
     if (!dsn.empty()) {
       auto* const options = sentry_options_new();
       sentry_options_set_dsn(options, dsn.data());
@@ -62,7 +46,6 @@ engine::engine() {
       std::atexit([] { sentry_close(); });
     }
   }
-  lua_pop(L, 1);
 #endif
 
   static const auto window = SDL_CreateWindow(

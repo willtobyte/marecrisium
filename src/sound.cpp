@@ -26,7 +26,7 @@ namespace {
     auto* instance = *ptr;
     luaL_checktype(state, 2, LUA_TFUNCTION);
 
-    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_begin);
+    release(state, instance->on_begin);
 
     lua_pushvalue(state, 2);
     instance->on_begin = luaL_ref(state, LUA_REGISTRYINDEX);
@@ -47,7 +47,7 @@ namespace {
     auto* instance = *ptr;
     luaL_checktype(state, 2, LUA_TFUNCTION);
 
-    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_end);
+    release(state, instance->on_end);
 
     lua_pushvalue(state, 2);
     instance->on_end = luaL_ref(state, LUA_REGISTRYINDEX);
@@ -185,8 +185,8 @@ sound::sound(std::string_view filename) {
 }
 
 sound::~sound() {
-  luaL_unref(L, LUA_REGISTRYINDEX, on_begin);
-  luaL_unref(L, LUA_REGISTRYINDEX, on_end);
+  release(L, on_begin);
+  release(L, on_end);
   ma_sound_stop(&_sound);
   ma_sound_uninit(&_sound);
   ma_audio_buffer_uninit(&_buffer);
@@ -239,10 +239,5 @@ void sound::poll() {
 }
 
 void sound::wire() {
-  luaL_newmetatable(L, "Sound");
-  lua_pushcfunction(L, sound_index);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, sound_newindex);
-  lua_setfield(L, -2, "__newindex");
-  lua_pop(L, 1);
+  metatable(L, "Sound", sound_index, sound_newindex);
 }

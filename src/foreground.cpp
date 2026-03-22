@@ -132,29 +132,10 @@ foreground::foreground(std::string_view name) {
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
-  lua_getfield(L, -1, "on_appear");
-  if (lua_isfunction(L, -1))
-    _on_appear = luaL_ref(L, LUA_REGISTRYINDEX);
-  else
-    lua_pop(L, 1);
-
-  lua_getfield(L, -1, "on_disappear");
-  if (lua_isfunction(L, -1))
-    _on_disappear = luaL_ref(L, LUA_REGISTRYINDEX);
-  else
-    lua_pop(L, 1);
-
-  lua_getfield(L, -1, "on_loop");
-  if (lua_isfunction(L, -1))
-    _on_loop = luaL_ref(L, LUA_REGISTRYINDEX);
-  else
-    lua_pop(L, 1);
-
-  lua_getfield(L, -1, "on_paint");
-  if (lua_isfunction(L, -1))
-    _on_paint = luaL_ref(L, LUA_REGISTRYINDEX);
-  else
-    lua_pop(L, 1);
+  _on_appear = acquire(L, -1, "on_appear");
+  _on_disappear = acquire(L, -1, "on_disappear");
+  _on_loop = acquire(L, -1, "on_loop");
+  _on_paint = acquire(L, -1, "on_paint");
 
   lua_pop(L, 1);
 
@@ -168,19 +149,16 @@ foreground::foreground(std::string_view name) {
 
 foreground::~foreground() {
   disappear();
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_disappear);
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_appear);
-  luaL_unref(L, LUA_REGISTRYINDEX, _reference);
-  luaL_unref(L, LUA_REGISTRYINDEX, _userdata_reference);
+  release(L, _on_paint);
+  release(L, _on_loop);
+  release(L, _on_disappear);
+  release(L, _on_appear);
+  release(L, _reference);
+  release(L, _userdata_reference);
 }
 
 void foreground::wire() {
-  luaL_newmetatable(L, "Foreground");
-  lua_pushcfunction(L, foreground_index);
-  lua_setfield(L, -2, "__index");
-  lua_pop(L, 1);
+  metatable(L, "Foreground", foreground_index);
 }
 
 void foreground::expose() {
@@ -195,8 +173,7 @@ void foreground::appear() {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _on_appear);
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_appear);
-  _on_appear = LUA_NOREF;
+  release(L, _on_appear);
 
   pcall(L, 1, 0);
 }
@@ -208,8 +185,7 @@ void foreground::disappear() {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disappear);
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_disappear);
-  _on_disappear = LUA_NOREF;
+  release(L, _on_disappear);
 
   pcall(L, 1, 0);
 }

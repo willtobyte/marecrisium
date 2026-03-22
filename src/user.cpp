@@ -75,12 +75,7 @@ static int user_index(lua_State *state) {
 }
 
 void user::wire() {
-  luaL_newmetatable(L, "Friend");
-  lua_pushcfunction(L, friend_index);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, friend_newindex);
-  lua_setfield(L, -2, "__newindex");
-  lua_pop(L, 1);
+  metatable(L, "Friend", friend_index, friend_newindex);
 
   lua_newuserdata(L, 1);
 

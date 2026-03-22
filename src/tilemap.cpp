@@ -63,17 +63,9 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
   pcall(L, 0, 1);
 
-  lua_getfield(L, -1, "size");
-  _size = static_cast<float>(lua_tonumber(L, -1));
-  lua_pop(L, 1);
-
-  lua_getfield(L, -1, "width");
-  _width = static_cast<int32_t>(lua_tonumber(L, -1));
-  lua_pop(L, 1);
-
-  lua_getfield(L, -1, "height");
-  _height = static_cast<int32_t>(lua_tonumber(L, -1));
-  lua_pop(L, 1);
+  _size = get<float>(L, -1, "size");
+  _width = get<int>(L, -1, "width");
+  _height = get<int>(L, -1, "height");
 
   _inverse_size = 1.f / _size;
 

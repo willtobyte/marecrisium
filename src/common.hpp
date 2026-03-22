@@ -125,3 +125,35 @@ struct transparent_hash final {
 
 void pcall(lua_State *state, int nargs, int nresults);
 void compile(lua_State *state, const std::vector<uint8_t> &buffer, std::string_view label);
+
+template <typename T>
+[[nodiscard]] T get(lua_State *state, int index, const char *name, T fallback = T{}) noexcept {
+  static_assert(sizeof(T) == 0, "unsupported type for get<T>");
+  return fallback;
+}
+
+template <>
+[[nodiscard]] float get<float>(lua_State *state, int index, const char *name, float fallback) noexcept;
+
+template <>
+[[nodiscard]] bool get<bool>(lua_State *state, int index, const char *name, bool fallback) noexcept;
+
+template <>
+[[nodiscard]] int get<int>(lua_State *state, int index, const char *name, int fallback) noexcept;
+
+template <>
+[[nodiscard]] std::string_view get<std::string_view>(lua_State *state, int index, const char *name, std::string_view fallback) noexcept;
+
+template <typename T>
+[[nodiscard]] T get(lua_State *state, int index, int i) noexcept {
+  static_assert(sizeof(T) == 0, "unsupported type for get<T>");
+  return T{};
+}
+
+template <>
+[[nodiscard]] float get<float>(lua_State *state, int index, int i) noexcept;
+
+[[nodiscard]] int acquire(lua_State *state, int index, const char *name) noexcept;
+void release(lua_State *state, int &handle) noexcept;
+void bind(lua_State *state, const char *name, lua_CFunction fn, void *upvalue) noexcept;
+void metatable(lua_State *state, const char *name, lua_CFunction index, lua_CFunction newindex = nullptr, lua_CFunction gc = nullptr) noexcept;

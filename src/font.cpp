@@ -14,25 +14,10 @@ font::font(std::string_view family) {
 
   pcall(L, 0, 1);
 
-  lua_getfield(L, -1, "glyphs");
-  assert(lua_isstring(L, -1));
-  _glyphs = lua_tostring(L, -1);
-  lua_pop(L, 1);
-
-  lua_getfield(L, -1, "spacing");
-  if (lua_isnumber(L, -1))
-    _spacing = static_cast<int16_t>(lua_tonumber(L, -1));
-  lua_pop(L, 1);
-
-  lua_getfield(L, -1, "leading");
-  if (lua_isnumber(L, -1))
-    _leading = static_cast<int16_t>(lua_tonumber(L, -1));
-  lua_pop(L, 1);
-
-  lua_getfield(L, -1, "scale");
-  if (lua_isnumber(L, -1))
-    _scale = static_cast<float>(lua_tonumber(L, -1));
-  lua_pop(L, 1);
+  _glyphs = get<std::string_view>(L, -1, "glyphs");
+  _spacing = static_cast<int16_t>(get<int>(L, -1, "spacing", _spacing));
+  _leading = static_cast<int16_t>(get<int>(L, -1, "leading", _leading));
+  _scale = get<float>(L, -1, "scale", _scale);
 
   lua_pop(L, 1);
 

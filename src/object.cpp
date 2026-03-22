@@ -369,17 +369,10 @@ namespace {
 
   int object_gc(lua_State* state) {
     auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
-    proxy->on_animation_begin = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
-    proxy->on_animation_end = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_loop);
-    proxy->on_loop = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->prototype);
-    proxy->prototype = LUA_NOREF;
+    release(state, proxy->on_animation_begin);
+    release(state, proxy->on_animation_end);
+    release(state, proxy->on_loop);
+    release(state, proxy->prototype);
 
     return 0;
   }
@@ -399,23 +392,9 @@ objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::str
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
 
-  lua_getfield(L, -1, "on_loop");
-  if (lua_isfunction(L, -1))
-    on_loop = luaL_ref(L, LUA_REGISTRYINDEX);
-  else
-    lua_pop(L, 1);
-
-  lua_getfield(L, -1, "on_animation_end");
-  if (lua_isfunction(L, -1))
-    on_animation_end = luaL_ref(L, LUA_REGISTRYINDEX);
-  else
-    lua_pop(L, 1);
-
-  lua_getfield(L, -1, "on_animation_begin");
-  if (lua_isfunction(L, -1))
-    on_animation_begin = luaL_ref(L, LUA_REGISTRYINDEX);
-  else
-    lua_pop(L, 1);
+  on_loop = acquire(L, -1, "on_loop");
+  on_animation_end = acquire(L, -1, "on_animation_end");
+  on_animation_begin = acquire(L, -1, "on_animation_begin");
 
   lua_pop(L, 1);
 
@@ -428,12 +407,5 @@ objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::str
 }
 
 void object::wire() {
-  luaL_newmetatable(L, "Object");
-  lua_pushcfunction(L, object_index);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, object_newindex);
-  lua_setfield(L, -2, "__newindex");
-  lua_pushcfunction(L, object_gc);
-  lua_setfield(L, -2, "__gc");
-  lua_pop(L, 1);
+  metatable(L, "Object", object_index, object_newindex, object_gc);
 }

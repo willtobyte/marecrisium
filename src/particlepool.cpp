@@ -4,13 +4,8 @@
   float a = .0f, b = .0f;
   lua_getfield(state, -1, field);
   if (lua_istable(state, -1)) {
-    lua_rawgeti(state, -1, 1);
-    a = static_cast<float>(lua_tonumber(state, -1));
-    lua_pop(state, 1);
-
-    lua_rawgeti(state, -1, 2);
-    b = static_cast<float>(lua_tonumber(state, -1));
-    lua_pop(state, 1);
+    a = get<float>(state, -1, 1);
+    b = get<float>(state, -1, 2);
   }
   lua_pop(state, 1);
 
@@ -32,9 +27,7 @@ config& particlepool::get(std::string_view kind) {
 
   pcall(L, 0, 1);
 
-  lua_getfield(L, -1, "count");
-  config.count = static_cast<size_t>(lua_tonumber(L, -1));
-  lua_pop(L, 1);
+  config.count = static_cast<size_t>(get<int>(L, -1, "count"));
 
   lua_getfield(L, -1, "spawn");
   if (lua_istable(L, -1)) {

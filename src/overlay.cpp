@@ -39,37 +39,14 @@ static int overlay_label(lua_State *state) {
       if (index < effects.size()) {
         auto &effect = effects[index];
 
-        lua_getfield(state, -1, "xoffset");
-        if (lua_isnumber(state, -1)) effect.xoffset = static_cast<float>(lua_tonumber(state, -1));
-        lua_pop(state, 1);
-
-        lua_getfield(state, -1, "yoffset");
-        if (lua_isnumber(state, -1)) effect.yoffset = static_cast<float>(lua_tonumber(state, -1));
-        lua_pop(state, 1);
-
-        lua_getfield(state, -1, "scale");
-        if (lua_isnumber(state, -1)) effect.scale = static_cast<float>(lua_tonumber(state, -1));
-        lua_pop(state, 1);
-
-        lua_getfield(state, -1, "r");
-        if (lua_isnumber(state, -1)) effect.r = static_cast<float>(lua_tonumber(state, -1));
-        lua_pop(state, 1);
-
-        lua_getfield(state, -1, "g");
-        if (lua_isnumber(state, -1)) effect.g = static_cast<float>(lua_tonumber(state, -1));
-        lua_pop(state, 1);
-
-        lua_getfield(state, -1, "b");
-        if (lua_isnumber(state, -1)) effect.b = static_cast<float>(lua_tonumber(state, -1));
-        lua_pop(state, 1);
-
-        lua_getfield(state, -1, "angle");
-        if (lua_isnumber(state, -1)) effect.angle = static_cast<float>(lua_tonumber(state, -1));
-        lua_pop(state, 1);
-
-        lua_getfield(state, -1, "alpha");
-        if (lua_isnumber(state, -1)) effect.alpha = static_cast<float>(lua_tonumber(state, -1));
-        lua_pop(state, 1);
+        effect.xoffset = get<float>(state, -1, "xoffset", effect.xoffset);
+        effect.yoffset = get<float>(state, -1, "yoffset", effect.yoffset);
+        effect.scale = get<float>(state, -1, "scale", effect.scale);
+        effect.r = get<float>(state, -1, "r", effect.r);
+        effect.g = get<float>(state, -1, "g", effect.g);
+        effect.b = get<float>(state, -1, "b", effect.b);
+        effect.angle = get<float>(state, -1, "angle", effect.angle);
+        effect.alpha = get<float>(state, -1, "alpha", effect.alpha);
 
         if (index >= lenght) lenght = index + 1;
       }
@@ -122,17 +99,8 @@ overlay::overlay(std::string_view name) {
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
-  lua_getfield(L, -1, "on_loop");
-  if (lua_isfunction(L, -1))
-    _on_loop = luaL_ref(L, LUA_REGISTRYINDEX);
-  else
-    lua_pop(L, 1);
-
-  lua_getfield(L, -1, "on_paint");
-  if (lua_isfunction(L, -1))
-    _on_paint = luaL_ref(L, LUA_REGISTRYINDEX);
-  else
-    lua_pop(L, 1);
+  _on_loop = acquire(L, -1, "on_loop");
+  _on_paint = acquire(L, -1, "on_paint");
 
   lua_pop(L, 1);
 
@@ -150,17 +118,14 @@ overlay::overlay(std::string_view name) {
 overlay::~overlay() {
   SDL_StopTextInput(SDL_GetRenderWindow(renderer));
   SDL_RemoveEventWatch(on_event, this);
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
-  luaL_unref(L, LUA_REGISTRYINDEX, _reference);
-  luaL_unref(L, LUA_REGISTRYINDEX, _userdata_reference);
+  release(L, _on_paint);
+  release(L, _on_loop);
+  release(L, _reference);
+  release(L, _userdata_reference);
 }
 
 void overlay::wire() {
-  luaL_newmetatable(L, "Overlay");
-  lua_pushcfunction(L, overlay_index);
-  lua_setfield(L, -2, "__index");
-  lua_pop(L, 1);
+  metatable(L, "Overlay", overlay_index);
 }
 
 void overlay::set_foreground(std::string_view name) {

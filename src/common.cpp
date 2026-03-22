@@ -107,3 +107,83 @@ void compile(lua_State *state, const std::vector<uint8_t> &buffer, std::string_v
     throw std::runtime_error{std::move(error)};
   }
 }
+
+template <>
+float get<float>(lua_State *state, int index, const char *name, float fallback) noexcept {
+  lua_getfield(state, index, name);
+  const auto v = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : fallback;
+  lua_pop(state, 1);
+  return v;
+}
+
+template <>
+int get<int>(lua_State *state, int index, const char *name, int fallback) noexcept {
+  lua_getfield(state, index, name);
+  const auto v = lua_isnumber(state, -1) ? static_cast<int>(lua_tonumber(state, -1)) : fallback;
+  lua_pop(state, 1);
+  return v;
+}
+
+template <>
+bool get<bool>(lua_State *state, int index, const char *name, bool fallback) noexcept {
+  lua_getfield(state, index, name);
+  const auto v = lua_isboolean(state, -1) ? lua_toboolean(state, -1) != 0 : fallback;
+  lua_pop(state, 1);
+  return v;
+}
+
+template <>
+std::string_view get<std::string_view>(lua_State *state, int index, const char *name, std::string_view fallback) noexcept {
+  lua_getfield(state, index, name);
+  const auto *s = lua_isstring(state, -1) ? lua_tostring(state, -1) : nullptr;
+  lua_pop(state, 1);
+  return s ? std::string_view{s} : fallback;
+}
+
+template <>
+float get<float>(lua_State *state, int index, int i) noexcept {
+  lua_rawgeti(state, index, i);
+  const auto v = static_cast<float>(lua_tonumber(state, -1));
+  lua_pop(state, 1);
+  return v;
+}
+
+int acquire(lua_State *state, int index, const char *name) noexcept {
+  lua_getfield(state, index, name);
+  if (lua_isfunction(state, -1))
+    return luaL_ref(state, LUA_REGISTRYINDEX);
+  lua_pop(state, 1);
+  return LUA_NOREF;
+}
+
+void release(lua_State *state, int &handle) noexcept {
+  luaL_unref(state, LUA_REGISTRYINDEX, handle);
+  handle = LUA_NOREF;
+}
+
+void bind(lua_State *state, const char *name, lua_CFunction fn, void *upvalue) noexcept {
+  lua_pushlightuserdata(state, upvalue);
+  lua_pushcclosure(state, fn, 1);
+  lua_setfield(state, -2, name);
+}
+
+void metatable(lua_State *state, const char *name, lua_CFunction index, lua_CFunction newindex, lua_CFunction gc) noexcept {
+  luaL_newmetatable(state, name);
+
+  if (index) {
+    lua_pushcfunction(state, index);
+    lua_setfield(state, -2, "__index");
+  }
+
+  if (newindex) {
+    lua_pushcfunction(state, newindex);
+    lua_setfield(state, -2, "__newindex");
+  }
+
+  if (gc) {
+    lua_pushcfunction(state, gc);
+    lua_setfield(state, -2, "__gc");
+  }
+
+  lua_pop(state, 1);
+}

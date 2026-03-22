@@ -47,26 +47,13 @@ static int newindex_callback(lua_State *state) {
 void director::wire() {
   lua_newtable(L);
 
-  lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, navigate_callback, 1);
-  lua_setfield(L, -2, "navigate");
-
-  lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, destroy_callback, 1);
-  lua_setfield(L, -2, "destroy");
-
-  lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, preload_callback, 1);
-  lua_setfield(L, -2, "preload");
-
-  lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, reset_callback, 1);
-  lua_setfield(L, -2, "reset");
+  bind(L, "navigate", navigate_callback, this);
+  bind(L, "destroy", destroy_callback, this);
+  bind(L, "preload", preload_callback, this);
+  bind(L, "reset", reset_callback, this);
 
   luaL_newmetatable(L, "director");
-  lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, newindex_callback, 1);
-  lua_setfield(L, -2, "__newindex");
+  bind(L, "__newindex", newindex_callback, this);
   lua_setmetatable(L, -2);
 
   lua_setglobal(L, "director");

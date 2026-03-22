@@ -370,14 +370,13 @@ channel::~channel() {
     } catch (...) {}
   }
 
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_connect);
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_disconnect);
+  release(L, _on_connect);
+  release(L, _on_disconnect);
 
   for (auto& [topic, subscribers] : _subscriptions) {
     for (auto* subscriber : subscribers) {
-      luaL_unref(L, LUA_REGISTRYINDEX, subscriber->_callback);
+      release(L, subscriber->_callback);
       subscriber->_active = false;
-      subscriber->_callback = LUA_NOREF;
       subscriber->_owner = nullptr;
     }
   }
@@ -456,11 +455,11 @@ void channel::send(message message) noexcept {
     lws_cancel_service(_context);
 }
 
-void channel::fire(int ref) {
-  if (ref == LUA_NOREF) [[unlikely]]
+void channel::fire(int reference) {
+  if (reference == LUA_NOREF) [[unlikely]]
     return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, reference);
   pcall(L, 0, 0);
 }
 
@@ -507,14 +506,14 @@ void channel::poll() {
   }
 }
 
-void channel::set_on_connect(int ref) noexcept {
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_connect);
-  _on_connect = ref;
+void channel::set_on_connect(int reference) noexcept {
+  release(L, _on_connect);
+  _on_connect = reference;
 }
 
-void channel::set_on_disconnect(int ref) noexcept {
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_disconnect);
-  _on_disconnect = ref;
+void channel::set_on_disconnect(int reference) noexcept {
+  release(L, _on_disconnect);
+  _on_disconnect = reference;
 }
 
 void channel::add_subscription(subscription* subscriber) {
@@ -585,8 +584,7 @@ void subscription::unsubscribe() {
   if (_owner) [[likely]]
     _owner->remove_subscription(this);
 
-  luaL_unref(L, LUA_REGISTRYINDEX, _callback);
-  _callback = LUA_NOREF;
+  release(L, _callback);
 }
 
 const std::string& subscription::topic() const noexcept {
@@ -602,19 +600,8 @@ bool subscription::active() const noexcept {
 }
 
 void websocket::wire() {
-  luaL_newmetatable(L, "Subscription");
-  lua_pushcfunction(L, subscription_index);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, subscription_gc);
-  lua_setfield(L, -2, "__gc");
-  lua_pop(L, 1);
-
-  luaL_newmetatable(L, "WebSocket");
-  lua_pushcfunction(L, websocket_index);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, websocket_gc);
-  lua_setfield(L, -2, "__gc");
-  lua_pop(L, 1);
+  metatable(L, "Subscription", subscription_index, nullptr, subscription_gc);
+  metatable(L, "WebSocket", websocket_index, nullptr, websocket_gc);
 
   lua_newtable(L);
   lua_pushcfunction(L, websocket_call);

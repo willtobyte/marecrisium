@@ -62,13 +62,13 @@ public:
   void add_subscription(subscription* subscription);
   void remove_subscription(subscription* subscription);
 
-  void set_on_connect(int ref) noexcept;
-  void set_on_disconnect(int ref) noexcept;
+  void set_on_connect(int reference) noexcept;
+  void set_on_disconnect(int reference) noexcept;
 
 private:
   friend int lws_callback(struct lws*, enum lws_callback_reasons, void*, void*, size_t);
 
-  void fire(int ref);
+  void fire(int reference);
   void run();
   void connect();
   void reconnect();

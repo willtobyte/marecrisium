@@ -313,10 +313,5 @@ void particle::draw() noexcept {
 }
 
 void particle::wire() {
-  luaL_newmetatable(L, "Particle");
-  lua_pushcfunction(L, particle_index);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, particle_newindex);
-  lua_setfield(L, -2, "__newindex");
-  lua_pop(L, 1);
+  metatable(L, "Particle", particle_index, particle_newindex);
 }
