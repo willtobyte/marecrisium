@@ -175,8 +175,12 @@ void overlay::wire() {
 }
 
 void overlay::set_foreground(std::string_view name) {
+  if (_foreground)
+    _foreground->disappear();
+
   _foreground = std::make_unique<foreground>(name);
   _foreground->expose();
+  _foreground->appear();
 }
 
 void overlay::update(float delta) {

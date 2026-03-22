@@ -13,23 +13,20 @@ public:
 
   void expose();
 
-  struct drawcall {
-    pixmap *texture;
-    float x;
-    float y;
-    float width;
-    float height;
-    uint8_t alpha{255};
-    double angle{};
-  };
+  void appear();
 
-  void enqueue(pixmap *texture, float x, float y, float width, float height, uint8_t alpha, double angle);
+  void disappear();
 
   int _reference{LUA_NOREF};
 
+  pixmap *_texture{nullptr};
+  std::vector<SDL_Vertex> _vertices;
+  std::vector<int32_t> _indices;
+
 private:
-  std::vector<drawcall> _batch;
   int _on_loop{LUA_NOREF};
   int _on_paint{LUA_NOREF};
+  int _on_appear{LUA_NOREF};
+  int _on_disappear{LUA_NOREF};
   int _userdata_reference{LUA_NOREF};
 };

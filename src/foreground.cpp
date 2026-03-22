@@ -1,98 +1,73 @@
 #include "foreground.hpp"
 
 namespace {
-struct sprite {
-  pixmap *texture{nullptr};
-  float x{};
-  float y{};
-  float width{};
-  float height{};
-  uint8_t alpha{255};
-  double angle{};
-};
-
-static_assert(std::is_trivially_copyable_v<sprite>);
-
-int sprite_index(lua_State *state) {
-  auto *s = static_cast<sprite *>(luaL_checkudata(state, 1, "ForegroundSprite"));
-  const std::string_view key = luaL_checkstring(state, 2);
-
-  if (key == "x") {
-    lua_pushnumber(state, static_cast<lua_Number>(s->x));
-    return 1;
-  }
-
-  if (key == "y") {
-    lua_pushnumber(state, static_cast<lua_Number>(s->y));
-    return 1;
-  }
-
-  if (key == "width") {
-    lua_pushnumber(state, static_cast<lua_Number>(s->width));
-    return 1;
-  }
-
-  if (key == "height") {
-    lua_pushnumber(state, static_cast<lua_Number>(s->height));
-    return 1;
-  }
-
-  if (key == "alpha") {
-    lua_pushnumber(state, static_cast<lua_Number>(s->alpha));
-    return 1;
-  }
-
-  if (key == "angle") {
-    lua_pushnumber(state, static_cast<lua_Number>(s->angle));
-    return 1;
-  }
-
-  return lua_pushnil(state), 1;
-}
-
-int sprite_newindex(lua_State *state) {
-  auto *s = static_cast<sprite *>(luaL_checkudata(state, 1, "ForegroundSprite"));
-  const std::string_view key = luaL_checkstring(state, 2);
-
-  if (key == "x") {
-    s->x = static_cast<float>(luaL_checknumber(state, 3));
-    return 0;
-  }
-
-  if (key == "y") {
-    s->y = static_cast<float>(luaL_checknumber(state, 3));
-    return 0;
-  }
-
-  if (key == "alpha") {
-    s->alpha = static_cast<uint8_t>(luaL_checknumber(state, 3));
-    return 0;
-  }
-
-  if (key == "angle") {
-    s->angle = static_cast<double>(luaL_checknumber(state, 3));
-    return 0;
-  }
-
-  return luaL_error(state, "ForegroundSprite: unknown property '%s'", key.data());
-}
+constexpr int STRIDE = 5;
 
 int foreground_draw(lua_State *state) {
   auto **ptr = static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
   auto *self = *ptr;
-  auto *s = static_cast<sprite *>(luaL_checkudata(state, 2, "ForegroundSprite"));
-  const auto x = static_cast<float>(luaL_checknumber(state, 3));
-  const auto y = static_cast<float>(luaL_checknumber(state, 4));
-  const auto width = static_cast<float>(luaL_checknumber(state, 5));
-  const auto height = static_cast<float>(luaL_checknumber(state, 6));
-  const auto alpha = lua_isnumber(state, 7)
-    ? static_cast<uint8_t>(lua_tonumber(state, 7))
-    : static_cast<uint8_t>(255);
-  const auto angle = lua_isnumber(state, 8)
-    ? static_cast<double>(lua_tonumber(state, 8))
-    : .0;
+  luaL_checktype(state, 2, LUA_TTABLE);
+  const auto count = static_cast<int>(luaL_checknumber(state, 3));
 
-  self->enqueue(s->texture, x, y, width, height, alpha, angle);
+  if (count <= 0 || count % STRIDE != 0) [[unlikely]]
+    return 0;
+
+  auto &vertices = self->_vertices;
+  auto &indices = self->_indices;
+
+  vertices.clear();
+  indices.clear();
+
+  const auto quads = count / STRIDE;
+
+  for (auto q = 0; q < quads; ++q) {
+    const auto base_idx = q * STRIDE;
+
+    lua_rawgeti(state, 2, base_idx + 1);
+    lua_rawgeti(state, 2, base_idx + 2);
+    lua_rawgeti(state, 2, base_idx + 3);
+    lua_rawgeti(state, 2, base_idx + 4);
+    lua_rawgeti(state, 2, base_idx + 5);
+
+    const auto x = static_cast<float>(lua_tonumber(state, -5));
+    const auto y = static_cast<float>(lua_tonumber(state, -4));
+    const auto w = static_cast<float>(lua_tonumber(state, -3));
+    const auto h = static_cast<float>(lua_tonumber(state, -2));
+    const auto alpha = static_cast<float>(lua_tonumber(state, -1)) / 255.f;
+
+    lua_pop(state, 5);
+
+    if (alpha <= .0f) [[unlikely]]
+      continue;
+
+    const SDL_FColor color{1.f, 1.f, 1.f, alpha};
+    const auto base = static_cast<int32_t>(vertices.size());
+
+    vertices.emplace_back(SDL_Vertex{{x, y}, color, {.0f, .0f}});
+    vertices.emplace_back(SDL_Vertex{{x + w, y}, color, {1.f, .0f}});
+    vertices.emplace_back(SDL_Vertex{{x + w, y + h}, color, {1.f, 1.f}});
+    vertices.emplace_back(SDL_Vertex{{x, y + h}, color, {.0f, 1.f}});
+
+    indices.emplace_back(base);
+    indices.emplace_back(base + 1);
+    indices.emplace_back(base + 2);
+    indices.emplace_back(base);
+    indices.emplace_back(base + 2);
+    indices.emplace_back(base + 3);
+  }
+
+  if (vertices.empty()) [[unlikely]]
+    return 0;
+
+  SDL_RenderGeometry(
+    renderer,
+    static_cast<SDL_Texture *>(*self->_texture),
+    vertices.data(),
+    static_cast<int>(vertices.size()),
+    indices.data(),
+    static_cast<int>(indices.size())
+  );
+
   return 0;
 }
 
@@ -133,7 +108,11 @@ int foreground_index(lua_State *state) {
 }
 
 foreground::foreground(std::string_view name) {
-  _batch.reserve(256);
+  _vertices.reserve(2048);
+  _indices.reserve(3072);
+
+  auto &p = depot->pixmap.get(std::format("foregrounds/{}/pixmap", name));
+  _texture = &p;
 
   const auto filename = std::format("foregrounds/{}.lua", name);
   const auto buffer = io::read(filename);
@@ -153,39 +132,28 @@ foreground::foreground(std::string_view name) {
     throw std::runtime_error{std::move(error)};
   }
 
-  lua_getfield(L, -1, "pixmaps");
-  if (lua_istable(L, -1)) {
-    const auto count = static_cast<int>(lua_objlen(L, -1));
-
-    for (int i = 1; i <= count; ++i) {
-      lua_rawgeti(L, -1, i);
-
-      if (lua_isstring(L, -1)) {
-        const std::string pixmap_name{lua_tostring(L, -1)};
-        auto &p = depot->pixmap.get(std::format("foregrounds/{}", pixmap_name));
-
-        lua_pop(L, 1);
-
-        auto *memory = static_cast<sprite *>(lua_newuserdata(L, sizeof(sprite)));
-        new (memory) sprite{};
-        memory->texture = &p;
-        memory->width = static_cast<float>(p.width());
-        memory->height = static_cast<float>(p.height());
-
-        luaL_getmetatable(L, "ForegroundSprite");
-        lua_setmetatable(L, -2);
-
-        lua_setfield(L, -3, pixmap_name.c_str());
-      } else {
-        lua_pop(L, 1);
-      }
-    }
-  }
-  lua_pop(L, 1);
+  lua_newtable(L);
+  lua_pushnumber(L, static_cast<lua_Number>(p.width()));
+  lua_setfield(L, -2, "width");
+  lua_pushnumber(L, static_cast<lua_Number>(p.height()));
+  lua_setfield(L, -2, "height");
+  lua_setfield(L, -2, "pixmap");
 
   _reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+
+  lua_getfield(L, -1, "on_appear");
+  if (lua_isfunction(L, -1))
+    _on_appear = luaL_ref(L, LUA_REGISTRYINDEX);
+  else
+    lua_pop(L, 1);
+
+  lua_getfield(L, -1, "on_disappear");
+  if (lua_isfunction(L, -1))
+    _on_disappear = luaL_ref(L, LUA_REGISTRYINDEX);
+  else
+    lua_pop(L, 1);
 
   lua_getfield(L, -1, "on_loop");
   if (lua_isfunction(L, -1))
@@ -201,8 +169,8 @@ foreground::foreground(std::string_view name) {
 
   lua_pop(L, 1);
 
-  auto **memory = static_cast<foreground **>(lua_newuserdata(L, sizeof(foreground *)));
-  *memory = this;
+  auto **ud = static_cast<foreground **>(lua_newuserdata(L, sizeof(foreground *)));
+  *ud = this;
 
   luaL_getmetatable(L, "Foreground");
   lua_setmetatable(L, -2);
@@ -210,20 +178,16 @@ foreground::foreground(std::string_view name) {
 }
 
 foreground::~foreground() {
+  disappear();
   luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_disappear);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_appear);
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _userdata_reference);
 }
 
 void foreground::wire() {
-  luaL_newmetatable(L, "ForegroundSprite");
-  lua_pushcfunction(L, sprite_index);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, sprite_newindex);
-  lua_setfield(L, -2, "__newindex");
-  lua_pop(L, 1);
-
   luaL_newmetatable(L, "Foreground");
   lua_pushcfunction(L, foreground_index);
   lua_setfield(L, -2, "__index");
@@ -235,8 +199,38 @@ void foreground::expose() {
   lua_setglobal(L, "foreground");
 }
 
-void foreground::enqueue(pixmap *texture, float x, float y, float width, float height, uint8_t alpha, double angle) {
-  _batch.push_back({texture, x, y, width, height, alpha, angle});
+void foreground::appear() {
+  if (_on_appear == LUA_NOREF)
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _on_appear);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_appear);
+  _on_appear = LUA_NOREF;
+
+  if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
+    std::string error{lua_tostring(L, -1)};
+    lua_pop(L, 1);
+    throw std::runtime_error{std::move(error)};
+  }
+}
+
+void foreground::disappear() {
+  if (_on_disappear == LUA_NOREF)
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disappear);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_disappear);
+  _on_disappear = LUA_NOREF;
+
+  if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
+    std::string error{lua_tostring(L, -1)};
+    lua_pop(L, 1);
+    throw std::runtime_error{std::move(error)};
+  }
 }
 
 void foreground::update(float delta) {
@@ -254,8 +248,6 @@ void foreground::update(float delta) {
 }
 
 void foreground::draw() {
-  _batch.clear();
-
   if (_on_paint != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_reference);
@@ -265,18 +257,5 @@ void foreground::draw() {
       lua_pop(L, 1);
       throw std::runtime_error{std::move(error)};
     }
-  }
-
-  for (const auto &prop : _batch) {
-    if (prop.alpha == 0) [[unlikely]]
-      continue;
-
-    const auto pw = static_cast<float>(prop.texture->width());
-    const auto ph = static_cast<float>(prop.texture->height());
-    prop.texture->draw(
-      .0f, .0f, pw, ph,
-      prop.x, prop.y, prop.width, prop.height,
-      prop.angle, prop.alpha
-    );
   }
 }
