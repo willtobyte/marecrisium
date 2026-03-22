@@ -123,11 +123,11 @@ void engine::loop() {
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
-      case SDL_EVENT_QUIT: {
+      case SDL_EVENT_QUIT:
         _running = false;
-      } break;
+        break;
 
-      case SDL_EVENT_KEY_UP: {
+      case SDL_EVENT_KEY_UP:
         switch (event.key.key) {
           case SDLK_F11: {
             auto *const window = SDL_GetRenderWindow(renderer);
@@ -138,7 +138,7 @@ void engine::loop() {
           default:
             break;
         }
-      } break;
+        break;
 
       default:
         break;

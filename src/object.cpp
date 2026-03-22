@@ -72,18 +72,18 @@ namespace {
 
     if (key == "flip") {
       switch (registry.get<transform>(entity).flip) {
-        case flipmode::horizontal: {
+        case flipmode::horizontal:
           lua_pushstring(state, "horizontal");
-        } break;
-        case flipmode::vertical: {
+          break;
+        case flipmode::vertical:
           lua_pushstring(state, "vertical");
-        } break;
-        case flipmode::both: {
+          break;
+        case flipmode::both:
           lua_pushstring(state, "both");
-        } break;
-        default: {
+          break;
+        default:
           lua_pushstring(state, "none");
-        } break;
+          break;
       }
 
       return 1;
@@ -333,6 +333,7 @@ namespace {
             const auto position = b2Body_GetPosition(bd->id);
             b2Body_SetTransform(bd->id, position, b2MakeRot(to_radians(tf.angle)));
           } break;
+
           case body_type::dynamic:
           case body_type::kinematic:
             break;

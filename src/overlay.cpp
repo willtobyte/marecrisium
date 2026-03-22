@@ -3,9 +3,9 @@
 static bool on_event(void *userdata, SDL_Event *event) {
   auto *self = static_cast<overlay *>(userdata);
   switch (event->type) {
-    case SDL_EVENT_TEXT_INPUT: {
+    case SDL_EVENT_TEXT_INPUT:
       // std::println("{}", event->text.text);
-    } break;
+      break;
 
     default:
       break;

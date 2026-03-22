@@ -13,26 +13,26 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
   const auto type = yyjson_get_type(val);
 
   switch (type) {
-    case YYJSON_TYPE_NULL: {
+    case YYJSON_TYPE_NULL:
       lua_pushnil(state);
-    } break;
+      break;
 
-    case YYJSON_TYPE_BOOL: {
+    case YYJSON_TYPE_BOOL:
       lua_pushboolean(state, yyjson_get_bool(val) ? 1 : 0);
-    } break;
+      break;
 
-    case YYJSON_TYPE_NUM: {
+    case YYJSON_TYPE_NUM:
       if (yyjson_is_int(val)) [[likely]]
         lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_int(val)));
       else if (yyjson_is_uint(val))
         lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_uint(val)));
       else
         lua_pushnumber(state, yyjson_get_real(val));
-    } break;
+      break;
 
-    case YYJSON_TYPE_STR: {
+    case YYJSON_TYPE_STR:
       lua_pushstring(state, yyjson_get_str(val));
-    } break;
+      break;
 
     case YYJSON_TYPE_ARR: {
       lua_createtable(state, static_cast<int>(yyjson_arr_size(val)), 0);
@@ -58,9 +58,9 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
       }
     } break;
 
-    default: [[unlikely]] {
+    default: [[unlikely]]
       lua_pushnil(state);
-    } break;
+      break;
   }
 }
 
@@ -82,21 +82,17 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
   const auto type = lua_type(state, abs);
 
   switch (type) {
-    case LUA_TNIL: {
+    case LUA_TNIL:
       return yyjson_mut_null(document);
-    }
 
-    case LUA_TBOOLEAN: {
+    case LUA_TBOOLEAN:
       return yyjson_mut_bool(document, lua_toboolean(state, abs) != 0);
-    }
 
-    case LUA_TNUMBER: {
+    case LUA_TNUMBER:
       return yyjson_mut_real(document, lua_tonumber(state, abs));
-    }
 
-    case LUA_TSTRING: {
+    case LUA_TSTRING:
       return yyjson_mut_str(document, lua_tostring(state, abs));
-    }
 
     case LUA_TTABLE: {
       if (lua_table_is_array(state, abs)) [[likely]] {
@@ -125,9 +121,8 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
       return object;
     }
 
-    default: [[unlikely]] {
+    default: [[unlikely]]
       return yyjson_mut_null(document);
-    }
   }
 }
 
@@ -285,19 +280,19 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
   auto* ws = static_cast<channel*>(lws_context_user(context));
 
   switch (reason) {
-    case LWS_CALLBACK_CLIENT_ESTABLISHED: {
+    case LWS_CALLBACK_CLIENT_ESTABLISHED:
       ws->_connected.store(true, std::memory_order_release);
       ws->_pending_connect.store(true, std::memory_order_release);
       ws->resubscribe();
       lws_set_timer_usecs(wsi, 15 * LWS_USEC_PER_SEC);
       lws_callback_on_writable(wsi);
-    } break;
+      break;
 
-    case LWS_CALLBACK_TIMER: {
+    case LWS_CALLBACK_TIMER:
       ws->_pending_ping.store(true, std::memory_order_release);
       lws_set_timer_usecs(wsi, 15 * LWS_USEC_PER_SEC);
       lws_callback_on_writable(wsi);
-    } break;
+      break;
 
     case LWS_CALLBACK_CLIENT_RECEIVE: [[likely]] {
       const auto* const text = static_cast<const char*>(in);
@@ -339,11 +334,11 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
     } break;
 
     case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
-    case LWS_CALLBACK_CLIENT_CLOSED: [[unlikely]] {
+    case LWS_CALLBACK_CLIENT_CLOSED: [[unlikely]]
       ws->_connected.store(false, std::memory_order_release);
       ws->_wsi.store(nullptr, std::memory_order_release);
       ws->_pending_disconnect.store(true, std::memory_order_release);
-    } break;
+      break;
 
     default:
       break;
