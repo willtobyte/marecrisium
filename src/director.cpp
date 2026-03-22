@@ -131,9 +131,12 @@ void director::transition() {
   auto it = _stages.find(*_pending);
 
   if (it == _stages.end()) {
+    const auto before = SDL_GetPerformanceCounter();
     auto s = std::make_unique<stage>(*_pending);
-    auto [inserted, _] = _stages.emplace(std::move(*_pending), std::move(s));
-    it = inserted;
+    it = _stages.emplace(std::move(*_pending), std::move(s)).first;
+    const auto after = SDL_GetPerformanceCounter();
+    const auto elapsed = static_cast<double>(after - before) / static_cast<double>(SDL_GetPerformanceFrequency()) * 1000.0;
+    std::println("[director] stage took {:.2f}ms", elapsed);
   }
 
   _pending.reset();
