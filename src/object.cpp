@@ -7,13 +7,11 @@ namespace {
     auto oy = .0f;
     if (an && an->playing && an->clip_count > 0) {
       const auto& fr = an->clips[an->active].frames[an->current];
-      ox = fr.cx * tf.scale;
-      oy = fr.cy * tf.scale;
+      ox = fr.cx;
+      oy = fr.cy;
     }
 
-    const auto r = bd.type == body_type::stationary ? b2MakeRot(to_radians(tf.angle)) : b2MakeRot(.0f);
-
-    b2Body_SetTransform(bd.id, {tf.x + ox + bd.cached_hx, tf.y + oy + bd.cached_hy}, r);
+    b2Body_SetTransform(bd.id, {tf.x + ox + bd.cached_hx, tf.y + oy + bd.cached_hy}, b2Rot_identity);
   }
 
   int object_index(lua_State* state) {
@@ -323,23 +321,7 @@ namespace {
     }
 
     if (key == "angle") {
-      auto& tf = registry.get<transform>(entity);
-      tf.angle = static_cast<float>(luaL_checknumber(state, 3));
-
-      auto* bd = registry.try_get<body>(entity);
-      if (bd && b2Body_IsValid(bd->id)) {
-        switch (bd->type) {
-          case body_type::stationary: {
-            const auto position = b2Body_GetPosition(bd->id);
-            b2Body_SetTransform(bd->id, position, b2MakeRot(to_radians(tf.angle)));
-          } break;
-
-          case body_type::dynamic:
-          case body_type::kinematic:
-            break;
-        }
-      }
-
+      registry.get<transform>(entity).angle = static_cast<float>(luaL_checknumber(state, 3));
       return 0;
     }
 

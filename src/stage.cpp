@@ -11,8 +11,8 @@ static entt::entity to_entity(const void* p) noexcept {
 }
 
 static b2Vec2 body_center(const transform& tf, const frame& fr, const body& bd) noexcept {
-  return {tf.x + fr.cx * tf.scale + bd.cached_hx,
-          tf.y + fr.cy * tf.scale + bd.cached_hy};
+  return {tf.x + fr.cx + bd.cached_hx,
+          tf.y + fr.cy + bd.cached_hy};
 }
 
 static void on_objectproxy_destroy(entt::registry& registry, entt::entity entity) {
@@ -608,23 +608,9 @@ void stage::update(float delta) {
   while (_accumulator >= _timestep) {
     for (auto&& [en, bd, an, tf] :
          _registry.view<body, animation, transform>(entt::exclude<dormant>).each()) {
-      const auto active = an.playing && an.clip_count > 0;
       const auto& frame = an.clips[an.active].frames[an.current];
-      const auto visible = active && frame.collidable &&
-                           tf.alpha > .0f && frame.cw > .0f && frame.ch > .0f;
-
-      if (!visible) {
-        if (b2Shape_IsValid(bd.shape)) {
-          b2DestroyShape(bd.shape, false);
-          bd.shape = b2_nullShapeId;
-          bd.cached_hx = .0f;
-          bd.cached_hy = .0f;
-        }
-        continue;
-      }
-
-      const auto hx = frame.cw * tf.scale * .5f;
-      const auto hy = frame.ch * tf.scale * .5f;
+      const auto hx = frame.cw * .5f;
+      const auto hy = frame.ch * .5f;
 
       if (!b2Shape_IsValid(bd.shape)) {
         const auto polygon = b2MakeBox(hx, hy);
@@ -645,12 +631,10 @@ void stage::update(float delta) {
 
         const auto center = body_center(tf, frame, bd);
 
-        if (bd.type == body_type::kinematic) {
-          b2Body_SetTargetTransform(bd.id, {center, b2MakeRot(to_radians(tf.angle))}, _timestep);
-        } else {
-          const auto rot = bd.type == body_type::dynamic ? b2MakeRot(.0f) : b2MakeRot(to_radians(tf.angle));
-          b2Body_SetTransform(bd.id, center, rot);
-        }
+        if (bd.type == body_type::kinematic)
+          b2Body_SetTargetTransform(bd.id, {center, b2Rot_identity}, _timestep);
+        else
+          b2Body_SetTransform(bd.id, center, b2Rot_identity);
 
         continue;
       }
@@ -664,7 +648,7 @@ void stage::update(float delta) {
 
       if (bd.type == body_type::kinematic) {
         const auto center = body_center(tf, frame, bd);
-        b2Body_SetTargetTransform(bd.id, {center, b2MakeRot(to_radians(tf.angle))}, _timestep);
+        b2Body_SetTargetTransform(bd.id, {center, b2Rot_identity}, _timestep);
       }
     }
 
@@ -1368,7 +1352,7 @@ entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexc
   entt::entity topmost = entt::null;
 
   for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
-    if (!tf.shown || tf.alpha <= .0f) [[unlikely]]
+    if (!tf.shown) [[unlikely]]
       continue;
 
     for (const auto hit : hits) {
