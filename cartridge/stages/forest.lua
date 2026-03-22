@@ -3,7 +3,7 @@ local scheduler = require("helpers/scheduler")
 return scheduler.wrap({
 	tilemap = "forest",
 
-	overlay = { widgets = "hud", foreground = "mist" },
+	overlay = { widgets = "hud" }, --, foreground = "mist" },
 
 	particles = {
 		{ name = "smoke", kind = "smoke", x = 50, y = 100 },
