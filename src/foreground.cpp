@@ -191,20 +191,9 @@ void foreground::disappear() {
 }
 
 void foreground::update(float delta) {
-  if (_on_loop != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    lua_pushnumber(L, static_cast<lua_Number>(delta));
-
-    pcall(L, 2, 0);
-  }
+  invoke(L, _on_loop, _reference, delta);
 }
 
 void foreground::draw() {
-  if (_on_paint != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_reference);
-
-    pcall(L, 1, 0);
-  }
+  invoke(L, _on_paint, _userdata_reference);
 }

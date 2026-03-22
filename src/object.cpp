@@ -292,19 +292,10 @@ namespace {
             if (proxy->handle != LUA_NOREF) {
               const auto* strings = registry.ctx().get<stringpool*>();
 
-              if (previous != 0 && previous != hash && proxy->on_animation_end != LUA_NOREF) {
-                lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
-                lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-                lua_pushstring(state, strings->get(previous));
-                pcall(state, 2, 0);
-              }
+              if (previous != 0 && previous != hash)
+                invoke(state, proxy->on_animation_end, proxy->handle, strings->get(previous));
 
-              if (proxy->on_animation_begin != LUA_NOREF) {
-                lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
-                lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-                lua_pushstring(state, strings->get(hash));
-                pcall(state, 2, 0);
-              }
+              invoke(state, proxy->on_animation_begin, proxy->handle, strings->get(hash));
             }
 
             return 0;

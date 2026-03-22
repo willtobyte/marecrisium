@@ -141,25 +141,14 @@ void overlay::update(float delta) {
   if (_foreground)
     _foreground->update(delta);
 
-  if (_on_loop != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    lua_pushnumber(L, static_cast<lua_Number>(delta));
-
-    pcall(L, 2, 0);
-  }
+  invoke(L, _on_loop, _reference, delta);
 }
 
 void overlay::draw() {
   if (_foreground)
     _foreground->draw();
 
-  if (_on_paint != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-
-    pcall(L, 1, 0);
-  }
+  invoke(L, _on_paint, _reference);
 }
 
 void overlay::expose() {

@@ -157,3 +157,34 @@ template <>
 void release(lua_State *state, int &handle) noexcept;
 void bind(lua_State *state, const char *name, lua_CFunction fn, void *upvalue) noexcept;
 void metatable(lua_State *state, const char *name, lua_CFunction index, lua_CFunction newindex = nullptr, lua_CFunction gc = nullptr) noexcept;
+
+static void push(lua_State *) {}
+
+template <typename T, typename... Rest>
+static void push(lua_State *state, T first, Rest... rest) {
+  if constexpr (std::is_same_v<T, int>)
+    lua_pushinteger(state, static_cast<lua_Integer>(first));
+  else if constexpr (std::is_same_v<T, float>)
+    lua_pushnumber(state, static_cast<lua_Number>(first));
+  else if constexpr (std::is_same_v<T, bool>)
+    lua_pushboolean(state, first ? 1 : 0);
+  else if constexpr (std::is_same_v<T, const char *>)
+    lua_pushstring(state, first);
+  else if constexpr (std::is_same_v<T, std::string_view>)
+    lua_pushlstring(state, first.data(), first.size());
+  else if constexpr (std::is_same_v<T, std::string>)
+    lua_pushlstring(state, first.data(), first.size());
+  else
+    static_assert(sizeof(T) == 0, "unsupported type for invoke");
+  push(state, rest...);
+}
+
+template <typename... Args>
+void invoke(lua_State *state, int callback, int self, Args... args) {
+  if (callback == LUA_NOREF) [[unlikely]]
+    return;
+  lua_rawgeti(state, LUA_REGISTRYINDEX, callback);
+  lua_rawgeti(state, LUA_REGISTRYINDEX, self);
+  push(state, args...);
+  pcall(state, 1 + static_cast<int>(sizeof...(args)), 0);
+}

@@ -370,13 +370,7 @@ void stage::invoke(const char *callback) {
 }
 
 void stage::on_tick(uint64_t tick) {
-  if (_on_tick != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_tick);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    lua_pushnumber(L, static_cast<lua_Number>(tick));
-
-    pcall(L, 2, 0);
-  }
+  ::invoke(L, _on_tick, _reference, static_cast<float>(tick));
 }
 
 void stage::update(float delta) {
@@ -426,25 +420,13 @@ void stage::update(float delta) {
     }
   }
 
-  if (_on_loop != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    lua_pushnumber(L, static_cast<lua_Number>(delta));
-
-    pcall(L, 2, 0);
-  }
+  ::invoke(L, _on_loop, _reference, delta);
 
   for (auto&& [entity, proxy] : _registry.view<objectproxy>(entt::exclude<dormant>).each()) {
     if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
       continue;
 
-    if (proxy.on_loop != LUA_NOREF) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_loop);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-      lua_pushnumber(L, static_cast<lua_Number>(delta));
-
-      pcall(L, 2, 0);
-    }
+    ::invoke(L, proxy.on_loop, proxy.handle, delta);
 
     auto* a = _registry.try_get<animation>(entity);
     if (!a || !a->playing || a->clip_count == 0)
@@ -464,21 +446,8 @@ void stage::update(float delta) {
       if (a->current >= c.count) {
         a->current = 0;
 
-        if (proxy.on_animation_end != LUA_NOREF) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_animation_end);
-          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-          lua_pushstring(L, _stringpool.get(c.name));
-
-          pcall(L, 2, 0);
-        }
-
-        if (proxy.on_animation_begin != LUA_NOREF) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_animation_begin);
-          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-          lua_pushstring(L, _stringpool.get(c.name));
-
-          pcall(L, 2, 0);
-        }
+        ::invoke(L, proxy.on_animation_end, proxy.handle, _stringpool.get(c.name));
+        ::invoke(L, proxy.on_animation_begin, proxy.handle, _stringpool.get(c.name));
       }
     }
   }
