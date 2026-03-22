@@ -162,15 +162,15 @@ foreground::foreground(std::string_view name) {
 
       if (lua_isstring(L, -1)) {
         const std::string pixmap_name{lua_tostring(L, -1)};
-        auto &pm = depot->pixmap.get(std::format("foregrounds/{}", pixmap_name));
+        auto &p = depot->pixmap.get(std::format("foregrounds/{}", pixmap_name));
 
         lua_pop(L, 1);
 
         auto *memory = static_cast<sprite *>(lua_newuserdata(L, sizeof(sprite)));
         new (memory) sprite{};
-        memory->texture = &pm;
-        memory->width = static_cast<float>(pm.width());
-        memory->height = static_cast<float>(pm.height());
+        memory->texture = &p;
+        memory->width = static_cast<float>(p.width());
+        memory->height = static_cast<float>(p.height());
 
         luaL_getmetatable(L, "ForegroundSprite");
         lua_setmetatable(L, -2);
@@ -267,15 +267,16 @@ void foreground::draw() {
     }
   }
 
-  for (const auto &dc : _batch) {
-    if (dc.alpha > 0 && dc.texture) {
-      const auto pw = static_cast<float>(dc.texture->width());
-      const auto ph = static_cast<float>(dc.texture->height());
-      dc.texture->draw(
-        .0f, .0f, pw, ph,
-        dc.x, dc.y, dc.width, dc.height,
-        dc.angle, dc.alpha
-      );
-    }
+  for (const auto &prop : _batch) {
+    if (prop.alpha == 0) [[unlikely]]
+      continue;
+
+    const auto pw = static_cast<float>(prop.texture->width());
+    const auto ph = static_cast<float>(prop.texture->height());
+    prop.texture->draw(
+      .0f, .0f, pw, ph,
+      prop.x, prop.y, prop.width, prop.height,
+      prop.angle, prop.alpha
+    );
   }
 }
