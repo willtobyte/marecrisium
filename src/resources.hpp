@@ -10,7 +10,7 @@
 #include "soundpool.hpp"
 #include "sourcepool.hpp"
 
-struct resources {
+struct resources final {
   fontpool font;
   particlepool particle;
   pixmappool pixmap;
