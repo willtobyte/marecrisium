@@ -52,7 +52,7 @@ return {
 
 	on_damage = function(self)
 		print("on damage " .. self.name)
-		foreground:bump()
+		-- foreground:bump()
 	end,
 
 	on_mouse_down = function(self, x, y, button)
