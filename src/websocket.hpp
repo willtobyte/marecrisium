@@ -68,7 +68,6 @@ public:
 private:
   friend int lws_callback(struct lws*, enum lws_callback_reasons, void*, void*, size_t);
 
-  void fire(int reference);
   void run();
   void connect();
   void reconnect();

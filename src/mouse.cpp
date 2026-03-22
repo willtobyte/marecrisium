@@ -20,15 +20,11 @@ static int mouse_index(lua_State *state) {
   x += viewport.x;
   y += viewport.y;
 
-  if (key == "x") {
-    lua_pushnumber(state, static_cast<double>(x));
-    return 1;
-  }
+  if (key == "x")
+    return push(state, x);
 
-  if (key == "y") {
-    lua_pushnumber(state, static_cast<double>(y));
-    return 1;
-  }
+  if (key == "y")
+    return push(state, y);
 
   if (key == "position") {
     lua_pushcfunction(state, mouse_position);
@@ -37,22 +33,18 @@ static int mouse_index(lua_State *state) {
 
   if (key == "button") {
     if (button & SDL_BUTTON_MASK(SDL_BUTTON_LEFT))
-      return lua_pushinteger(state, SDL_BUTTON_LEFT), 1;
+      return push(state, SDL_BUTTON_LEFT);
     if (button & SDL_BUTTON_MASK(SDL_BUTTON_MIDDLE))
-      return lua_pushinteger(state, SDL_BUTTON_MIDDLE), 1;
+      return push(state, SDL_BUTTON_MIDDLE);
     if (button & SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))
-      return lua_pushinteger(state, SDL_BUTTON_RIGHT), 1;
-    lua_pushinteger(state, 0);
-    return 1;
+      return push(state, SDL_BUTTON_RIGHT);
+    return push(state, 0);
   }
 
-  if (key == "shown") {
-    lua_pushboolean(state, SDL_CursorVisible());
-    return 1;
-  }
+  if (key == "shown")
+    return push(state, SDL_CursorVisible());
 
-  lua_pushnil(state);
-  return 1;
+  return lua_pushnil(state), 1;
 }
 
 static int mouse_newindex(lua_State *state) {
@@ -71,8 +63,5 @@ static int mouse_newindex(lua_State *state) {
 void mouse::wire() {
   metatable(L, "Mouse", mouse_index, mouse_newindex);
 
-  lua_newuserdata(L, 1);
-  luaL_getmetatable(L, "Mouse");
-  lua_setmetatable(L, -2);
-  lua_setglobal(L, "mouse");
+  singleton(L, "Mouse", "mouse");
 }

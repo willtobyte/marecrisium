@@ -77,7 +77,7 @@ static void on_object_destroy(entt::registry& registry, entt::entity entity) {
 }
 
 static int world_raycast(lua_State* state) {
-  auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto* self = upvalue<stage>(state);
   const auto* caller = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
   const auto x = static_cast<float>(luaL_checknumber(state, 2));
   const auto y = static_cast<float>(luaL_checknumber(state, 3));
@@ -87,7 +87,7 @@ static int world_raycast(lua_State* state) {
 }
 
 static int world_radar(lua_State* state) {
-  auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto* self = upvalue<stage>(state);
   const auto* caller = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
   const auto x = static_cast<float>(luaL_checknumber(state, 2));
   const auto y = static_cast<float>(luaL_checknumber(state, 3));
@@ -96,14 +96,14 @@ static int world_radar(lua_State* state) {
 }
 
 static int world_at(lua_State* state) {
-  auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto* self = upvalue<stage>(state);
   const auto x = static_cast<float>(luaL_checknumber(state, 1));
   const auto y = static_cast<float>(luaL_checknumber(state, 2));
   return self->at(state, x, y);
 }
 
 static int world_pathfind(lua_State* state) {
-  auto* self    = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto* self = upvalue<stage>(state);
   const auto x1 = static_cast<float>(luaL_checknumber(state, 1));
   const auto y1 = static_cast<float>(luaL_checknumber(state, 2));
   const auto x2 = static_cast<float>(luaL_checknumber(state, 3));
@@ -113,7 +113,7 @@ static int world_pathfind(lua_State* state) {
 }
 
 static int world_spawn(lua_State* state) {
-  auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto* self = upvalue<stage>(state);
   const std::string_view name(luaL_checkstring(state, 1));
   const std::string_view kind(luaL_checkstring(state, 2));
   const auto x = static_cast<float>(luaL_checknumber(state, 3));
@@ -122,7 +122,7 @@ static int world_spawn(lua_State* state) {
 }
 
 static int world_destroy(lua_State* state) {
-  auto* self = static_cast<stage*>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto* self = upvalue<stage>(state);
   return self->destroy(state);
 }
 
@@ -219,10 +219,7 @@ stage::stage(std::string_view name)
         const auto loop = get<bool>(L, -1, "loop");
 
         auto& instance = depot->sound.get(std::format("sounds/{}", sound_name));
-        auto** memory = static_cast<sound**>(lua_newuserdata(L, sizeof(sound*)));
-        *memory = &instance;
-        luaL_getmetatable(L, "Sound");
-        lua_setmetatable(L, -2);
+        pushuserdata(L, &instance, "Sound");
 
         lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
         lua_pushvalue(L, -2);
@@ -293,10 +290,7 @@ stage::stage(std::string_view name)
         instance.set_sound(&fx, particle_distance, particle_volume);
       }
 
-      auto** memory = static_cast<particle**>(lua_newuserdata(L, sizeof(particle*)));
-      *memory = &instance;
-      luaL_getmetatable(L, "Particle");
-      lua_setmetatable(L, -2);
+      pushuserdata(L, &instance, "Particle");
 
       lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
       lua_pushvalue(L, -2);
@@ -383,7 +377,7 @@ void stage::update(float delta) {
           b2Body_Enable(bd->id);
         }
         _registry.remove<dormant>(entity);
-        dispatch_dormancy(proxy, "on_wake");
+        call(L, proxy.prototype, proxy.handle, "on_wake");
       }
     } else if (offscreen) {
       if (!_registry.all_of<dormant>(entity)) {
@@ -397,7 +391,7 @@ void stage::update(float delta) {
           b2Body_Disable(bd->id);
         }
 
-        dispatch_dormancy(proxy, "on_sleep");
+        call(L, proxy.prototype, proxy.handle, "on_sleep");
       }
     }
   }
@@ -581,9 +575,9 @@ void stage::update(float delta) {
           for (uint8_t bit = 0; bit < 4; ++bit) {
             const auto mask = static_cast<uint8_t>(1u << bit);
             if (exited & mask)
-              dispatch_screen_event(*proxy, "on_screen_exit", directions[bit]);
+              call(L, proxy->prototype, proxy->handle, "on_screen_exit", directions[bit]);
             if (entered & mask)
-              dispatch_screen_event(*proxy, "on_screen_enter", directions[bit]);
+              call(L, proxy->prototype, proxy->handle, "on_screen_enter", directions[bit]);
           }
 
           sb->previous = current;
@@ -709,32 +703,6 @@ void stage::draw() {
 #endif
 }
 
-void stage::dispatch_dormancy(const objectproxy& proxy, const char* callback) {
-  dispatch_screen_event(proxy, callback, {});
-}
-
-void stage::dispatch_screen_event(const objectproxy& proxy, const char* callback, std::string_view direction) {
-  if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
-    return;
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-  lua_getfield(L, -1, callback);
-
-  if (lua_isfunction(L, -1)) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-
-    if (!direction.empty()) {
-      lua_pushlstring(L, direction.data(), direction.size());
-      pcall(L, 2, 0);
-    } else {
-      pcall(L, 1, 0);
-    }
-  } else {
-    lua_pop(L, 1);
-  }
-
-  lua_pop(L, 1);
-}
 
 void stage::dispatch_collision(entt::entity entity, entt::entity other, const char* callback, const b2Vec2* normal) {
   if (!_registry.valid(entity) || !_registry.valid(other)) return;
@@ -744,30 +712,13 @@ void stage::dispatch_collision(entt::entity entity, entt::entity other, const ch
   const auto& self = _registry.get<objectproxy>(entity);
   const auto& target = _registry.get<objectproxy>(other);
 
-  if (self.prototype == LUA_NOREF ||
-      self.handle == LUA_NOREF) return;
+  const auto* name = _stringpool.get(target.name);
+  const auto* kind = _stringpool.get(target.kind);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, self.prototype);
-  lua_getfield(L, -1, callback);
-
-  if (lua_isfunction(L, -1)) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, self.handle);
-    lua_pushstring(L, _stringpool.get(target.name));
-    lua_pushstring(L, _stringpool.get(target.kind));
-
-    auto argc = 3;
-    if (normal) {
-      lua_pushnumber(L, static_cast<double>(normal->x));
-      lua_pushnumber(L, static_cast<double>(normal->y));
-      argc = 5;
-    }
-
-    pcall(L, argc, 0);
-  } else {
-    lua_pop(L, 1);
-  }
-
-  lua_pop(L, 1);
+  if (normal)
+    call(L, self.prototype, self.handle, callback, name, kind, normal->x, normal->y);
+  else
+    call(L, self.prototype, self.handle, callback, name, kind);
 }
 
 
@@ -1022,18 +973,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       _registry.emplace<sleepable>(entity);
   }
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
-  lua_getfield(L, -1, "on_spawn");
-
-  if (lua_isfunction(L, -1)) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
-
-    pcall(L, 1, 0);
-  } else {
-    lua_pop(L, 1);
-  }
-
-  lua_pop(L, 1);
+  call(L, prototype, handle, "on_spawn");
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
   lua_rawgeti(L, LUA_REGISTRYINDEX, handle);

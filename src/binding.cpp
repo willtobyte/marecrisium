@@ -155,6 +155,65 @@ void bind(lua_State *state, const char *name, lua_CFunction fn, void *upvalue) n
   lua_setfield(state, -2, name);
 }
 
+void singleton(lua_State *state, const char *metatable, const char *global) noexcept {
+  lua_newuserdata(state, 1);
+  luaL_getmetatable(state, metatable);
+  lua_setmetatable(state, -2);
+  lua_setglobal(state, global);
+}
+
+void callback(lua_State *state, int argument, int &reference) {
+  luaL_checktype(state, argument, LUA_TFUNCTION);
+  release(state, reference);
+  lua_pushvalue(state, argument);
+  reference = luaL_ref(state, LUA_REGISTRYINDEX);
+}
+
+int dispatch(lua_State *state, int reference, std::string_view key) {
+  lua_rawgeti(state, LUA_REGISTRYINDEX, reference);
+  lua_getfield(state, -1, key.data());
+  if (!lua_isnil(state, -1)) {
+    lua_remove(state, -2);
+    return 1;
+  }
+  lua_pop(state, 1);
+
+  static std::array<char, 64> buffer;
+  buffer[0] = 'o';
+  buffer[1] = 'n';
+  buffer[2] = '_';
+  const auto length = key.size();
+  std::memcpy(buffer.data() + 3, key.data(), length);
+  buffer[3 + length] = '\0';
+
+  lua_getfield(state, -1, buffer.data());
+  lua_remove(state, -2);
+  if (!lua_isnil(state, -1))
+    return 1;
+  lua_pop(state, 1);
+
+  return lua_pushnil(state), 1;
+}
+
+std::pair<float, float> checkvec2(lua_State *state, int index) {
+  luaL_checktype(state, index, LUA_TTABLE);
+  lua_rawgeti(state, index, 1);
+  const auto x = static_cast<float>(lua_tonumber(state, -1));
+  lua_pop(state, 1);
+  lua_rawgeti(state, index, 2);
+  const auto y = static_cast<float>(lua_tonumber(state, -1));
+  lua_pop(state, 1);
+  return {x, y};
+}
+
+void pushvec2(lua_State *state, float x, float y) {
+  lua_createtable(state, 2, 0);
+  lua_pushnumber(state, static_cast<lua_Number>(x));
+  lua_rawseti(state, -2, 1);
+  lua_pushnumber(state, static_cast<lua_Number>(y));
+  lua_rawseti(state, -2, 2);
+}
+
 void metatable(lua_State *state, const char *name, lua_CFunction index, lua_CFunction newindex, lua_CFunction gc) noexcept {
   luaL_newmetatable(state, name);
 

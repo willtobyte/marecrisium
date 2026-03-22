@@ -34,10 +34,8 @@ static int friend_index(lua_State *state) {
 static int user_index(lua_State *state) {
   const std::string_view key = luaL_checkstring(state, 2);
 
-  if (key == "persona") {
-    lua_pushstring(state, GetPersonaName());
-    return 1;
-  }
+  if (key == "persona")
+    return push(state, GetPersonaName());
 
   if (key == "friends") {
     const auto count = GetFriendCount();
@@ -79,8 +77,5 @@ void user::wire() {
 
   metatable(L, "User", user_index, user_newindex);
 
-  lua_newuserdata(L, 1);
-  luaL_getmetatable(L, "User");
-  lua_setmetatable(L, -2);
-  lua_setglobal(L, "user");
+  singleton(L, "User", "user");
 }

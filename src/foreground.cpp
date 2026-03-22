@@ -4,8 +4,7 @@ namespace {
 constexpr int STRIDE = 5;
 
 int foreground_draw(lua_State *state) {
-  auto **ptr = static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
-  auto *self = *ptr;
+  auto *self = checkuserdata<foreground>(state, 1, "Foreground");
   luaL_checktype(state, 2, LUA_TTABLE);
   const auto count = static_cast<int>(luaL_checknumber(state, 3));
 
@@ -72,8 +71,7 @@ int foreground_draw(lua_State *state) {
 }
 
 int foreground_index(lua_State *state) {
-  auto **ptr = static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
-  auto *self = *ptr;
+  auto *self = checkuserdata<foreground>(state, 1, "Foreground");
   const std::string_view key = luaL_checkstring(state, 2);
 
   if (key == "draw") {
@@ -81,29 +79,7 @@ int foreground_index(lua_State *state) {
     return 1;
   }
 
-  lua_rawgeti(state, LUA_REGISTRYINDEX, self->_reference);
-  lua_getfield(state, -1, key.data());
-  if (!lua_isnil(state, -1)) {
-    lua_remove(state, -2);
-    return 1;
-  }
-  lua_pop(state, 1);
-
-  static std::array<char, 64> buffer;
-  buffer[0] = 'o';
-  buffer[1] = 'n';
-  buffer[2] = '_';
-  const auto length = key.size();
-  std::memcpy(buffer.data() + 3, key.data(), length);
-  buffer[3 + length] = '\0';
-
-  lua_getfield(state, -1, buffer.data());
-  lua_remove(state, -2);
-  if (!lua_isnil(state, -1))
-    return 1;
-  lua_pop(state, 1);
-
-  return lua_pushnil(state), 1;
+  return dispatch(state, self->_reference, key);
 }
 }
 
@@ -139,11 +115,7 @@ foreground::foreground(std::string_view name) {
 
   lua_pop(L, 1);
 
-  auto **ud = static_cast<foreground **>(lua_newuserdata(L, sizeof(foreground *)));
-  *ud = this;
-
-  luaL_getmetatable(L, "Foreground");
-  lua_setmetatable(L, -2);
+  pushuserdata(L, this, "Foreground");
   _userdata_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 }
 

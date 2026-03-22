@@ -40,21 +40,21 @@ static int gamepad_rumble(lua_State *state) {
   const auto high16 = static_cast<uint16_t>(high * 65535.f);
 
   if (!ptr) [[unlikely]]
-    return lua_pushboolean(state, false), 1;
+    return push(state, false);
 
-  return lua_pushboolean(state, SDL_RumbleGamepad(ptr.get(), low16, high16, duration)), 1;
+  return push(state, static_cast<bool>(SDL_RumbleGamepad(ptr.get(), low16, high16, duration)));
 }
 
 static int push_gamepad_axis(lua_State *state, SDL_GamepadAxis a) {
   if (ptr) [[likely]]
-    return lua_pushnumber(state, static_cast<double>(deadzone(SDL_GetGamepadAxis(ptr.get(), a)))), 1;
-  return lua_pushnumber(state, 0), 1;
+    return push(state, deadzone(SDL_GetGamepadAxis(ptr.get(), a)));
+  return push(state, .0f);
 }
 
 static int push_gamepad_button(lua_State *state, SDL_GamepadButton b) {
   if (ptr) [[likely]]
-    return lua_pushboolean(state, SDL_GetGamepadButton(ptr.get(), b)), 1;
-  return lua_pushboolean(state, false), 1;
+    return push(state, static_cast<bool>(SDL_GetGamepadButton(ptr.get(), b)));
+  return push(state, false);
 }
 
 static int gamepad_index(lua_State *state) {
@@ -96,15 +96,15 @@ static int gamepad_index(lua_State *state) {
   const std::string_view name = luaL_checkstring(state, 2);
 
   if (name == "connected")
-    return lua_pushboolean(state, ptr != nullptr), 1;
+    return push(state, ptr != nullptr);
 
   if (name == "rumble")
     return lua_pushcfunction(state, gamepad_rumble), 1;
 
   if (name == "name") {
     if (ptr) [[likely]]
-      return lua_pushstring(state, SDL_GetGamepadName(ptr.get())), 1;
-    return lua_pushstring(state, ""), 1;
+      return push(state, SDL_GetGamepadName(ptr.get()));
+    return push(state, "");
   }
 
   const auto it = mapping.find(name);
@@ -128,8 +128,5 @@ void gamepad::wire() {
 
   metatable(L, "Gamepad", gamepad_index);
 
-  lua_newuserdata(L, 1);
-  luaL_getmetatable(L, "Gamepad");
-  lua_setmetatable(L, -2);
-  lua_setglobal(L, "gamepad");
+  singleton(L, "Gamepad", "gamepad");
 }

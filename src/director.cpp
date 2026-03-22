@@ -2,33 +2,33 @@
 
 static int navigate_callback(lua_State *state) {
   const auto *name = luaL_checkstring(state, 1);
-  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto *self = upvalue<director>(state);
   self->navigate(name);
   return 0;
 }
 
 static int destroy_callback(lua_State *state) {
   const auto *name = luaL_checkstring(state, 1);
-  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto *self = upvalue<director>(state);
   self->destroy(name);
   return 0;
 }
 
 static int preload_callback(lua_State *state) {
   const auto *name = luaL_checkstring(state, 1);
-  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto *self = upvalue<director>(state);
   self->preload(name);
   return 0;
 }
 
 static int reset_callback(lua_State *state) {
-  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto *self = upvalue<director>(state);
   self->reset();
   return 0;
 }
 
 static int newindex_callback(lua_State *state) {
-  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto *self = upvalue<director>(state);
   const std::string_view key = luaL_checkstring(state, 2);
 
   if (key == "overlay") {

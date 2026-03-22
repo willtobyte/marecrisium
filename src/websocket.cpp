@@ -179,32 +179,25 @@ int subscription_gc(lua_State* state) {
 }
 
 int websocket_on_connect(lua_State* state) {
-  auto** ptr = static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
-  luaL_checktype(state, 2, LUA_TFUNCTION);
-  lua_pushvalue(state, 2);
-  (*ptr)->set_on_connect(luaL_ref(state, LUA_REGISTRYINDEX));
+  auto* instance = checkuserdata<channel>(state, 1, "WebSocket");
+  instance->set_on_connect(capture(state, 2));
   return 0;
 }
 
 int websocket_on_disconnect(lua_State* state) {
-  auto** ptr = static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
-  luaL_checktype(state, 2, LUA_TFUNCTION);
-  lua_pushvalue(state, 2);
-  (*ptr)->set_on_disconnect(luaL_ref(state, LUA_REGISTRYINDEX));
+  auto* instance = checkuserdata<channel>(state, 1, "WebSocket");
+  instance->set_on_disconnect(capture(state, 2));
   return 0;
 }
 
 int websocket_subscribe(lua_State* state) {
-  auto** ptr = static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
+  auto* instance = checkuserdata<channel>(state, 1, "WebSocket");
   const auto* const topic = luaL_checkstring(state, 2);
-  luaL_checktype(state, 3, LUA_TFUNCTION);
-
-  lua_pushvalue(state, 3);
-  const auto reference = luaL_ref(state, LUA_REGISTRYINDEX);
+  const auto reference = capture(state, 3);
 
   auto* userdata = static_cast<std::unique_ptr<subscription>*>(lua_newuserdata(state, sizeof(std::unique_ptr<subscription>)));
   try {
-    std::construct_at(userdata, std::make_unique<subscription>(*ptr, topic, reference));
+    std::construct_at(userdata, std::make_unique<subscription>(instance, topic, reference));
   } catch (...) {
     luaL_unref(state, LUA_REGISTRYINDEX, reference);
     throw;
@@ -250,11 +243,7 @@ int websocket_call(lua_State* state) {
 
   connection = std::make_unique<channel>(url);
 
-  auto** userdata = static_cast<channel**>(lua_newuserdata(state, sizeof(channel*)));
-  *userdata = connection.get();
-
-  luaL_getmetatable(state, "WebSocket");
-  lua_setmetatable(state, -2);
+  pushuserdata(state, connection.get(), "WebSocket");
   return 1;
 }
 }
@@ -455,20 +444,12 @@ void channel::send(message message) noexcept {
     lws_cancel_service(_context);
 }
 
-void channel::fire(int reference) {
-  if (reference == LUA_NOREF) [[unlikely]]
-    return;
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, reference);
-  pcall(L, 0, 0);
-}
-
 void channel::poll() {
   if (_pending_connect.exchange(false, std::memory_order_acq_rel))
-    fire(_on_connect);
+    fire(L, _on_connect);
 
   if (_pending_disconnect.exchange(false, std::memory_order_acq_rel))
-    fire(_on_disconnect);
+    fire(L, _on_disconnect);
 
   message message;
   while (_inbound.try_pop(message)) {

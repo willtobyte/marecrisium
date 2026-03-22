@@ -411,11 +411,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
     const auto local_row = cell / box_w;
     const auto global_column = local_column + box_x0;
     const auto global_row = local_row + box_y0;
-    lua_newtable(state);
-    lua_pushnumber(state, static_cast<double>(static_cast<float>(global_column) * _size + half));
-    lua_rawseti(state, -2, 1);
-    lua_pushnumber(state, static_cast<double>(static_cast<float>(global_row) * _size + half));
-    lua_rawseti(state, -2, 2);
+    pushvec2(state, static_cast<float>(global_column) * _size + half, static_cast<float>(global_row) * _size + half);
     lua_rawseti(state, -2, index++);
   }
 

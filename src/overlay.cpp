@@ -15,8 +15,7 @@ static bool on_event(void *userdata, SDL_Event *event) {
 }
 
 static int overlay_label(lua_State *state) {
-  auto **ptr = static_cast<overlay **>(luaL_checkudata(state, 1, "Overlay"));
-  auto *self = *ptr;
+  auto *self = checkuserdata<overlay>(state, 1, "Overlay");
   const auto *font = luaL_checkstring(state, 2);
   const auto *text = luaL_checkstring(state, 3);
   const auto x = static_cast<float>(luaL_checknumber(state, 4));
@@ -104,11 +103,7 @@ overlay::overlay(std::string_view name) {
 
   lua_pop(L, 1);
 
-  auto **memory = static_cast<overlay **>(lua_newuserdata(L, sizeof(overlay *)));
-  *memory = this;
-
-  luaL_getmetatable(L, "Overlay");
-  lua_setmetatable(L, -2);
+  pushuserdata(L, this, "Overlay");
   _userdata_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   SDL_AddEventWatch(on_event, this);

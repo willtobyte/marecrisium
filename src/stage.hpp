@@ -39,10 +39,6 @@ public:
 
   void dispatch_collision(entt::entity entity, entt::entity other, const char* callback, const b2Vec2* normal = nullptr);
 
-  void dispatch_dormancy(const objectproxy& proxy, const char* callback);
-
-  void dispatch_screen_event(const objectproxy& proxy, const char* callback, std::string_view direction);
-
   [[nodiscard]] uint8_t at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
 
   int at(lua_State* state, float x, float y);

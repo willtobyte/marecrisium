@@ -108,8 +108,5 @@ void cassette::wire() {
 
   metatable(L, "Cassette", cassette_index, cassette_newindex);
 
-  lua_newuserdata(L, 1);
-  luaL_getmetatable(L, "Cassette");
-  lua_setmetatable(L, -2);
-  lua_setglobal(L, "cassette");
+  singleton(L, "Cassette", "cassette");
 }

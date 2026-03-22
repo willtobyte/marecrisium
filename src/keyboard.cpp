@@ -36,8 +36,5 @@ static int keyboard_index(lua_State *state) {
 void keyboard::wire() {
   metatable(L, "Keyboard", keyboard_index);
 
-  lua_newuserdata(L, 1);
-  luaL_getmetatable(L, "Keyboard");
-  lua_setmetatable(L, -2);
-  lua_setglobal(L, "keyboard");
+  singleton(L, "Keyboard", "keyboard");
 }

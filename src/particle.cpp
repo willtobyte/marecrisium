@@ -5,30 +5,20 @@ namespace {
 constexpr float TWO_PI = 6.28318530718f;
 
 int particle_index(lua_State* state) {
-  const auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
+  const auto* self = checkuserdata<particle>(state, 1, "Particle");
   const std::string_view key = luaL_checkstring(state, 2);
 
-  if (key == "active") {
-    lua_pushboolean(state, self->active());
-    return 1;
-  }
+  if (key == "active")
+    return push(state, self->active());
 
-  if (key == "x") {
-    lua_pushnumber(state, static_cast<lua_Number>(self->x()));
-    return 1;
-  }
+  if (key == "x")
+    return push(state, self->x());
 
-  if (key == "y") {
-    lua_pushnumber(state, static_cast<lua_Number>(self->y()));
-    return 1;
-  }
+  if (key == "y")
+    return push(state, self->y());
 
   if (key == "position") {
-    lua_createtable(state, 2, 0);
-    lua_pushnumber(state, static_cast<lua_Number>(self->x()));
-    lua_rawseti(state, -2, 1);
-    lua_pushnumber(state, static_cast<lua_Number>(self->y()));
-    lua_rawseti(state, -2, 2);
+    pushvec2(state, self->x(), self->y());
     return 1;
   }
 
@@ -37,10 +27,7 @@ int particle_index(lua_State* state) {
     if (!fx)
       return lua_pushnil(state), 1;
 
-    auto** memory = static_cast<sound**>(lua_newuserdata(state, sizeof(sound*)));
-    *memory = fx;
-    luaL_getmetatable(state, "Sound");
-    lua_setmetatable(state, -2);
+    pushuserdata(state, fx, "Sound");
 
     return 1;
   }
@@ -49,7 +36,7 @@ int particle_index(lua_State* state) {
 }
 
 int particle_newindex(lua_State* state) {
-  auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
+  auto* self = checkuserdata<particle>(state, 1, "Particle");
   const std::string_view key = luaL_checkstring(state, 2);
 
   if (key == "active") {
@@ -68,16 +55,7 @@ int particle_newindex(lua_State* state) {
   }
 
   if (key == "position") {
-    luaL_checktype(state, 3, LUA_TTABLE);
-
-    lua_rawgeti(state, 3, 1);
-    const auto px = static_cast<float>(luaL_checknumber(state, -1));
-    lua_pop(state, 1);
-
-    lua_rawgeti(state, 3, 2);
-    const auto py = static_cast<float>(luaL_checknumber(state, -1));
-    lua_pop(state, 1);
-
+    const auto [px, py] = checkvec2(state, 3);
     self->set_x(px);
     self->set_y(py);
     return 0;

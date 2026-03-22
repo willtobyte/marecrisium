@@ -27,8 +27,5 @@ static int achievement_index(lua_State *state) {
 void achievement::wire() {
   metatable(L, "Achievement", achievement_index);
 
-  lua_newuserdata(L, 1);
-  luaL_getmetatable(L, "Achievement");
-  lua_setmetatable(L, -2);
-  lua_setglobal(L, "achievement");
+  singleton(L, "Achievement", "achievement");
 }
