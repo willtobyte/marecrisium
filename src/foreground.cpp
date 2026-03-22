@@ -130,7 +130,6 @@ int foreground_index(lua_State *state) {
 
   return lua_pushnil(state), 1;
 }
-
 }
 
 foreground::foreground(std::string_view name) {
