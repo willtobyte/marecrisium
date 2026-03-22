@@ -27,7 +27,7 @@ config& particlepool::get(std::string_view kind) {
 
   pcall(L, 0, 1);
 
-  config.count = static_cast<size_t>(get<int>(L, -1, "count"));
+  config.count = static_cast<size_t>(::get<int>(L, -1, "count"));
 
   lua_getfield(L, -1, "spawn");
   if (lua_istable(L, -1)) {
