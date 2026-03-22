@@ -47,23 +47,33 @@ static int traceback(lua_State *state) {
       luaL_addstring(&buffer, " = ");
 
       const auto type = lua_type(state, -1);
-      if (type == LUA_TSTRING) {
+      switch (type) {
+      case LUA_TSTRING: {
         luaL_addstring(&buffer, "\"");
         luaL_addvalue(&buffer);
         luaL_addstring(&buffer, "\"");
-      } else if (type == LUA_TNUMBER) {
+      } break;
+
+      case LUA_TNUMBER: {
         luaL_addvalue(&buffer);
-      } else if (type == LUA_TBOOLEAN) {
+      } break;
+
+      case LUA_TBOOLEAN: {
         luaL_addstring(&buffer, lua_toboolean(state, -1) ? "true" : "false");
         lua_pop(state, 1);
-      } else if (type == LUA_TNIL) {
+      } break;
+
+      case LUA_TNIL: {
         luaL_addstring(&buffer, "nil");
         lua_pop(state, 1);
-      } else {
+      } break;
+
+      default: {
         luaL_addstring(&buffer, "(");
         luaL_addstring(&buffer, lua_typename(state, type));
         luaL_addstring(&buffer, ")");
         lua_pop(state, 1);
+      } break;
       }
     }
   }
