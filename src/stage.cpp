@@ -156,15 +156,8 @@ stage::stage(std::string_view name)
 
   const auto filename = std::format("stages/{}.lua", name);
   const auto buffer = io::read(filename);
-  const auto *data = reinterpret_cast<const char *>(buffer.data());
-  const auto size = buffer.size();
   const auto label = std::format("@{}", filename);
-
-  if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
-    std::string error(lua_tostring(L, -1));
-    lua_pop(L, 1);
-    throw std::runtime_error(std::move(error));
-  }
+  compile(L, buffer, label);
 
   lua_newtable(L);
   lua_newtable(L);
@@ -204,11 +197,7 @@ stage::stage(std::string_view name)
   lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
   lua_setfenv(L, -2);
 
-  if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
-    std::string error(lua_tostring(L, -1));
-    lua_pop(L, 1);
-    throw std::runtime_error(std::move(error));
-  }
+  pcall(L, 0, 1);
 
   b2Vec2 gravity{.0f, .0f};
   lua_getfield(L, -1, "gravity");
@@ -447,11 +436,7 @@ void stage::on_enter() {
 
   if (lua_isfunction(L, -1)) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-      std::string error(lua_tostring(L, -1));
-      lua_pop(L, 2);
-      throw std::runtime_error(std::move(error));
-    }
+    pcall(L, 1, 0);
   } else {
     lua_pop(L, 1);
   }
@@ -465,11 +450,7 @@ void stage::on_leave() {
 
   if (lua_isfunction(L, -1)) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-      std::string error(lua_tostring(L, -1));
-      lua_pop(L, 2);
-      throw std::runtime_error(std::move(error));
-    }
+    pcall(L, 1, 0);
   } else {
     lua_pop(L, 1);
   }
@@ -483,11 +464,7 @@ void stage::on_tick(uint64_t tick) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     lua_pushnumber(L, static_cast<lua_Number>(tick));
 
-    if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-      std::string error(lua_tostring(L, -1));
-      lua_pop(L, 1);
-      throw std::runtime_error(std::move(error));
-    }
+    pcall(L, 2, 0);
   }
 }
 
@@ -574,11 +551,7 @@ void stage::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
 
-    if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-      std::string error(lua_tostring(L, -1));
-      lua_pop(L, 1);
-      throw std::runtime_error(std::move(error));
-    }
+    pcall(L, 2, 0);
   }
 
   for (auto&& [entity, proxy] : _registry.view<objectproxy>(entt::exclude<dormant>).each()) {
@@ -590,11 +563,7 @@ void stage::update(float delta) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
       lua_pushnumber(L, static_cast<lua_Number>(delta));
 
-      if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-        std::string error(lua_tostring(L, -1));
-        lua_pop(L, 1);
-        throw std::runtime_error(std::move(error));
-      }
+      pcall(L, 2, 0);
     }
 
     auto* a = _registry.try_get<animation>(entity);
@@ -620,11 +589,7 @@ void stage::update(float delta) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
           lua_pushstring(L, _stringpool.get(c.name));
 
-          if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-            std::string error(lua_tostring(L, -1));
-            lua_pop(L, 1);
-            throw std::runtime_error(std::move(error));
-          }
+          pcall(L, 2, 0);
         }
 
         if (proxy.on_animation_begin != LUA_NOREF) {
@@ -632,11 +597,7 @@ void stage::update(float delta) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
           lua_pushstring(L, _stringpool.get(c.name));
 
-          if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-            std::string error(lua_tostring(L, -1));
-            lua_pop(L, 1);
-            throw std::runtime_error(std::move(error));
-          }
+          pcall(L, 2, 0);
         }
       }
     }
@@ -851,11 +812,7 @@ void stage::draw() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
-    if (lua_pcall(L, 1, 2, 0) != 0) [[unlikely]] {
-      std::string error(lua_tostring(L, -1));
-      lua_pop(L, 1);
-      throw std::runtime_error(std::move(error));
-    }
+    pcall(L, 1, 2);
 
     if (lua_isnumber(L, -2))
       viewport.x = std::roundf(static_cast<float>(lua_tonumber(L, -2)));
@@ -947,11 +904,7 @@ void stage::dispatch_dormancy(const objectproxy& proxy, const char* callback) {
   if (lua_isfunction(L, -1)) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
 
-    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-      std::string error(lua_tostring(L, -1));
-      lua_pop(L, 2);
-      throw std::runtime_error(std::move(error));
-    }
+    pcall(L, 1, 0);
   } else {
     lua_pop(L, 1);
   }
@@ -970,11 +923,7 @@ void stage::dispatch_screen_event(const objectproxy& proxy, const char* callback
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
     lua_pushlstring(L, direction.data(), direction.size());
 
-    if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-      std::string error(lua_tostring(L, -1));
-      lua_pop(L, 2);
-      throw std::runtime_error(std::move(error));
-    }
+    pcall(L, 2, 0);
   } else {
     lua_pop(L, 1);
   }
@@ -1008,11 +957,7 @@ void stage::dispatch_collision(entt::entity entity, entt::entity other, const ch
       argc = 5;
     }
 
-    if (lua_pcall(L, argc, 0, 0) != 0) [[unlikely]] {
-      std::string error(lua_tostring(L, -1));
-      lua_pop(L, 2);
-      throw std::runtime_error(std::move(error));
-    }
+    pcall(L, argc, 0);
   } else {
     lua_pop(L, 1);
   }
@@ -1307,11 +1252,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   if (lua_isfunction(L, -1)) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
 
-    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-      std::string error(lua_tostring(L, -1));
-      lua_pop(L, 2);
-      throw std::runtime_error(std::move(error));
-    }
+    pcall(L, 1, 0);
   } else {
     lua_pop(L, 1);
   }
@@ -1450,11 +1391,7 @@ void stage::dispatch_miss(const char* callback, float x, float y, const char* bu
     lua_pushnumber(L, static_cast<lua_Number>(y));
     lua_pushstring(L, button);
 
-    if (lua_pcall(L, 3, 0, 0) != 0) [[unlikely]] {
-      std::string error(lua_tostring(L, -1));
-      lua_pop(L, 2);
-      throw std::runtime_error(std::move(error));
-    }
+    pcall(L, 3, 0);
   } else {
     lua_pop(L, 1);
   }
@@ -1489,11 +1426,7 @@ void stage::dispatch_mouse_down(float x, float y, const char* button) {
     lua_pushnumber(L, static_cast<lua_Number>(y));
     lua_pushstring(L, button);
 
-    if (lua_pcall(L, 4, 0, 0) != 0) [[unlikely]] {
-      std::string error(lua_tostring(L, -1));
-      lua_pop(L, 1);
-      throw std::runtime_error(std::move(error));
-    }
+    pcall(L, 4, 0);
   }
 }
 
@@ -1526,11 +1459,7 @@ void stage::dispatch_mouse_up(float x, float y, const char* button) {
     lua_pushnumber(L, static_cast<lua_Number>(y));
     lua_pushstring(L, button);
 
-    if (lua_pcall(L, 4, 0, 0) != 0) [[unlikely]] {
-      std::string error(lua_tostring(L, -1));
-      lua_pop(L, 2);
-      throw std::runtime_error(std::move(error));
-    }
+    pcall(L, 4, 0);
   } else {
     lua_pop(L, 1);
   }
@@ -1572,11 +1501,7 @@ void stage::dispatch_hover(float x, float y) {
     if (lua_isfunction(L, -1)) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
 
-      if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-        std::string error(lua_tostring(L, -1));
-        lua_pop(L, 2);
-        throw std::runtime_error(std::move(error));
-      }
+      pcall(L, 1, 0);
     } else {
       lua_pop(L, 1);
     }
@@ -1609,11 +1534,7 @@ void stage::dispatch_unhover(std::span<const entt::entity> current) {
     if (lua_isfunction(L, -1)) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
 
-      if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-        std::string error(lua_tostring(L, -1));
-        lua_pop(L, 2);
-        throw std::runtime_error(std::move(error));
-      }
+      pcall(L, 1, 0);
     } else {
       lua_pop(L, 1);
     }

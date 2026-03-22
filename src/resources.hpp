@@ -17,5 +17,3 @@ struct resources {
   soundpool sound;
   sourcepool source;
 };
-
-extern struct resources* depot;

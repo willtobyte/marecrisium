@@ -14,14 +14,7 @@ void sourcepool::insert(std::string_view name) {
 
   if (const auto it = _pool.find(key); it != _pool.end()) [[likely]] {
     const auto& [label, bytecode] = it->second;
-    const auto* data = reinterpret_cast<const char*>(bytecode.data());
-    const auto size = bytecode.size();
-
-    if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
-      lua_pop(L, 1);
-      throw std::runtime_error{std::move(error)};
-    }
+    compile(L, bytecode, label);
 
     return;
   }
@@ -30,14 +23,7 @@ void sourcepool::insert(std::string_view name) {
   auto label = std::format("@{}", filename);
 
   const auto buffer = io::read(filename);
-  const auto* data = reinterpret_cast<const char*>(buffer.data());
-  const auto size = buffer.size();
-
-  if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
-    lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
-  }
+  compile(L, buffer, label);
 
   std::vector<uint8_t> bytecode;
   bytecode.reserve(8192);

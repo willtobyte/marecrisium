@@ -1,11 +1,5 @@
 #include "engine.hpp"
 
-lua_State *L = nullptr;
-ma_engine *audioengine = nullptr;
-SDL_Renderer *renderer = nullptr;
-struct viewport viewport{};
-struct resources* depot = nullptr;
-
 static constexpr std::array<SDL_EventType, 5> disabled_events{
   SDL_EVENT_KEY_DOWN,
   SDL_EVENT_MOUSE_MOTION,
@@ -16,14 +10,9 @@ static constexpr std::array<SDL_EventType, 5> disabled_events{
 
 engine::engine() {
   const auto buffer = io::read("scripts/main.lua");
-  const auto *data = reinterpret_cast<const char *>(buffer.data());
-  const auto size = buffer.size();
+  compile(L, buffer, "@main.lua");
 
-  if (luaL_loadbuffer(L, data, size, "@main.lua") != 0 || lua_pcall(L, 0, 1, 0) != 0) {
-    std::string error{lua_tostring(L, -1)};
-    lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
-  }
+  pcall(L, 0, 1);
 
   lua_getfield(L, -1, "width");
   const auto width = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 1920;
@@ -113,11 +102,7 @@ engine::engine() {
 
   lua_getfield(L, -1, "on_begin");
   if (lua_isfunction(L, -1)) {
-    if (lua_pcall(L, 0, 0, 0) != 0) {
-      std::string error{lua_tostring(L, -1)};
-      lua_pop(L, 1);
-      throw std::runtime_error{std::move(error)};
-    }
+    pcall(L, 0, 0);
   } else {
     lua_pop(L, 1);
   }

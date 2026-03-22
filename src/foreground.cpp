@@ -116,21 +116,10 @@ foreground::foreground(std::string_view name) {
 
   const auto filename = std::format("foregrounds/{}.lua", name);
   const auto buffer = io::read(filename);
-  const auto *data = reinterpret_cast<const char *>(buffer.data());
-  const auto size = buffer.size();
   const auto label = std::format("@{}", filename);
+  compile(L, buffer, label);
 
-  if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
-    lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
-  }
-
-  if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
-    lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
-  }
+  pcall(L, 0, 1);
 
   lua_newtable(L);
   lua_pushnumber(L, static_cast<lua_Number>(p.width()));
@@ -209,11 +198,7 @@ void foreground::appear() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_appear);
   _on_appear = LUA_NOREF;
 
-  if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
-    lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
-  }
+  pcall(L, 1, 0);
 }
 
 void foreground::disappear() {
@@ -226,11 +211,7 @@ void foreground::disappear() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_disappear);
   _on_disappear = LUA_NOREF;
 
-  if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
-    lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
-  }
+  pcall(L, 1, 0);
 }
 
 void foreground::update(float delta) {
@@ -239,11 +220,7 @@ void foreground::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
 
-    if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
-      lua_pop(L, 1);
-      throw std::runtime_error{std::move(error)};
-    }
+    pcall(L, 2, 0);
   }
 }
 
@@ -252,10 +229,6 @@ void foreground::draw() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_reference);
 
-    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
-      lua_pop(L, 1);
-      throw std::runtime_error{std::move(error)};
-    }
+    pcall(L, 1, 0);
   }
 }

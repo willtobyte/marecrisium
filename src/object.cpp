@@ -298,22 +298,14 @@ namespace {
                 lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
                 lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
                 lua_pushstring(state, strings->get(previous));
-                if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]] {
-                  std::string error{lua_tostring(state, -1)};
-                  lua_pop(state, 1);
-                  throw std::runtime_error{std::move(error)};
-                }
+                pcall(state, 2, 0);
               }
 
               if (proxy->on_animation_begin != LUA_NOREF) {
                 lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
                 lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
                 lua_pushstring(state, strings->get(hash));
-                if (lua_pcall(state, 2, 0, 0) != 0) [[unlikely]] {
-                  std::string error{lua_tostring(state, -1)};
-                  lua_pop(state, 1);
-                  throw std::runtime_error{std::move(error)};
-                }
+                pcall(state, 2, 0);
               }
             }
 
@@ -421,11 +413,7 @@ objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::str
   lua_rawgeti(L, LUA_REGISTRYINDEX, environment);
   lua_setfenv(L, -2);
 
-  if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
-    lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
-  }
+  pcall(L, 0, 1);
 
   prototype = luaL_ref(L, LUA_REGISTRYINDEX);
 

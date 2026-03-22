@@ -60,6 +60,7 @@ return {
 	end,
 
 	on_mouse_up = function(self, x, y, button)
+		error("mouse up")
 		print("on_mouse_up " .. self.name .. " " .. button .. " at " .. x .. "," .. y)
 	end,
 

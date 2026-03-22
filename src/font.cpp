@@ -9,21 +9,10 @@
 font::font(std::string_view family) {
   const auto filename = std::format("overlay/fonts/{}.lua", family);
   const auto meta = io::read(filename);
-  const auto* data = reinterpret_cast<const char*>(meta.data());
-  const auto size = meta.size();
   const auto label = std::format("@{}", filename);
+  compile(L, meta, label);
 
-  if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
-    lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
-  }
-
-  if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
-    lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
-  }
+  pcall(L, 0, 1);
 
   lua_getfield(L, -1, "glyphs");
   assert(lua_isstring(L, -1));

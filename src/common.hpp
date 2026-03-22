@@ -52,6 +52,12 @@ extern lua_State* L;
 extern SDL_Renderer* renderer;
 extern ma_engine* audioengine;
 
+struct resources;
+extern struct resources *depot;
+
+void pcall(lua_State *state, int nargs, int nresults);
+void compile(lua_State *state, const std::vector<uint8_t> &buffer, std::string_view label);
+
 struct viewport {
   float width;
   float height;
@@ -113,9 +119,7 @@ struct YYJSON_Deleter final {
   }
 };
 
-[[nodiscard]] constexpr float to_radians(float degrees) noexcept {
-  return degrees * (std::numbers::pi_v<float> / 180.f);
-}
+[[nodiscard]] float to_radians(float degrees) noexcept;
 
 struct transparent_hash final {
   using is_transparent = void;

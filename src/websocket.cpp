@@ -369,9 +369,10 @@ channel::channel(std::string_view url)
 
 channel::~channel() {
   if (_on_disconnect != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disconnect);
-    if (lua_pcall(L, 0, 0, 0) != 0) [[unlikely]]
-      lua_pop(L, 1);
+    try {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disconnect);
+      pcall(L, 0, 0);
+    } catch (...) {}
   }
 
   luaL_unref(L, LUA_REGISTRYINDEX, _on_connect);
@@ -465,11 +466,7 @@ void channel::fire(int ref) {
     return;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
-  if (lua_pcall(L, 0, 0, 0) != 0) [[unlikely]] {
-    std::string error(lua_tostring(L, -1));
-    lua_pop(L, 1);
-    throw std::runtime_error(std::move(error));
-  }
+  pcall(L, 0, 0);
 }
 
 void channel::poll() {
@@ -510,11 +507,7 @@ void channel::poll() {
       else
         lua_pushnil(L);
 
-      if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-        std::string error(lua_tostring(L, -1));
-        lua_pop(L, 1);
-        throw std::runtime_error(std::move(error));
-      }
+      pcall(L, 1, 0);
     }
   }
 }

@@ -97,21 +97,10 @@ static int overlay_index(lua_State *state) {
 overlay::overlay(std::string_view name) {
   const auto filename = std::format("overlays/{}.lua", name);
   const auto buffer = io::read(filename);
-  const auto *data = reinterpret_cast<const char *>(buffer.data());
-  const auto size = buffer.size();
   const auto label = std::format("@{}", filename);
+  compile(L, buffer, label);
 
-  if (luaL_loadbuffer(L, data, size, label.c_str()) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
-    lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
-  }
-
-  if (lua_pcall(L, 0, 1, 0) != 0) [[unlikely]] {
-    std::string error{lua_tostring(L, -1)};
-    lua_pop(L, 1);
-    throw std::runtime_error{std::move(error)};
-  }
+  pcall(L, 0, 1);
 
   lua_getfield(L, -1, "fonts");
   if (lua_istable(L, -1)) {
@@ -192,11 +181,7 @@ void overlay::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
 
-    if (lua_pcall(L, 2, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
-      lua_pop(L, 1);
-      throw std::runtime_error{std::move(error)};
-    }
+    pcall(L, 2, 0);
   }
 }
 
@@ -208,11 +193,7 @@ void overlay::draw() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
-    if (lua_pcall(L, 1, 0, 0) != 0) [[unlikely]] {
-      std::string error{lua_tostring(L, -1)};
-      lua_pop(L, 1);
-      throw std::runtime_error{std::move(error)};
-    }
+    pcall(L, 1, 0);
   }
 }
 
