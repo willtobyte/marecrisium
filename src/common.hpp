@@ -55,9 +55,6 @@ extern ma_engine* audioengine;
 struct resources;
 extern struct resources *depot;
 
-void pcall(lua_State *state, int nargs, int nresults);
-void compile(lua_State *state, const std::vector<uint8_t> &buffer, std::string_view label);
-
 struct viewport {
   float width;
   float height;
@@ -125,3 +122,6 @@ struct transparent_hash final {
   using is_transparent = void;
   auto operator()(std::string_view sv) const noexcept { return std::hash<std::string_view>{}(sv); }
 };
+
+void pcall(lua_State *state, int nargs, int nresults);
+void compile(lua_State *state, const std::vector<uint8_t> &buffer, std::string_view label);
