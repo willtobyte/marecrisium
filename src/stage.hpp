@@ -15,6 +15,8 @@ public:
 
   [[nodiscard]] auto overlay() const noexcept -> const std::optional<std::string>&;
 
+  [[nodiscard]] auto foreground() const noexcept -> const std::optional<std::string>&;
+
   void on_enter();
 
   void on_leave();
@@ -66,6 +68,7 @@ private:
   entt::registry _registry{};
   std::string _name{};
   std::optional<std::string> _overlay{};
+  std::optional<std::string> _foreground{};
 
   stringpool _stringpool{};
   particlesystem _particlesystem{};

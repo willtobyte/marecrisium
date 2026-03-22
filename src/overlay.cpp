@@ -174,7 +174,15 @@ void overlay::wire() {
   lua_pop(L, 1);
 }
 
+void overlay::set_foreground(std::string_view name) {
+  _foreground = std::make_unique<foreground>(name);
+  _foreground->expose();
+}
+
 void overlay::update(float delta) {
+  if (_foreground)
+    _foreground->update(delta);
+
   if (_on_loop != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
@@ -189,6 +197,9 @@ void overlay::update(float delta) {
 }
 
 void overlay::draw() {
+  if (_foreground)
+    _foreground->draw();
+
   if (_on_paint != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);

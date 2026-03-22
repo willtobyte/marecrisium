@@ -31,6 +31,7 @@ void scriptengine::run() {
 
   achievement::wire();
   cassette::wire();
+  foreground::wire();
   gamepad::wire();
   internet::wire();
   keyboard::wire();

@@ -141,6 +141,9 @@ void director::transition() {
 
   if (const auto& o = _current->overlay(); o.has_value()) {
     set_overlay(o.value());
+
+    if (const auto& f = _current->foreground(); f.has_value())
+      _overlay->set_foreground(f.value());
   }
 
   _current->on_enter();

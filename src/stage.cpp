@@ -317,8 +317,16 @@ stage::stage(std::string_view name)
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "overlay");
-  if (lua_isstring(L, -1)) {
-    _overlay = lua_tostring(L, -1);
+  if (lua_istable(L, -1)) {
+    lua_getfield(L, -1, "widgets");
+    if (lua_isstring(L, -1))
+      _overlay = lua_tostring(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "foreground");
+    if (lua_isstring(L, -1))
+      _foreground = lua_tostring(L, -1);
+    lua_pop(L, 1);
   }
   lua_pop(L, 1);
 
@@ -427,6 +435,10 @@ stage::~stage() {
 
 auto stage::overlay() const noexcept -> const std::optional<std::string>& {
   return _overlay;
+}
+
+auto stage::foreground() const noexcept -> const std::optional<std::string>& {
+  return _foreground;
 }
 
 void stage::on_enter() {

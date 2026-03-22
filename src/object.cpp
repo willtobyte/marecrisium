@@ -177,7 +177,7 @@ namespace {
 
     lua_pop(state, 1);
 
-    std::array<char, 64> buffer;
+    static std::array<char, 64> buffer;
     buffer[0] = 'o';
     buffer[1] = 'n';
     buffer[2] = '_';

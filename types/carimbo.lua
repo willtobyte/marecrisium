@@ -209,6 +209,10 @@ cassette = {}
 ---@field distance? number Distance in pixels at which volume reaches zero. Default 300.
 ---@field volume? number Volume at distance zero (0.0 to 1.0). Default 1.0.
 
+---@class StageOverlay
+---@field widgets string Overlay name (matches `overlays/<name>.lua`).
+---@field foreground? string Foreground name (matches `foregrounds/<name>.lua`). Loads a foreground layer drawn before overlay labels.
+
 ---@class Stage
 ---A stage script (`stages/<name>.lua`) returns a table that may contain
 ---these fields, lifecycle callbacks, and entity/sound declarations.
@@ -216,6 +220,7 @@ cassette = {}
 ---@field objects StageObject[]|nil Objects to spawn when the stage is created.
 ---@field sounds StageSound[]|nil Sounds to preload. Each entry is `{ name = "foo", autoplay = true }`. Loads `sounds/<name>` and is accessible as `pool.<name>`.
 ---@field particles StageParticle[]|nil Particle emitters to create. Each entry spawns a particle system accessible as `pool.<name>`.
+---@field overlay StageOverlay|nil Overlay configuration table with widgets and optional foreground.
 ---@field tilemap string|nil Tilemap name. Loads `tilemaps/<name>.lua` and exposes a `tilemap` global in the stage environment.
 local Stage = {}
 
@@ -273,6 +278,55 @@ function Director.reset() end
 ---Global stage director.
 ---@type Director
 director = {}
+
+--------------------------------------------------------------------------------
+-- Foreground (full-screen sprite layers drawn before overlay labels)
+--------------------------------------------------------------------------------
+
+---@class ForegroundSprite
+---@field x number X position in logical pixels. Default 0.
+---@field y number Y position in logical pixels. Default 0.
+---@field width number Pixmap native width in pixels (read-only).
+---@field height number Pixmap native height in pixels (read-only).
+---@field alpha number Opacity (0-255). Default 255.
+---@field angle number Rotation angle in degrees. Default 0.
+
+---@class ForegroundConfig
+---@field pixmaps string[] Pixmap names to preload from `blobs/foregrounds/<name>.png`.
+
+---@class Foreground
+local Foreground = {}
+
+---Called every frame while this foreground is active (logic only, no rendering).
+---Sprites declared in `pixmaps` are accessible as `self.<name>` and have
+---mutable `x`, `y`, `width`, `height`, `alpha`, `angle` properties.
+---@param self Foreground The foreground table itself.
+---@param delta number Frame delta time in seconds.
+function Foreground.on_loop(self, delta) end
+
+---Called every frame to render foreground elements. Use self:draw() here.
+---Each call enqueues a draw into a batch that is flushed after on_paint returns.
+---@param self Foreground The foreground table itself.
+function Foreground.on_paint(self) end
+
+---Enqueue a draw call for a pixmap sprite at the given position and size.
+---May be called multiple times per frame to tile or layer sprites.
+---@param sprite ForegroundSprite The pixmap sprite to draw (e.g. `self.mist_layer1`).
+---@param x number Destination X position in logical pixels.
+---@param y number Destination Y position in logical pixels.
+---@param width number Destination width in logical pixels.
+---@param height number Destination height in logical pixels.
+---@param alpha? number Opacity (0-255). Default 255.
+---@param angle? number Rotation angle in degrees. Default 0.
+function Foreground:draw(sprite, x, y, width, height, alpha, angle) end
+
+---Global foreground instance (nil when no foreground is active).
+---Any script can call methods defined in the foreground Lua file via this global.
+---For example, if `mist.lua` defines `on_damage`, any script can call `foreground:damage()`.
+---The `__index` metamethod falls through to the foreground's Lua table,
+---so any function defined there is accessible.
+---@type Foreground|nil
+foreground = nil
 
 --------------------------------------------------------------------------------
 -- Overlay (HUD / on-screen text)
