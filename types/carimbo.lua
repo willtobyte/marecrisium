@@ -114,36 +114,6 @@ function Gamepad:rumble(low, high, duration) end
 gamepad = {}
 
 --------------------------------------------------------------------------------
--- Mouse
---------------------------------------------------------------------------------
-
----@class Mouse
----Read-only fields return values in logical (world-space) coordinates,
----translated from window pixels through the renderer and then offset by
----the current viewport position.
----
----`button` returns the SDL button constant of the first pressed button
----(left=1, middle=2, right=3), or 0 when no button is held.
----
----`shown` is read/write: assign `true` to show the cursor, `false` to hide it.
----
----Usage:
----```lua
----local wx, wy = mouse.xy
----if mouse.button == 1 then ... end
----mouse.shown = false
----```
----@field x number Cursor X in world coordinates (read-only).
----@field y number Cursor Y in world coordinates (read-only).
----@field xy number, number Cursor X and Y in world coordinates as two return values (read-only).
----@field button integer Pressed button constant: 1=left, 2=middle, 3=right, 0=none (read-only).
----@field shown boolean Whether the system cursor is visible (read/write).
-
----Global mouse state.
----@type Mouse
-mouse = {}
-
---------------------------------------------------------------------------------
 -- Cassette (persistent key-value store)
 --------------------------------------------------------------------------------
 

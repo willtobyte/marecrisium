@@ -31,22 +31,4 @@ return scheduler.wrap({
 			print("  " .. friend.name .. " (ID: " .. friend.id .. ")")
 		end
 	end,
-
-	on_loop = function(self, dt)
-		if mouse.button == 1 then
-			local x, y = mouse.position()
-			local hits = world.at(x, y)
-			for _, obj in ipairs(hits) do
-				print("at " .. x .. "," .. y .. ": " .. obj.name)
-			end
-		end
-	end,
-
-	on_mouse_down = function(x, y, button)
-		print("stage on_mouse_down miss " .. button .. " at " .. x .. "," .. y)
-	end,
-
-	on_mouse_up = function(x, y, button)
-		print("stage on_mouse_up miss " .. button .. " at " .. x .. "," .. y)
-	end,
 })

@@ -43,21 +43,11 @@ public:
 
   void dispatch_screen_event(const objectproxy& proxy, const char* callback, std::string_view direction);
 
-  void dispatch_mouse_up(float x, float y, const char* button);
-
-  void dispatch_mouse_down(float x, float y, const char* button);
-
-  void dispatch_hover(float x, float y);
-
-  void dispatch_unhover(std::span<const entt::entity> current);
-
   [[nodiscard]] uint8_t at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
 
   int at(lua_State* state, float x, float y);
 
   [[nodiscard]] entt::entity find_topmost(std::span<const entt::entity> hits) const noexcept;
-
-  void dispatch_miss(const char* callback, float x, float y, const char* button);
 
 private:
   struct raycast_hit {
@@ -85,13 +75,6 @@ private:
 
   std::array<raycast_hit, 32> _raycast_hits{};
   std::array<entt::entity, 32> _radar_hits{};
-
-  std::array<entt::entity, 32> _hovering{};
-  uint8_t _hovering_count{};
-
-  uint32_t _mouse_previous_buttons{};
-  float _mouse_previous_x{};
-  float _mouse_previous_y{};
 
   int _reference{LUA_NOREF};
   int _environment_reference{LUA_NOREF};
