@@ -34,12 +34,10 @@ static int keyboard_index(lua_State *state) {
 }
 
 void keyboard::wire() {
+  metatable(L, "Keyboard", keyboard_index);
+
   lua_newuserdata(L, 1);
-
-  luaL_newmetatable(L, "Keyboard");
-  lua_pushcfunction(L, keyboard_index);
-  lua_setfield(L, -2, "__index");
-
+  luaL_getmetatable(L, "Keyboard");
   lua_setmetatable(L, -2);
   lua_setglobal(L, "keyboard");
 }

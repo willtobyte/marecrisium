@@ -50,7 +50,6 @@ public:
   [[nodiscard]] entt::entity find_topmost(std::span<const entt::entity> hits) const noexcept;
 
 private:
-  void invoke(const char *callback);
   struct raycast_hit {
     entt::entity entity;
     float fraction;

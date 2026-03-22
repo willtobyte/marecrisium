@@ -49,14 +49,10 @@ static int platform_newindex(lua_State *state) {
 }
 
 void platform::wire() {
+  metatable(L, "Platform", platform_index, platform_newindex);
+
   lua_newuserdata(L, 1);
-
-  luaL_newmetatable(L, "Platform");
-  lua_pushcfunction(L, platform_index);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, platform_newindex);
-  lua_setfield(L, -2, "__newindex");
-
+  luaL_getmetatable(L, "Platform");
   lua_setmetatable(L, -2);
   lua_setglobal(L, "platform");
 }

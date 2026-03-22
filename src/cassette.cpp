@@ -106,14 +106,10 @@ void cassette::wire() {
     sqlite3_close(database);
   });
 
+  metatable(L, "Cassette", cassette_index, cassette_newindex);
+
   lua_newuserdata(L, 1);
-
-  luaL_newmetatable(L, "Cassette");
-  lua_pushcfunction(L, cassette_index);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, cassette_newindex);
-  lua_setfield(L, -2, "__newindex");
-
+  luaL_getmetatable(L, "Cassette");
   lua_setmetatable(L, -2);
   lua_setglobal(L, "cassette");
 }

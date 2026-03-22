@@ -25,12 +25,10 @@ static int achievement_index(lua_State *state) {
 }
 
 void achievement::wire() {
+  metatable(L, "Achievement", achievement_index);
+
   lua_newuserdata(L, 1);
-
-  luaL_newmetatable(L, "Achievement");
-  lua_pushcfunction(L, achievement_index);
-  lua_setfield(L, -2, "__index");
-
+  luaL_getmetatable(L, "Achievement");
   lua_setmetatable(L, -2);
   lua_setglobal(L, "achievement");
 }

@@ -126,12 +126,10 @@ void gamepad::wire() {
     ptr.reset(SDL_OpenGamepad(ids[0]));
   }
 
+  metatable(L, "Gamepad", gamepad_index);
+
   lua_newuserdata(L, 1);
-
-  luaL_newmetatable(L, "Gamepad");
-  lua_pushcfunction(L, gamepad_index);
-  lua_setfield(L, -2, "__index");
-
+  luaL_getmetatable(L, "Gamepad");
   lua_setmetatable(L, -2);
   lua_setglobal(L, "gamepad");
 }

@@ -69,14 +69,10 @@ static int mouse_newindex(lua_State *state) {
 }
 
 void mouse::wire() {
+  metatable(L, "Mouse", mouse_index, mouse_newindex);
+
   lua_newuserdata(L, 1);
-
-  luaL_newmetatable(L, "Mouse");
-  lua_pushcfunction(L, mouse_index);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, mouse_newindex);
-  lua_setfield(L, -2, "__newindex");
-
+  luaL_getmetatable(L, "Mouse");
   lua_setmetatable(L, -2);
   lua_setglobal(L, "mouse");
 }

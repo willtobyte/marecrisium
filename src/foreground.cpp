@@ -167,27 +167,13 @@ void foreground::expose() {
 }
 
 void foreground::appear() {
-  if (_on_appear == LUA_NOREF)
-    return;
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _on_appear);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-
+  invoke(L, _on_appear, _reference);
   release(L, _on_appear);
-
-  pcall(L, 1, 0);
 }
 
 void foreground::disappear() {
-  if (_on_disappear == LUA_NOREF)
-    return;
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disappear);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-
+  invoke(L, _on_disappear, _reference);
   release(L, _on_disappear);
-
-  pcall(L, 1, 0);
 }
 
 void foreground::update(float delta) {

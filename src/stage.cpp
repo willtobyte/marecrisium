@@ -31,7 +31,7 @@ static void on_objectproxy_destroy(entt::registry& registry, entt::entity entity
   }
 
   lua_pop(L, 1);
-  luaL_unref(L, LUA_REGISTRYINDEX, proxy.handle);
+  release(L, proxy.handle);
 }
 
 static std::optional<std::pair<entt::entity, entt::entity>> resolve(b2ShapeId a, b2ShapeId b) noexcept {
@@ -190,13 +190,8 @@ stage::stage(std::string_view name)
     for (int i = 1; i <= count; ++i) {
       lua_rawgeti(L, -1, i);
 
-      lua_getfield(L, -1, "name");
-      const std::string object_name(lua_tostring(L, -1));
-      lua_pop(L, 1);
-
-      lua_getfield(L, -1, "kind");
-      const std::string object_kind(lua_tostring(L, -1));
-      lua_pop(L, 1);
+      const auto object_name = std::string(get<std::string_view>(L, -1, "name"));
+      const auto object_kind = std::string(get<std::string_view>(L, -1, "kind"));
 
       const auto ox = get<float>(L, -1, "x");
       const auto oy = get<float>(L, -1, "y");
@@ -218,9 +213,7 @@ stage::stage(std::string_view name)
       lua_rawgeti(L, -1, i);
 
       if (lua_istable(L, -1)) {
-        lua_getfield(L, -1, "name");
-        const std::string sound_name(lua_tostring(L, -1));
-        lua_pop(L, 1);
+        const auto sound_name = std::string(get<std::string_view>(L, -1, "name"));
 
         const auto autoplay = get<bool>(L, -1, "autoplay");
         const auto loop = get<bool>(L, -1, "loop");
@@ -276,13 +269,8 @@ stage::stage(std::string_view name)
     for (int i = 1; i <= count; ++i) {
       lua_rawgeti(L, -1, i);
 
-      lua_getfield(L, -1, "name");
-      const std::string particle_name(lua_tostring(L, -1));
-      lua_pop(L, 1);
-
-      lua_getfield(L, -1, "kind");
-      const std::string particle_kind(lua_tostring(L, -1));
-      lua_pop(L, 1);
+      const auto particle_name = std::string(get<std::string_view>(L, -1, "name"));
+      const auto particle_kind = std::string(get<std::string_view>(L, -1, "kind"));
 
       const auto px = get<float>(L, -1, "x");
       const auto py = get<float>(L, -1, "y");
@@ -348,29 +336,23 @@ auto stage::foreground() const noexcept -> const std::optional<std::string>& {
 }
 
 void stage::on_enter() {
-  invoke("on_enter");
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  auto callback = acquire(L, -1, "on_enter");
+  lua_pop(L, 1);
+  invoke(L, callback, _reference);
+  release(L, callback);
 }
 
 void stage::on_leave() {
-  invoke("on_leave");
-}
-
-void stage::invoke(const char *callback) {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  lua_getfield(L, -1, callback);
-
-  if (lua_isfunction(L, -1)) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    pcall(L, 1, 0);
-  } else {
-    lua_pop(L, 1);
-  }
-
+  auto callback = acquire(L, -1, "on_leave");
   lua_pop(L, 1);
+  invoke(L, callback, _reference);
+  release(L, callback);
 }
 
 void stage::on_tick(uint64_t tick) {
-  ::invoke(L, _on_tick, _reference, static_cast<float>(tick));
+  invoke(L, _on_tick, _reference, tick);
 }
 
 void stage::update(float delta) {
@@ -420,13 +402,13 @@ void stage::update(float delta) {
     }
   }
 
-  ::invoke(L, _on_loop, _reference, delta);
+  invoke(L, _on_loop, _reference, delta);
 
   for (auto&& [entity, proxy] : _registry.view<objectproxy>(entt::exclude<dormant>).each()) {
     if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
       continue;
 
-    ::invoke(L, proxy.on_loop, proxy.handle, delta);
+    invoke(L, proxy.on_loop, proxy.handle, delta);
 
     auto* a = _registry.try_get<animation>(entity);
     if (!a || !a->playing || a->clip_count == 0)
@@ -446,8 +428,8 @@ void stage::update(float delta) {
       if (a->current >= c.count) {
         a->current = 0;
 
-        ::invoke(L, proxy.on_animation_end, proxy.handle, _stringpool.get(c.name));
-        ::invoke(L, proxy.on_animation_begin, proxy.handle, _stringpool.get(c.name));
+        invoke(L, proxy.on_animation_end, proxy.handle, _stringpool.get(c.name));
+        invoke(L, proxy.on_animation_begin, proxy.handle, _stringpool.get(c.name));
       }
     }
   }
