@@ -15,8 +15,8 @@ namespace {
   }
 
   int object_index(lua_State* state) {
-    const auto* proxy = check<objectproxy>(state, 1, "Object");
-    const auto key = check<std::string_view>(state, 2);
+    const auto* proxy = take<objectproxy>(state, 1, "Object");
+    const auto key = take<std::string_view>(state, 2);
 
     if (key == "alive")
       return push(state, proxy->registry->valid(proxy->entity));
@@ -126,8 +126,8 @@ namespace {
   }
 
   int object_newindex(lua_State* state) {
-    auto* proxy = check<objectproxy>(state, 1, "Object");
-    const auto key = check<std::string_view>(state, 2);
+    auto* proxy = take<objectproxy>(state, 1, "Object");
+    const auto key = take<std::string_view>(state, 2);
 
     if (!proxy->registry->valid(proxy->entity))
       return 0;
@@ -137,7 +137,7 @@ namespace {
 
     if (key == "x") {
       auto& tf = registry.get<transform>(entity);
-      tf.x = check<float>(state, 3);
+      tf.x = take<float>(state, 3);
 
       auto* bd = registry.try_get<body>(entity);
       if (bd && bd->type != body_type::kinematic && b2Body_IsValid(bd->id))
@@ -148,7 +148,7 @@ namespace {
 
     if (key == "y") {
       auto& tf = registry.get<transform>(entity);
-      tf.y = check<float>(state, 3);
+      tf.y = take<float>(state, 3);
 
       auto* bd = registry.try_get<body>(entity);
       if (bd && bd->type != body_type::kinematic && b2Body_IsValid(bd->id))
@@ -159,7 +159,7 @@ namespace {
 
     if (key == "z") {
       auto& r = registry.get<renderable>(entity);
-      const auto value = check<int>(state, 3);
+      const auto value = take<int>(state, 3);
       r.z = value;
 
       return 0;
@@ -169,7 +169,7 @@ namespace {
       auto* bd = registry.try_get<body>(entity);
       if (bd && bd->type == body_type::dynamic && b2Body_IsValid(bd->id)) {
         const auto current = b2Body_GetLinearVelocity(bd->id);
-        b2Body_SetLinearVelocity(bd->id, {check<float>(state, 3), current.y});
+        b2Body_SetLinearVelocity(bd->id, {take<float>(state, 3), current.y});
       }
 
       return 0;
@@ -179,14 +179,14 @@ namespace {
       auto* bd = registry.try_get<body>(entity);
       if (bd && bd->type == body_type::dynamic && b2Body_IsValid(bd->id)) {
         const auto current = b2Body_GetLinearVelocity(bd->id);
-        b2Body_SetLinearVelocity(bd->id, {current.x, check<float>(state, 3)});
+        b2Body_SetLinearVelocity(bd->id, {current.x, take<float>(state, 3)});
       }
 
       return 0;
     }
 
     if (key == "flip") {
-      const auto value = check<std::string_view>(state, 3);
+      const auto value = take<std::string_view>(state, 3);
       auto& tf = registry.get<transform>(entity);
       if (value == "horizontal") {
         tf.flip = flipmode::horizontal;
@@ -205,7 +205,7 @@ namespace {
 
     if (key == "animation") {
       if (registry.all_of<animation>(entity)) {
-        const auto value = check<std::string_view>(state, 3);
+        const auto value = take<std::string_view>(state, 3);
         const auto hash = entt::hashed_string{value.data()}.value();
 
         auto& a = registry.get<animation>(entity);
@@ -240,28 +240,28 @@ namespace {
     }
 
     if (key == "scale") {
-      registry.get<transform>(entity).scale = check<float>(state, 3);
+      registry.get<transform>(entity).scale = take<float>(state, 3);
       return 0;
     }
 
     if (key == "angle") {
-      registry.get<transform>(entity).angle = check<float>(state, 3);
+      registry.get<transform>(entity).angle = take<float>(state, 3);
       return 0;
     }
 
     if (key == "alpha") {
       registry.get<transform>(entity).alpha =
-        std::clamp(check<float>(state, 3), .0f, 255.0f);
+        std::clamp(take<float>(state, 3), .0f, 255.0f);
       return 0;
     }
 
     if (key == "shown") {
-      registry.get<transform>(entity).shown = check<bool>(state, 3);
+      registry.get<transform>(entity).shown = take<bool>(state, 3);
       return 0;
     }
 
     if (key == "position") {
-      const auto [px, py] = checkvec2(state, 3);
+      const auto [px, py] = take<std::pair<float, float>>(state, 3);
 
       auto& tf = registry.get<transform>(entity);
       tf.x = px;
@@ -284,7 +284,7 @@ namespace {
   }
 
   int object_gc(lua_State* state) {
-    auto* proxy = check<objectproxy>(state, 1, "Object");
+    auto* proxy = take<objectproxy>(state, 1, "Object");
     release(state, proxy->on_animation_begin);
     release(state, proxy->on_animation_end);
     release(state, proxy->on_loop);

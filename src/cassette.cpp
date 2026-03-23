@@ -18,7 +18,7 @@ static int cassette_clear(lua_State*) {
 }
 
 static int cassette_index(lua_State* state) {
-  const auto key = check<std::string_view>(state, 2);
+  const auto key = take<std::string_view>(state, 2);
 
   if (key == "clear")
     return lua_pushcfunction(state, cassette_clear), 1;
@@ -50,7 +50,7 @@ static int cassette_index(lua_State* state) {
 }
 
 static int cassette_newindex(lua_State* state) {
-  const auto key = check<std::string_view>(state, 2);
+  const auto key = take<std::string_view>(state, 2);
 
   if (key == "clear") [[unlikely]]
     return 0;

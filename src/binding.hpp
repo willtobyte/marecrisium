@@ -17,7 +17,6 @@ void compile(lua_State *state, const std::vector<uint8_t> &buffer, std::string_v
 void singleton(lua_State *state, const char *metatable, const char *global) noexcept;
 void callback(lua_State *state, int argument, int &reference);
 int dispatch(lua_State *state, int reference, std::string_view key);
-[[nodiscard]] std::pair<float, float> checkvec2(lua_State *state, int index);
 void pushvec2(lua_State *state, float x, float y);
 
 template <typename T>
@@ -61,7 +60,7 @@ void pushuserdata(lua_State *state, T *ptr, const char *name) noexcept {
 }
 
 template <typename T>
-auto check(lua_State *state, int index, const char *name = nullptr) {
+auto take(lua_State *state, int index, const char *name = nullptr) {
   if constexpr (std::is_same_v<T, float>)
     return static_cast<float>(luaL_checknumber(state, index));
   else if constexpr (std::is_same_v<T, int>)
@@ -72,7 +71,16 @@ auto check(lua_State *state, int index, const char *name = nullptr) {
     return luaL_checkstring(state, index);
   else if constexpr (std::is_same_v<T, std::string_view>)
     return std::string_view{luaL_checkstring(state, index)};
-  else if constexpr (std::is_void_v<T>)
+  else if constexpr (std::is_same_v<T, std::pair<float, float>>) {
+    luaL_checktype(state, index, LUA_TTABLE);
+    lua_rawgeti(state, index, 1);
+    const auto x = static_cast<float>(lua_tonumber(state, -1));
+    lua_pop(state, 1);
+    lua_rawgeti(state, index, 2);
+    const auto y = static_cast<float>(lua_tonumber(state, -1));
+    lua_pop(state, 1);
+    return std::pair{x, y};
+  } else if constexpr (std::is_void_v<T>)
     return luaL_checkudata(state, index, name);
   else if constexpr (std::is_trivially_copyable_v<T>)
     return static_cast<T *>(luaL_checkudata(state, index, name));

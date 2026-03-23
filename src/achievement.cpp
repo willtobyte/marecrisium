@@ -1,7 +1,7 @@
 #include "achievement.hpp"
 
 static int achievement_unlock(lua_State *state) {
-  const auto *id = check<const char *>(state, 2);
+  const auto *id = take<const char *>(state, 2);
 
   if (!SteamUserStats()) [[unlikely]]
     return lua_pushboolean(state, false), 1;
@@ -16,7 +16,7 @@ static int achievement_unlock(lua_State *state) {
 }
 
 static int achievement_index(lua_State *state) {
-  const auto key = check<std::string_view>(state, 2);
+  const auto key = take<std::string_view>(state, 2);
 
   if (key == "unlock")
     return lua_pushcfunction(state, achievement_unlock), 1;

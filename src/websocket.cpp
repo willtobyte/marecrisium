@@ -137,21 +137,21 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
 }
 
 int subscription_publish(lua_State* state) {
-  auto *self = check<subscription>(state, 1, "Subscription");
+  auto *self = take<subscription>(state, 1, "Subscription");
   luaL_checktype(state, 2, LUA_TTABLE);
   self->publish(state, 2);
   return 0;
 }
 
 int subscription_unsubscribe(lua_State* state) {
-  auto *self = check<subscription>(state, 1, "Subscription");
+  auto *self = take<subscription>(state, 1, "Subscription");
   self->unsubscribe();
   return 0;
 }
 
 int subscription_index(lua_State* state) {
-  check<void>(state, 1, "Subscription");
-  const auto key = check<std::string_view>(state, 2);
+  take<void>(state, 1, "Subscription");
+  const auto key = take<std::string_view>(state, 2);
 
   if (key == "publish") {
     lua_pushcfunction(state, subscription_publish);
@@ -164,7 +164,7 @@ int subscription_index(lua_State* state) {
   }
 
   if (key == "topic") {
-    auto *self = check<subscription>(state, 1, "Subscription");
+    auto *self = take<subscription>(state, 1, "Subscription");
     lua_pushstring(state, self->topic().c_str());
     return 1;
   }
@@ -173,25 +173,25 @@ int subscription_index(lua_State* state) {
 }
 
 int subscription_gc(lua_State* state) {
-  delete check<subscription>(state, 1, "Subscription");
+  delete take<subscription>(state, 1, "Subscription");
   return 0;
 }
 
 int websocket_on_connect(lua_State* state) {
-  auto* instance = check<channel>(state, 1, "WebSocket");
+  auto* instance = take<channel>(state, 1, "WebSocket");
   instance->set_on_connect(capture(state, 2));
   return 0;
 }
 
 int websocket_on_disconnect(lua_State* state) {
-  auto* instance = check<channel>(state, 1, "WebSocket");
+  auto* instance = take<channel>(state, 1, "WebSocket");
   instance->set_on_disconnect(capture(state, 2));
   return 0;
 }
 
 int websocket_subscribe(lua_State* state) {
-  auto* instance = check<channel>(state, 1, "WebSocket");
-  const auto *const topic = check<const char *>(state, 2);
+  auto* instance = take<channel>(state, 1, "WebSocket");
+  const auto *const topic = take<const char *>(state, 2);
   const auto reference = capture(state, 3);
 
   subscription *sub = nullptr;
@@ -207,8 +207,8 @@ int websocket_subscribe(lua_State* state) {
 }
 
 int websocket_index(lua_State* state) {
-  check<void>(state, 1, "WebSocket");
-  const auto key = check<std::string_view>(state, 2);
+  take<void>(state, 1, "WebSocket");
+  const auto key = take<std::string_view>(state, 2);
 
   if (key == "subscribe") {
     lua_pushcfunction(state, websocket_subscribe);
@@ -229,7 +229,7 @@ int websocket_index(lua_State* state) {
 }
 
 int websocket_gc(lua_State* state) {
-  auto **pointer = static_cast<channel **>(check<void>(state, 1, "WebSocket"));
+  auto **pointer = static_cast<channel **>(take<void>(state, 1, "WebSocket"));
   if (*pointer == connection.get())
     connection.reset();
   *pointer = nullptr;
@@ -237,7 +237,7 @@ int websocket_gc(lua_State* state) {
 }
 
 int websocket_call(lua_State* state) {
-  const auto *const url = check<const char *>(state, 1);
+  const auto *const url = take<const char *>(state, 1);
 
   connection = std::make_unique<channel>(url);
 

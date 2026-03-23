@@ -78,46 +78,46 @@ static void on_object_destroy(entt::registry& registry, entt::entity entity) {
 
 static int world_raycast(lua_State* state) {
   auto* self = upvalue<stage>(state);
-  const auto* caller = check<objectproxy>(state, 1, "Object");
-  const auto x = check<float>(state, 2);
-  const auto y = check<float>(state, 3);
-  const auto angle = check<float>(state, 4);
-  const auto distance = check<float>(state, 5);
+  const auto* caller = take<objectproxy>(state, 1, "Object");
+  const auto x = take<float>(state, 2);
+  const auto y = take<float>(state, 3);
+  const auto angle = take<float>(state, 4);
+  const auto distance = take<float>(state, 5);
   return self->raycast(state, caller->entity, x, y, angle, distance);
 }
 
 static int world_radar(lua_State* state) {
   auto* self = upvalue<stage>(state);
-  const auto* caller = check<objectproxy>(state, 1, "Object");
-  const auto x = check<float>(state, 2);
-  const auto y = check<float>(state, 3);
-  const auto radius = check<float>(state, 4);
+  const auto* caller = take<objectproxy>(state, 1, "Object");
+  const auto x = take<float>(state, 2);
+  const auto y = take<float>(state, 3);
+  const auto radius = take<float>(state, 4);
   return self->radar(state, caller->entity, x, y, radius);
 }
 
 static int world_at(lua_State* state) {
   auto* self = upvalue<stage>(state);
-  const auto x = check<float>(state, 1);
-  const auto y = check<float>(state, 2);
+  const auto x = take<float>(state, 1);
+  const auto y = take<float>(state, 2);
   return self->at(state, x, y);
 }
 
 static int world_pathfind(lua_State* state) {
   auto* self = upvalue<stage>(state);
-  const auto x1 = check<float>(state, 1);
-  const auto y1 = check<float>(state, 2);
-  const auto x2 = check<float>(state, 3);
-  const auto y2 = check<float>(state, 4);
-  const auto r  = check<float>(state, 5);
+  const auto x1 = take<float>(state, 1);
+  const auto y1 = take<float>(state, 2);
+  const auto x2 = take<float>(state, 3);
+  const auto y2 = take<float>(state, 4);
+  const auto r  = take<float>(state, 5);
   return self->pathfind(state, x1, y1, x2, y2, r);
 }
 
 static int world_spawn(lua_State* state) {
   auto* self = upvalue<stage>(state);
-  const auto name = check<std::string_view>(state, 1);
-  const auto kind = check<std::string_view>(state, 2);
-  const auto x = check<float>(state, 3);
-  const auto y = check<float>(state, 4);
+  const auto name = take<std::string_view>(state, 1);
+  const auto kind = take<std::string_view>(state, 2);
+  const auto x = take<float>(state, 3);
+  const auto y = take<float>(state, 4);
   return self->spawn(state, name, kind, x, y);
 }
 
@@ -1012,7 +1012,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 }
 
 int stage::destroy(lua_State* state) {
-  auto* proxy = check<objectproxy>(state, 1, "Object");
+  auto* proxy = take<objectproxy>(state, 1, "Object");
   if (!_registry.valid(proxy->entity))
     return 0;
 

@@ -12,7 +12,7 @@ static int mouse_position(lua_State *state) {
 }
 
 static int mouse_index(lua_State *state) {
-  const auto key = check<std::string_view>(state, 2);
+  const auto key = take<std::string_view>(state, 2);
 
   float x, y;
   const auto button = SDL_GetMouseState(&x, &y);
@@ -48,7 +48,7 @@ static int mouse_index(lua_State *state) {
 }
 
 static int mouse_newindex(lua_State *state) {
-  const auto key = check<std::string_view>(state, 2);
+  const auto key = take<std::string_view>(state, 2);
 
   if (key == "shown" && lua_isboolean(state, 3)) {
     if (lua_toboolean(state, 3))

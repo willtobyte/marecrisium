@@ -15,11 +15,11 @@ static bool on_event(void *userdata, SDL_Event *event) {
 }
 
 static int overlay_label(lua_State *state) {
-  auto *self = check<overlay>(state, 1, "Overlay");
-  const auto *font = check<const char *>(state, 2);
-  const auto *text = check<const char *>(state, 3);
-  const auto x = check<float>(state, 4);
-  const auto y = check<float>(state, 5);
+  auto *self = take<overlay>(state, 1, "Overlay");
+  const auto *font = take<const char *>(state, 2);
+  const auto *text = take<const char *>(state, 3);
+  const auto x = take<float>(state, 4);
+  const auto y = take<float>(state, 5);
 
   if (!lua_istable(state, 6)) [[likely]] {
     self->render_label(font, text, x, y);
@@ -56,8 +56,8 @@ static int overlay_label(lua_State *state) {
 }
 
 static int overlay_index(lua_State *state) {
-  check<void>(state, 1, "Overlay");
-  const auto key = check<std::string_view>(state, 2);
+  take<void>(state, 1, "Overlay");
+  const auto key = take<std::string_view>(state, 2);
 
   if (key == "label") {
     lua_pushcfunction(state, overlay_label);

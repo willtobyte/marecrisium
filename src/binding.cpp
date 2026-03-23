@@ -195,16 +195,6 @@ int dispatch(lua_State *state, int reference, std::string_view key) {
   return lua_pushnil(state), 1;
 }
 
-std::pair<float, float> checkvec2(lua_State *state, int index) {
-  luaL_checktype(state, index, LUA_TTABLE);
-  lua_rawgeti(state, index, 1);
-  const auto x = static_cast<float>(lua_tonumber(state, -1));
-  lua_pop(state, 1);
-  lua_rawgeti(state, index, 2);
-  const auto y = static_cast<float>(lua_tonumber(state, -1));
-  lua_pop(state, 1);
-  return {x, y};
-}
 
 void pushvec2(lua_State *state, float x, float y) {
   lua_createtable(state, 2, 0);
