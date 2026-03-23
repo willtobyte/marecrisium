@@ -109,6 +109,13 @@ local Gamepad = {}
 ---@return boolean success
 function Gamepad:rumble(low, high, duration) end
 
+---Set the gamepad LED color.
+---@param r number Red intensity (0.0 to 1.0).
+---@param g number Green intensity (0.0 to 1.0).
+---@param b number Blue intensity (0.0 to 1.0).
+---@return boolean success
+function Gamepad:led(r, g, b) end
+
 ---Global gamepad state.
 ---@type Gamepad
 gamepad = {}
