@@ -78,46 +78,46 @@ static void on_object_destroy(entt::registry& registry, entt::entity entity) {
 
 static int world_raycast(lua_State* state) {
   auto* self = upvalue<stage>(state);
-  const auto* caller = take<objectproxy>(state, 1, "Object");
-  const auto x = take<float>(state, 2);
-  const auto y = take<float>(state, 3);
-  const auto angle = take<float>(state, 4);
-  const auto distance = take<float>(state, 5);
+  const auto* caller = argument<objectproxy>(state, 1, "Object");
+  const auto x = argument<float>(state, 2);
+  const auto y = argument<float>(state, 3);
+  const auto angle = argument<float>(state, 4);
+  const auto distance = argument<float>(state, 5);
   return self->raycast(state, caller->entity, x, y, angle, distance);
 }
 
 static int world_radar(lua_State* state) {
   auto* self = upvalue<stage>(state);
-  const auto* caller = take<objectproxy>(state, 1, "Object");
-  const auto x = take<float>(state, 2);
-  const auto y = take<float>(state, 3);
-  const auto radius = take<float>(state, 4);
+  const auto* caller = argument<objectproxy>(state, 1, "Object");
+  const auto x = argument<float>(state, 2);
+  const auto y = argument<float>(state, 3);
+  const auto radius = argument<float>(state, 4);
   return self->radar(state, caller->entity, x, y, radius);
 }
 
 static int world_at(lua_State* state) {
   auto* self = upvalue<stage>(state);
-  const auto x = take<float>(state, 1);
-  const auto y = take<float>(state, 2);
+  const auto x = argument<float>(state, 1);
+  const auto y = argument<float>(state, 2);
   return self->at(state, x, y);
 }
 
 static int world_pathfind(lua_State* state) {
   auto* self = upvalue<stage>(state);
-  const auto x1 = take<float>(state, 1);
-  const auto y1 = take<float>(state, 2);
-  const auto x2 = take<float>(state, 3);
-  const auto y2 = take<float>(state, 4);
-  const auto r  = take<float>(state, 5);
+  const auto x1 = argument<float>(state, 1);
+  const auto y1 = argument<float>(state, 2);
+  const auto x2 = argument<float>(state, 3);
+  const auto y2 = argument<float>(state, 4);
+  const auto r  = argument<float>(state, 5);
   return self->pathfind(state, x1, y1, x2, y2, r);
 }
 
 static int world_spawn(lua_State* state) {
   auto* self = upvalue<stage>(state);
-  const auto name = take<std::string_view>(state, 1);
-  const auto kind = take<std::string_view>(state, 2);
-  const auto x = take<float>(state, 3);
-  const auto y = take<float>(state, 4);
+  const auto name = argument<std::string_view>(state, 1);
+  const auto kind = argument<std::string_view>(state, 2);
+  const auto x = argument<float>(state, 3);
+  const auto y = argument<float>(state, 4);
   return self->spawn(state, name, kind, x, y);
 }
 
@@ -170,8 +170,8 @@ stage::stage(std::string_view name)
   b2Vec2 gravity{.0f, .0f};
   lua_getfield(L, -1, "gravity");
   if (lua_istable(L, -1)) {
-    gravity.x = get<float>(L, -1, 1);
-    gravity.y = get<float>(L, -1, 2);
+    gravity.x = property<float>(L, -1, 1);
+    gravity.y = property<float>(L, -1, 2);
   }
   lua_pop(L, 1);
 
@@ -190,11 +190,11 @@ stage::stage(std::string_view name)
     for (int i = 1; i <= count; ++i) {
       lua_rawgeti(L, -1, i);
 
-      const auto object_name = std::string(get<std::string_view>(L, -1, "name"));
-      const auto object_kind = std::string(get<std::string_view>(L, -1, "kind"));
+      const auto object_name = std::string(property<std::string_view>(L, -1, "name"));
+      const auto object_kind = std::string(property<std::string_view>(L, -1, "kind"));
 
-      const auto ox = get<float>(L, -1, "x");
-      const auto oy = get<float>(L, -1, "y");
+      const auto ox = property<float>(L, -1, "x");
+      const auto oy = property<float>(L, -1, "y");
 
       lua_pop(L, 1);
 
@@ -213,10 +213,10 @@ stage::stage(std::string_view name)
       lua_rawgeti(L, -1, i);
 
       if (lua_istable(L, -1)) {
-        const auto sound_name = std::string(get<std::string_view>(L, -1, "name"));
+        const auto sound_name = std::string(property<std::string_view>(L, -1, "name"));
 
-        const auto autoplay = get<bool>(L, -1, "autoplay");
-        const auto loop = get<bool>(L, -1, "loop");
+        const auto autoplay = property<bool>(L, -1, "autoplay");
+        const auto loop = property<bool>(L, -1, "loop");
 
         auto& instance = depot->sound.get(std::format("sounds/{}", sound_name));
         pushuserdata(L, &instance, "Sound");
@@ -242,18 +242,18 @@ stage::stage(std::string_view name)
   lua_pop(L, 1);
 
   {
-    const auto tilemap_name = get<std::string_view>(L, -1, "tilemap");
+    const auto tilemap_name = property<std::string_view>(L, -1, "tilemap");
     if (!tilemap_name.empty())
       _tilemap = tilemap(tilemap_name, _world);
   }
 
   lua_getfield(L, -1, "overlay");
   if (lua_istable(L, -1)) {
-    const auto widgets = get<std::string_view>(L, -1, "widgets");
+    const auto widgets = property<std::string_view>(L, -1, "widgets");
     if (!widgets.empty())
       _overlay = std::string{widgets};
 
-    const auto fg = get<std::string_view>(L, -1, "foreground");
+    const auto fg = property<std::string_view>(L, -1, "foreground");
     if (!fg.empty())
       _foreground = std::string{fg};
   }
@@ -266,15 +266,15 @@ stage::stage(std::string_view name)
     for (int i = 1; i <= count; ++i) {
       lua_rawgeti(L, -1, i);
 
-      const auto particle_name = std::string(get<std::string_view>(L, -1, "name"));
-      const auto particle_kind = std::string(get<std::string_view>(L, -1, "kind"));
+      const auto particle_name = std::string(property<std::string_view>(L, -1, "name"));
+      const auto particle_kind = std::string(property<std::string_view>(L, -1, "kind"));
 
-      const auto px = get<float>(L, -1, "x");
-      const auto py = get<float>(L, -1, "y");
-      const auto active = get<bool>(L, -1, "active", true);
-      const auto sound_name = get<std::string_view>(L, -1, "sound");
-      const auto particle_distance = get<float>(L, -1, "distance", 300.f);
-      const auto particle_volume = get<float>(L, -1, "volume", 1.f);
+      const auto px = property<float>(L, -1, "x");
+      const auto py = property<float>(L, -1, "y");
+      const auto active = property<bool>(L, -1, "active", true);
+      const auto sound_name = property<std::string_view>(L, -1, "sound");
+      const auto particle_distance = property<float>(L, -1, "distance", 300.f);
+      const auto particle_volume = property<float>(L, -1, "volume", 1.f);
 
       lua_pop(L, 1);
 
@@ -877,19 +877,19 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
           if (lua_istable(L, -1)) {
             auto& fr = c.frames[c.count];
 
-            fr.x = get<float>(L, -1, 1);
-            fr.y = get<float>(L, -1, 2);
-            fr.w = get<float>(L, -1, 3);
-            fr.h = get<float>(L, -1, 4);
-            fr.duration = get<float>(L, -1, 5) / 1000.f;
+            fr.x = property<float>(L, -1, 1);
+            fr.y = property<float>(L, -1, 2);
+            fr.w = property<float>(L, -1, 3);
+            fr.h = property<float>(L, -1, 4);
+            fr.duration = property<float>(L, -1, 5) / 1000.f;
 
             lua_rawgeti(L, -1, 6);
             if (!lua_isnil(L, -1)) {
               fr.cx = static_cast<float>(lua_tonumber(L, -1));
               lua_pop(L, 1);
-              fr.cy = get<float>(L, -1, 7);
-              fr.cw = get<float>(L, -1, 8);
-              fr.ch = get<float>(L, -1, 9);
+              fr.cy = property<float>(L, -1, 7);
+              fr.cw = property<float>(L, -1, 8);
+              fr.ch = property<float>(L, -1, 9);
               fr.collidable = true;
             } else {
               lua_pop(L, 1);
@@ -903,7 +903,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       }
 
       {
-        const auto sound_name = get<std::string_view>(L, -1, "sound");
+        const auto sound_name = property<std::string_view>(L, -1, "sound");
         if (!sound_name.empty())
           c.fx = &depot->sound.get(std::format("sounds/{}", sound_name));
       }
@@ -915,7 +915,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
     if (a.clip_count > 0) {
       a.playing = true;
 
-      const auto default_clip = get<std::string_view>(L, -1, "default");
+      const auto default_clip = property<std::string_view>(L, -1, "default");
       if (!default_clip.empty()) {
         const auto hash = entt::hashed_string{default_clip.data()}.value();
         for (uint8_t i = 0; i < a.clip_count; ++i) {
@@ -937,7 +937,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 
     if (collidable) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
-      const auto str = get<std::string_view>(L, -1, "body");
+      const auto str = property<std::string_view>(L, -1, "body");
       lua_pop(L, 1);
 
       const auto type = str == "dynamic" ? body_type::dynamic
@@ -966,7 +966,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 
   {
     lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
-    const auto wants_sleepable = get<bool>(L, -1, "sleepable");
+    const auto wants_sleepable = property<bool>(L, -1, "sleepable");
     lua_pop(L, 1);
 
     if (wants_sleepable)
@@ -1012,7 +1012,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 }
 
 int stage::destroy(lua_State* state) {
-  auto* proxy = take<objectproxy>(state, 1, "Object");
+  auto* proxy = argument<objectproxy>(state, 1, "Object");
   if (!_registry.valid(proxy->entity))
     return 0;
 

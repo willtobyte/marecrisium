@@ -63,9 +63,9 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
   pcall(L, 0, 1);
 
-  _size = get<float>(L, -1, "size");
-  _width = get<int>(L, -1, "width");
-  _height = get<int>(L, -1, "height");
+  _size = property<float>(L, -1, "size");
+  _width = property<int>(L, -1, "width");
+  _height = property<int>(L, -1, "height");
 
   _inverse_size = 1.f / _size;
 

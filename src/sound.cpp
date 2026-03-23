@@ -2,42 +2,42 @@
 
 namespace {
   int sound_play(lua_State* state) {
-    auto* instance = take<sound>(state, 1, "Sound");
+    auto* instance = argument<sound>(state, 1, "Sound");
     instance->play();
-    fire(state, instance->on_begin);
+    invoke(state, instance->on_begin, LUA_NOREF);
 
     return 0;
   }
 
   int sound_stop(lua_State* state) {
-    take<sound>(state, 1, "Sound")->stop();
+    argument<sound>(state, 1, "Sound")->stop();
     return 0;
   }
 
   int sound_on_begin(lua_State* state) {
-    auto* instance = take<sound>(state, 1, "Sound");
+    auto* instance = argument<sound>(state, 1, "Sound");
     callback(state, 2, instance->on_begin);
     return 0;
   }
 
   int sound_fade(lua_State* state) {
-    auto* instance = take<sound>(state, 1, "Sound");
-    const auto from = take<float>(state, 2);
-    const auto to = take<float>(state, 3);
-    const auto ms = static_cast<uint64_t>(take<int>(state, 4));
+    auto* instance = argument<sound>(state, 1, "Sound");
+    const auto from = argument<float>(state, 2);
+    const auto to = argument<float>(state, 3);
+    const auto ms = static_cast<uint64_t>(argument<int>(state, 4));
     instance->fade(from, to, ms);
     return 0;
   }
 
   int sound_on_end(lua_State* state) {
-    auto* instance = take<sound>(state, 1, "Sound");
+    auto* instance = argument<sound>(state, 1, "Sound");
     callback(state, 2, instance->on_end);
     return 0;
   }
 
   int sound_index(lua_State* state) {
-    auto* instance = take<sound>(state, 1, "Sound");
-    const auto key = take<std::string_view>(state, 2);
+    auto* instance = argument<sound>(state, 1, "Sound");
+    const auto key = argument<std::string_view>(state, 2);
 
     if (key == "volume")
       return push(state, instance->volume());
@@ -77,21 +77,21 @@ namespace {
   }
 
   int sound_newindex(lua_State* state) {
-    auto* instance = take<sound>(state, 1, "Sound");
-    const auto key = take<std::string_view>(state, 2);
+    auto* instance = argument<sound>(state, 1, "Sound");
+    const auto key = argument<std::string_view>(state, 2);
 
     if (key == "volume") {
-      instance->set_volume(take<float>(state, 3));
+      instance->set_volume(argument<float>(state, 3));
       return 0;
     }
 
     if (key == "pan") {
-      instance->set_pan(take<float>(state, 3));
+      instance->set_pan(argument<float>(state, 3));
       return 0;
     }
 
     if (key == "loop") {
-      instance->set_loop(take<bool>(state, 3));
+      instance->set_loop(argument<bool>(state, 3));
       return 0;
     }
 
@@ -205,7 +205,7 @@ void sound::fade(float from, float to, uint64_t ms) noexcept {
 void sound::poll() {
   const auto ended = _ended.exchange(false, std::memory_order_acquire);
   if (ended)
-    fire(L, on_end);
+    invoke(L, on_end, LUA_NOREF);
 }
 
 void sound::wire() {

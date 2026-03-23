@@ -5,8 +5,8 @@ namespace {
 constexpr float TWO_PI = 6.28318530718f;
 
 int particle_index(lua_State* state) {
-  const auto* self = take<particle>(state, 1, "Particle");
-  const auto key = take<std::string_view>(state, 2);
+  const auto* self = argument<particle>(state, 1, "Particle");
+  const auto key = argument<std::string_view>(state, 2);
 
   if (key == "active")
     return push(state, self->active());
@@ -36,26 +36,26 @@ int particle_index(lua_State* state) {
 }
 
 int particle_newindex(lua_State* state) {
-  auto* self = take<particle>(state, 1, "Particle");
-  const auto key = take<std::string_view>(state, 2);
+  auto* self = argument<particle>(state, 1, "Particle");
+  const auto key = argument<std::string_view>(state, 2);
 
   if (key == "active") {
-    self->set_active(take<bool>(state, 3));
+    self->set_active(argument<bool>(state, 3));
     return 0;
   }
 
   if (key == "x") {
-    self->set_x(take<float>(state, 3));
+    self->set_x(argument<float>(state, 3));
     return 0;
   }
 
   if (key == "y") {
-    self->set_y(take<float>(state, 3));
+    self->set_y(argument<float>(state, 3));
     return 0;
   }
 
   if (key == "position") {
-    const auto [px, py] = take<std::pair<float, float>>(state, 3);
+    const auto [px, py] = argument<std::pair<float, float>>(state, 3);
     self->set_x(px);
     self->set_y(py);
     return 0;

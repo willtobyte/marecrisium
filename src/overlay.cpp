@@ -15,11 +15,11 @@ static bool on_event(void *userdata, SDL_Event *event) {
 }
 
 static int overlay_label(lua_State *state) {
-  auto *self = take<overlay>(state, 1, "Overlay");
-  const auto *font = take<const char *>(state, 2);
-  const auto *text = take<const char *>(state, 3);
-  const auto x = take<float>(state, 4);
-  const auto y = take<float>(state, 5);
+  auto *self = argument<overlay>(state, 1, "Overlay");
+  const auto *font = argument<const char *>(state, 2);
+  const auto *text = argument<const char *>(state, 3);
+  const auto x = argument<float>(state, 4);
+  const auto y = argument<float>(state, 5);
 
   if (!lua_istable(state, 6)) [[likely]] {
     self->render_label(font, text, x, y);
@@ -38,11 +38,11 @@ static int overlay_label(lua_State *state) {
       if (index < effects.size()) {
         auto &effect = effects[index];
 
-        effect.xoffset = get<float>(state, -1, "xoffset", effect.xoffset);
-        effect.yoffset = get<float>(state, -1, "yoffset", effect.yoffset);
-        effect.scale = get<float>(state, -1, "scale", effect.scale);
-        effect.angle = get<float>(state, -1, "angle", effect.angle);
-        effect.alpha = get<float>(state, -1, "alpha", effect.alpha);
+        effect.xoffset = property<float>(state, -1, "xoffset", effect.xoffset);
+        effect.yoffset = property<float>(state, -1, "yoffset", effect.yoffset);
+        effect.scale = property<float>(state, -1, "scale", effect.scale);
+        effect.angle = property<float>(state, -1, "angle", effect.angle);
+        effect.alpha = property<float>(state, -1, "alpha", effect.alpha);
 
         if (index >= lenght) lenght = index + 1;
       }
@@ -56,8 +56,8 @@ static int overlay_label(lua_State *state) {
 }
 
 static int overlay_index(lua_State *state) {
-  take<void>(state, 1, "Overlay");
-  const auto key = take<std::string_view>(state, 2);
+  argument<void>(state, 1, "Overlay");
+  const auto key = argument<std::string_view>(state, 2);
 
   if (key == "label") {
     lua_pushcfunction(state, overlay_label);

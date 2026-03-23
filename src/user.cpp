@@ -1,18 +1,18 @@
 #include "user.hpp"
 
 static int friend_newindex(lua_State *state) {
-  const auto key = take<std::string_view>(state, 2);
+  const auto key = argument<std::string_view>(state, 2);
   return luaL_error(state, "attempt to write read-only field '%s'", key.data());
 }
 
 static int user_newindex(lua_State *state) {
-  const auto key = take<std::string_view>(state, 2);
+  const auto key = argument<std::string_view>(state, 2);
   return luaL_error(state, "attempt to write read-only field '%s'", key.data());
 }
 
 static int friend_index(lua_State *state) {
-  take<void>(state, 1, "Friend");
-  const auto key = take<std::string_view>(state, 2);
+  argument<void>(state, 1, "Friend");
+  const auto key = argument<std::string_view>(state, 2);
 
   if (key == "id") {
     lua_getfenv(state, 1);
@@ -32,7 +32,7 @@ static int friend_index(lua_State *state) {
 }
 
 static int user_index(lua_State *state) {
-  const auto key = take<std::string_view>(state, 2);
+  const auto key = argument<std::string_view>(state, 2);
 
   if (key == "persona")
     return push(state, GetPersonaName());

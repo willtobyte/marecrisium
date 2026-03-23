@@ -1,7 +1,7 @@
 #include "platform.hpp"
 
 static int platform_index(lua_State *state) {
-  const auto key = take<std::string_view>(state, 2);
+  const auto key = argument<std::string_view>(state, 2);
 
   if (key == "name")
     return push(state, SDL_GetPlatform());
@@ -35,10 +35,10 @@ static int platform_index(lua_State *state) {
 }
 
 static int platform_newindex(lua_State *state) {
-  const auto key = take<std::string_view>(state, 2);
+  const auto key = argument<std::string_view>(state, 2);
 
   if (key == "clipboard") {
-    const auto *text = take<const char *>(state, 3);
+    const auto *text = argument<const char *>(state, 3);
     SDL_SetClipboardText(text);
   }
 

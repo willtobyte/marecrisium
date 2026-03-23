@@ -14,24 +14,24 @@ engine::engine() {
 
   pcall(L, 0, 1);
 
-  const auto width = get<int>(L, -1, "width", 1920);
-  const auto height = get<int>(L, -1, "height", 1080);
-  const auto scale = get<float>(L, -1, "scale", 1.f);
-  const auto fullscreen = get<bool>(L, -1, "fullscreen");
+  const auto width = property<int>(L, -1, "width", 1920);
+  const auto height = property<int>(L, -1, "height", 1080);
+  const auto scale = property<float>(L, -1, "scale", 1.f);
+  const auto fullscreen = property<bool>(L, -1, "fullscreen");
 
   b2SetLengthUnitsPerMeter(100.f);
 
   {
-    const auto ticks = get<int>(L, -1, "ticks");
+    const auto ticks = property<int>(L, -1, "ticks");
     if (ticks > 0)
       _tick_interval = 1.f / static_cast<float>(ticks);
   }
 
-  const auto title = get<std::string_view>(L, -1, "title", "Untitled");
+  const auto title = property<std::string_view>(L, -1, "title", "Untitled");
 
 #ifndef DEBUG
   {
-    const auto dsn = get<std::string_view>(L, -1, "sentry");
+    const auto dsn = property<std::string_view>(L, -1, "sentry");
     if (!dsn.empty()) {
       auto* const options = sentry_options_new();
       sentry_options_set_dsn(options, dsn.data());

@@ -97,43 +97,51 @@ void compile(lua_State *state, const std::vector<uint8_t> &buffer, std::string_v
 }
 
 template <>
-float get<float>(lua_State *state, int index, const char *name, float fallback) noexcept {
+float property<float>(lua_State *state, int index, const char *name, float fallback) noexcept {
   lua_getfield(state, index, name);
-  const auto v = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : fallback;
+  const auto value = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : fallback;
   lua_pop(state, 1);
-  return v;
+  return value;
 }
 
 template <>
-int get<int>(lua_State *state, int index, const char *name, int fallback) noexcept {
+int property<int>(lua_State *state, int index, const char *name, int fallback) noexcept {
   lua_getfield(state, index, name);
-  const auto v = lua_isnumber(state, -1) ? static_cast<int>(lua_tonumber(state, -1)) : fallback;
+  const auto value = lua_isnumber(state, -1) ? static_cast<int>(lua_tonumber(state, -1)) : fallback;
   lua_pop(state, 1);
-  return v;
+  return value;
 }
 
 template <>
-bool get<bool>(lua_State *state, int index, const char *name, bool fallback) noexcept {
+bool property<bool>(lua_State *state, int index, const char *name, bool fallback) noexcept {
   lua_getfield(state, index, name);
-  const auto v = lua_isboolean(state, -1) ? lua_toboolean(state, -1) != 0 : fallback;
+  const auto value = lua_isboolean(state, -1) ? lua_toboolean(state, -1) != 0 : fallback;
   lua_pop(state, 1);
-  return v;
+  return value;
 }
 
 template <>
-std::string_view get<std::string_view>(lua_State *state, int index, const char *name, std::string_view fallback) noexcept {
+std::string_view property<std::string_view>(lua_State *state, int index, const char *name, std::string_view fallback) noexcept {
   lua_getfield(state, index, name);
-  const auto *s = lua_isstring(state, -1) ? lua_tostring(state, -1) : nullptr;
+  const auto *value = lua_isstring(state, -1) ? lua_tostring(state, -1) : nullptr;
   lua_pop(state, 1);
-  return s ? std::string_view{s} : fallback;
+  return value ? std::string_view{value} : fallback;
 }
 
 template <>
-float get<float>(lua_State *state, int index, int i) noexcept {
+size_t property<size_t>(lua_State *state, int index, const char *name, size_t fallback) noexcept {
+  lua_getfield(state, index, name);
+  const auto value = lua_isnumber(state, -1) ? static_cast<size_t>(lua_tonumber(state, -1)) : fallback;
+  lua_pop(state, 1);
+  return value;
+}
+
+template <>
+float property<float>(lua_State *state, int index, int i) noexcept {
   lua_rawgeti(state, index, i);
-  const auto v = static_cast<float>(lua_tonumber(state, -1));
+  const auto value = static_cast<float>(lua_tonumber(state, -1));
   lua_pop(state, 1);
-  return v;
+  return value;
 }
 
 int acquire(lua_State *state, int index, const char *name) noexcept {
@@ -194,7 +202,6 @@ int dispatch(lua_State *state, int reference, std::string_view key) {
 
   return lua_pushnil(state), 1;
 }
-
 
 void pushvec2(lua_State *state, float x, float y) {
   lua_createtable(state, 2, 0);

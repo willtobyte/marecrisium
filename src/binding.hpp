@@ -20,31 +20,34 @@ int dispatch(lua_State *state, int reference, std::string_view key);
 void pushvec2(lua_State *state, float x, float y);
 
 template <typename T>
-[[nodiscard]] T get(lua_State *state, int index, const char *name, T fallback = T{}) noexcept {
-  static_assert(sizeof(T) == 0, "unsupported type for get<T>");
+[[nodiscard]] T property(lua_State *state, int index, const char *name, T fallback = T{}) noexcept {
+  static_assert(sizeof(T) == 0, "unsupported type for property<T>");
   return fallback;
 }
 
 template <>
-[[nodiscard]] float get<float>(lua_State *state, int index, const char *name, float fallback) noexcept;
+[[nodiscard]] float property<float>(lua_State *state, int index, const char *name, float fallback) noexcept;
 
 template <>
-[[nodiscard]] bool get<bool>(lua_State *state, int index, const char *name, bool fallback) noexcept;
+[[nodiscard]] bool property<bool>(lua_State *state, int index, const char *name, bool fallback) noexcept;
 
 template <>
-[[nodiscard]] int get<int>(lua_State *state, int index, const char *name, int fallback) noexcept;
+[[nodiscard]] int property<int>(lua_State *state, int index, const char *name, int fallback) noexcept;
 
 template <>
-[[nodiscard]] std::string_view get<std::string_view>(lua_State *state, int index, const char *name, std::string_view fallback) noexcept;
+[[nodiscard]] std::string_view property<std::string_view>(lua_State *state, int index, const char *name, std::string_view fallback) noexcept;
+
+template <>
+[[nodiscard]] size_t property<size_t>(lua_State *state, int index, const char *name, size_t fallback) noexcept;
 
 template <typename T>
-[[nodiscard]] T get(lua_State *state, int index, int i) noexcept {
-  static_assert(sizeof(T) == 0, "unsupported type for get<T>");
+[[nodiscard]] T property(lua_State *state, int index, int i) noexcept {
+  static_assert(sizeof(T) == 0, "unsupported type for property<T>");
   return T{};
 }
 
 template <>
-[[nodiscard]] float get<float>(lua_State *state, int index, int i) noexcept;
+[[nodiscard]] float property<float>(lua_State *state, int index, int i) noexcept;
 
 [[nodiscard]] int acquire(lua_State *state, int index, const char *name) noexcept;
 void release(lua_State *state, int &handle) noexcept;
@@ -60,7 +63,7 @@ void pushuserdata(lua_State *state, T *ptr, const char *name) noexcept {
 }
 
 template <typename T>
-auto take(lua_State *state, int index, const char *name = nullptr) {
+auto argument(lua_State *state, int index, const char *name = nullptr) {
   if constexpr (std::is_same_v<T, float>)
     return static_cast<float>(luaL_checknumber(state, index));
   else if constexpr (std::is_same_v<T, int>)
@@ -115,19 +118,16 @@ template <typename... Args>
 void invoke(lua_State *state, int callback, int self, Args... args) {
   if (callback == LUA_NOREF) [[unlikely]]
     return;
-  lua_rawgeti(state, LUA_REGISTRYINDEX, callback);
-  lua_rawgeti(state, LUA_REGISTRYINDEX, self);
-  (push(state, args), ...);
-  pcall(state, 1 + static_cast<int>(sizeof...(args)), 0);
-}
 
-template <typename... Args>
-void fire(lua_State *state, int callback, Args... args) {
-  if (callback == LUA_NOREF) [[unlikely]]
-    return;
   lua_rawgeti(state, LUA_REGISTRYINDEX, callback);
+  int nargs = static_cast<int>(sizeof...(args));
+  if (self != LUA_NOREF) {
+    lua_rawgeti(state, LUA_REGISTRYINDEX, self);
+    ++nargs;
+  }
+
   (push(state, args), ...);
-  pcall(state, static_cast<int>(sizeof...(args)), 0);
+  pcall(state, nargs, 0);
 }
 
 [[nodiscard]] inline int capture(lua_State *state, int index) {

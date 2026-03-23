@@ -1,21 +1,21 @@
 #include "director.hpp"
 
 static int navigate_callback(lua_State *state) {
-  const auto *name = take<const char *>(state, 1);
+  const auto *name = argument<const char *>(state, 1);
   auto *self = upvalue<director>(state);
   self->navigate(name);
   return 0;
 }
 
 static int destroy_callback(lua_State *state) {
-  const auto *name = take<const char *>(state, 1);
+  const auto *name = argument<const char *>(state, 1);
   auto *self = upvalue<director>(state);
   self->destroy(name);
   return 0;
 }
 
 static int preload_callback(lua_State *state) {
-  const auto *name = take<const char *>(state, 1);
+  const auto *name = argument<const char *>(state, 1);
   auto *self = upvalue<director>(state);
   self->preload(name);
   return 0;
@@ -29,13 +29,13 @@ static int reset_callback(lua_State *state) {
 
 static int newindex_callback(lua_State *state) {
   auto *self = upvalue<director>(state);
-  const auto key = take<std::string_view>(state, 2);
+  const auto key = argument<std::string_view>(state, 2);
 
   if (key == "overlay") {
     if (lua_isnil(state, 3) || lua_isnone(state, 3)) {
       self->clear_overlay();
     } else {
-      self->set_overlay(take<const char *>(state, 3));
+      self->set_overlay(argument<const char *>(state, 3));
     }
 
     return 0;
