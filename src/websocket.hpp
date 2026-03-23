@@ -48,7 +48,7 @@ class subscription;
 
 class channel final {
 public:
-  explicit channel(std::string_view url);
+  explicit channel(std::string url);
   ~channel();
 
   channel(const channel&) = delete;

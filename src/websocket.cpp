@@ -191,12 +191,12 @@ int websocket_on_disconnect(lua_State* state) {
 
 int websocket_subscribe(lua_State* state) {
   auto* instance = argument<channel>(state, 1, "WebSocket");
-  const auto *const topic = argument<const char *>(state, 2);
+  auto topic = argument<std::string>(state, 2);
   const auto reference = capture(state, 3);
 
   subscription *sub = nullptr;
   try {
-    sub = new subscription(instance, topic, reference);
+    sub = new subscription(instance, std::move(topic), reference);
   } catch (...) {
     luaL_unref(state, LUA_REGISTRYINDEX, reference);
     throw;
@@ -237,9 +237,9 @@ int websocket_gc(lua_State* state) {
 }
 
 int websocket_call(lua_State* state) {
-  const auto *const url = argument<const char *>(state, 1);
+  auto url = argument<std::string>(state, 1);
 
-  connection = std::make_unique<channel>(url);
+  connection = std::make_unique<channel>(std::move(url));
 
   pushuserdata(state, connection.get(), "WebSocket");
   return 1;
@@ -342,7 +342,7 @@ const struct lws_protocols protocols[] = {
 };
 }
 
-channel::channel(std::string_view url)
+channel::channel(std::string url)
   : _url(std::move(url)), _netloc(_url) {
   lws_set_log_level(0, nullptr);
   _sendbuffer.reserve(LWS_PRE + 4096);

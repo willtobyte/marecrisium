@@ -129,6 +129,14 @@ std::string_view property<std::string_view>(lua_State *state, int index, const c
 }
 
 template <>
+std::string property<std::string>(lua_State *state, int index, const char *name, std::string fallback) noexcept {
+  lua_getfield(state, index, name);
+  const auto *value = lua_isstring(state, -1) ? lua_tostring(state, -1) : nullptr;
+  lua_pop(state, 1);
+  return value ? std::string{value} : fallback;
+}
+
+template <>
 size_t property<size_t>(lua_State *state, int index, const char *name, size_t fallback) noexcept {
   lua_getfield(state, index, name);
   const auto value = lua_isnumber(state, -1) ? static_cast<size_t>(lua_tonumber(state, -1)) : fallback;

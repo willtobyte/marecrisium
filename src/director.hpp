@@ -10,15 +10,15 @@ public:
 
   void wire();
 
-  void navigate(std::string_view name);
+  void navigate(std::string name);
 
   void destroy(std::string_view name);
 
-  void preload(std::string_view name);
+  void preload(std::string name);
 
   void reset();
 
-  void set_overlay(std::string_view name);
+  void set_overlay(std::string name);
 
   void clear_overlay();
 

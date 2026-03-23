@@ -1,23 +1,23 @@
 #include "director.hpp"
 
 static int navigate_callback(lua_State *state) {
-  const auto *name = argument<const char *>(state, 1);
+  auto name = argument<std::string>(state, 1);
   auto *self = upvalue<director>(state);
-  self->navigate(name);
+  self->navigate(std::move(name));
   return 0;
 }
 
 static int destroy_callback(lua_State *state) {
-  const auto *name = argument<const char *>(state, 1);
+  const auto name = argument<std::string_view>(state, 1);
   auto *self = upvalue<director>(state);
   self->destroy(name);
   return 0;
 }
 
 static int preload_callback(lua_State *state) {
-  const auto *name = argument<const char *>(state, 1);
+  auto name = argument<std::string>(state, 1);
   auto *self = upvalue<director>(state);
-  self->preload(name);
+  self->preload(std::move(name));
   return 0;
 }
 
@@ -35,7 +35,7 @@ static int newindex_callback(lua_State *state) {
     if (lua_isnil(state, 3) || lua_isnone(state, 3)) {
       self->clear_overlay();
     } else {
-      self->set_overlay(argument<const char *>(state, 3));
+      self->set_overlay(argument<std::string>(state, 3));
     }
 
     return 0;
@@ -59,8 +59,8 @@ void director::wire() {
   lua_setglobal(L, "director");
 }
 
-void director::navigate(std::string_view name) {
-  _pending = name;
+void director::navigate(std::string name) {
+  _pending = std::move(name);
 }
 
 void director::destroy(std::string_view name) {
@@ -86,11 +86,11 @@ void director::reset() {
   _overlay = nullptr;
 }
 
-void director::set_overlay(std::string_view name) {
-  const auto [it, inserted] = _overlays.try_emplace(std::string{name}, nullptr);
+void director::set_overlay(std::string name) {
+  const auto [it, inserted] = _overlays.try_emplace(std::move(name), nullptr);
 
   if (inserted) {
-    it->second = std::make_unique<overlay>(name);
+    it->second = std::make_unique<overlay>(it->first);
   }
 
   _overlay = it->second.get();
@@ -101,8 +101,10 @@ void director::clear_overlay() {
   _overlay = nullptr;
 }
 
-void director::preload(std::string_view name) {
-  _stages.try_emplace(std::string{name}, std::make_unique<stage>(name));
+void director::preload(std::string name) {
+  const auto [it, inserted] = _stages.try_emplace(std::move(name));
+  if (inserted)
+    it->second = std::make_unique<stage>(it->first);
 }
 
 void director::transition() {

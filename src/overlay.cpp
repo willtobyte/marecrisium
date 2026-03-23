@@ -16,8 +16,8 @@ static bool on_event(void *userdata, SDL_Event *event) {
 
 static int overlay_label(lua_State *state) {
   auto *self = argument<overlay>(state, 1, "Overlay");
-  const auto *font = argument<const char *>(state, 2);
-  const auto *text = argument<const char *>(state, 3);
+  const auto font = argument<std::string_view>(state, 2);
+  const auto text = argument<std::string_view>(state, 3);
   const auto x = argument<float>(state, 4);
   const auto y = argument<float>(state, 5);
 

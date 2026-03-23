@@ -38,6 +38,9 @@ template <>
 [[nodiscard]] std::string_view property<std::string_view>(lua_State *state, int index, const char *name, std::string_view fallback) noexcept;
 
 template <>
+[[nodiscard]] std::string property<std::string>(lua_State *state, int index, const char *name, std::string fallback) noexcept;
+
+template <>
 [[nodiscard]] size_t property<size_t>(lua_State *state, int index, const char *name, size_t fallback) noexcept;
 
 template <typename T>
@@ -74,6 +77,8 @@ auto argument(lua_State *state, int index, const char *name = nullptr) {
     return luaL_checkstring(state, index);
   else if constexpr (std::is_same_v<T, std::string_view>)
     return std::string_view{luaL_checkstring(state, index)};
+  else if constexpr (std::is_same_v<T, std::string>)
+    return std::string{luaL_checkstring(state, index)};
   else if constexpr (std::is_same_v<T, std::pair<float, float>>) {
     luaL_checktype(state, index, LUA_TTABLE);
     lua_rawgeti(state, index, 1);
