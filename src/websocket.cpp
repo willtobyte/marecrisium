@@ -149,31 +149,31 @@ void cbor_to_lua(lua_State *state, cbor_item_t *item) {
   return result;
 }
 
-[[nodiscard]] std::vector<uint8_t> subscribe(std::string_view topic) {
+[[nodiscard]] std::vector<uint8_t> subscribe(uint16_t topic) {
   auto *arr = cbor_new_definite_array(2);
   std::ignore = cbor_array_push(arr, cbor_move(cbor_build_uint8(std::to_underlying(opcode::subscribe))));
-  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_stringn(topic.data(), topic.size())));
+  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_uint16(topic)));
   return serialize(arr);
 }
 
-[[nodiscard]] std::vector<uint8_t> unsubscribe(std::string_view topic) {
+[[nodiscard]] std::vector<uint8_t> unsubscribe(uint16_t topic) {
   auto *arr = cbor_new_definite_array(2);
   std::ignore = cbor_array_push(arr, cbor_move(cbor_build_uint8(std::to_underlying(opcode::unsubscribe))));
-  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_stringn(topic.data(), topic.size())));
+  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_uint16(topic)));
   return serialize(arr);
 }
 
-[[nodiscard]] std::vector<uint8_t> publish(std::string_view topic, cbor_item_t *data) {
+[[nodiscard]] std::vector<uint8_t> publish(uint16_t topic, cbor_item_t *data) {
   auto *arr = cbor_new_definite_array(3);
   std::ignore = cbor_array_push(arr, cbor_move(cbor_build_uint8(std::to_underlying(opcode::publish))));
-  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_stringn(topic.data(), topic.size())));
+  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_uint16(topic)));
   std::ignore = cbor_array_push(arr, cbor_move(data));
   return serialize(arr);
 }
 
 int subscription_publish(lua_State* state) {
   auto *self = argument<subscription>(state, 1, "Subscription");
-  luaL_checktype(state, 2, LUA_TTABLE);
+  luaL_checkany(state, 2);
   self->publish(state, 2);
   return 0;
 }
@@ -200,7 +200,7 @@ int subscription_index(lua_State* state) {
 
   if (key == "topic") {
     auto *self = argument<subscription>(state, 1, "Subscription");
-    lua_pushstring(state, self->topic().c_str());
+    lua_pushinteger(state, self->topic());
     return 1;
   }
 
@@ -226,12 +226,14 @@ int websocket_on_disconnect(lua_State* state) {
 
 int websocket_subscribe(lua_State* state) {
   auto* instance = argument<channel>(state, 1, "WebSocket");
-  auto topic = argument<std::string>(state, 2);
+  const auto raw = luaL_checkinteger(state, 2);
+  luaL_argcheck(state, raw >= 0 && raw <= std::numeric_limits<uint16_t>::max(), 2, "topic must be 0..65535");
+  const auto topic = static_cast<uint16_t>(raw);
   const auto reference = capture(state, 3);
 
   subscription *sub = nullptr;
   try {
-    sub = new subscription(instance, std::move(topic), reference);
+    sub = new subscription(instance, topic, reference);
   } catch (...) {
     luaL_unref(state, LUA_REGISTRYINDEX, reference);
     throw;
@@ -331,17 +333,15 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
       }
 
       auto *topic_item = cbor_array_get(root, 1);
-      if (!cbor_isa_string(topic_item)) [[unlikely]] {
+      if (!cbor_isa_uint(topic_item)) [[unlikely]] {
         cbor_decref(&root);
         break;
       }
 
-      std::string topic_string(
-        reinterpret_cast<const char *>(cbor_string_handle(topic_item)),
-        cbor_string_length(topic_item));
+      const auto topic = static_cast<uint16_t>(cbor_get_int(topic_item));
 
       ws->_inbound.push(message{
-        std::move(topic_string),
+        topic,
         std::vector<uint8_t>(bytes, bytes + length)
       });
 
@@ -580,8 +580,8 @@ void channel::resubscribe() {
   }
 }
 
-subscription::subscription(channel* owner, std::string topic, int callback_ref)
-  : _owner(owner), _topic(std::move(topic)), _callback(callback_ref) {
+subscription::subscription(channel* owner, uint16_t topic, int callback_ref)
+  : _owner(owner), _topic(topic), _callback(callback_ref) {
   _owner->add_subscription(this);
 }
 
@@ -596,7 +596,7 @@ void subscription::publish(lua_State *state, int index) {
   auto *data = lua_to_cbor(state, index);
   auto *arr = cbor_new_definite_array(3);
   std::ignore = cbor_array_push(arr, cbor_move(cbor_build_uint8(std::to_underlying(opcode::publish))));
-  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_stringn(_topic.data(), _topic.size())));
+  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_uint16(_topic)));
   std::ignore = cbor_array_push(arr, cbor_move(data));
   _owner->send(message{_topic, serialize(arr)});
 }
@@ -611,7 +611,7 @@ void subscription::unsubscribe() {
   release(L, _callback);
 }
 
-const std::string& subscription::topic() const noexcept {
+uint16_t subscription::topic() const noexcept {
   return _topic;
 }
 

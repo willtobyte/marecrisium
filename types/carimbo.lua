@@ -649,10 +649,10 @@ function openurl(url) end
 ---A WebSocket connection. Supports pub/sub messaging with CBOR payloads.
 local WebSocket = {}
 
----Subscribe to a topic. The callback receives decoded CBOR data as a Lua table
+---Subscribe to a topic. The callback receives decoded CBOR data as a Lua value
 ---whenever a message arrives on this topic.
----@param topic string The topic name to subscribe to.
----@param callback fun(data: table) Called with the decoded message data.
+---@param topic integer The topic ID (0–65535) to subscribe to.
+---@param callback fun(data: any) Called with the decoded message data.
 ---@return Subscription subscription Handle to publish or unsubscribe.
 function WebSocket:subscribe(topic, callback) end
 
@@ -669,16 +669,16 @@ function WebSocket:on_disconnect(callback) end
 ---Automatically unsubscribes on garbage collection.
 local Subscription = {}
 
----Publish a table as CBOR to this subscription's topic.
----@param data table The data to send (encoded as CBOR).
+---Publish a value as CBOR to this subscription's topic.
+---@param data any The data to send (encoded as CBOR).
 function Subscription:publish(data) end
 
 ---Unsubscribe from this topic. Also called automatically on garbage collection.
 function Subscription:unsubscribe() end
 
----The topic name of this subscription (read-only).
----@type string
-Subscription.topic = ""
+---The topic ID of this subscription (read-only).
+---@type integer
+Subscription.topic = 0
 
 ---Create a WebSocket connection to the given URL.
 ---Only one connection can exist at a time; calling again replaces the previous one.

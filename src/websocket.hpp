@@ -7,7 +7,7 @@ enum class opcode : uint8_t {
 };
 
 struct message {
-  std::string topic;
+  uint16_t topic;
   std::vector<uint8_t> payload;
 };
 
@@ -92,7 +92,7 @@ private:
   ringbuffer<message> _outbound;
 
   std::mutex _mutex;
-  std::unordered_map<std::string, std::vector<subscription*>, transparent_hash, std::equal_to<>> _subscriptions;
+  std::unordered_map<uint16_t, std::vector<subscription*>> _subscriptions;
   std::vector<uint8_t> _sendbuffer;
 
   std::atomic<bool> _stop{false};
@@ -105,7 +105,7 @@ private:
 
 class subscription final {
 public:
-  subscription(channel* owner, std::string topic, int callback_ref);
+  subscription(channel* owner, uint16_t topic, int callback_ref);
   ~subscription();
 
   subscription(const subscription&) = delete;
@@ -116,14 +116,14 @@ public:
   void publish(lua_State* state, int idx);
   void unsubscribe();
 
-  [[nodiscard]] const std::string& topic() const noexcept;
+  [[nodiscard]] uint16_t topic() const noexcept;
   [[nodiscard]] int callback() const noexcept;
   [[nodiscard]] bool active() const noexcept;
 
 private:
   friend class channel;
   channel* _owner;
-  std::string _topic;
+  uint16_t _topic;
   int _callback{LUA_NOREF};
   bool _active{true};
 };

@@ -20,7 +20,7 @@ OPCODE_NAMES = {
     PUBLISH: "PUBLISH",
 }
 
-subscribers: dict[str, set] = defaultdict(set)
+subscribers: dict[int, set] = defaultdict(set)
 
 
 def log(tag: str, msg: str) -> None:
@@ -40,7 +40,7 @@ def dump_subscribers() -> None:
         return
     for topic, socks in subscribers.items():
         addrs = [str(s.remote_address) for s in socks]
-        log("STATE", f"  '{topic}': {addrs}")
+        log("STATE", f"  topic={topic}: {addrs}")
 
 
 async def handler(socket) -> None:
@@ -73,7 +73,7 @@ async def handler(socket) -> None:
             opcode = message[0]
             topic = message[1]
 
-            if not isinstance(opcode, int) or not isinstance(topic, str):
+            if not isinstance(opcode, int) or not isinstance(topic, int):
                 log(
                     "!",
                     f"dropping message: bad types opcode={type(opcode).__name__} topic={type(topic).__name__}",
@@ -82,14 +82,14 @@ async def handler(socket) -> None:
 
             log(
                 "OP",
-                f"{describe_opcode(opcode)} on '{topic}' from {socket.remote_address}",
+                f"{describe_opcode(opcode)} on topic={topic} from {socket.remote_address}",
             )
 
             if opcode & SUBSCRIBE:
                 subscribers[topic].add(socket)
                 log(
                     ">",
-                    f"{socket.remote_address} subscribed to '{topic}'  (now {len(subscribers[topic])} subscriber(s))",
+                    f"{socket.remote_address} subscribed to topic={topic}  (now {len(subscribers[topic])} subscriber(s))",
                 )
                 dump_subscribers()
 
@@ -97,7 +97,7 @@ async def handler(socket) -> None:
                 subscribers[topic].discard(socket)
                 log(
                     "<",
-                    f"{socket.remote_address} unsubscribed from '{topic}'  (now {len(subscribers[topic])} subscriber(s))",
+                    f"{socket.remote_address} unsubscribed from topic={topic}  (now {len(subscribers[topic])} subscriber(s))",
                 )
                 dump_subscribers()
 
@@ -108,7 +108,7 @@ async def handler(socket) -> None:
                 targets = set(all_subs) - {socket}
                 log(
                     "~",
-                    f"publish on '{topic}': {data!r}  subscribers={len(all_subs)} targets={len(targets)}",
+                    f"publish on topic={topic}: {data!r}  subscribers={len(all_subs)} targets={len(targets)}",
                 )
                 if targets:
                     for t in targets:
@@ -116,7 +116,7 @@ async def handler(socket) -> None:
                     await asyncio.gather(*[t.send(echo) for t in targets])
                     log("~", f"forwarded to {len(targets)} client(s)")
                 else:
-                    log("~", f"no targets for '{topic}' (sender excluded)")
+                    log("~", f"no targets for topic={topic} (sender excluded)")
 
     except Exception as e:
         if "ConnectionClosed" not in type(e).__name__:
@@ -128,7 +128,7 @@ async def handler(socket) -> None:
         for topic, topic_subscribers in subscribers.items():
             if socket in topic_subscribers:
                 topic_subscribers.discard(socket)
-                log("-", f"removed {socket.remote_address} from '{topic}'")
+                log("-", f"removed {socket.remote_address} from topic={topic}")
         log("-", f"disconnected: {socket.remote_address}")
         dump_subscribers()
 

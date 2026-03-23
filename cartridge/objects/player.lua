@@ -3,6 +3,8 @@ local sqrt = math.sqrt
 
 local speed = 90
 
+local topic = 0x0001
+
 return {
 	body = "dynamic",
 
@@ -17,7 +19,7 @@ return {
 		self.y = 0
 
 		self.websocket = WebSocket.new("localhost:8080")
-		self.subscription = self.websocket:subscribe("player", function(data)
+		self.subscription = self.websocket:subscribe(topic, function(data)
 			print("received: " .. tostring(data))
 		end)
 	end,
