@@ -37,7 +37,7 @@ public:
 
   [[nodiscard]] int pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept;
 
-  void dispatch_collision(entt::entity entity, entt::entity other, const char* callback, const b2Vec2* normal = nullptr);
+  void dispatch_collision(entt::entity entity, entt::entity other, std::string_view callback, const b2Vec2* normal = nullptr);
 
   [[nodiscard]] uint8_t at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
 

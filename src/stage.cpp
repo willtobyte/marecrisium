@@ -46,7 +46,7 @@ static std::optional<std::pair<entt::entity, entt::entity>> resolve(b2ShapeId a,
   return std::pair{to_entity(da), to_entity(db)};
 }
 
-static void dispatch_sensor_event(stage& self, b2ShapeId sensor_shape, b2ShapeId visitor_shape, const char* callback) {
+static void dispatch_sensor_event(stage& self, b2ShapeId sensor_shape, b2ShapeId visitor_shape, std::string_view callback) {
   if (const auto pair = resolve(sensor_shape, visitor_shape))
     self.dispatch_collision(pair->first, pair->second, callback);
 }
@@ -704,7 +704,7 @@ void stage::draw() {
 }
 
 
-void stage::dispatch_collision(entt::entity entity, entt::entity other, const char* callback, const b2Vec2* normal) {
+void stage::dispatch_collision(entt::entity entity, entt::entity other, std::string_view callback, const b2Vec2* normal) {
   if (!_registry.valid(entity) || !_registry.valid(other)) return;
   if (!_registry.all_of<objectproxy>(entity) ||
       !_registry.all_of<objectproxy>(other)) return;

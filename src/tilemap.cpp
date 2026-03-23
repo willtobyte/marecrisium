@@ -27,7 +27,7 @@ static void load_tiles(tilemap::layer& layer, const char* field, size_t total) {
     layer.tiles.clear();
 }
 
-static void load_atlas(tilemap::layer& layer, std::string_view name, const char* path, float size, float inverse_size) {
+static void load_atlas(tilemap::layer& layer, std::string_view name, std::string_view path, float size, float inverse_size) {
   if (layer.tiles.empty())
     return;
 
