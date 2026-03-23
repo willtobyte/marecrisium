@@ -16,11 +16,8 @@ static void load_tiles(tilemap::layer& layer, const char* field, size_t total) {
   }
 
   layer.tiles.reserve(total);
-  for (size_t i = 0; i < total; ++i) {
-    lua_rawgeti(L, -1, static_cast<int>(i + 1));
-    layer.tiles.emplace_back(static_cast<uint32_t>(lua_tonumber(L, -1)));
-    lua_pop(L, 1);
-  }
+  for (size_t i = 0; i < total; ++i)
+    layer.tiles.emplace_back(property<uint32_t>(L, -1, static_cast<int>(i + 1)));
 
   lua_pop(L, 1);
   if (std::ranges::none_of(layer.tiles, [](const uint32_t id) { return id != 0; }))
@@ -79,11 +76,8 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
     lua_getfield(L, -1, "collision");
     if (lua_istable(L, -1)) {
-      for (size_t i = 0; i < total; ++i) {
-        lua_rawgeti(L, -1, static_cast<int>(i + 1));
-        _collision[i] = static_cast<uint8_t>(lua_tonumber(L, -1));
-        lua_pop(L, 1);
-      }
+      for (size_t i = 0; i < total; ++i)
+        _collision[i] = static_cast<uint8_t>(property<uint32_t>(L, -1, static_cast<int>(i + 1)));
     }
     lua_pop(L, 1);
 

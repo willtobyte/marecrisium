@@ -16,29 +16,29 @@ void cbor_to_lua(lua_State *state, cbor_item_t *item) {
   }
 
   if (cbor_is_bool(item)) {
-    lua_pushboolean(state, cbor_get_bool(item) ? 1 : 0);
+    push(state, cbor_get_bool(item));
     return;
   }
 
   if (cbor_isa_uint(item)) [[likely]] {
-    lua_pushinteger(state, static_cast<lua_Integer>(cbor_get_int(item)));
+    push(state, static_cast<lua_Integer>(cbor_get_int(item)));
     return;
   }
 
   if (cbor_isa_negint(item)) {
-    lua_pushinteger(state, -1 - static_cast<lua_Integer>(cbor_get_int(item)));
+    push(state, -1 - static_cast<lua_Integer>(cbor_get_int(item)));
     return;
   }
 
   if (cbor_is_float(item)) {
-    lua_pushnumber(state, cbor_float_get_float(item));
+    push(state, cbor_float_get_float(item));
     return;
   }
 
   if (cbor_isa_string(item)) {
-    lua_pushlstring(state,
+    push(state, std::string_view{
       reinterpret_cast<const char *>(cbor_string_handle(item)),
-      cbor_string_length(item));
+      cbor_string_length(item)});
     return;
   }
 
@@ -200,7 +200,7 @@ int subscription_index(lua_State* state) {
 
   if (key == "topic") {
     auto *self = argument<subscription>(state, 1, "Subscription");
-    lua_pushinteger(state, self->topic());
+    push(state, self->topic());
     return 1;
   }
 
@@ -226,16 +226,16 @@ int websocket_on_disconnect(lua_State* state) {
 
 int websocket_subscribe(lua_State* state) {
   auto* instance = argument<channel>(state, 1, "WebSocket");
-  const auto raw = luaL_checkinteger(state, 2);
+  const auto raw = argument<int>(state, 2);
   luaL_argcheck(state, raw >= 0 && raw <= std::numeric_limits<uint16_t>::max(), 2, "topic must be 0..65535");
   const auto topic = static_cast<uint16_t>(raw);
-  const auto reference = capture(state, 3);
+  auto reference = capture(state, 3);
 
   subscription *sub = nullptr;
   try {
     sub = new subscription(instance, topic, reference);
   } catch (...) {
-    luaL_unref(state, LUA_REGISTRYINDEX, reference);
+    release(state, reference);
     throw;
   }
 
@@ -396,12 +396,9 @@ channel::channel(std::string url)
 }
 
 channel::~channel() {
-  if (_on_disconnect != LUA_NOREF) {
-    try {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disconnect);
-      pcall(L, 0, 0);
-    } catch (...) {}
-  }
+  try {
+    invoke(L, _on_disconnect, LUA_NOREF);
+  } catch (...) {}
 
   release(L, _on_connect);
   release(L, _on_disconnect);

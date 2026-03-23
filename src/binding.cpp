@@ -152,6 +152,14 @@ float property<float>(lua_State *state, int index, int i) noexcept {
   return value;
 }
 
+template <>
+uint32_t property<uint32_t>(lua_State *state, int index, int i) noexcept {
+  lua_rawgeti(state, index, i);
+  const auto value = static_cast<uint32_t>(lua_tonumber(state, -1));
+  lua_pop(state, 1);
+  return value;
+}
+
 int acquire(lua_State *state, int index, const char *name) noexcept {
   lua_getfield(state, index, name);
   if (lua_isfunction(state, -1))

@@ -73,22 +73,19 @@ engine::engine() {
   };
 
   lua_newtable(L);
-  lua_pushnumber(L, static_cast<lua_Number>(viewport.width));
+  push(L, viewport.width);
   lua_setfield(L, -2, "width");
-  lua_pushnumber(L, static_cast<lua_Number>(viewport.height));
+  push(L, viewport.height);
   lua_setfield(L, -2, "height");
-  lua_pushnumber(L, static_cast<lua_Number>(viewport.scale));
+  push(L, viewport.scale);
   lua_setfield(L, -2, "scale");
   lua_setglobal(L, "viewport");
 
   _director.wire();
 
-  lua_getfield(L, -1, "on_begin");
-  if (lua_isfunction(L, -1)) {
-    pcall(L, 0, 0);
-  } else {
-    lua_pop(L, 1);
-  }
+  auto on_begin = acquire(L, -1, "on_begin");
+  invoke(L, on_begin, LUA_NOREF);
+  release(L, on_begin);
 
   lua_pop(L, 1);
 

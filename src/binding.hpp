@@ -52,6 +52,9 @@ template <typename T>
 template <>
 [[nodiscard]] float property<float>(lua_State *state, int index, int i) noexcept;
 
+template <>
+[[nodiscard]] uint32_t property<uint32_t>(lua_State *state, int index, int i) noexcept;
+
 [[nodiscard]] int acquire(lua_State *state, int index, const char *name) noexcept;
 void release(lua_State *state, int &handle) noexcept;
 void bind(lua_State *state, const char *name, lua_CFunction fn, void *upvalue) noexcept;

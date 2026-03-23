@@ -57,9 +57,9 @@ static int user_index(lua_State *state) {
       lua_setmetatable(state, -2);
 
       lua_newtable(state);
-      lua_pushnumber(state, static_cast<lua_Number>(id));
+      push(state, id);
       lua_setfield(state, -2, "id");
-      lua_pushstring(state, name.data());
+      push(state, name);
       lua_setfield(state, -2, "name");
       lua_setfenv(state, -2);
 

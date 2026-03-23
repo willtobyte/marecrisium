@@ -2,7 +2,7 @@
 
 static int openurl_call(lua_State *state) {
   const auto *url = argument<const char *>(state, 1);
-  lua_pushboolean(state, SDL_OpenURL(url));
+  push(state, SDL_OpenURL(url));
   return 1;
 }
 

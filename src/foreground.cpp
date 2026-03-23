@@ -98,9 +98,9 @@ foreground::foreground(std::string_view name) {
   pcall(L, 0, 1);
 
   lua_newtable(L);
-  lua_pushnumber(L, static_cast<lua_Number>(p.width()));
+  push(L, static_cast<float>(p.width()));
   lua_setfield(L, -2, "width");
-  lua_pushnumber(L, static_cast<lua_Number>(p.height()));
+  push(L, static_cast<float>(p.height()));
   lua_setfield(L, -2, "height");
   lua_setfield(L, -2, "pixmap");
 

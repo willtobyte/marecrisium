@@ -28,13 +28,13 @@ static int cassette_index(lua_State* state) {
     const auto type = sqlite3_column_int(stmt_select, 0);
     switch (type) {
       case 0:
-        lua_pushboolean(state, sqlite3_column_int(stmt_select, 1));
+        push(state, sqlite3_column_int(stmt_select, 1) != 0);
         break;
       case 1:
-        lua_pushnumber(state, sqlite3_column_double(stmt_select, 1));
+        push(state, sqlite3_column_double(stmt_select, 1));
         break;
       case 2:
-        lua_pushstring(state, reinterpret_cast<const char*>(sqlite3_column_text(stmt_select, 1)));
+        push(state, reinterpret_cast<const char*>(sqlite3_column_text(stmt_select, 1)));
         break;
       default:
         lua_pushnil(state);

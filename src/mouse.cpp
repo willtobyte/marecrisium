@@ -6,8 +6,8 @@ static int mouse_position(lua_State *state) {
   SDL_RenderCoordinatesFromWindow(renderer, x, y, &x, &y);
   x += viewport.x;
   y += viewport.y;
-  lua_pushnumber(state, static_cast<double>(x));
-  lua_pushnumber(state, static_cast<double>(y));
+  push(state, x);
+  push(state, y);
   return 2;
 }
 
