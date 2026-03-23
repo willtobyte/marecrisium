@@ -4,9 +4,9 @@ namespace {
 constexpr int STRIDE = 5;
 
 int foreground_draw(lua_State *state) {
-  auto *self = checkuserdata<foreground>(state, 1, "Foreground");
+  auto *self = check<foreground>(state, 1, "Foreground");
   luaL_checktype(state, 2, LUA_TTABLE);
-  const auto count = static_cast<int>(luaL_checknumber(state, 3));
+  const auto count = check<int>(state, 3);
 
   if (count <= 0 || count % STRIDE != 0) [[unlikely]]
     return 0;
@@ -71,8 +71,8 @@ int foreground_draw(lua_State *state) {
 }
 
 int foreground_index(lua_State *state) {
-  auto *self = checkuserdata<foreground>(state, 1, "Foreground");
-  const std::string_view key = luaL_checkstring(state, 2);
+  auto *self = check<foreground>(state, 1, "Foreground");
+  const auto key = check<std::string_view>(state, 2);
 
   if (key == "draw") {
     lua_pushcfunction(state, foreground_draw);

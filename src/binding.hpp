@@ -61,8 +61,23 @@ void pushuserdata(lua_State *state, T *ptr, const char *name) noexcept {
 }
 
 template <typename T>
-[[nodiscard]] T *checkuserdata(lua_State *state, int index, const char *name) {
-  return *static_cast<T **>(luaL_checkudata(state, index, name));
+auto check(lua_State *state, int index, const char *name = nullptr) {
+  if constexpr (std::is_same_v<T, float>)
+    return static_cast<float>(luaL_checknumber(state, index));
+  else if constexpr (std::is_same_v<T, int>)
+    return static_cast<int>(luaL_checkinteger(state, index));
+  else if constexpr (std::is_same_v<T, bool>)
+    return lua_toboolean(state, index) != 0;
+  else if constexpr (std::is_same_v<T, const char *>)
+    return luaL_checkstring(state, index);
+  else if constexpr (std::is_same_v<T, std::string_view>)
+    return std::string_view{luaL_checkstring(state, index)};
+  else if constexpr (std::is_void_v<T>)
+    return luaL_checkudata(state, index, name);
+  else if constexpr (std::is_trivially_copyable_v<T>)
+    return static_cast<T *>(luaL_checkudata(state, index, name));
+  else
+    return *static_cast<T **>(luaL_checkudata(state, index, name));
 }
 
 template <typename T>

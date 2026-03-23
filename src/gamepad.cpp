@@ -32,9 +32,9 @@ static bool on_event(void *, SDL_Event *event) {
 }
 
 static int gamepad_rumble(lua_State *state) {
-  const auto low = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
-  const auto high = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
-  const auto duration = static_cast<uint32_t>(luaL_checkinteger(state, 4));
+  const auto low = std::clamp(check<float>(state, 2), .0f, 1.f);
+  const auto high = std::clamp(check<float>(state, 3), .0f, 1.f);
+  const auto duration = static_cast<uint32_t>(check<int>(state, 4));
 
   const auto low16 = static_cast<uint16_t>(low * 65535.f);
   const auto high16 = static_cast<uint16_t>(high * 65535.f);
@@ -93,7 +93,7 @@ static int gamepad_index(lua_State *state) {
     {"right",          {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_RIGHT}}},
   };
 
-  const std::string_view name = luaL_checkstring(state, 2);
+  const auto name = check<std::string_view>(state, 2);
 
   if (name == "connected")
     return push(state, ptr != nullptr);

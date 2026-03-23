@@ -5,8 +5,8 @@ namespace {
 constexpr float TWO_PI = 6.28318530718f;
 
 int particle_index(lua_State* state) {
-  const auto* self = checkuserdata<particle>(state, 1, "Particle");
-  const std::string_view key = luaL_checkstring(state, 2);
+  const auto* self = check<particle>(state, 1, "Particle");
+  const auto key = check<std::string_view>(state, 2);
 
   if (key == "active")
     return push(state, self->active());
@@ -36,21 +36,21 @@ int particle_index(lua_State* state) {
 }
 
 int particle_newindex(lua_State* state) {
-  auto* self = checkuserdata<particle>(state, 1, "Particle");
-  const std::string_view key = luaL_checkstring(state, 2);
+  auto* self = check<particle>(state, 1, "Particle");
+  const auto key = check<std::string_view>(state, 2);
 
   if (key == "active") {
-    self->set_active(lua_toboolean(state, 3) != 0);
+    self->set_active(check<bool>(state, 3));
     return 0;
   }
 
   if (key == "x") {
-    self->set_x(static_cast<float>(luaL_checknumber(state, 3)));
+    self->set_x(check<float>(state, 3));
     return 0;
   }
 
   if (key == "y") {
-    self->set_y(static_cast<float>(luaL_checknumber(state, 3)));
+    self->set_y(check<float>(state, 3));
     return 0;
   }
 

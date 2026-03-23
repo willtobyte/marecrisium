@@ -23,7 +23,7 @@ static int keyboard_index(lua_State *state) {
     {"tab", SDL_SCANCODE_TAB},
   };
 
-  const std::string_view key = luaL_checkstring(state, 2);
+  const auto key = check<std::string_view>(state, 2);
   const auto it = mapping.find(key);
   if (it == mapping.end()) [[unlikely]]
     return lua_pushnil(state), 1;

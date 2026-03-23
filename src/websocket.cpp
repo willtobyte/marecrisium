@@ -137,21 +137,21 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
 }
 
 int subscription_publish(lua_State* state) {
-  auto* ptr = static_cast<std::unique_ptr<subscription>*>(luaL_checkudata(state, 1, "Subscription"));
+  auto *self = check<subscription>(state, 1, "Subscription");
   luaL_checktype(state, 2, LUA_TTABLE);
-  (*ptr)->publish(state, 2);
+  self->publish(state, 2);
   return 0;
 }
 
 int subscription_unsubscribe(lua_State* state) {
-  auto* ptr = static_cast<std::unique_ptr<subscription>*>(luaL_checkudata(state, 1, "Subscription"));
-  (*ptr)->unsubscribe();
+  auto *self = check<subscription>(state, 1, "Subscription");
+  self->unsubscribe();
   return 0;
 }
 
 int subscription_index(lua_State* state) {
-  luaL_checkudata(state, 1, "Subscription");
-  const std::string_view key = luaL_checkstring(state, 2);
+  check<void>(state, 1, "Subscription");
+  const auto key = check<std::string_view>(state, 2);
 
   if (key == "publish") {
     lua_pushcfunction(state, subscription_publish);
@@ -164,8 +164,8 @@ int subscription_index(lua_State* state) {
   }
 
   if (key == "topic") {
-    auto* ptr = static_cast<std::unique_ptr<subscription>*>(lua_touserdata(state, 1));
-    lua_pushstring(state, (*ptr)->topic().c_str());
+    auto *self = check<subscription>(state, 1, "Subscription");
+    lua_pushstring(state, self->topic().c_str());
     return 1;
   }
 
@@ -173,44 +173,42 @@ int subscription_index(lua_State* state) {
 }
 
 int subscription_gc(lua_State* state) {
-  auto* ptr = static_cast<std::unique_ptr<subscription>*>(luaL_checkudata(state, 1, "Subscription"));
-  std::destroy_at(ptr);
+  delete check<subscription>(state, 1, "Subscription");
   return 0;
 }
 
 int websocket_on_connect(lua_State* state) {
-  auto* instance = checkuserdata<channel>(state, 1, "WebSocket");
+  auto* instance = check<channel>(state, 1, "WebSocket");
   instance->set_on_connect(capture(state, 2));
   return 0;
 }
 
 int websocket_on_disconnect(lua_State* state) {
-  auto* instance = checkuserdata<channel>(state, 1, "WebSocket");
+  auto* instance = check<channel>(state, 1, "WebSocket");
   instance->set_on_disconnect(capture(state, 2));
   return 0;
 }
 
 int websocket_subscribe(lua_State* state) {
-  auto* instance = checkuserdata<channel>(state, 1, "WebSocket");
-  const auto* const topic = luaL_checkstring(state, 2);
+  auto* instance = check<channel>(state, 1, "WebSocket");
+  const auto *const topic = check<const char *>(state, 2);
   const auto reference = capture(state, 3);
 
-  auto* userdata = static_cast<std::unique_ptr<subscription>*>(lua_newuserdata(state, sizeof(std::unique_ptr<subscription>)));
+  subscription *sub = nullptr;
   try {
-    std::construct_at(userdata, std::make_unique<subscription>(instance, topic, reference));
+    sub = new subscription(instance, topic, reference);
   } catch (...) {
     luaL_unref(state, LUA_REGISTRYINDEX, reference);
     throw;
   }
 
-  luaL_getmetatable(state, "Subscription");
-  lua_setmetatable(state, -2);
+  pushuserdata(state, sub, "Subscription");
   return 1;
 }
 
 int websocket_index(lua_State* state) {
-  luaL_checkudata(state, 1, "WebSocket");
-  const std::string_view key = luaL_checkstring(state, 2);
+  check<void>(state, 1, "WebSocket");
+  const auto key = check<std::string_view>(state, 2);
 
   if (key == "subscribe") {
     lua_pushcfunction(state, websocket_subscribe);
@@ -231,7 +229,7 @@ int websocket_index(lua_State* state) {
 }
 
 int websocket_gc(lua_State* state) {
-  auto** pointer = static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
+  auto **pointer = static_cast<channel **>(check<void>(state, 1, "WebSocket"));
   if (*pointer == connection.get())
     connection.reset();
   *pointer = nullptr;
@@ -239,7 +237,7 @@ int websocket_gc(lua_State* state) {
 }
 
 int websocket_call(lua_State* state) {
-  const auto* const url = luaL_checkstring(state, 1);
+  const auto *const url = check<const char *>(state, 1);
 
   connection = std::make_unique<channel>(url);
 

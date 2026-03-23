@@ -15,11 +15,11 @@ static bool on_event(void *userdata, SDL_Event *event) {
 }
 
 static int overlay_label(lua_State *state) {
-  auto *self = checkuserdata<overlay>(state, 1, "Overlay");
-  const auto *font = luaL_checkstring(state, 2);
-  const auto *text = luaL_checkstring(state, 3);
-  const auto x = static_cast<float>(luaL_checknumber(state, 4));
-  const auto y = static_cast<float>(luaL_checknumber(state, 5));
+  auto *self = check<overlay>(state, 1, "Overlay");
+  const auto *font = check<const char *>(state, 2);
+  const auto *text = check<const char *>(state, 3);
+  const auto x = check<float>(state, 4);
+  const auto y = check<float>(state, 5);
 
   if (!lua_istable(state, 6)) [[likely]] {
     self->render_label(font, text, x, y);
@@ -41,9 +41,6 @@ static int overlay_label(lua_State *state) {
         effect.xoffset = get<float>(state, -1, "xoffset", effect.xoffset);
         effect.yoffset = get<float>(state, -1, "yoffset", effect.yoffset);
         effect.scale = get<float>(state, -1, "scale", effect.scale);
-        effect.r = get<float>(state, -1, "r", effect.r);
-        effect.g = get<float>(state, -1, "g", effect.g);
-        effect.b = get<float>(state, -1, "b", effect.b);
         effect.angle = get<float>(state, -1, "angle", effect.angle);
         effect.alpha = get<float>(state, -1, "alpha", effect.alpha);
 
@@ -59,8 +56,8 @@ static int overlay_label(lua_State *state) {
 }
 
 static int overlay_index(lua_State *state) {
-  luaL_checkudata(state, 1, "Overlay");
-  const std::string_view key = luaL_checkstring(state, 2);
+  check<void>(state, 1, "Overlay");
+  const auto key = check<std::string_view>(state, 2);
 
   if (key == "label") {
     lua_pushcfunction(state, overlay_label);

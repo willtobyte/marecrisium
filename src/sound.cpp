@@ -2,7 +2,7 @@
 
 namespace {
   int sound_play(lua_State* state) {
-    auto* instance = checkuserdata<sound>(state, 1, "Sound");
+    auto* instance = check<sound>(state, 1, "Sound");
     instance->play();
     fire(state, instance->on_begin);
 
@@ -10,34 +10,34 @@ namespace {
   }
 
   int sound_stop(lua_State* state) {
-    checkuserdata<sound>(state, 1, "Sound")->stop();
+    check<sound>(state, 1, "Sound")->stop();
     return 0;
   }
 
   int sound_on_begin(lua_State* state) {
-    auto* instance = checkuserdata<sound>(state, 1, "Sound");
+    auto* instance = check<sound>(state, 1, "Sound");
     callback(state, 2, instance->on_begin);
     return 0;
   }
 
   int sound_fade(lua_State* state) {
-    auto* instance = checkuserdata<sound>(state, 1, "Sound");
-    const auto from = static_cast<float>(luaL_checknumber(state, 2));
-    const auto to = static_cast<float>(luaL_checknumber(state, 3));
-    const auto ms = static_cast<uint64_t>(luaL_checkinteger(state, 4));
+    auto* instance = check<sound>(state, 1, "Sound");
+    const auto from = check<float>(state, 2);
+    const auto to = check<float>(state, 3);
+    const auto ms = static_cast<uint64_t>(check<int>(state, 4));
     instance->fade(from, to, ms);
     return 0;
   }
 
   int sound_on_end(lua_State* state) {
-    auto* instance = checkuserdata<sound>(state, 1, "Sound");
+    auto* instance = check<sound>(state, 1, "Sound");
     callback(state, 2, instance->on_end);
     return 0;
   }
 
   int sound_index(lua_State* state) {
-    auto* instance = checkuserdata<sound>(state, 1, "Sound");
-    const std::string_view key = luaL_checkstring(state, 2);
+    auto* instance = check<sound>(state, 1, "Sound");
+    const auto key = check<std::string_view>(state, 2);
 
     if (key == "volume")
       return push(state, instance->volume());
@@ -77,21 +77,21 @@ namespace {
   }
 
   int sound_newindex(lua_State* state) {
-    auto* instance = checkuserdata<sound>(state, 1, "Sound");
-    const std::string_view key = luaL_checkstring(state, 2);
+    auto* instance = check<sound>(state, 1, "Sound");
+    const auto key = check<std::string_view>(state, 2);
 
     if (key == "volume") {
-      instance->set_volume(static_cast<float>(luaL_checknumber(state, 3)));
+      instance->set_volume(check<float>(state, 3));
       return 0;
     }
 
     if (key == "pan") {
-      instance->set_pan(static_cast<float>(luaL_checknumber(state, 3)));
+      instance->set_pan(check<float>(state, 3));
       return 0;
     }
 
     if (key == "loop") {
-      instance->set_loop(lua_toboolean(state, 3) != 0);
+      instance->set_loop(check<bool>(state, 3));
       return 0;
     }
 
