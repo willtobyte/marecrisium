@@ -1,7 +1,8 @@
 #include "system.hpp"
 
 static int runtime_moment(lua_State *state) {
-  return push(state, static_cast<lua_Number>(SDL_GetTicks()));
+  lua_pushnumber(state, static_cast<lua_Number>(SDL_GetTicks()));
+  return 1;
 }
 
 void runtime::wire() {

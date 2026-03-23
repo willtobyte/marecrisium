@@ -32,40 +32,52 @@ static bool on_event(void *, SDL_Event *event) {
 }
 
 static int gamepad_rumble(lua_State *state) {
-  const auto low = std::clamp(argument<float>(state, 2), .0f, 1.f);
-  const auto high = std::clamp(argument<float>(state, 3), .0f, 1.f);
-  const auto duration = static_cast<uint32_t>(argument<int>(state, 4));
+  const auto low = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
+  const auto high = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
+  const auto duration = static_cast<uint32_t>(static_cast<int>(luaL_checkinteger(state, 4)));
 
   const auto low16 = static_cast<uint16_t>(low * 65535.f);
   const auto high16 = static_cast<uint16_t>(high * 65535.f);
 
-  if (!ptr) [[unlikely]]
-    return push(state, false);
+  if (!ptr) [[unlikely]] {
+    lua_pushboolean(state, 0);
+    return 1;
+  }
 
-  return push(state, static_cast<bool>(SDL_RumbleGamepad(ptr.get(), low16, high16, duration)));
+  lua_pushboolean(state, static_cast<bool>(SDL_RumbleGamepad(ptr.get(), low16, high16, duration)) ? 1 : 0);
+  return 1;
 }
 
 static int gamepad_led(lua_State *state) {
-  const auto r = static_cast<uint8_t>(std::clamp(argument<float>(state, 2), .0f, 1.f) * 255.f);
-  const auto g = static_cast<uint8_t>(std::clamp(argument<float>(state, 3), .0f, 1.f) * 255.f);
-  const auto b = static_cast<uint8_t>(std::clamp(argument<float>(state, 4), .0f, 1.f) * 255.f);
+  const auto r = static_cast<uint8_t>(std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f) * 255.f);
+  const auto g = static_cast<uint8_t>(std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f) * 255.f);
+  const auto b = static_cast<uint8_t>(std::clamp(static_cast<float>(luaL_checknumber(state, 4)), .0f, 1.f) * 255.f);
 
-  if (!ptr) [[unlikely]]
-    return push(state, false);
+  if (!ptr) [[unlikely]] {
+    lua_pushboolean(state, 0);
+    return 1;
+  }
 
-  return push(state, static_cast<bool>(SDL_SetGamepadLED(ptr.get(), r, g, b)));
+  lua_pushboolean(state, static_cast<bool>(SDL_SetGamepadLED(ptr.get(), r, g, b)) ? 1 : 0);
+  return 1;
 }
 
 static int push_gamepad_axis(lua_State *state, SDL_GamepadAxis a) {
-  if (ptr) [[likely]]
-    return push(state, deadzone(SDL_GetGamepadAxis(ptr.get(), a)));
-  return push(state, .0f);
+  if (ptr) [[likely]] {
+    lua_pushnumber(state, static_cast<lua_Number>(deadzone(SDL_GetGamepadAxis(ptr.get(), a))));
+    return 1;
+  }
+  lua_pushnumber(state, static_cast<lua_Number>(.0f));
+  return 1;
 }
 
 static int push_gamepad_button(lua_State *state, SDL_GamepadButton b) {
-  if (ptr) [[likely]]
-    return push(state, static_cast<bool>(SDL_GetGamepadButton(ptr.get(), b)));
-  return push(state, false);
+  if (ptr) [[likely]] {
+    lua_pushboolean(state, static_cast<bool>(SDL_GetGamepadButton(ptr.get(), b)) ? 1 : 0);
+    return 1;
+  }
+  lua_pushboolean(state, 0);
+  return 1;
 }
 
 static int gamepad_index(lua_State *state) {
@@ -104,10 +116,12 @@ static int gamepad_index(lua_State *state) {
     {"right",          {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_RIGHT}}},
   };
 
-  const auto name = argument<std::string_view>(state, 2);
+  const auto name = std::string_view{luaL_checkstring(state, 2)};
 
-  if (name == "connected")
-    return push(state, ptr != nullptr);
+  if (name == "connected") {
+    lua_pushboolean(state, ptr != nullptr ? 1 : 0);
+    return 1;
+  }
 
   if (name == "rumble")
     return lua_pushcfunction(state, gamepad_rumble), 1;
@@ -116,9 +130,12 @@ static int gamepad_index(lua_State *state) {
     return lua_pushcfunction(state, gamepad_led), 1;
 
   if (name == "name") {
-    if (ptr) [[likely]]
-      return push(state, SDL_GetGamepadName(ptr.get()));
-    return push(state, "");
+    if (ptr) [[likely]] {
+      lua_pushstring(state, SDL_GetGamepadName(ptr.get()));
+      return 1;
+    }
+    lua_pushstring(state, "");
+    return 1;
   }
 
   const auto it = mapping.find(name);

@@ -2,51 +2,68 @@
 
 namespace {
   int sound_play(lua_State* state) {
-    auto* instance = argument<sound>(state, 1, "Sound");
+    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     instance->play();
-    invoke(state, instance->on_begin, LUA_NOREF);
+    if (instance->on_begin != LUA_NOREF) {
+      lua_rawgeti(state, LUA_REGISTRYINDEX, instance->on_begin);
+      pcall(state, 0, 0);
+    }
 
     return 0;
   }
 
   int sound_stop(lua_State* state) {
-    argument<sound>(state, 1, "Sound")->stop();
+    (*static_cast<sound**>(luaL_checkudata(state, 1, "Sound")))->stop();
     return 0;
   }
 
   int sound_on_begin(lua_State* state) {
-    auto* instance = argument<sound>(state, 1, "Sound");
-    callback(state, 2, instance->on_begin);
+    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+    luaL_checktype(state, 2, LUA_TFUNCTION);
+    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_begin);
+    instance->on_begin = LUA_NOREF;
+    lua_pushvalue(state, 2);
+    instance->on_begin = luaL_ref(state, LUA_REGISTRYINDEX);
     return 0;
   }
 
   int sound_fade(lua_State* state) {
-    auto* instance = argument<sound>(state, 1, "Sound");
-    const auto from = argument<float>(state, 2);
-    const auto to = argument<float>(state, 3);
-    const auto ms = static_cast<uint64_t>(argument<int>(state, 4));
+    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+    const auto from = static_cast<float>(luaL_checknumber(state, 2));
+    const auto to = static_cast<float>(luaL_checknumber(state, 3));
+    const auto ms = static_cast<uint64_t>(static_cast<int>(luaL_checkinteger(state, 4)));
     instance->fade(from, to, ms);
     return 0;
   }
 
   int sound_on_end(lua_State* state) {
-    auto* instance = argument<sound>(state, 1, "Sound");
-    callback(state, 2, instance->on_end);
+    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+    luaL_checktype(state, 2, LUA_TFUNCTION);
+    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_end);
+    instance->on_end = LUA_NOREF;
+    lua_pushvalue(state, 2);
+    instance->on_end = luaL_ref(state, LUA_REGISTRYINDEX);
     return 0;
   }
 
   int sound_index(lua_State* state) {
-    auto* instance = argument<sound>(state, 1, "Sound");
-    const auto key = argument<std::string_view>(state, 2);
+    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+    const auto key = std::string_view{luaL_checkstring(state, 2)};
 
-    if (key == "volume")
-      return push(state, instance->volume());
+    if (key == "volume") {
+      lua_pushnumber(state, static_cast<lua_Number>(instance->volume()));
+      return 1;
+    }
 
-    if (key == "pan")
-      return push(state, instance->pan());
+    if (key == "pan") {
+      lua_pushnumber(state, static_cast<lua_Number>(instance->pan()));
+      return 1;
+    }
 
-    if (key == "loop")
-      return push(state, instance->loop());
+    if (key == "loop") {
+      lua_pushboolean(state, instance->loop() ? 1 : 0);
+      return 1;
+    }
 
     if (key == "play") {
       lua_pushcfunction(state, sound_play);
@@ -77,21 +94,21 @@ namespace {
   }
 
   int sound_newindex(lua_State* state) {
-    auto* instance = argument<sound>(state, 1, "Sound");
-    const auto key = argument<std::string_view>(state, 2);
+    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+    const auto key = std::string_view{luaL_checkstring(state, 2)};
 
     if (key == "volume") {
-      instance->set_volume(argument<float>(state, 3));
+      instance->set_volume(static_cast<float>(luaL_checknumber(state, 3)));
       return 0;
     }
 
     if (key == "pan") {
-      instance->set_pan(argument<float>(state, 3));
+      instance->set_pan(static_cast<float>(luaL_checknumber(state, 3)));
       return 0;
     }
 
     if (key == "loop") {
-      instance->set_loop(argument<bool>(state, 3));
+      instance->set_loop(lua_toboolean(state, 3) != 0);
       return 0;
     }
 
@@ -158,8 +175,10 @@ sound::sound(std::string_view filename) {
 }
 
 sound::~sound() {
-  release(L, on_begin);
-  release(L, on_end);
+  luaL_unref(L, LUA_REGISTRYINDEX, on_begin);
+  on_begin = LUA_NOREF;
+  luaL_unref(L, LUA_REGISTRYINDEX, on_end);
+  on_end = LUA_NOREF;
   ma_sound_stop(&_sound);
   ma_sound_uninit(&_sound);
   ma_audio_buffer_uninit(&_buffer);
@@ -204,8 +223,12 @@ void sound::fade(float from, float to, uint64_t ms) noexcept {
 
 void sound::poll() {
   const auto ended = _ended.exchange(false, std::memory_order_acquire);
-  if (ended)
-    invoke(L, on_end, LUA_NOREF);
+  if (ended) {
+    if (on_end != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, on_end);
+      pcall(L, 0, 0);
+    }
+  }
 }
 
 void sound::wire() {

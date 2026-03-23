@@ -1,41 +1,41 @@
 #include "director.hpp"
 
 static int navigate_callback(lua_State *state) {
-  auto name = argument<std::string>(state, 1);
-  auto *self = upvalue<director>(state);
+  auto name = std::string{luaL_checkstring(state, 1)};
+  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
   self->navigate(std::move(name));
   return 0;
 }
 
 static int destroy_callback(lua_State *state) {
-  const auto name = argument<std::string_view>(state, 1);
-  auto *self = upvalue<director>(state);
+  const auto name = std::string_view{luaL_checkstring(state, 1)};
+  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
   self->destroy(name);
   return 0;
 }
 
 static int preload_callback(lua_State *state) {
-  auto name = argument<std::string>(state, 1);
-  auto *self = upvalue<director>(state);
+  auto name = std::string{luaL_checkstring(state, 1)};
+  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
   self->preload(std::move(name));
   return 0;
 }
 
 static int reset_callback(lua_State *state) {
-  auto *self = upvalue<director>(state);
+  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
   self->reset();
   return 0;
 }
 
 static int newindex_callback(lua_State *state) {
-  auto *self = upvalue<director>(state);
-  const auto key = argument<std::string_view>(state, 2);
+  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
 
   if (key == "overlay") {
     if (lua_isnil(state, 3) || lua_isnone(state, 3)) {
       self->clear_overlay();
     } else {
-      self->set_overlay(argument<std::string>(state, 3));
+      self->set_overlay(std::string{luaL_checkstring(state, 3)});
     }
 
     return 0;
@@ -44,16 +44,22 @@ static int newindex_callback(lua_State *state) {
   return luaL_error(state, "director: unknown property '%s'", key.data());
 }
 
+static void bind_closure(lua_State *state, const char *name, lua_CFunction fn, void *ptr) noexcept {
+  lua_pushlightuserdata(state, ptr);
+  lua_pushcclosure(state, fn, 1);
+  lua_setfield(state, -2, name);
+}
+
 void director::wire() {
   lua_newtable(L);
 
-  bind(L, "navigate", navigate_callback, this);
-  bind(L, "destroy", destroy_callback, this);
-  bind(L, "preload", preload_callback, this);
-  bind(L, "reset", reset_callback, this);
+  bind_closure(L, "navigate", navigate_callback, this);
+  bind_closure(L, "destroy", destroy_callback, this);
+  bind_closure(L, "preload", preload_callback, this);
+  bind_closure(L, "reset", reset_callback, this);
 
   luaL_newmetatable(L, "director");
-  bind(L, "__newindex", newindex_callback, this);
+  bind_closure(L, "__newindex", newindex_callback, this);
   lua_setmetatable(L, -2);
 
   lua_setglobal(L, "director");

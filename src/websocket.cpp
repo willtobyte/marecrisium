@@ -16,29 +16,29 @@ void cbor_to_lua(lua_State *state, cbor_item_t *item) {
   }
 
   if (cbor_is_bool(item)) {
-    push(state, cbor_get_bool(item));
+    lua_pushboolean(state, cbor_get_bool(item) ? 1 : 0);
     return;
   }
 
   if (cbor_isa_uint(item)) [[likely]] {
-    push(state, static_cast<lua_Integer>(cbor_get_int(item)));
+    lua_pushinteger(state, static_cast<lua_Integer>(cbor_get_int(item)));
     return;
   }
 
   if (cbor_isa_negint(item)) {
-    push(state, -1 - static_cast<lua_Integer>(cbor_get_int(item)));
+    lua_pushinteger(state, -1 - static_cast<lua_Integer>(cbor_get_int(item)));
     return;
   }
 
   if (cbor_is_float(item)) {
-    push(state, cbor_float_get_float(item));
+    lua_pushnumber(state, static_cast<lua_Number>(cbor_float_get_float(item)));
     return;
   }
 
   if (cbor_isa_string(item)) {
-    push(state, std::string_view{
+    lua_pushlstring(state,
       reinterpret_cast<const char *>(cbor_string_handle(item)),
-      cbor_string_length(item)});
+      cbor_string_length(item));
     return;
   }
 
@@ -172,21 +172,21 @@ void cbor_to_lua(lua_State *state, cbor_item_t *item) {
 }
 
 int subscription_publish(lua_State* state) {
-  auto *self = argument<subscription>(state, 1, "Subscription");
+  auto *self = *static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
   luaL_checkany(state, 2);
   self->publish(state, 2);
   return 0;
 }
 
 int subscription_unsubscribe(lua_State* state) {
-  auto *self = argument<subscription>(state, 1, "Subscription");
+  auto *self = *static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
   self->unsubscribe();
   return 0;
 }
 
 int subscription_index(lua_State* state) {
-  argument<void>(state, 1, "Subscription");
-  const auto key = argument<std::string_view>(state, 2);
+  luaL_checkudata(state, 1, "Subscription");
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
 
   if (key == "publish") {
     lua_pushcfunction(state, subscription_publish);
@@ -199,8 +199,8 @@ int subscription_index(lua_State* state) {
   }
 
   if (key == "topic") {
-    auto *self = argument<subscription>(state, 1, "Subscription");
-    push(state, self->topic());
+    auto *self = *static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
+    lua_pushinteger(state, static_cast<lua_Integer>(self->topic()));
     return 1;
   }
 
@@ -208,44 +208,54 @@ int subscription_index(lua_State* state) {
 }
 
 int subscription_gc(lua_State* state) {
-  delete argument<subscription>(state, 1, "Subscription");
+  delete *static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
   return 0;
 }
 
 int websocket_on_connect(lua_State* state) {
-  auto* instance = argument<channel>(state, 1, "WebSocket");
-  instance->set_on_connect(capture(state, 2));
+  auto* instance = *static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
+  luaL_checktype(state, 2, LUA_TFUNCTION);
+  lua_pushvalue(state, 2);
+  instance->set_on_connect(luaL_ref(state, LUA_REGISTRYINDEX));
   return 0;
 }
 
 int websocket_on_disconnect(lua_State* state) {
-  auto* instance = argument<channel>(state, 1, "WebSocket");
-  instance->set_on_disconnect(capture(state, 2));
+  auto* instance = *static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
+  luaL_checktype(state, 2, LUA_TFUNCTION);
+  lua_pushvalue(state, 2);
+  instance->set_on_disconnect(luaL_ref(state, LUA_REGISTRYINDEX));
   return 0;
 }
 
 int websocket_subscribe(lua_State* state) {
-  auto* instance = argument<channel>(state, 1, "WebSocket");
-  const auto raw = argument<int>(state, 2);
+  auto* instance = *static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
+  const auto raw = static_cast<int>(luaL_checkinteger(state, 2));
   luaL_argcheck(state, raw >= 0 && raw <= std::numeric_limits<uint16_t>::max(), 2, "topic must be 0..65535");
   const auto topic = static_cast<uint16_t>(raw);
-  auto reference = capture(state, 3);
+  luaL_checktype(state, 3, LUA_TFUNCTION);
+  lua_pushvalue(state, 3);
+  auto reference = luaL_ref(state, LUA_REGISTRYINDEX);
 
   subscription *sub = nullptr;
   try {
     sub = new subscription(instance, topic, reference);
   } catch (...) {
-    release(state, reference);
+    luaL_unref(state, LUA_REGISTRYINDEX, reference);
+    reference = LUA_NOREF;
     throw;
   }
 
-  pushuserdata(state, sub, "Subscription");
+  auto **m = static_cast<subscription**>(lua_newuserdata(state, sizeof(subscription*)));
+  *m = sub;
+  luaL_getmetatable(state, "Subscription");
+  lua_setmetatable(state, -2);
   return 1;
 }
 
 int websocket_index(lua_State* state) {
-  argument<void>(state, 1, "WebSocket");
-  const auto key = argument<std::string_view>(state, 2);
+  luaL_checkudata(state, 1, "WebSocket");
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
 
   if (key == "subscribe") {
     lua_pushcfunction(state, websocket_subscribe);
@@ -266,7 +276,7 @@ int websocket_index(lua_State* state) {
 }
 
 int websocket_gc(lua_State* state) {
-  auto **pointer = static_cast<channel **>(argument<void>(state, 1, "WebSocket"));
+  auto **pointer = static_cast<channel **>(luaL_checkudata(state, 1, "WebSocket"));
   if (*pointer == connection.get())
     connection.reset();
   *pointer = nullptr;
@@ -274,11 +284,14 @@ int websocket_gc(lua_State* state) {
 }
 
 int websocket_call(lua_State* state) {
-  auto url = argument<std::string>(state, 1);
+  auto url = std::string{luaL_checkstring(state, 1)};
 
   connection = std::make_unique<channel>(std::move(url));
 
-  pushuserdata(state, connection.get(), "WebSocket");
+  auto **m = static_cast<channel**>(lua_newuserdata(state, sizeof(channel*)));
+  *m = connection.get();
+  luaL_getmetatable(state, "WebSocket");
+  lua_setmetatable(state, -2);
   return 1;
 }
 }
@@ -397,15 +410,21 @@ channel::channel(std::string url)
 
 channel::~channel() {
   try {
-    invoke(L, _on_disconnect, LUA_NOREF);
+    if (_on_disconnect != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disconnect);
+      pcall(L, 0, 0);
+    }
   } catch (...) {}
 
-  release(L, _on_connect);
-  release(L, _on_disconnect);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_connect);
+  _on_connect = LUA_NOREF;
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_disconnect);
+  _on_disconnect = LUA_NOREF;
 
   for (auto& [topic, subscribers] : _subscriptions) {
     for (auto* subscriber : subscribers) {
-      release(L, subscriber->_callback);
+      luaL_unref(L, LUA_REGISTRYINDEX, subscriber->_callback);
+      subscriber->_callback = LUA_NOREF;
       subscriber->_active = false;
       subscriber->_owner = nullptr;
     }
@@ -486,11 +505,19 @@ void channel::send(message message) noexcept {
 }
 
 void channel::poll() {
-  if (_pending_connect.exchange(false, std::memory_order_acq_rel))
-    invoke(L, _on_connect, LUA_NOREF);
+  if (_pending_connect.exchange(false, std::memory_order_acq_rel)) {
+    if (_on_connect != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _on_connect);
+      pcall(L, 0, 0);
+    }
+  }
 
-  if (_pending_disconnect.exchange(false, std::memory_order_acq_rel))
-    invoke(L, _on_disconnect, LUA_NOREF);
+  if (_pending_disconnect.exchange(false, std::memory_order_acq_rel)) {
+    if (_on_disconnect != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disconnect);
+      pcall(L, 0, 0);
+    }
+  }
 
   message message;
   while (_inbound.try_pop(message)) {
@@ -535,12 +562,12 @@ void channel::poll() {
 }
 
 void channel::set_on_connect(int reference) noexcept {
-  release(L, _on_connect);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_connect);
   _on_connect = reference;
 }
 
 void channel::set_on_disconnect(int reference) noexcept {
-  release(L, _on_disconnect);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_disconnect);
   _on_disconnect = reference;
 }
 
@@ -605,7 +632,8 @@ void subscription::unsubscribe() {
   if (_owner) [[likely]]
     _owner->remove_subscription(this);
 
-  release(L, _callback);
+  luaL_unref(L, LUA_REGISTRYINDEX, _callback);
+  _callback = LUA_NOREF;
 }
 
 uint16_t subscription::topic() const noexcept {

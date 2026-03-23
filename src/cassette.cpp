@@ -18,7 +18,7 @@ static int cassette_clear(lua_State*) {
 }
 
 static int cassette_index(lua_State* state) {
-  const auto key = argument<std::string_view>(state, 2);
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
 
   if (key == "clear")
     return lua_pushcfunction(state, cassette_clear), 1;
@@ -28,13 +28,13 @@ static int cassette_index(lua_State* state) {
     const auto type = sqlite3_column_int(stmt_select, 0);
     switch (type) {
       case 0:
-        push(state, sqlite3_column_int(stmt_select, 1) != 0);
+        lua_pushboolean(state, sqlite3_column_int(stmt_select, 1) != 0 ? 1 : 0);
         break;
       case 1:
-        push(state, sqlite3_column_double(stmt_select, 1));
+        lua_pushnumber(state, static_cast<lua_Number>(sqlite3_column_double(stmt_select, 1)));
         break;
       case 2:
-        push(state, reinterpret_cast<const char*>(sqlite3_column_text(stmt_select, 1)));
+        lua_pushstring(state, reinterpret_cast<const char*>(sqlite3_column_text(stmt_select, 1)));
         break;
       default:
         lua_pushnil(state);
@@ -50,7 +50,7 @@ static int cassette_index(lua_State* state) {
 }
 
 static int cassette_newindex(lua_State* state) {
-  const auto key = argument<std::string_view>(state, 2);
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
 
   if (key == "clear") [[unlikely]]
     return 0;

@@ -15,11 +15,11 @@ static bool on_event(void *userdata, SDL_Event *event) {
 }
 
 static int overlay_label(lua_State *state) {
-  auto *self = argument<overlay>(state, 1, "Overlay");
-  const auto font = argument<std::string_view>(state, 2);
-  const auto text = argument<std::string_view>(state, 3);
-  const auto x = argument<float>(state, 4);
-  const auto y = argument<float>(state, 5);
+  auto *self = *static_cast<overlay **>(luaL_checkudata(state, 1, "Overlay"));
+  const auto font = std::string_view{luaL_checkstring(state, 2)};
+  const auto text = std::string_view{luaL_checkstring(state, 3)};
+  const auto x = static_cast<float>(luaL_checknumber(state, 4));
+  const auto y = static_cast<float>(luaL_checknumber(state, 5));
 
   if (!lua_istable(state, 6)) [[likely]] {
     self->render_label(font, text, x, y);
@@ -38,11 +38,25 @@ static int overlay_label(lua_State *state) {
       if (index < effects.size()) {
         auto &effect = effects[index];
 
-        effect.xoffset = property<float>(state, -1, "xoffset", effect.xoffset);
-        effect.yoffset = property<float>(state, -1, "yoffset", effect.yoffset);
-        effect.scale = property<float>(state, -1, "scale", effect.scale);
-        effect.angle = property<float>(state, -1, "angle", effect.angle);
-        effect.alpha = property<float>(state, -1, "alpha", effect.alpha);
+        lua_getfield(state, -1, "xoffset");
+        effect.xoffset = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.xoffset;
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "yoffset");
+        effect.yoffset = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.yoffset;
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "scale");
+        effect.scale = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.scale;
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "angle");
+        effect.angle = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.angle;
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "alpha");
+        effect.alpha = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.alpha;
+        lua_pop(state, 1);
 
         if (index >= lenght) lenght = index + 1;
       }
@@ -56,8 +70,8 @@ static int overlay_label(lua_State *state) {
 }
 
 static int overlay_index(lua_State *state) {
-  argument<void>(state, 1, "Overlay");
-  const auto key = argument<std::string_view>(state, 2);
+  luaL_checkudata(state, 1, "Overlay");
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
 
   if (key == "label") {
     lua_pushcfunction(state, overlay_label);
@@ -95,12 +109,18 @@ overlay::overlay(std::string_view name) {
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
-  _on_loop = acquire(L, -1, "on_loop");
-  _on_paint = acquire(L, -1, "on_paint");
+  lua_getfield(L, -1, "on_loop");
+  _on_loop = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+
+  lua_getfield(L, -1, "on_paint");
+  _on_paint = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_pop(L, 1);
 
-  pushuserdata(L, this, "Overlay");
+  auto **m = static_cast<overlay **>(lua_newuserdata(L, sizeof(overlay *)));
+  *m = this;
+  luaL_getmetatable(L, "Overlay");
+  lua_setmetatable(L, -2);
   _userdata_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   SDL_AddEventWatch(on_event, this);
@@ -110,10 +130,14 @@ overlay::overlay(std::string_view name) {
 overlay::~overlay() {
   SDL_StopTextInput(SDL_GetRenderWindow(renderer));
   SDL_RemoveEventWatch(on_event, this);
-  release(L, _on_paint);
-  release(L, _on_loop);
-  release(L, _reference);
-  release(L, _userdata_reference);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
+  _on_paint = LUA_NOREF;
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
+  _on_loop = LUA_NOREF;
+  luaL_unref(L, LUA_REGISTRYINDEX, _reference);
+  _reference = LUA_NOREF;
+  luaL_unref(L, LUA_REGISTRYINDEX, _userdata_reference);
+  _userdata_reference = LUA_NOREF;
 }
 
 void overlay::wire() {
@@ -133,14 +157,23 @@ void overlay::update(float delta) {
   if (_foreground)
     _foreground->update(delta);
 
-  invoke(L, _on_loop, _reference, delta);
+  if (_on_loop != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    lua_pushnumber(L, static_cast<lua_Number>(delta));
+    pcall(L, 2, 0);
+  }
 }
 
 void overlay::draw() {
   if (_foreground)
     _foreground->draw();
 
-  invoke(L, _on_paint, _reference);
+  if (_on_paint != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    pcall(L, 1, 0);
+  }
 }
 
 void overlay::expose() {

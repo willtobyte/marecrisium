@@ -16,8 +16,12 @@ static void load_tiles(tilemap::layer& layer, const char* field, size_t total) {
   }
 
   layer.tiles.reserve(total);
-  for (size_t i = 0; i < total; ++i)
-    layer.tiles.emplace_back(property<uint32_t>(L, -1, static_cast<int>(i + 1)));
+  for (size_t i = 0; i < total; ++i) {
+    lua_rawgeti(L, -1, static_cast<int>(i + 1));
+    const auto val = lua_isnumber(L, -1) ? static_cast<uint32_t>(lua_tonumber(L, -1)) : 0u;
+    lua_pop(L, 1);
+    layer.tiles.emplace_back(val);
+  }
 
   lua_pop(L, 1);
   if (std::ranges::none_of(layer.tiles, [](const uint32_t id) { return id != 0; }))
@@ -60,9 +64,17 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
   pcall(L, 0, 1);
 
-  _size = property<float>(L, -1, "size");
-  _width = property<int>(L, -1, "width");
-  _height = property<int>(L, -1, "height");
+  lua_getfield(L, -1, "size");
+  _size = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
+  lua_pop(L, 1);
+
+  lua_getfield(L, -1, "width");
+  _width = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 0;
+  lua_pop(L, 1);
+
+  lua_getfield(L, -1, "height");
+  _height = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 0;
+  lua_pop(L, 1);
 
   _inverse_size = 1.f / _size;
 
@@ -76,8 +88,12 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
     lua_getfield(L, -1, "collision");
     if (lua_istable(L, -1)) {
-      for (size_t i = 0; i < total; ++i)
-        _collision[i] = static_cast<uint8_t>(property<uint32_t>(L, -1, static_cast<int>(i + 1)));
+      for (size_t i = 0; i < total; ++i) {
+        lua_rawgeti(L, -1, static_cast<int>(i + 1));
+        const auto val = lua_isnumber(L, -1) ? static_cast<uint32_t>(lua_tonumber(L, -1)) : 0u;
+        lua_pop(L, 1);
+        _collision[i] = static_cast<uint8_t>(val);
+      }
     }
     lua_pop(L, 1);
 
@@ -405,7 +421,11 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
     const auto local_row = cell / box_w;
     const auto global_column = local_column + box_x0;
     const auto global_row = local_row + box_y0;
-    pushvec2(state, static_cast<float>(global_column) * _size + half, static_cast<float>(global_row) * _size + half);
+    lua_createtable(state, 2, 0);
+    lua_pushnumber(state, static_cast<lua_Number>(static_cast<float>(global_column) * _size + half));
+    lua_rawseti(state, -2, 1);
+    lua_pushnumber(state, static_cast<lua_Number>(static_cast<float>(global_row) * _size + half));
+    lua_rawseti(state, -2, 2);
     lua_rawseti(state, -2, index++);
   }
 

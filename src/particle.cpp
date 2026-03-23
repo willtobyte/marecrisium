@@ -5,20 +5,30 @@ namespace {
 constexpr float TWO_PI = 6.28318530718f;
 
 int particle_index(lua_State* state) {
-  const auto* self = argument<particle>(state, 1, "Particle");
-  const auto key = argument<std::string_view>(state, 2);
+  const auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
 
-  if (key == "active")
-    return push(state, self->active());
+  if (key == "active") {
+    lua_pushboolean(state, self->active() ? 1 : 0);
+    return 1;
+  }
 
-  if (key == "x")
-    return push(state, self->x());
+  if (key == "x") {
+    lua_pushnumber(state, static_cast<lua_Number>(self->x()));
+    return 1;
+  }
 
-  if (key == "y")
-    return push(state, self->y());
+  if (key == "y") {
+    lua_pushnumber(state, static_cast<lua_Number>(self->y()));
+    return 1;
+  }
 
   if (key == "position") {
-    pushvec2(state, self->x(), self->y());
+    lua_createtable(state, 2, 0);
+    lua_pushnumber(state, static_cast<lua_Number>(self->x()));
+    lua_rawseti(state, -2, 1);
+    lua_pushnumber(state, static_cast<lua_Number>(self->y()));
+    lua_rawseti(state, -2, 2);
     return 1;
   }
 
@@ -27,7 +37,10 @@ int particle_index(lua_State* state) {
     if (!fx)
       return lua_pushnil(state), 1;
 
-    pushuserdata(state, fx, "Sound");
+    auto **m = static_cast<class sound**>(lua_newuserdata(state, sizeof(class sound*)));
+    *m = fx;
+    luaL_getmetatable(state, "Sound");
+    lua_setmetatable(state, -2);
 
     return 1;
   }
@@ -36,26 +49,31 @@ int particle_index(lua_State* state) {
 }
 
 int particle_newindex(lua_State* state) {
-  auto* self = argument<particle>(state, 1, "Particle");
-  const auto key = argument<std::string_view>(state, 2);
+  auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
 
   if (key == "active") {
-    self->set_active(argument<bool>(state, 3));
+    self->set_active(lua_toboolean(state, 3) != 0);
     return 0;
   }
 
   if (key == "x") {
-    self->set_x(argument<float>(state, 3));
+    self->set_x(static_cast<float>(luaL_checknumber(state, 3)));
     return 0;
   }
 
   if (key == "y") {
-    self->set_y(argument<float>(state, 3));
+    self->set_y(static_cast<float>(luaL_checknumber(state, 3)));
     return 0;
   }
 
   if (key == "position") {
-    const auto [px, py] = argument<std::pair<float, float>>(state, 3);
+    luaL_checktype(state, 3, LUA_TTABLE);
+    lua_rawgeti(state, 3, 1);
+    lua_rawgeti(state, 3, 2);
+    const auto px = static_cast<float>(lua_tonumber(state, -2));
+    const auto py = static_cast<float>(lua_tonumber(state, -1));
+    lua_pop(state, 2);
     self->set_x(px);
     self->set_y(py);
     return 0;

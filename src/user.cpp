@@ -1,18 +1,18 @@
 #include "user.hpp"
 
 static int friend_newindex(lua_State *state) {
-  const auto key = argument<std::string_view>(state, 2);
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
   return luaL_error(state, "attempt to write read-only field '%s'", key.data());
 }
 
 static int user_newindex(lua_State *state) {
-  const auto key = argument<std::string_view>(state, 2);
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
   return luaL_error(state, "attempt to write read-only field '%s'", key.data());
 }
 
 static int friend_index(lua_State *state) {
-  argument<void>(state, 1, "Friend");
-  const auto key = argument<std::string_view>(state, 2);
+  luaL_checkudata(state, 1, "Friend");
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
 
   if (key == "id") {
     lua_getfenv(state, 1);
@@ -32,10 +32,12 @@ static int friend_index(lua_State *state) {
 }
 
 static int user_index(lua_State *state) {
-  const auto key = argument<std::string_view>(state, 2);
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
 
-  if (key == "persona")
-    return push(state, GetPersonaName());
+  if (key == "persona") {
+    lua_pushstring(state, GetPersonaName());
+    return 1;
+  }
 
   if (key == "friends") {
     const auto count = GetFriendCount();
@@ -57,9 +59,9 @@ static int user_index(lua_State *state) {
       lua_setmetatable(state, -2);
 
       lua_newtable(state);
-      push(state, id);
+      lua_pushinteger(state, static_cast<lua_Integer>(id));
       lua_setfield(state, -2, "id");
-      push(state, name);
+      lua_pushlstring(state, name.data(), name.size());
       lua_setfield(state, -2, "name");
       lua_setfenv(state, -2);
 
