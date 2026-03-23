@@ -3,68 +3,72 @@
 namespace {
 std::unique_ptr<channel> connection;
 
-[[nodiscard]] int abs_index(lua_State* state, int index) noexcept {
+[[nodiscard]] int abs_index(lua_State *state, int index) noexcept {
   return (index > 0 || index <= LUA_REGISTRYINDEX)
     ? index
     : lua_gettop(state) + index + 1;
 }
 
-void yyjson_to_lua(lua_State* state, yyjson_val* val) {
-  const auto type = yyjson_get_type(val);
-
-  switch (type) {
-    case YYJSON_TYPE_NULL:
-      lua_pushnil(state);
-      break;
-
-    case YYJSON_TYPE_BOOL:
-      lua_pushboolean(state, yyjson_get_bool(val) ? 1 : 0);
-      break;
-
-    case YYJSON_TYPE_NUM:
-      if (yyjson_is_int(val)) [[likely]]
-        lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_int(val)));
-      else if (yyjson_is_uint(val))
-        lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_uint(val)));
-      else
-        lua_pushnumber(state, yyjson_get_real(val));
-      break;
-
-    case YYJSON_TYPE_STR:
-      lua_pushstring(state, yyjson_get_str(val));
-      break;
-
-    case YYJSON_TYPE_ARR: {
-      lua_createtable(state, static_cast<int>(yyjson_arr_size(val)), 0);
-      auto index = 1;
-      yyjson_arr_iter iter;
-      yyjson_arr_iter_init(val, &iter);
-      yyjson_val* elem;
-      while ((elem = yyjson_arr_iter_next(&iter))) {
-        yyjson_to_lua(state, elem);
-        lua_rawseti(state, -2, index++);
-      }
-    } break;
-
-    case YYJSON_TYPE_OBJ: {
-      lua_createtable(state, 0, static_cast<int>(yyjson_obj_size(val)));
-      yyjson_obj_iter iter;
-      yyjson_obj_iter_init(val, &iter);
-      yyjson_val* key;
-      while ((key = yyjson_obj_iter_next(&iter))) {
-        lua_pushstring(state, yyjson_get_str(key));
-        yyjson_to_lua(state, yyjson_obj_iter_get_val(key));
-        lua_rawset(state, -3);
-      }
-    } break;
-
-    default: [[unlikely]]
-      lua_pushnil(state);
-      break;
+void cbor_to_lua(lua_State *state, cbor_item_t *item) {
+  if (cbor_is_null(item) || cbor_is_undef(item)) {
+    lua_pushnil(state);
+    return;
   }
+
+  if (cbor_is_bool(item)) {
+    lua_pushboolean(state, cbor_get_bool(item) ? 1 : 0);
+    return;
+  }
+
+  if (cbor_isa_uint(item)) [[likely]] {
+    lua_pushinteger(state, static_cast<lua_Integer>(cbor_get_int(item)));
+    return;
+  }
+
+  if (cbor_isa_negint(item)) {
+    lua_pushinteger(state, -1 - static_cast<lua_Integer>(cbor_get_int(item)));
+    return;
+  }
+
+  if (cbor_is_float(item)) {
+    lua_pushnumber(state, cbor_float_get_float(item));
+    return;
+  }
+
+  if (cbor_isa_string(item)) {
+    lua_pushlstring(state,
+      reinterpret_cast<const char *>(cbor_string_handle(item)),
+      cbor_string_length(item));
+    return;
+  }
+
+  if (cbor_isa_array(item)) {
+    const auto size = cbor_array_size(item);
+    lua_createtable(state, static_cast<int>(size), 0);
+    auto *elements = cbor_array_handle(item);
+    for (size_t i = 0; i < size; ++i) {
+      cbor_to_lua(state, elements[i]);
+      lua_rawseti(state, -2, static_cast<int>(i + 1));
+    }
+    return;
+  }
+
+  if (cbor_isa_map(item)) {
+    const auto size = cbor_map_size(item);
+    lua_createtable(state, 0, static_cast<int>(size));
+    auto *pairs = cbor_map_handle(item);
+    for (size_t i = 0; i < size; ++i) {
+      cbor_to_lua(state, pairs[i].key);
+      cbor_to_lua(state, pairs[i].value);
+      lua_rawset(state, -3);
+    }
+    return;
+  }
+
+  lua_pushnil(state);
 }
 
-[[nodiscard]] bool lua_table_is_array(lua_State* state, int index) {
+[[nodiscard]] bool lua_table_is_array(lua_State *state, int index) {
   const auto abs = abs_index(state, index);
   auto count = 0;
   lua_pushnil(state);
@@ -77,63 +81,94 @@ void yyjson_to_lua(lua_State* state, yyjson_val* val) {
   return length > 0 && length == count;
 }
 
-[[nodiscard]] yyjson_mut_val* lua_to_yyjson(lua_State* state, int index, yyjson_mut_doc* document) {
+[[nodiscard]] cbor_item_t *lua_to_cbor(lua_State *state, int index) {
   const auto abs = abs_index(state, index);
   const auto type = lua_type(state, abs);
 
   switch (type) {
     case LUA_TNIL:
-      return yyjson_mut_null(document);
+      return cbor_new_null();
 
     case LUA_TBOOLEAN:
-      return yyjson_mut_bool(document, lua_toboolean(state, abs) != 0);
+      return cbor_build_bool(lua_toboolean(state, abs) != 0);
 
-    case LUA_TNUMBER:
-      return yyjson_mut_real(document, lua_tonumber(state, abs));
+    case LUA_TNUMBER: {
+      const auto value = lua_tonumber(state, abs);
+      const auto as_int = static_cast<lua_Integer>(value);
+      if (static_cast<lua_Number>(as_int) == value) {
+        if (as_int >= 0)
+          return cbor_build_uint64(static_cast<uint64_t>(as_int));
+        return cbor_build_negint64(static_cast<uint64_t>(-1 - as_int));
+      }
+      return cbor_build_float8(value);
+    }
 
-    case LUA_TSTRING:
-      return yyjson_mut_str(document, lua_tostring(state, abs));
+    case LUA_TSTRING: {
+      size_t len = 0;
+      const auto *str = lua_tolstring(state, abs, &len);
+      return cbor_build_stringn(str, len);
+    }
 
     case LUA_TTABLE: {
       if (lua_table_is_array(state, abs)) [[likely]] {
-        auto* arr = yyjson_mut_arr(document);
         const auto length = static_cast<int>(lua_objlen(state, abs));
+        auto *arr = cbor_new_definite_array(static_cast<size_t>(length));
         for (auto i = 1; i <= length; ++i) {
           lua_rawgeti(state, abs, i);
-          yyjson_mut_arr_append(arr, lua_to_yyjson(state, -1, document));
+          std::ignore = cbor_array_push(arr, cbor_move(lua_to_cbor(state, -1)));
           lua_pop(state, 1);
         }
-
         return arr;
       }
 
-      auto* object = yyjson_mut_obj(document);
+      auto *map = cbor_new_definite_map(0);
       lua_pushnil(state);
       while (lua_next(state, abs) != 0) {
         if (lua_type(state, -2) == LUA_TSTRING) {
-          auto* key = yyjson_mut_str(document, lua_tostring(state, -2));
-          auto* val = lua_to_yyjson(state, -1, document);
-          yyjson_mut_obj_add(object, key, val);
+          auto *key = lua_to_cbor(state, -2);
+          auto *val = lua_to_cbor(state, -1);
+          std::ignore = cbor_map_add(map, {cbor_move(key), cbor_move(val)});
         }
         lua_pop(state, 1);
       }
-
-      return object;
+      return map;
     }
 
     default: [[unlikely]]
-      return yyjson_mut_null(document);
+      return cbor_new_null();
   }
 }
 
-[[nodiscard]] std::string build_action_json(const char* action, const char* topic) {
-  auto document = std::unique_ptr<yyjson_mut_doc, decltype(&yyjson_mut_doc_free)>(yyjson_mut_doc_new(nullptr), yyjson_mut_doc_free);
-  auto* root = yyjson_mut_obj(document.get());
-  yyjson_mut_doc_set_root(document.get(), root);
-  yyjson_mut_obj_add_str(document.get(), root, "action", action);
-  yyjson_mut_obj_add_str(document.get(), root, "topic", topic);
-  auto json = std::unique_ptr<char, decltype(&free)>(yyjson_mut_write(document.get(), 0, nullptr), free);
-  return std::string(json.get());
+[[nodiscard]] std::vector<uint8_t> serialize(cbor_item_t *item) {
+  unsigned char *buffer = nullptr;
+  size_t length = 0;
+  cbor_serialize_alloc(item, &buffer, &length);
+  cbor_decref(&item);
+  std::vector<uint8_t> result(buffer, buffer + length);
+  free(buffer);
+  return result;
+}
+
+[[nodiscard]] std::vector<uint8_t> subscribe(std::string_view topic) {
+  auto *arr = cbor_new_definite_array(2);
+  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_uint8(std::to_underlying(opcode::subscribe))));
+  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_stringn(topic.data(), topic.size())));
+  return serialize(arr);
+}
+
+[[nodiscard]] std::vector<uint8_t> unsubscribe(std::string_view topic) {
+  auto *arr = cbor_new_definite_array(2);
+  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_uint8(std::to_underlying(opcode::unsubscribe))));
+  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_stringn(topic.data(), topic.size())));
+  return serialize(arr);
+}
+
+[[nodiscard]] std::vector<uint8_t> publish(std::string_view topic, cbor_item_t *data) {
+  auto *arr = cbor_new_definite_array(3);
+  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_uint8(std::to_underlying(opcode::publish))));
+  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_stringn(topic.data(), topic.size())));
+  std::ignore = cbor_array_push(arr, cbor_move(data));
+  return serialize(arr);
 }
 
 int subscription_publish(lua_State* state) {
@@ -282,36 +317,47 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
       break;
 
     case LWS_CALLBACK_CLIENT_RECEIVE: [[likely]] {
-      const auto* const text = static_cast<const char*>(in);
-      auto document = std::unique_ptr<yyjson_doc, YYJSON_Deleter>(yyjson_read(text, length, 0), YYJSON_Deleter{});
-      if (!document) [[unlikely]]
+      const auto *bytes = static_cast<const unsigned char *>(in);
+      cbor_load_result result;
+      auto *root = cbor_load(bytes, length, &result);
+      if (!root || result.error.code != CBOR_ERR_NONE) [[unlikely]] {
+        if (root) cbor_decref(&root);
         break;
+      }
 
-      auto* root = yyjson_doc_get_root(document.get());
-      auto* topic_value = yyjson_obj_get(root, "topic");
-      if (!topic_value) [[unlikely]]
+      if (!cbor_isa_array(root) || cbor_array_size(root) < 2) [[unlikely]] {
+        cbor_decref(&root);
         break;
+      }
 
-      const auto* const topic_string = yyjson_get_str(topic_value);
-      if (!topic_string) [[unlikely]]
+      auto *topic_item = cbor_array_get(root, 1);
+      if (!cbor_isa_string(topic_item)) [[unlikely]] {
+        cbor_decref(&root);
         break;
+      }
+
+      std::string topic_string(
+        reinterpret_cast<const char *>(cbor_string_handle(topic_item)),
+        cbor_string_length(topic_item));
 
       ws->_inbound.push(message{
-        topic_string,
-        std::string(text, length)
+        std::move(topic_string),
+        std::vector<uint8_t>(bytes, bytes + length)
       });
+
+      cbor_decref(&root);
     } break;
 
     case LWS_CALLBACK_CLIENT_WRITEABLE: {
       struct message message;
       if (ws->_outbound.try_pop(message)) {
-        const auto& payload = message.payload;
+        const auto &payload = message.payload;
         const auto size = payload.size();
         const auto required = LWS_PRE + size;
         if (ws->_sendbuffer.size() < required) [[unlikely]]
           ws->_sendbuffer.resize(required);
         std::memcpy(ws->_sendbuffer.data() + LWS_PRE, payload.data(), size);
-        lws_write(wsi, ws->_sendbuffer.data() + LWS_PRE, size, LWS_WRITE_TEXT);
+        lws_write(wsi, ws->_sendbuffer.data() + LWS_PRE, size, LWS_WRITE_BINARY);
         lws_callback_on_writable(wsi);
       } else if (ws->_pending_ping.exchange(false, std::memory_order_acq_rel)) {
         if (ws->_sendbuffer.size() < LWS_PRE) [[unlikely]]
@@ -451,12 +497,16 @@ void channel::poll() {
 
   message message;
   while (_inbound.try_pop(message)) {
-    auto document = std::unique_ptr<yyjson_doc, decltype(&yyjson_doc_free)>(yyjson_read(message.payload.c_str(), message.payload.size(), 0), yyjson_doc_free);
-    if (!document) [[unlikely]]
+    cbor_load_result result;
+    auto *root = cbor_load(message.payload.data(), message.payload.size(), &result);
+    if (!root || result.error.code != CBOR_ERR_NONE) [[unlikely]] {
+      if (root) cbor_decref(&root);
       continue;
+    }
 
-    auto* root = yyjson_doc_get_root(document.get());
-    auto* data_value = yyjson_obj_get(root, "data");
+    cbor_item_t *data_value = nullptr;
+    if (cbor_isa_array(root) && cbor_array_size(root) >= 3) [[likely]]
+      data_value = cbor_array_get(root, 2);
 
     std::vector<int> references;
     {
@@ -464,7 +514,7 @@ void channel::poll() {
       const auto it = _subscriptions.find(message.topic);
       if (it != _subscriptions.end()) [[likely]] {
         references.reserve(it->second.size());
-        for (const auto* subscriber : it->second) {
+        for (const auto *subscriber : it->second) {
           if (!subscriber->active()) [[unlikely]]
             continue;
           references.emplace_back(subscriber->callback());
@@ -476,12 +526,14 @@ void channel::poll() {
       lua_rawgeti(L, LUA_REGISTRYINDEX, reference);
 
       if (data_value)
-        yyjson_to_lua(L, data_value);
+        cbor_to_lua(L, data_value);
       else
         lua_pushnil(L);
 
       pcall(L, 1, 0);
     }
+
+    cbor_decref(&root);
   }
 }
 
@@ -501,15 +553,12 @@ void channel::add_subscription(subscription* subscriber) {
     _subscriptions[subscriber->topic()].emplace_back(subscriber);
   }
 
-  if (_connected.load(std::memory_order_acquire)) {
-    auto payload = build_action_json("subscribe", subscriber->topic().c_str());
-    send(message{subscriber->topic(), std::move(payload)});
-  }
+  if (_connected.load(std::memory_order_acquire))
+    send(message{subscriber->topic(), subscribe(subscriber->topic())});
 }
 
-void channel::remove_subscription(subscription* subscriber) {
-  auto payload = build_action_json("unsubscribe", subscriber->topic().c_str());
-  send(message{subscriber->topic(), std::move(payload)});
+void channel::remove_subscription(subscription *subscriber) {
+  send(message{subscriber->topic(), unsubscribe(subscriber->topic())});
 
   std::scoped_lock lock(_mutex);
   auto it = _subscriptions.find(subscriber->topic());
@@ -522,12 +571,11 @@ void channel::remove_subscription(subscription* subscriber) {
 
 void channel::resubscribe() {
   std::scoped_lock lock(_mutex);
-  for (const auto& [topic, subscribers] : _subscriptions) {
-    for (const auto* subscriber : subscribers) {
+  for (const auto &[topic, subscribers] : _subscriptions) {
+    for (const auto *subscriber : subscribers) {
       if (!subscriber->active()) [[unlikely]]
         continue;
-      auto payload = build_action_json("subscribe", topic.c_str());
-      _outbound.push(message{topic, std::move(payload)});
+      _outbound.push(message{topic, subscribe(topic)});
     }
   }
 }
@@ -541,19 +589,16 @@ subscription::~subscription() {
   unsubscribe();
 }
 
-void subscription::publish(lua_State* state, int index) {
+void subscription::publish(lua_State *state, int index) {
   if (!_active || !_owner) [[unlikely]]
     return;
 
-  auto document = std::unique_ptr<yyjson_mut_doc, decltype(&yyjson_mut_doc_free)>(yyjson_mut_doc_new(nullptr), yyjson_mut_doc_free);
-  auto* root = yyjson_mut_obj(document.get());
-  yyjson_mut_doc_set_root(document.get(), root);
-  yyjson_mut_obj_add_str(document.get(), root, "action", "publish");
-  yyjson_mut_obj_add_str(document.get(), root, "topic", _topic.c_str());
-  yyjson_mut_obj_add_val(document.get(), root, "data", lua_to_yyjson(state, index, document.get()));
-
-  auto json = std::unique_ptr<char, decltype(&free)>(yyjson_mut_write(document.get(), 0, nullptr), free);
-  _owner->send(message{_topic, std::string(json.get())});
+  auto *data = lua_to_cbor(state, index);
+  auto *arr = cbor_new_definite_array(3);
+  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_uint8(std::to_underlying(opcode::publish))));
+  std::ignore = cbor_array_push(arr, cbor_move(cbor_build_stringn(_topic.data(), _topic.size())));
+  std::ignore = cbor_array_push(arr, cbor_move(data));
+  _owner->send(message{_topic, serialize(arr)});
 }
 
 void subscription::unsubscribe() {

@@ -1,8 +1,14 @@
 #pragma once
 
+enum class opcode : uint8_t {
+  subscribe   = 1 << 0,
+  unsubscribe = 1 << 1,
+  publish     = 1 << 2,
+};
+
 struct message {
   std::string topic;
-  std::string payload;
+  std::vector<uint8_t> payload;
 };
 
 template <typename T, size_t N = 256>

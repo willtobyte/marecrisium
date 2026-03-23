@@ -15,6 +15,11 @@ return {
 	on_spawn = function(self)
 		self.x = 0
 		self.y = 0
+
+		self.websocket = WebSocket.new("localhost:8080")
+		self.subscription = self.websocket:subscribe("player", function(data)
+			print("received: " .. tostring(data))
+		end)
 	end,
 
 	on_loop = function(self, delta)
@@ -32,6 +37,9 @@ return {
 		end
 		if controls.down then
 			velocity_y = velocity_y + speed
+			if self.subscription then
+				self.subscription:publish({ action = "down", x = self.x, y = self.y })
+			end
 		end
 
 		if velocity_x ~= 0 and velocity_y ~= 0 then

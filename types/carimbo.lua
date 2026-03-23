@@ -639,10 +639,10 @@ function openurl(url) end
 --------------------------------------------------------------------------------
 
 ---@class WebSocket
----A WebSocket connection. Supports pub/sub messaging with JSON payloads.
+---A WebSocket connection. Supports pub/sub messaging with CBOR payloads.
 local WebSocket = {}
 
----Subscribe to a topic. The callback receives decoded JSON data as a Lua table
+---Subscribe to a topic. The callback receives decoded CBOR data as a Lua table
 ---whenever a message arrives on this topic.
 ---@param topic string The topic name to subscribe to.
 ---@param callback fun(data: table) Called with the decoded message data.
@@ -662,8 +662,8 @@ function WebSocket:on_disconnect(callback) end
 ---Automatically unsubscribes on garbage collection.
 local Subscription = {}
 
----Publish a table as JSON to this subscription's topic.
----@param data table The data to send (encoded as JSON).
+---Publish a table as CBOR to this subscription's topic.
+---@param data table The data to send (encoded as CBOR).
 function Subscription:publish(data) end
 
 ---Unsubscribe from this topic. Also called automatically on garbage collection.

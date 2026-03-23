@@ -40,7 +40,7 @@
 #include <sentry.h>
 #include <sqlite3.h>
 #include <spng.h>
-#include <yyjson.h>
+#include <cbor.h>
 
 #ifdef _MSC_VER
 #  define noalias __restrict
@@ -105,14 +105,11 @@ struct PHYSFS_Deleter final {
   }
 };
 
-struct YYJSON_Deleter final {
-  template <typename T>
-  void operator()(T* ptr) const noexcept {
+struct CBOR_Deleter final {
+  void operator()(cbor_item_t *ptr) const noexcept {
     if (!ptr) [[unlikely]] return;
 
-    if constexpr (std::is_same_v<T, yyjson_doc>) yyjson_doc_free(ptr);
-    else if constexpr (std::is_same_v<T, yyjson_mut_doc>) yyjson_mut_doc_free(ptr);
-    else free(ptr);
+    cbor_decref(&ptr);
   }
 };
 

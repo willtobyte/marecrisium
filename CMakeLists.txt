@@ -41,7 +41,7 @@ find_package(luajit CONFIG REQUIRED)
 find_package(miniaudio CONFIG REQUIRED)
 find_package(opusfile CONFIG REQUIRED)
 find_package(SQLite3 CONFIG REQUIRED)
-find_package(yyjson CONFIG REQUIRED)
+find_package(libcbor CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
   box2d::box2d
@@ -55,7 +55,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   luajit::luajit
   websockets
   SQLite::SQLite3
-  yyjson::yyjson
+  libcbor::libcbor
 )
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE ${HEADER_FILES})
