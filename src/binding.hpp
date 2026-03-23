@@ -122,6 +122,14 @@ int push(lua_State *state, T value) noexcept {
   return 1;
 }
 
+inline void push(lua_State *) noexcept {}
+
+template <typename T, typename... Rest>
+void push(lua_State *state, T first, Rest... rest) noexcept {
+  push(state, first);
+  push(state, rest...);
+}
+
 template <typename... Args>
 void invoke(lua_State *state, int callback, int self, Args... args) {
   if (callback == LUA_NOREF) [[unlikely]]
@@ -134,7 +142,7 @@ void invoke(lua_State *state, int callback, int self, Args... args) {
     ++nargs;
   }
 
-  (push(state, args), ...);
+  push(state, args...);
   pcall(state, nargs, 0);
 }
 
@@ -152,7 +160,7 @@ void call(lua_State *state, int prototype, int handle, std::string_view method, 
   lua_getfield(state, -1, method.data());
   if (lua_isfunction(state, -1)) {
     lua_rawgeti(state, LUA_REGISTRYINDEX, handle);
-    (push(state, args), ...);
+    push(state, args...);
     pcall(state, 1 + static_cast<int>(sizeof...(args)), 0);
   } else {
     lua_pop(state, 1);
