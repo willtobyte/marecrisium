@@ -118,4 +118,7 @@ struct transparent_hash final {
   auto operator()(std::string_view sv) const noexcept { return std::hash<std::string_view>{}(sv); }
 };
 
-[[nodiscard]] float to_radians(float degrees) noexcept;
+template <typename T>
+[[nodiscard]] constexpr T to_radians(T degrees) noexcept {
+  return degrees * (std::numbers::pi_v<T> / T{180});
+}
