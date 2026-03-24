@@ -285,6 +285,7 @@ director = {}
 ---@field y number Y position in logical pixels. Default 0.
 ---@field width number Pixmap native width in pixels (read-only).
 ---@field height number Pixmap native height in pixels (read-only).
+---@field angle number Rotation angle in degrees. Default 0.
 ---@field alpha number Opacity (0-255). Default 255.
 
 ---@class ForegroundConfig
@@ -306,12 +307,13 @@ function Foreground.on_loop(self, delta) end
 function Foreground.on_paint(self) end
 
 ---Submit a batch of quads for rendering using the foreground's pixmap texture.
----`buffer` is a flat array of numbers in groups of 5: `{x, y, w, h, alpha, ...}`.
----`count` is the total number of elements (must be a positive multiple of 5).
----Each group of 5 defines one quad: destination x/y, width/height, and alpha (0-255).
----Quads with alpha 0 are skipped. Call once per frame inside `on_paint`.
----@param buffer number[] Flat array of quad data: repeating {x, y, w, h, alpha}.
----@param count integer Total number of elements in buffer (multiple of 5).
+---`buffer` is a flat array of numbers in groups of 6: `{x, y, w, h, angle, alpha, ...}`.
+---`count` is the total number of elements (must be a positive multiple of 6).
+---Each group of 6 defines one quad: destination x/y, width/height, rotation angle in
+---degrees, and alpha (0-255). Quads with alpha 0 are skipped. Call once per frame
+---inside `on_paint`.
+---@param buffer number[] Flat array of quad data: repeating {x, y, w, h, angle, alpha}.
+---@param count integer Total number of elements in buffer (multiple of 6).
 function Foreground:draw(buffer, count) end
 
 ---Global foreground instance (nil when no foreground is active).

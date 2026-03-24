@@ -1,14 +1,12 @@
 #include "foreground.hpp"
 
 namespace {
-constexpr int STRIDE = 5;
-
 int foreground_draw(lua_State *state) {
   auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
   luaL_checktype(state, 2, LUA_TTABLE);
   const auto count = static_cast<int>(luaL_checkinteger(state, 3));
 
-  if (count <= 0 || count % STRIDE != 0) [[unlikely]]
+  if (count <= 0 || count % 6 != 0) [[unlikely]]
     return 0;
 
   auto &vertices = self->_vertices;
@@ -17,35 +15,50 @@ int foreground_draw(lua_State *state) {
   vertices.clear();
   indices.clear();
 
-  const auto quads = count / STRIDE;
+  const auto quads = count / 6;
 
   for (auto q = 0; q < quads; ++q) {
-    const auto base_idx = q * STRIDE;
+    const auto index = q * 6;
 
-    lua_rawgeti(state, 2, base_idx + 1);
-    lua_rawgeti(state, 2, base_idx + 2);
-    lua_rawgeti(state, 2, base_idx + 3);
-    lua_rawgeti(state, 2, base_idx + 4);
-    lua_rawgeti(state, 2, base_idx + 5);
+    lua_rawgeti(state, 2, index + 1);
+    lua_rawgeti(state, 2, index + 2);
+    lua_rawgeti(state, 2, index + 3);
+    lua_rawgeti(state, 2, index + 4);
+    lua_rawgeti(state, 2, index + 5);
+    lua_rawgeti(state, 2, index + 6);
 
-    const auto x = static_cast<float>(lua_tonumber(state, -5));
-    const auto y = static_cast<float>(lua_tonumber(state, -4));
-    const auto w = static_cast<float>(lua_tonumber(state, -3));
-    const auto h = static_cast<float>(lua_tonumber(state, -2));
+    const auto x = static_cast<float>(lua_tonumber(state, -6));
+    const auto y = static_cast<float>(lua_tonumber(state, -5));
+    const auto w = static_cast<float>(lua_tonumber(state, -4));
+    const auto h = static_cast<float>(lua_tonumber(state, -3));
+    const auto angle = static_cast<float>(lua_tonumber(state, -2));
     const auto alpha = static_cast<float>(lua_tonumber(state, -1)) / 255.f;
 
-    lua_pop(state, 5);
+    lua_pop(state, 6);
 
     if (alpha <= .0f) [[unlikely]]
       continue;
 
     const SDL_FColor color{1.f, 1.f, 1.f, alpha};
     const auto base = static_cast<int32_t>(vertices.size());
+    const auto hw = w * .5f;
+    const auto hh = h * .5f;
+    const auto cx = x + hw;
+    const auto cy = y + hh;
 
-    vertices.emplace_back(SDL_Vertex{{x, y}, color, {.0f, .0f}});
-    vertices.emplace_back(SDL_Vertex{{x + w, y}, color, {1.f, .0f}});
-    vertices.emplace_back(SDL_Vertex{{x + w, y + h}, color, {1.f, 1.f}});
-    vertices.emplace_back(SDL_Vertex{{x, y + h}, color, {.0f, 1.f}});
+    auto sa = .0f, ca = 1.f;
+    if (angle != .0f)
+      sincos(to_radians(angle), sa, ca);
+
+    const auto dx0 = -hw * ca + hh * sa;
+    const auto dy0 = -hw * sa - hh * ca;
+    const auto dx1 = hw * ca + hh * sa;
+    const auto dy1 = hw * sa - hh * ca;
+
+    vertices.emplace_back(SDL_Vertex{{cx + dx0, cy + dy0}, color, {.0f, .0f}});
+    vertices.emplace_back(SDL_Vertex{{cx + dx1, cy + dy1}, color, {1.f, .0f}});
+    vertices.emplace_back(SDL_Vertex{{cx - dx0, cy - dy0}, color, {1.f, 1.f}});
+    vertices.emplace_back(SDL_Vertex{{cx - dx1, cy - dy1}, color, {.0f, 1.f}});
 
     indices.emplace_back(base);
     indices.emplace_back(base + 1);

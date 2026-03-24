@@ -6,7 +6,7 @@ local layers = {
 
 local offsets = { 0, 0, 0 }
 
-local STRIDE = 5
+local STRIDE = 6
 local MAX_QUADS = 512
 local drawings = {}
 for i = 1, MAX_QUADS * STRIDE do
@@ -50,8 +50,9 @@ return {
 					drawings[n + 2] = y
 					drawings[n + 3] = dw
 					drawings[n + 4] = dh
-					drawings[n + 5] = alpha
-					n = n + 5
+					drawings[n + 5] = 0
+					drawings[n + 6] = alpha
+					n = n + 6
 				end
 			end
 		end
