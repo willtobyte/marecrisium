@@ -169,6 +169,7 @@ def convert(tmx_path: str, output_dir: str) -> None:
 
     tilemap_path = os.path.join(tilemaps_dir, f"{stage_name}.lua")
     with open(tilemap_path, "w", newline="\n") as f:
+        f.write("-- stylua: ignore\n")
         f.write("return {\n")
         f.write(f"\tsize = {tile_size},\n")
         f.write(f"\twidth = {map_width},\n")
@@ -180,8 +181,9 @@ def convert(tmx_path: str, output_dir: str) -> None:
             ("collision", col_tiles),
         ]:
             f.write(f"\t{layer_name} = {{\n")
-            for tile in tiles:
-                f.write(f"\t\t{tile},\n")
+            for row_start in range(0, len(tiles), map_width):
+                row = tiles[row_start : row_start + map_width]
+                f.write("\t\t" + ", ".join(str(t) for t in row) + ",\n")
             f.write("\t},\n")
 
         f.write("}\n")
