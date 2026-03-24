@@ -1,5 +1,5 @@
 return {
-	count = 20,
+	count = 100,
 	spawn = {
 		x = { 10, 10 },
 		y = { 10, 10 },
