@@ -7,9 +7,12 @@ repos:
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+      - id: check-symlinks
 
   - repo: https://github.com/JohnnyMorganz/StyLua
-    rev: v2.3.1
+    rev: v2.4.0
     hooks:
       - id: stylua-github
 
@@ -20,20 +23,18 @@ repos:
         types: [json]
 
   - repo: https://github.com/rvben/rumdl-pre-commit
-    rev: v0.0.207
+    rev: v0.1.59
     hooks:
       - id: rumdl-fmt
 
-  - repo: local
+  - repo: https://github.com/oxipng/oxipng
+    rev: v10.1.0
     hooks:
-      - id: imageoptim
-        name: ImageOptim
-        entry: open -a ImageOptim
-        types: [image]
-        language: system
+      - id: oxipng
+        args: ["--opt", "max", "--strip", "safe"]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.5
+    rev: v0.15.7
     hooks:
       - id: ruff-check
       - id: ruff-format
