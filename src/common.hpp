@@ -30,7 +30,7 @@
 
 #include <box2d/box2d.h>
 #include <entt/entt.hpp>
-#include <libwebsockets.h>
+// #include <libwebsockets.h>
 #include <lua.hpp>
 #include <lauxlib.h>
 #include <miniaudio.h>

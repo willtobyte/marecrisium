@@ -1,5 +1,7 @@
 #pragma once
 
+#if 0
+
 enum class opcode : uint8_t {
   subscribe   = 1 << 0,
   unsubscribe = 1 << 1,
@@ -132,3 +134,5 @@ namespace websocket {
   void wire();
   void poll();
 }
+
+#endif

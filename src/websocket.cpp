@@ -1,3 +1,5 @@
+#if 0
+
 #include "websocket.hpp"
 
 namespace {
@@ -662,3 +664,5 @@ void websocket::poll() {
   if (connection) [[likely]]
     connection->poll();
 }
+
+#endif

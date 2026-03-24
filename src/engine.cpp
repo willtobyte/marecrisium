@@ -171,7 +171,7 @@ void engine::loop() {
 
   lua_gc(L, LUA_GCSTEP, 100);
 
-  websocket::poll();
+  // websocket::poll();
 
   _director.transition();
 
