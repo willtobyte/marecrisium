@@ -927,7 +927,7 @@ int stage::radar(lua_State* state, entt::entity caller, float x, float y, float 
     _world, &proxy, filter,
     [](b2ShapeId shape, void* userdata) -> bool {
       auto* ctx = static_cast<context*>(userdata);
-      if (ctx->count >= 64) [[unlikely]]
+      if (ctx->count >= ctx->buffer->size()) [[unlikely]]
         return false;
       (*ctx->buffer)[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
       return true;
@@ -979,7 +979,7 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     filter,
     [](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void* userdata) -> float {
       auto* ctx = static_cast<context*>(userdata);
-      if (ctx->count >= 64) [[unlikely]]
+      if (ctx->count >= ctx->buffer->size()) [[unlikely]]
         return -1.f;
       (*ctx->buffer)[ctx->count++] = {to_entity(b2Shape_GetUserData(shape)), fraction};
       return 1.f;
