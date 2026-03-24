@@ -146,6 +146,8 @@ void cbor_to_lua(lua_State *state, cbor_item_t *item) {
   size_t length = 0;
   cbor_serialize_alloc(item, &buffer, &length);
   cbor_decref(&item);
+  if (!buffer) [[unlikely]]
+    return {};
   std::vector<uint8_t> result(buffer, buffer + length);
   free(buffer);
   return result;
@@ -349,11 +351,13 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
 
       auto *topic_item = cbor_array_get(root, 1);
       if (!cbor_isa_uint(topic_item)) [[unlikely]] {
+        cbor_decref(&topic_item);
         cbor_decref(&root);
         break;
       }
 
       const auto topic = static_cast<uint16_t>(cbor_get_int(topic_item));
+      cbor_decref(&topic_item);
 
       ws->_inbound.push(message{
         topic,
@@ -559,6 +563,8 @@ void channel::poll() {
       pcall(L, 1, 0);
     }
 
+    if (data_value)
+      cbor_decref(&data_value);
     cbor_decref(&root);
   }
 }
