@@ -29,7 +29,7 @@ void sourcepool::insert(std::string_view name) {
   bytecode.reserve(8192);
   lua_dump(L, bytecode_writer, &bytecode);
 
-  _pool.emplace(key, std::pair{std::move(label), std::move(bytecode)});
+  _pool.try_emplace(key, std::move(label), std::move(bytecode));
 }
 
 void sourcepool::clear() {

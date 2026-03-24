@@ -2,7 +2,7 @@
 
 entt::id_type stringpool::insert(std::string_view value) {
   const auto key = entt::hashed_string{value.data()}.value();
-  _pool.emplace(key, value);
+  _pool.try_emplace(key, value);
   return key;
 }
 
