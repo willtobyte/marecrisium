@@ -26,7 +26,7 @@ static int overlay_label(lua_State *state) {
     return 0;
   }
 
-  std::array<glypheffect, 256> effects{};
+  static std::array<glypheffect, 256> effects{};
 
   auto lenght = 0uz;
 
@@ -56,6 +56,18 @@ static int overlay_label(lua_State *state) {
 
         lua_getfield(state, -1, "alpha");
         effect.alpha = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.alpha;
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "r");
+        effect.r = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.r;
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "g");
+        effect.g = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.g;
+        lua_pop(state, 1);
+
+        lua_getfield(state, -1, "b");
+        effect.b = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.b;
         lua_pop(state, 1);
 
         if (index >= lenght) lenght = index + 1;

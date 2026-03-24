@@ -29,18 +29,18 @@
 #include <vector>
 
 #include <box2d/box2d.h>
+// #include <cbor.h>
 #include <entt/entt.hpp>
+#include <lauxlib.h>
 // #include <libwebsockets.h>
 #include <lua.hpp>
-#include <lauxlib.h>
 #include <miniaudio.h>
 #include <opusfile.h>
 #include <physfs.h>
 #include <SDL3/SDL.h>
 #include <sentry.h>
-#include <sqlite3.h>
 #include <spng.h>
-#include <cbor.h>
+#include <sqlite3.h>
 
 #ifdef _MSC_VER
 #  define noalias __restrict
@@ -102,14 +102,6 @@ struct PHYSFS_Deleter final {
     } else if constexpr (std::is_same_v<T, char*>) {
       PHYSFS_freeList(ptr);
     }
-  }
-};
-
-struct CBOR_Deleter final {
-  void operator()(cbor_item_t *ptr) const noexcept {
-    if (!ptr) [[unlikely]] return;
-
-    cbor_decref(&ptr);
   }
 };
 
