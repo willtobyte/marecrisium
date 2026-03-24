@@ -92,16 +92,16 @@ namespace {
     }
 
     if (key == "animation") {
-      if (registry.all_of<animation>(entity)) {
-        const auto& a = registry.get<animation>(entity);
-        if (a.playing && a.clip_count > 0) {
-          const auto* strings = registry.ctx().get<stringpool*>();
-          lua_pushstring(state, strings->get(a.clips[a.active].name));
-          return 1;
-        }
-      }
+      if (!registry.all_of<animation>(entity))
+        return lua_pushnil(state), 1;
 
-      return lua_pushnil(state), 1;
+      const auto& a = registry.get<animation>(entity);
+      if (!a.playing || a.clip_count == 0)
+        return lua_pushnil(state), 1;
+
+      const auto* strings = registry.ctx().get<stringpool*>();
+      lua_pushstring(state, strings->get(a.clips[a.active].name));
+      return 1;
     }
 
     if (key == "shown") {
@@ -242,47 +242,47 @@ namespace {
     }
 
     if (key == "animation") {
-      if (registry.all_of<animation>(entity)) {
-        const auto value = std::string_view{luaL_checkstring(state, 3)};
-        const auto hash = entt::hashed_string{value.data()}.value();
+      if (!registry.all_of<animation>(entity))
+        return 0;
 
-        auto& a = registry.get<animation>(entity);
+      const auto value = std::string_view{luaL_checkstring(state, 3)};
+      const auto hash = entt::hashed_string{value.data()}.value();
 
-        for (uint8_t i = 0; i < a.clip_count; ++i) {
-          if (a.clips[i].name == hash) {
-            const auto previous = a.playing ? a.clips[a.active].name : entt::id_type{};
-            a.active = i;
-            a.current = 0;
-            a.elapsed = .0f;
-            a.playing = true;
+      auto& a = registry.get<animation>(entity);
 
-            if (a.clips[i].fx) {
-              a.clips[i].fx->play();
-            }
+      for (uint8_t i = 0; i < a.clip_count; ++i) {
+        if (a.clips[i].name != hash)
+          continue;
 
-            if (proxy->handle != LUA_NOREF) {
-              const auto* strings = registry.ctx().get<stringpool*>();
+        const auto previous = a.playing ? a.clips[a.active].name : entt::id_type{};
+        a.active = i;
+        a.current = 0;
+        a.elapsed = .0f;
+        a.playing = true;
 
-              if (previous != 0 && previous != hash) {
-                if (proxy->on_animation_end != LUA_NOREF) {
-                  lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
-                  lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-                  lua_pushstring(state, strings->get(previous));
-                  pcall(state, 2, 0);
-                }
-              }
+        if (a.clips[i].fx)
+          a.clips[i].fx->play();
 
-              if (proxy->on_animation_begin != LUA_NOREF) {
-                lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
-                lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-                lua_pushstring(state, strings->get(hash));
-                pcall(state, 2, 0);
-              }
-            }
+        if (proxy->handle == LUA_NOREF)
+          return 0;
 
-            return 0;
-          }
+        const auto* strings = registry.ctx().get<stringpool*>();
+
+        if (previous != 0 && previous != hash && proxy->on_animation_end != LUA_NOREF) {
+          lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
+          lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
+          lua_pushstring(state, strings->get(previous));
+          pcall(state, 2, 0);
         }
+
+        if (proxy->on_animation_begin != LUA_NOREF) {
+          lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
+          lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
+          lua_pushstring(state, strings->get(hash));
+          pcall(state, 2, 0);
+        }
+
+        return 0;
       }
 
       return 0;

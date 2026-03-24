@@ -222,13 +222,14 @@ void sound::fade(float from, float to, uint64_t ms) noexcept {
 }
 
 void sound::poll() {
-  const auto ended = _ended.exchange(false, std::memory_order_acquire);
-  if (ended) {
-    if (on_end != LUA_NOREF) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, on_end);
-      pcall(L, 0, 0);
-    }
-  }
+  if (!_ended.exchange(false, std::memory_order_acquire))
+    return;
+
+  if (on_end == LUA_NOREF)
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, on_end);
+  pcall(L, 0, 0);
 }
 
 void sound::wire() {
