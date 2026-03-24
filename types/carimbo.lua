@@ -71,6 +71,26 @@
 keyboard = {}
 
 --------------------------------------------------------------------------------
+-- Mouse
+--------------------------------------------------------------------------------
+
+---@class Mouse
+---@field x number Mouse X position in logical coordinates (read-only).
+---@field y number Mouse Y position in logical coordinates (read-only).
+---@field button integer Currently pressed mouse button: 1 = left, 2 = middle, 3 = right, 0 = none (read-only).
+---@field shown boolean Whether the mouse cursor is visible (read/write).
+local Mouse = {}
+
+---Returns the mouse position as two values.
+---@return number x Mouse X position in logical coordinates.
+---@return number y Mouse Y position in logical coordinates.
+function Mouse:position() end
+
+---Global mouse state.
+---@type Mouse
+mouse = {}
+
+--------------------------------------------------------------------------------
 -- Gamepad
 --------------------------------------------------------------------------------
 
@@ -266,7 +286,6 @@ director = {}
 ---@field width number Pixmap native width in pixels (read-only).
 ---@field height number Pixmap native height in pixels (read-only).
 ---@field alpha number Opacity (0-255). Default 255.
----@field angle number Rotation angle in degrees. Default 0.
 
 ---@class ForegroundConfig
 ---@field pixmaps string[] Pixmap names to preload from `blobs/foregrounds/<name>.png`.
@@ -286,16 +305,14 @@ function Foreground.on_loop(self, delta) end
 ---@param self Foreground The foreground table itself.
 function Foreground.on_paint(self) end
 
----Enqueue a draw call for a pixmap sprite at the given position and size.
----May be called multiple times per frame to tile or layer sprites.
----@param sprite ForegroundSprite The pixmap sprite to draw (e.g. `self.mist_layer1`).
----@param x number Destination X position in logical pixels.
----@param y number Destination Y position in logical pixels.
----@param width number Destination width in logical pixels.
----@param height number Destination height in logical pixels.
----@param alpha? number Opacity (0-255). Default 255.
----@param angle? number Rotation angle in degrees. Default 0.
-function Foreground:draw(sprite, x, y, width, height, alpha, angle) end
+---Submit a batch of quads for rendering using the foreground's pixmap texture.
+---`buffer` is a flat array of numbers in groups of 5: `{x, y, w, h, alpha, ...}`.
+---`count` is the total number of elements (must be a positive multiple of 5).
+---Each group of 5 defines one quad: destination x/y, width/height, and alpha (0-255).
+---Quads with alpha 0 are skipped. Call once per frame inside `on_paint`.
+---@param buffer number[] Flat array of quad data: repeating {x, y, w, h, alpha}.
+---@param count integer Total number of elements in buffer (multiple of 5).
+function Foreground:draw(buffer, count) end
 
 ---Global foreground instance (nil when no foreground is active).
 ---Any script can call methods defined in the foreground Lua file via this global.
@@ -546,6 +563,14 @@ function World.raycast(caller, x, y, angle, distance) end
 ---@return Object[] hits Array of objects within the area.
 function World.radar(caller, x, y, radius) end
 
+---Return all objects at a single world point.
+---Uses a zero-size AABB query, so only objects whose physics body
+---overlaps the exact point are returned.
+---@param x number Query X position in world coordinates.
+---@param y number Query Y position in world coordinates.
+---@return Object[] hits Array of objects at the point.
+function World.at(x, y) end
+
 ---Find a path between two world positions avoiding solid tilemap tiles.
 ---Uses A* on the tilemap collision grid with corner-cutting prevention.
 ---Returns an empty table when no path exists.
@@ -560,6 +585,28 @@ function World.radar(caller, x, y, radius) end
 ---@param radius? number Agent half-size in world units. Default 0.
 ---@return number[][] path Array of {x, y} waypoints in world coordinates (tile centers).
 function World.pathfind(x1, y1, x2, y2, radius) end
+
+---Count objects whose physics body overlaps the given rectangle.
+---Without a kind filter, counts all matching objects.
+---With a kind filter, counts only objects of that type.
+---@param x number Left edge of the query region in world coordinates.
+---@param y number Top edge of the query region in world coordinates.
+---@param w number Width of the query region.
+---@param h number Height of the query region.
+---@param kind? string Object kind to filter by (e.g. "enemy").
+---@return integer count Number of matching objects.
+function World.count(x, y, w, h, kind) end
+
+---Find objects whose physics body overlaps the given rectangle.
+---Without a kind filter, returns all matching objects.
+---With a kind filter, returns only objects of that type.
+---@param x number Left edge of the query region in world coordinates.
+---@param y number Top edge of the query region in world coordinates.
+---@param w number Width of the query region.
+---@param h number Height of the query region.
+---@param kind? string Object kind to filter by (e.g. "enemy").
+---@return Object[] objects Array of matching objects.
+function World.find(x, y, w, h, kind) end
 
 ---Physics world (available inside stage scripts).
 ---@type World

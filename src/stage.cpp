@@ -117,6 +117,16 @@ static int world_pathfind(lua_State* state) {
   return self->pathfind(state, x1, y1, x2, y2, r);
 }
 
+static int world_count(lua_State* state) {
+  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
+  return self->count(state);
+}
+
+static int world_find(lua_State* state) {
+  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
+  return self->find(state);
+}
+
 static int world_spawn(lua_State* state) {
   auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
   const auto name = std::string_view{luaL_checkstring(state, 1)};
@@ -170,6 +180,8 @@ stage::stage(std::string_view name)
   bind_closure(L, "pathfind", world_pathfind, this);
   bind_closure(L, "spawn", world_spawn, this);
   bind_closure(L, "destroy", world_destroy, this);
+  bind_closure(L, "count", world_count, this);
+  bind_closure(L, "find", world_find, this);
   lua_setfield(L, -2, "world");
   lua_pop(L, 1);
 
@@ -1329,4 +1341,115 @@ entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexc
   }
 
   return topmost;
+}
+
+int stage::count(lua_State* state) {
+  const auto x = static_cast<float>(luaL_checknumber(state, 1));
+  const auto y = static_cast<float>(luaL_checknumber(state, 2));
+  const auto w = static_cast<float>(luaL_checknumber(state, 3));
+  const auto h = static_cast<float>(luaL_checknumber(state, 4));
+
+  const auto filter_kind = lua_isstring(state, 5);
+  const auto kind_hash = filter_kind
+    ? entt::hashed_string{lua_tostring(state, 5)}.value()
+    : entt::id_type{};
+
+  const b2AABB aabb = {{x, y}, {x + w, y + h}};
+  const auto filter = b2DefaultQueryFilter();
+
+  struct context {
+    entt::entity buffer[64];
+    uint8_t count;
+  };
+
+  context ctx{{}, 0};
+
+  b2World_OverlapAABB(
+    _world, aabb, filter,
+    [](b2ShapeId shape, void* userdata) -> bool {
+      auto* ctx = static_cast<struct context*>(userdata);
+      if (ctx->count >= 64) [[unlikely]]
+        return false;
+      ctx->buffer[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
+      return true;
+    },
+    &ctx
+  );
+
+  int total = 0;
+
+  for (uint8_t i = 0; i < ctx.count; ++i) {
+    const auto entity = ctx.buffer[i];
+
+    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
+      continue;
+
+    const auto& proxy = _registry.get<objectproxy>(entity);
+    if (proxy.handle == LUA_NOREF)
+      continue;
+
+    if (filter_kind && proxy.kind != kind_hash)
+      continue;
+
+    ++total;
+  }
+
+  lua_pushinteger(state, static_cast<lua_Integer>(total));
+  return 1;
+}
+
+int stage::find(lua_State* state) {
+  const auto x = static_cast<float>(luaL_checknumber(state, 1));
+  const auto y = static_cast<float>(luaL_checknumber(state, 2));
+  const auto w = static_cast<float>(luaL_checknumber(state, 3));
+  const auto h = static_cast<float>(luaL_checknumber(state, 4));
+
+  const auto filter_kind = lua_isstring(state, 5);
+  const auto kind_hash = filter_kind
+    ? entt::hashed_string{lua_tostring(state, 5)}.value()
+    : entt::id_type{};
+
+  const b2AABB aabb = {{x, y}, {x + w, y + h}};
+  const auto filter = b2DefaultQueryFilter();
+
+  struct context {
+    entt::entity buffer[64];
+    uint8_t count;
+  };
+
+  context ctx{{}, 0};
+
+  b2World_OverlapAABB(
+    _world, aabb, filter,
+    [](b2ShapeId shape, void* userdata) -> bool {
+      auto* ctx = static_cast<struct context*>(userdata);
+      if (ctx->count >= 64) [[unlikely]]
+        return false;
+      ctx->buffer[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
+      return true;
+    },
+    &ctx
+  );
+
+  lua_newtable(state);
+  int index = 1;
+
+  for (uint8_t i = 0; i < ctx.count; ++i) {
+    const auto entity = ctx.buffer[i];
+
+    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
+      continue;
+
+    const auto& proxy = _registry.get<objectproxy>(entity);
+    if (proxy.handle == LUA_NOREF)
+      continue;
+
+    if (filter_kind && proxy.kind != kind_hash)
+      continue;
+
+    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy.handle);
+    lua_rawseti(state, -2, index++);
+  }
+
+  return 1;
 }

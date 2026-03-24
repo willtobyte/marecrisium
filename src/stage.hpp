@@ -43,6 +43,10 @@ public:
 
   int at(lua_State* state, float x, float y);
 
+  [[nodiscard]] int count(lua_State* state);
+
+  [[nodiscard]] int find(lua_State* state);
+
   [[nodiscard]] entt::entity find_topmost(std::span<const entt::entity> hits) const noexcept;
 
 private:
