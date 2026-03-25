@@ -12,8 +12,8 @@ return scheduler.wrap({
 	objects = {
 		{ name = "player", kind = "player", x = 100, y = 100 },
 		{ name = "robot", kind = "robot", x = 250, y = 150 },
-		{ name = "drone", kind = "drone", x = 180, y = 200 },
-		{ name = "demon", kind = "demon", x = 300, y = 100 },
+		-- { name = "drone", kind = "drone", x = 180, y = 200 },
+		-- { name = "demon", kind = "demon", x = 300, y = 100 },
 		{ name = "tree1", kind = "tree", x = 400, y = 80 },
 		{ name = "tree2", kind = "tree", x = 500, y = 250 },
 		{ name = "tree3", kind = "tree", x = 150, y = 300 },

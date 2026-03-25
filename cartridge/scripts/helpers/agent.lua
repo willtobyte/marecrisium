@@ -148,6 +148,19 @@ function agent:chase(object, target, world)
 		return
 	end
 
+	local player_dx = target.x - object.x
+	local player_dy = target.y - object.y
+	local player_dist_sq = player_dx * player_dx + player_dy * player_dy
+	local close_range_sq = self._waypoint_reach_sq * 9
+
+	if player_dist_sq > 0 and player_dist_sq <= close_range_sq then
+		local desired = atan2(player_dy, player_dx)
+		object._angle = desired
+		object.vx = cos(desired) * self.speed
+		object.vy = sin(desired) * self.speed
+		return
+	end
+
 	if object._last_x then
 		local movement_x = object.x - object._last_x
 		local movement_y = object.y - object._last_y

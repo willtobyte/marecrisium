@@ -44,7 +44,6 @@ return {
 	on_collision_begin = function(self, name, kind)
 		if kind == "player" then
 			self._touching_player = true
-			chaser:stop(self)
 			pool.player:damage()
 		end
 	end,
