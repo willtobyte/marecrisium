@@ -105,7 +105,7 @@ int dispatch(lua_State *state, int reference, std::string_view key) {
   }
   lua_pop(state, 1);
 
-  static std::array<char, 64> buffer;
+  std::array<char, 64> buffer;
   const auto length = std::min(key.size(), std::size_t{60});
   buffer[0] = 'o';
   buffer[1] = 'n';
