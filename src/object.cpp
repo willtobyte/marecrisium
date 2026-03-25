@@ -377,12 +377,13 @@ objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::str
 
   lua_pop(L, 1);
 
-  auto* memory = lua_newuserdata(L, sizeof(objectproxy));
+  auto* memory = static_cast<objectproxy*>(lua_newuserdata(L, sizeof(objectproxy)));
   std::memcpy(memory, this, sizeof(objectproxy));
   luaL_getmetatable(L, "Object");
   lua_setmetatable(L, -2);
 
   handle = luaL_ref(L, LUA_REGISTRYINDEX);
+  memory->handle = handle;
 }
 
 void object::wire() {

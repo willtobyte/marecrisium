@@ -1066,7 +1066,9 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
         break;
       }
 
-      const std::string_view clip_name = lua_tostring(L, -2);
+      lua_pushvalue(L, -2);
+      const std::string_view clip_name = lua_tostring(L, -1);
+      lua_pop(L, 1);
       const auto cid = _stringpool.insert(clip_name);
 
       auto& c = a.clips[a.clip_count];
