@@ -1353,8 +1353,11 @@ int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2, fl
 }
 
 void stage::dispatch_collision(entt::entity entity, entt::entity other, std::string_view callback, const b2Vec2* normal) {
-  if (!_registry.valid(entity) || !_registry.valid(other)) return;
-  if (!_registry.all_of<objectproxy>(entity) || !_registry.all_of<objectproxy>(other)) return;
+  if (!_registry.valid(entity)
+      || !_registry.valid(other)
+      || !_registry.all_of<objectproxy>(entity)
+      || !_registry.all_of<objectproxy>(other)) [[unlikely]]
+    return;
 
   const auto& self = _registry.get<objectproxy>(entity);
   const auto& target = _registry.get<objectproxy>(other);
