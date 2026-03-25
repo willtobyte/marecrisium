@@ -14,15 +14,15 @@ static b2Vec2 body_center(const transform& tf, const frame& fr, const body& bd) 
 }
 
 static std::optional<std::pair<entt::entity, entt::entity>> resolve(b2ShapeId a, b2ShapeId b) noexcept {
-  if (!b2Shape_IsValid(a) || !b2Shape_IsValid(b))
+  if (!b2Shape_IsValid(a) || !b2Shape_IsValid(b)) [[unlikely]]
     return std::nullopt;
 
-  const auto *da = b2Shape_GetUserData(a);
-  const auto *db = b2Shape_GetUserData(b);
-  if (!da || !db)
+  const auto *uda = b2Shape_GetUserData(a);
+  const auto *udb = b2Shape_GetUserData(b);
+  if (!uda || !udb) [[unlikely]]
     return std::nullopt;
 
-  return std::pair{to_entity(da), to_entity(db)};
+  return std::pair{to_entity(uda), to_entity(udb)};
 }
 
 static void dispatch_sensor_event(stage& self, b2ShapeId sensor_shape, b2ShapeId visitor_shape, std::string_view callback) {
@@ -110,7 +110,8 @@ static int push(lua_State *state, entt::registry& registry, std::span<const entt
   for (const auto entity : entities) {
     if (entity == caller)
       continue;
-    if (!registry.valid(entity) || !registry.all_of<objectproxy>(entity))
+    if (!registry.valid(entity)
+        || !registry.all_of<objectproxy>(entity)) [[unlikely]]
       continue;
     const auto& proxy = registry.get<objectproxy>(entity);
     if (proxy.handle == LUA_NOREF)
@@ -490,7 +491,7 @@ void stage::update(float delta) {
 
       _registry.remove<dormant>(entity);
 
-      if (proxy.prototype != LUA_NOREF && proxy.handle != LUA_NOREF) {
+      if (proxy.prototype != LUA_NOREF && proxy.handle != LUA_NOREF) [[likely]] {
         lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
         lua_getfield(L, -1, "on_wake");
         if (lua_isfunction(L, -1)) {
@@ -512,7 +513,7 @@ void stage::update(float delta) {
         b2Body_Disable(bd->id);
       }
 
-      if (proxy.prototype != LUA_NOREF && proxy.handle != LUA_NOREF) {
+      if (proxy.prototype != LUA_NOREF && proxy.handle != LUA_NOREF) [[likely]] {
         lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
         lua_getfield(L, -1, "on_sleep");
         if (lua_isfunction(L, -1)) {
@@ -534,7 +535,7 @@ void stage::update(float delta) {
   }
 
   for (auto&& [entity, proxy] : _registry.view<objectproxy>(entt::exclude<dormant>).each()) {
-    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF)
+    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF) [[unlikely]]
       continue;
 
     if (proxy.on_loop != LUA_NOREF) {
@@ -545,12 +546,12 @@ void stage::update(float delta) {
     }
 
     auto* a = _registry.try_get<animation>(entity);
-    if (!a || !a->playing || a->clip_count == 0)
+    if (!a || !a->playing || a->clip_count == 0) [[unlikely]]
       continue;
 
     const auto& c = a->clips[a->active];
     const auto& fr = c.frames[a->current];
-    if (c.count == 0 || fr.duration < .0f)
+    if (c.count == 0 || fr.duration < .0f) [[unlikely]]
       continue;
 
     a->elapsed += delta;
@@ -615,7 +616,7 @@ void stage::update(float delta) {
         continue;
       }
 
-      if (hx != bd.cached_hx || hy != bd.cached_hy) {
+      if (hx != bd.cached_hx || hy != bd.cached_hy) [[unlikely]] {
         const auto polygon = b2MakeBox(hx, hy);
         b2Shape_SetPolygon(bd.shape, &polygon);
         bd.cached_hx = hx;
@@ -639,11 +640,11 @@ void stage::update(float delta) {
         continue;
 
       const auto* bd = _registry.try_get<body>(entity);
-      if (!bd || bd->type != body_type::dynamic)
+      if (!bd || bd->type != body_type::dynamic) [[unlikely]]
         continue;
 
       const auto* an = _registry.try_get<animation>(entity);
-      if (!an || !an->playing || an->clip_count == 0)
+      if (!an || !an->playing || an->clip_count == 0) [[unlikely]]
         continue;
 
       auto& tf = _registry.get<transform>(entity);
@@ -705,7 +706,7 @@ void stage::update(float delta) {
       }
 
       auto* sb = _registry.try_get<boundary>(entity);
-      if (!sb || !b2Shape_IsValid(bd.shape))
+      if (!sb || !b2Shape_IsValid(bd.shape)) [[unlikely]]
         continue;
 
       const auto* proxy = _registry.try_get<objectproxy>(entity);
@@ -727,7 +728,7 @@ void stage::update(float delta) {
       const auto exited  = static_cast<uint8_t>(current & ~sb->previous);
       const auto entered = static_cast<uint8_t>(sb->previous & ~current);
 
-      if (proxy->prototype == LUA_NOREF || proxy->handle == LUA_NOREF) {
+      if (proxy->prototype == LUA_NOREF || proxy->handle == LUA_NOREF) [[unlikely]] {
         sb->previous = current;
         continue;
       }
@@ -860,7 +861,10 @@ void stage::draw() {
     const auto ux = shape_aabb.upperBound.x - offset[0];
     const auto uy = shape_aabb.upperBound.y - offset[1];
 
-    if (ux < .0f || lx > viewport.width || uy < .0f || ly > viewport.height)
+    if (ux < .0f
+        || lx > viewport.width
+        || uy < .0f
+        || ly > viewport.height) [[likely]]
       return true;
 
     const auto bid = b2Shape_GetBody(shape);
@@ -1105,7 +1109,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       _registry.emplace<sleepable>(entity);
   }
 
-  if (prototype != LUA_NOREF && handle != LUA_NOREF) {
+  if (prototype != LUA_NOREF && handle != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
     lua_getfield(L, -1, "on_spawn");
     if (lua_isfunction(L, -1)) {
@@ -1200,7 +1204,8 @@ int stage::count(lua_State *state) {
   int total = 0;
 
   for (const auto entity : std::span(buffer.data(), found)) {
-    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
+    if (!_registry.valid(entity)
+        || !_registry.all_of<objectproxy>(entity)) [[unlikely]]
       continue;
     const auto& proxy = _registry.get<objectproxy>(entity);
     if (proxy.handle == LUA_NOREF)
@@ -1334,7 +1339,8 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     if (entity == caller)
       continue;
 
-    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
+    if (!_registry.valid(entity)
+        || !_registry.all_of<objectproxy>(entity)) [[unlikely]]
       continue;
 
     const auto& proxy = _registry.get<objectproxy>(entity);

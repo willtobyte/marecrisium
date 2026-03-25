@@ -125,7 +125,7 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
           auto valid = true;
 
           for (size_t dx = 0; dx < run_width; ++dx) {
-            if (tiles[check_offset + dx] == 0 || visited_data[check_offset + dx]) {
+            if (tiles[check_offset + dx] == 0 || visited_data[check_offset + dx]) [[likely]] {
               valid = false;
               break;
             }
@@ -180,7 +180,10 @@ void tilemap::draw_background() noexcept {
   if (!_background.atlas) [[unlikely]]
     return;
 
-  if (_viewport_x != viewport.x || _viewport_y != viewport.y || _viewport_width != viewport.width || _viewport_height != viewport.height)
+  if (_viewport_x != viewport.x
+      || _viewport_y != viewport.y
+      || _viewport_width != viewport.width
+      || _viewport_height != viewport.height) [[unlikely]]
     _dirty = true;
 
   if (_dirty)
@@ -244,7 +247,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   const auto end_column = to_column(x2, _inverse_size, _width);
   const auto end_row = to_row(y2, _inverse_size, _height);
 
-  if (start_column == end_column && start_row == end_row) {
+  if (start_column == end_column && start_row == end_row) [[unlikely]] {
     lua_newtable(state);
     return 1;
   }
@@ -407,7 +410,8 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
     }
   }
 
-  if (generations[static_cast<size_t>(goal)] == generation && parents[static_cast<size_t>(goal)] != -1) {
+  if (generations[static_cast<size_t>(goal)] == generation
+      && parents[static_cast<size_t>(goal)] != -1) [[likely]] {
     for (auto current = goal; current != -1; current = parents[static_cast<size_t>(current)])
       _pathfinder.path.emplace_back(current);
     std::reverse(_pathfinder.path.begin(), _pathfinder.path.end());

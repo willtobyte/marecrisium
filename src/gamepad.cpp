@@ -20,7 +20,7 @@ static bool on_event(void *, SDL_Event *event) {
       break;
 
     case SDL_EVENT_GAMEPAD_REMOVED:
-      if (ptr && SDL_GetGamepadID(ptr.get()) == event->gdevice.which)
+      if (ptr && SDL_GetGamepadID(ptr.get()) == event->gdevice.which) [[likely]]
         ptr.reset();
       break;
 
@@ -150,7 +150,7 @@ void gamepad::wire() {
 
   auto count = 0;
   const auto ids = std::unique_ptr<SDL_JoystickID[], SDL_Deleter>{SDL_GetGamepads(&count)};
-  if (ids && count > 0) {
+  if (ids && count > 0) [[likely]] {
     ptr.reset(SDL_OpenGamepad(ids[0]));
   }
 

@@ -5,7 +5,7 @@ namespace {
   static void sync_body_position(body& bd, const transform& tf, const animation* an) noexcept {
     auto ox = .0f;
     auto oy = .0f;
-    if (an && an->playing && an->clip_count > 0) {
+    if (an && an->playing && an->clip_count > 0) [[likely]] {
       const auto& fr = an->clips[an->active].frames[an->current];
       ox = fr.cx;
       oy = fr.cy;
@@ -46,7 +46,7 @@ namespace {
 
     if (key == "vx") {
       const auto* bd = registry.try_get<body>(entity);
-      if (bd && b2Body_IsValid(bd->id)) {
+      if (bd && b2Body_IsValid(bd->id)) [[likely]] {
         lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(bd->id).x));
         return 1;
       }
@@ -56,7 +56,7 @@ namespace {
 
     if (key == "vy") {
       const auto* bd = registry.try_get<body>(entity);
-      if (bd && b2Body_IsValid(bd->id)) {
+      if (bd && b2Body_IsValid(bd->id)) [[likely]] {
         lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(bd->id).y));
         return 1;
       }
@@ -96,7 +96,7 @@ namespace {
         return lua_pushnil(state), 1;
 
       const auto& a = registry.get<animation>(entity);
-      if (!a.playing || a.clip_count == 0)
+      if (!a.playing || a.clip_count == 0) [[unlikely]]
         return lua_pushnil(state), 1;
 
       const auto* strings = registry.ctx().get<stringpool*>();
@@ -126,7 +126,10 @@ namespace {
 
     if (key == "riding") {
       const auto* rd = registry.try_get<riding>(entity);
-      if (rd && rd->target != entt::null && registry.valid(rd->target) && registry.all_of<objectproxy>(rd->target)) {
+      if (rd
+          && rd->target != entt::null
+          && registry.valid(rd->target)
+          && registry.all_of<objectproxy>(rd->target)) [[likely]] {
         const auto* strings = registry.ctx().get<stringpool*>();
         const auto& target_proxy = registry.get<objectproxy>(rd->target);
         lua_pushstring(state, strings->get(target_proxy.name));
@@ -178,7 +181,9 @@ namespace {
       tf.x = static_cast<float>(luaL_checknumber(state, 3));
 
       auto* bd = registry.try_get<body>(entity);
-      if (bd && bd->type != body_type::kinematic && b2Body_IsValid(bd->id))
+      if (bd
+          && bd->type != body_type::kinematic
+          && b2Body_IsValid(bd->id)) [[likely]]
         sync_body_position(*bd, tf, registry.try_get<animation>(entity));
 
       return 0;
@@ -189,7 +194,9 @@ namespace {
       tf.y = static_cast<float>(luaL_checknumber(state, 3));
 
       auto* bd = registry.try_get<body>(entity);
-      if (bd && bd->type != body_type::kinematic && b2Body_IsValid(bd->id))
+      if (bd
+          && bd->type != body_type::kinematic
+          && b2Body_IsValid(bd->id)) [[likely]]
         sync_body_position(*bd, tf, registry.try_get<animation>(entity));
 
       return 0;
@@ -205,7 +212,9 @@ namespace {
 
     if (key == "vx") {
       auto* bd = registry.try_get<body>(entity);
-      if (bd && bd->type == body_type::dynamic && b2Body_IsValid(bd->id)) {
+      if (bd
+          && bd->type == body_type::dynamic
+          && b2Body_IsValid(bd->id)) [[likely]] {
         const auto current = b2Body_GetLinearVelocity(bd->id);
         b2Body_SetLinearVelocity(bd->id, {static_cast<float>(luaL_checknumber(state, 3)), current.y});
       }
@@ -215,7 +224,9 @@ namespace {
 
     if (key == "vy") {
       auto* bd = registry.try_get<body>(entity);
-      if (bd && bd->type == body_type::dynamic && b2Body_IsValid(bd->id)) {
+      if (bd
+          && bd->type == body_type::dynamic
+          && b2Body_IsValid(bd->id)) [[likely]] {
         const auto current = b2Body_GetLinearVelocity(bd->id);
         b2Body_SetLinearVelocity(bd->id, {current.x, static_cast<float>(luaL_checknumber(state, 3))});
       }
@@ -268,7 +279,9 @@ namespace {
 
         const auto* strings = registry.ctx().get<stringpool*>();
 
-        if (previous != 0 && previous != hash && proxy->on_animation_end != LUA_NOREF) {
+        if (previous != 0
+            && previous != hash
+            && proxy->on_animation_end != LUA_NOREF) [[unlikely]] {
           lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
           lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
           lua_pushstring(state, strings->get(previous));
@@ -322,7 +335,9 @@ namespace {
       tf.y = py;
 
       auto* bd = registry.try_get<body>(entity);
-      if (bd && bd->type != body_type::kinematic && b2Body_IsValid(bd->id))
+      if (bd
+          && bd->type != body_type::kinematic
+          && b2Body_IsValid(bd->id)) [[likely]]
         sync_body_position(*bd, tf, registry.try_get<animation>(entity));
 
       return 0;

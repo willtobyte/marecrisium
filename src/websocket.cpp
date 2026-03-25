@@ -12,7 +12,7 @@ std::unique_ptr<channel> connection;
 }
 
 void cbor_to_lua(lua_State *state, cbor_item_t *item) {
-  if (cbor_is_null(item) || cbor_is_undef(item)) {
+  if (cbor_is_null(item) || cbor_is_undef(item)) [[unlikely]] {
     lua_pushnil(state);
     return;
   }

@@ -32,7 +32,7 @@ static int overlay_label(lua_State *state) {
 
   lua_pushnil(state);
   while (lua_next(state, 6) != 0) {
-    if (!lua_isnumber(state, -2) || !lua_istable(state, -1)) {
+    if (!lua_isnumber(state, -2) || !lua_istable(state, -1)) [[unlikely]] {
       lua_pop(state, 1);
       continue;
     }
