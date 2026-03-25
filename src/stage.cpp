@@ -853,10 +853,11 @@ void stage::draw() {
   const b2AABB aabb = {{viewport.x, viewport.y}, {viewport.x + viewport.width, viewport.y + viewport.height}};
 
   b2World_OverlapAABB(_world, aabb, b2DefaultQueryFilter(), [](b2ShapeId shape, void*) -> bool {
+    static const auto margin = .01f * b2GetLengthUnitsPerMeter();
     const auto polygon = b2Shape_GetPolygon(shape);
     const auto position = b2Body_GetPosition(b2Shape_GetBody(shape));
-    const auto hx = polygon.vertices[2].x;
-    const auto hy = polygon.vertices[2].y;
+    const auto hx = polygon.vertices[2].x + margin;
+    const auto hy = polygon.vertices[2].y + margin;
     const SDL_FRect bounds = {
       position.x - hx - viewport.x,
       position.y - hy - viewport.y,
