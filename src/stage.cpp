@@ -30,8 +30,8 @@ static void dispatch_sensor_event(stage& self, b2ShapeId sensor_shape, b2ShapeId
     self.dispatch_collision(pair->first, pair->second, callback);
 }
 
-static void dispatch_contact_begin_event(stage& self, b2ShapeId shape_a, b2ShapeId shape_b, const b2Manifold& manifold) {
-  const auto pair = resolve(shape_a, shape_b);
+static void dispatch_contact_begin_event(stage& self, b2ShapeId sa, b2ShapeId sb, const b2Manifold& manifold) {
+  const auto pair = resolve(sa, sb);
   if (!pair)
     return;
 
@@ -40,8 +40,8 @@ static void dispatch_contact_begin_event(stage& self, b2ShapeId shape_a, b2Shape
   self.dispatch_collision(pair->second, pair->first, "on_collision_begin", &flipped);
 }
 
-static void dispatch_contact_end_event(stage& self, b2ShapeId shape_a, b2ShapeId shape_b) {
-  const auto pair = resolve(shape_a, shape_b);
+static void dispatch_contact_end_event(stage& self, b2ShapeId sa, b2ShapeId sb) {
+  const auto pair = resolve(sa, sb);
   if (!pair)
     return;
 
