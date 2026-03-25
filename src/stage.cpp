@@ -511,6 +511,7 @@ void stage::update(float delta) {
         bd->shape = b2_nullShapeId;
         bd->cached_hx = .0f;
         bd->cached_hy = .0f;
+
         b2Body_Disable(bd->id);
       }
 
