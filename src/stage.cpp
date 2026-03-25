@@ -851,37 +851,22 @@ void stage::draw() {
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
 
   const b2AABB aabb = {{viewport.x, viewport.y}, {viewport.x + viewport.width, viewport.y + viewport.height}};
-  const b2QueryFilter filter = b2DefaultQueryFilter();
-  const float offset[] = {viewport.x, viewport.y};
 
-  b2World_OverlapAABB(_world, aabb, filter, [](b2ShapeId shape, void* userdata) -> bool {
-    const auto* offset = static_cast<const float*>(userdata);
-
-    const auto shape_aabb = b2Shape_GetAABB(shape);
-    const auto lx = shape_aabb.lowerBound.x - offset[0];
-    const auto ly = shape_aabb.lowerBound.y - offset[1];
-    const auto ux = shape_aabb.upperBound.x - offset[0];
-    const auto uy = shape_aabb.upperBound.y - offset[1];
-
-    if (ux < .0f
-        || lx > viewport.width
-        || uy < .0f
-        || ly > viewport.height) [[likely]]
-      return true;
-
-    const auto bid = b2Shape_GetBody(shape);
-    const auto xf = b2Body_GetTransform(bid);
+  b2World_OverlapAABB(_world, aabb, b2DefaultQueryFilter(), [](b2ShapeId shape, void*) -> bool {
     const auto polygon = b2Shape_GetPolygon(shape);
+    const auto position = b2Body_GetPosition(b2Shape_GetBody(shape));
+    const auto hx = polygon.vertices[2].x;
+    const auto hy = polygon.vertices[2].y;
+    const SDL_FRect bounds = {
+      position.x - hx - viewport.x,
+      position.y - hy - viewport.y,
+      hx + hx,
+      hy + hy
+    };
 
-    for (int i = 0; i < polygon.count; ++i) {
-      const auto a = b2TransformPoint(xf, polygon.vertices[i]);
-      const auto b = b2TransformPoint(xf, polygon.vertices[(i + 1) % polygon.count]);
-
-      SDL_RenderLine(renderer, a.x - offset[0], a.y - offset[1], b.x - offset[0], b.y - offset[1]);
-    }
-
+    SDL_RenderRect(renderer, &bounds);
     return true;
-  }, const_cast<float*>(offset));
+  }, nullptr);
 
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 #endif
