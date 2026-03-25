@@ -50,11 +50,6 @@ public:
   [[nodiscard]] entt::entity find_topmost(std::span<const entt::entity> hits) const noexcept;
 
 private:
-  struct raycast_hit {
-    entt::entity entity;
-    float fraction;
-  };
-
   entt::registry _registry{};
   std::string _name{};
   std::optional<std::string> _overlay{};
@@ -72,9 +67,6 @@ private:
 
   float _sleep_margin{};
   float _wake_margin{};
-
-  std::array<raycast_hit, 32> _raycast_hits{};
-  std::array<entt::entity, 32> _radar_hits{};
 
   int _reference{LUA_NOREF};
   int _environment_reference{LUA_NOREF};

@@ -81,6 +81,52 @@ static void on_object_destroy(entt::registry& registry, entt::entity entity) {
     b2DestroyBody(bo.id);
 }
 
+static uint8_t overlap_aabb(b2WorldId world, b2AABB aabb, entt::entity *buffer, uint8_t capacity) noexcept {
+  struct context {
+    entt::entity *hits;
+    uint8_t capacity;
+    uint8_t count;
+  };
+
+  context ctx{buffer, capacity, 0};
+
+  b2World_OverlapAABB(
+    world, aabb, b2DefaultQueryFilter(),
+    [](b2ShapeId shape, void *userdata) -> bool {
+      auto *ctx = static_cast<struct context *>(userdata);
+      if (ctx->count >= ctx->capacity) [[unlikely]]
+        return false;
+
+      ctx->hits[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
+      return true;
+    },
+    &ctx);
+
+  return ctx.count;
+}
+
+static int push(lua_State *state, entt::registry& registry, std::span<const entt::entity> entities, entt::entity caller = entt::null, entt::id_type kind = 0, bool filter_kind = false) {
+  lua_newtable(state);
+  int index = 1;
+
+  for (const auto entity : entities) {
+    if (entity == caller)
+      continue;
+    if (!registry.valid(entity) || !registry.all_of<objectproxy>(entity))
+      continue;
+    const auto& proxy = registry.get<objectproxy>(entity);
+    if (proxy.handle == LUA_NOREF)
+      continue;
+    if (filter_kind && proxy.kind != kind)
+      continue;
+
+    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy.handle);
+    lua_rawseti(state, -2, index++);
+  }
+
+  return 1;
+}
+
 static int world_raycast(lua_State* state) {
   auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
   const auto* caller = static_cast<objectproxy *>(luaL_checkudata(state, 1, "Object"));
@@ -927,83 +973,72 @@ void stage::dispatch_collision(entt::entity entity, entt::entity other, std::str
 }
 
 
-int stage::radar(lua_State* state, entt::entity caller, float x, float y, float radius) {
+int stage::radar(lua_State *state, entt::entity caller, float x, float y, float radius) {
   struct context {
-    std::array<entt::entity, 32>* buffer;
+    entt::entity *buffer;
+    uint8_t capacity;
     uint8_t count;
   };
 
-  context ctx{&_radar_hits, 0};
+  std::array<entt::entity, 32> buffer;
+  context ctx{buffer.data(), static_cast<uint8_t>(buffer.size()), 0};
 
   const b2Vec2 center{x, y};
   const auto proxy = b2MakeProxy(&center, 1, radius);
-  const auto filter = b2DefaultQueryFilter();
 
   b2World_OverlapShape(
-    _world, &proxy, filter,
-    [](b2ShapeId shape, void* userdata) -> bool {
-      auto* ctx = static_cast<context*>(userdata);
-      if (ctx->count >= ctx->buffer->size()) [[unlikely]]
+    _world, &proxy, b2DefaultQueryFilter(),
+    [](b2ShapeId shape, void *userdata) -> bool {
+      auto *ctx = static_cast<context *>(userdata);
+      if (ctx->count >= ctx->capacity) [[unlikely]]
         return false;
-      (*ctx->buffer)[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
+      ctx->buffer[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
       return true;
     },
     &ctx
   );
 
-  lua_newtable(state);
-  int index = 1;
-
-  const auto result = std::span(_radar_hits.data(), ctx.count);
-  for (const auto entity : result) {
-    if (entity == caller)
-      continue;
-
-    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
-      continue;
-
-    const auto& proxy_obj = _registry.get<objectproxy>(entity);
-    if (proxy_obj.handle == LUA_NOREF)
-      continue;
-
-    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy_obj.handle);
-    lua_rawseti(state, -2, index++);
-  }
-
-  return 1;
+  return push(state, _registry, std::span(buffer.data(), ctx.count), caller);
 }
 
 int stage::raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance) {
+  struct raycast_hit {
+    entt::entity entity;
+    float fraction;
+  };
+
   struct context {
-    std::array<raycast_hit, 32>* buffer;
+    raycast_hit *buffer;
+    uint8_t capacity;
     uint8_t count;
   };
 
-  context ctx{&_raycast_hits, 0};
+  std::array<raycast_hit, 32> buffer;
+  context ctx{buffer.data(), static_cast<uint8_t>(buffer.size()), 0};
 
   const auto radians = to_radians(angle);
   auto sine = .0f, cosine = .0f;
   sincos(radians, sine, cosine);
   const b2Vec2 origin{x, y};
   const b2Vec2 translation{cosine * distance, sine * distance};
-  const auto filter = b2DefaultQueryFilter();
 
   b2World_CastRay(
     _world,
     origin,
     translation,
-    filter,
-    [](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void* userdata) -> float {
-      auto* ctx = static_cast<context*>(userdata);
-      if (ctx->count >= ctx->buffer->size()) [[unlikely]]
+    b2DefaultQueryFilter(),
+    [](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void *userdata) -> float {
+      auto *ctx = static_cast<context *>(userdata);
+      if (ctx->count >= ctx->capacity) [[unlikely]]
         return -1.f;
-      (*ctx->buffer)[ctx->count++] = {to_entity(b2Shape_GetUserData(shape)), fraction};
+
+      ctx->buffer[ctx->count++] = {to_entity(b2Shape_GetUserData(shape)), fraction};
       return 1.f;
     },
     &ctx
   );
 
-  const auto result = std::span(_raycast_hits.data(), ctx.count);
+  const auto result = std::span(buffer.data(), ctx.count);
   std::ranges::sort(result, {}, &raycast_hit::fraction);
 
   lua_newtable(state);
@@ -1274,54 +1309,16 @@ int stage::destroy(lua_State* state) {
   return 0;
 }
 
-uint8_t stage::at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept {
+uint8_t stage::at(float x, float y, entt::entity *buffer, uint8_t capacity) const noexcept {
   constexpr auto HALF = .5f;
   const b2AABB aabb = {{x - HALF, y - HALF}, {x + HALF, y + HALF}};
-  const auto filter = b2DefaultQueryFilter();
-
-  struct context {
-    entt::entity* hits;
-    uint8_t capacity;
-    uint8_t count;
-  };
-
-  context ctx{buffer, capacity, 0};
-
-  b2World_OverlapAABB(
-    _world, aabb, filter,
-    [](b2ShapeId shape, void* userdata) -> bool {
-      auto* ctx = static_cast<context*>(userdata);
-      if (ctx->count >= ctx->capacity) [[unlikely]]
-        return false;
-      ctx->hits[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
-      return true;
-    },
-    &ctx);
-
-  return ctx.count;
+  return overlap_aabb(_world, aabb, buffer, capacity);
 }
 
-int stage::at(lua_State* state, float x, float y) {
+int stage::at(lua_State *state, float x, float y) {
   std::array<entt::entity, 32> buffer;
   const auto count = at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
-
-  lua_newtable(state);
-  int index = 1;
-
-  for (uint8_t i = 0; i < count; ++i) {
-    const auto entity = buffer[i];
-    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
-      continue;
-
-    const auto& proxy = _registry.get<objectproxy>(entity);
-    if (proxy.handle == LUA_NOREF)
-      continue;
-
-    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy.handle);
-    lua_rawseti(state, -2, index++);
-  }
-
-  return 1;
+  return push(state, _registry, std::span(buffer.data(), count));
 }
 
 entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexcept {
@@ -1345,7 +1342,7 @@ entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexc
   return topmost;
 }
 
-int stage::count(lua_State* state) {
+int stage::count(lua_State *state) {
   const auto x = static_cast<float>(luaL_checknumber(state, 1));
   const auto y = static_cast<float>(luaL_checknumber(state, 2));
   const auto w = static_cast<float>(luaL_checknumber(state, 3));
@@ -1357,39 +1354,18 @@ int stage::count(lua_State* state) {
     : entt::id_type{};
 
   const b2AABB aabb = {{x, y}, {x + w, y + h}};
-  const auto filter = b2DefaultQueryFilter();
 
-  struct context {
-    entt::entity buffer[64];
-    uint8_t count;
-  };
-
-  context ctx{{}, 0};
-
-  b2World_OverlapAABB(
-    _world, aabb, filter,
-    [](b2ShapeId shape, void* userdata) -> bool {
-      auto* ctx = static_cast<struct context*>(userdata);
-      if (ctx->count >= 64) [[unlikely]]
-        return false;
-      ctx->buffer[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
-      return true;
-    },
-    &ctx
-  );
+  std::array<entt::entity, 64> buffer;
+  const auto found = overlap_aabb(_world, aabb, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
   int total = 0;
 
-  for (uint8_t i = 0; i < ctx.count; ++i) {
-    const auto entity = ctx.buffer[i];
-
+  for (const auto entity : std::span(buffer.data(), found)) {
     if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
       continue;
-
     const auto& proxy = _registry.get<objectproxy>(entity);
     if (proxy.handle == LUA_NOREF)
       continue;
-
     if (filter_kind && proxy.kind != kind_hash)
       continue;
 
@@ -1400,7 +1376,7 @@ int stage::count(lua_State* state) {
   return 1;
 }
 
-int stage::find(lua_State* state) {
+int stage::find(lua_State *state) {
   const auto x = static_cast<float>(luaL_checknumber(state, 1));
   const auto y = static_cast<float>(luaL_checknumber(state, 2));
   const auto w = static_cast<float>(luaL_checknumber(state, 3));
@@ -1412,46 +1388,9 @@ int stage::find(lua_State* state) {
     : entt::id_type{};
 
   const b2AABB aabb = {{x, y}, {x + w, y + h}};
-  const auto filter = b2DefaultQueryFilter();
 
-  struct context {
-    entt::entity buffer[64];
-    uint8_t count;
-  };
+  std::array<entt::entity, 64> buffer;
+  const auto count = overlap_aabb(_world, aabb, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
-  context ctx{{}, 0};
-
-  b2World_OverlapAABB(
-    _world, aabb, filter,
-    [](b2ShapeId shape, void* userdata) -> bool {
-      auto* ctx = static_cast<struct context*>(userdata);
-      if (ctx->count >= 64) [[unlikely]]
-        return false;
-      ctx->buffer[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
-      return true;
-    },
-    &ctx
-  );
-
-  lua_newtable(state);
-  int index = 1;
-
-  for (uint8_t i = 0; i < ctx.count; ++i) {
-    const auto entity = ctx.buffer[i];
-
-    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
-      continue;
-
-    const auto& proxy = _registry.get<objectproxy>(entity);
-    if (proxy.handle == LUA_NOREF)
-      continue;
-
-    if (filter_kind && proxy.kind != kind_hash)
-      continue;
-
-    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy.handle);
-    lua_rawseti(state, -2, index++);
-  }
-
-  return 1;
+  return push(state, _registry, std::span(buffer.data(), count), entt::null, kind_hash, filter_kind);
 }
