@@ -460,6 +460,7 @@ stage::~stage() {
   _environment_reference = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
   _reference = LUA_NOREF;
+
   b2DestroyWorld(_world);
 }
 
