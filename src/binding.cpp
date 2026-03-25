@@ -1,3 +1,5 @@
+#include "binding.hpp"
+
 static int traceback(lua_State *state) {
   luaL_traceback(state, state, lua_tostring(state, 1), 1);
 

@@ -10,10 +10,10 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <numbers>
-#include <limits>
 #include <optional>
 #include <print>
 #include <queue>
@@ -31,7 +31,6 @@
 #include <box2d/box2d.h>
 // #include <cbor.h>
 #include <entt/entt.hpp>
-#include <lauxlib.h>
 // #include <libwebsockets.h>
 #include <lua.hpp>
 #include <miniaudio.h>

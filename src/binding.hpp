@@ -1,12 +1,6 @@
 #pragma once
 
-#include <array>
-#include <cstring>
-#include <string_view>
-#include <vector>
-
-#include <lua.hpp>
-#include <lauxlib.h>
+#include "common.hpp"
 
 void pcall(lua_State *state, int nargs, int nresults);
 void compile(lua_State *state, const std::vector<uint8_t> &buffer, std::string_view label);
