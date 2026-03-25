@@ -1,7 +1,5 @@
 #include "stage.hpp"
 
-
-
 static void* to_userdata(entt::entity e) noexcept {
   return reinterpret_cast<void*>(static_cast<uintptr_t>(e) + 1);
 }
@@ -13,30 +11,6 @@ static entt::entity to_entity(const void* p) noexcept {
 static b2Vec2 body_center(const transform& tf, const frame& fr, const body& bd) noexcept {
   return {tf.x + fr.cx + bd.cached_hx,
           tf.y + fr.cy + bd.cached_hy};
-}
-
-static void on_objectproxy_destroy(entt::registry& registry, entt::entity entity) {
-  auto& proxy = registry.get<objectproxy>(entity);
-
-  if (proxy.handle == LUA_NOREF)
-    return;
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-  auto* userdata = static_cast<objectproxy*>(lua_touserdata(L, -1));
-  if (userdata) {
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_begin);
-    userdata->on_animation_begin = LUA_NOREF;
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_end);
-    userdata->on_animation_end = LUA_NOREF;
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_loop);
-    userdata->on_loop = LUA_NOREF;
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->prototype);
-    userdata->prototype = LUA_NOREF;
-  }
-
-  lua_pop(L, 1);
-  luaL_unref(L, LUA_REGISTRYINDEX, proxy.handle);
-  proxy.handle = LUA_NOREF;
 }
 
 static std::optional<std::pair<entt::entity, entt::entity>> resolve(b2ShapeId a, b2ShapeId b) noexcept {
@@ -73,6 +47,30 @@ static void dispatch_contact_end_event(stage& self, b2ShapeId shape_a, b2ShapeId
 
   self.dispatch_collision(pair->first, pair->second, "on_collision_end");
   self.dispatch_collision(pair->second, pair->first, "on_collision_end");
+}
+
+static void on_objectproxy_destroy(entt::registry& registry, entt::entity entity) {
+  auto& proxy = registry.get<objectproxy>(entity);
+
+  if (proxy.handle == LUA_NOREF)
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+  auto* userdata = static_cast<objectproxy*>(lua_touserdata(L, -1));
+  if (userdata) {
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_begin);
+    userdata->on_animation_begin = LUA_NOREF;
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_end);
+    userdata->on_animation_end = LUA_NOREF;
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_loop);
+    userdata->on_loop = LUA_NOREF;
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->prototype);
+    userdata->prototype = LUA_NOREF;
+  }
+
+  lua_pop(L, 1);
+  luaL_unref(L, LUA_REGISTRYINDEX, proxy.handle);
+  proxy.handle = LUA_NOREF;
 }
 
 static void on_object_destroy(entt::registry& registry, entt::entity entity) {
@@ -127,52 +125,6 @@ static int push(lua_State *state, entt::registry& registry, std::span<const entt
   return 1;
 }
 
-static int world_raycast(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  const auto* caller = static_cast<objectproxy *>(luaL_checkudata(state, 1, "Object"));
-  const auto x = static_cast<float>(luaL_checknumber(state, 2));
-  const auto y = static_cast<float>(luaL_checknumber(state, 3));
-  const auto angle = static_cast<float>(luaL_checknumber(state, 4));
-  const auto distance = static_cast<float>(luaL_checknumber(state, 5));
-  return self->raycast(state, caller->entity, x, y, angle, distance);
-}
-
-static int world_radar(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  const auto* caller = static_cast<objectproxy *>(luaL_checkudata(state, 1, "Object"));
-  const auto x = static_cast<float>(luaL_checknumber(state, 2));
-  const auto y = static_cast<float>(luaL_checknumber(state, 3));
-  const auto radius = static_cast<float>(luaL_checknumber(state, 4));
-  return self->radar(state, caller->entity, x, y, radius);
-}
-
-static int world_at(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  const auto x = static_cast<float>(luaL_checknumber(state, 1));
-  const auto y = static_cast<float>(luaL_checknumber(state, 2));
-  return self->at(state, x, y);
-}
-
-static int world_pathfind(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  const auto x1 = static_cast<float>(luaL_checknumber(state, 1));
-  const auto y1 = static_cast<float>(luaL_checknumber(state, 2));
-  const auto x2 = static_cast<float>(luaL_checknumber(state, 3));
-  const auto y2 = static_cast<float>(luaL_checknumber(state, 4));
-  const auto r  = static_cast<float>(luaL_checknumber(state, 5));
-  return self->pathfind(state, x1, y1, x2, y2, r);
-}
-
-static int world_count(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  return self->count(state);
-}
-
-static int world_find(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  return self->find(state);
-}
-
 static int world_spawn(lua_State* state) {
   auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
   const auto name = std::string_view{luaL_checkstring(state, 1)};
@@ -187,6 +139,52 @@ static int world_destroy(lua_State* state) {
   return self->destroy(state);
 }
 
+static int world_at(lua_State* state) {
+  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
+  const auto x = static_cast<float>(luaL_checknumber(state, 1));
+  const auto y = static_cast<float>(luaL_checknumber(state, 2));
+  return self->at(state, x, y);
+}
+
+static int world_count(lua_State* state) {
+  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
+  return self->count(state);
+}
+
+static int world_find(lua_State* state) {
+  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
+  return self->find(state);
+}
+
+static int world_radar(lua_State* state) {
+  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
+  const auto* caller = static_cast<objectproxy *>(luaL_checkudata(state, 1, "Object"));
+  const auto x = static_cast<float>(luaL_checknumber(state, 2));
+  const auto y = static_cast<float>(luaL_checknumber(state, 3));
+  const auto radius = static_cast<float>(luaL_checknumber(state, 4));
+  return self->radar(state, caller->entity, x, y, radius);
+}
+
+static int world_raycast(lua_State* state) {
+  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
+  const auto* caller = static_cast<objectproxy *>(luaL_checkudata(state, 1, "Object"));
+  const auto x = static_cast<float>(luaL_checknumber(state, 2));
+  const auto y = static_cast<float>(luaL_checknumber(state, 3));
+  const auto angle = static_cast<float>(luaL_checknumber(state, 4));
+  const auto distance = static_cast<float>(luaL_checknumber(state, 5));
+  return self->raycast(state, caller->entity, x, y, angle, distance);
+}
+
+static int world_pathfind(lua_State* state) {
+  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
+  const auto x1 = static_cast<float>(luaL_checknumber(state, 1));
+  const auto y1 = static_cast<float>(luaL_checknumber(state, 2));
+  const auto x2 = static_cast<float>(luaL_checknumber(state, 3));
+  const auto y2 = static_cast<float>(luaL_checknumber(state, 4));
+  const auto r  = static_cast<float>(luaL_checknumber(state, 5));
+  return self->pathfind(state, x1, y1, x2, y2, r);
+}
+
 static void bind_closure(lua_State *state, const char *name, lua_CFunction fn, void *ptr) noexcept {
   lua_pushlightuserdata(state, ptr);
   lua_pushcclosure(state, fn, 1);
@@ -197,9 +195,7 @@ stage::stage(std::string_view name)
     : _name(name) {
   _registry.on_destroy<objectproxy>().connect<&on_objectproxy_destroy>();
   _registry.on_destroy<body>().connect<&on_object_destroy>();
-
   _registry.ctx().emplace<stringpool*>(&_stringpool);
-
 
   const auto filename = std::format("stages/{}.lua", name);
   const auto buffer = io::read(filename);
@@ -220,14 +216,14 @@ stage::stage(std::string_view name)
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
   lua_setfield(L, -2, "pool");
   lua_newtable(L);
-  bind_closure(L, "raycast", world_raycast, this);
-  bind_closure(L, "radar", world_radar, this);
-  bind_closure(L, "at", world_at, this);
-  bind_closure(L, "pathfind", world_pathfind, this);
   bind_closure(L, "spawn", world_spawn, this);
   bind_closure(L, "destroy", world_destroy, this);
+  bind_closure(L, "at", world_at, this);
   bind_closure(L, "count", world_count, this);
   bind_closure(L, "find", world_find, this);
+  bind_closure(L, "radar", world_radar, this);
+  bind_closure(L, "raycast", world_raycast, this);
+  bind_closure(L, "pathfind", world_pathfind, this);
   lua_setfield(L, -2, "world");
   lua_pop(L, 1);
 
@@ -341,14 +337,12 @@ stage::stage(std::string_view name)
   }
   lua_pop(L, 1);
 
-  {
-    lua_getfield(L, -1, "tilemap");
-    const auto *tilemap_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
-    const auto tilemap_name = tilemap_raw ? std::string_view{tilemap_raw} : std::string_view{};
-    lua_pop(L, 1);
-    if (!tilemap_name.empty())
-      _tilemap = tilemap(tilemap_name, _world);
-  }
+  lua_getfield(L, -1, "tilemap");
+  const auto *tilemap_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
+  const auto tilemap_name = tilemap_raw ? std::string_view{tilemap_raw} : std::string_view{};
+  lua_pop(L, 1);
+  if (!tilemap_name.empty())
+    _tilemap = tilemap(tilemap_name, _world);
 
   lua_getfield(L, -1, "overlay");
   if (lua_istable(L, -1)) {
@@ -412,20 +406,17 @@ stage::stage(std::string_view name)
 
       lua_pop(L, 1);
 
-      auto& instance = _particlesystem.add(particle_name, particle_kind, px, py, active);
+      auto& particle = _particlesystem.add(particle_name, particle_kind, px, py, active);
 
       if (!sound_name.empty()) {
         auto& fx = depot->sound.get(std::format("sounds/{}", sound_name));
         fx.set_loop(true);
 
-        // if (std::ranges::find(_sounds, &fx) == _sounds.end())
-        //   _sounds.emplace_back(&fx);
-
-        instance.set_sound(&fx, particle_distance, particle_volume);
+        particle.set_sound(&fx, particle_distance, particle_volume);
       }
 
       auto **pmem = static_cast<class particle **>(lua_newuserdata(L, sizeof(class particle *)));
-      *pmem = &instance;
+      *pmem = &particle;
       luaL_getmetatable(L, "Particle");
       lua_setmetatable(L, -2);
 
@@ -469,54 +460,6 @@ stage::~stage() {
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
   _reference = LUA_NOREF;
   b2DestroyWorld(_world);
-}
-
-auto stage::overlay() const noexcept -> const std::optional<std::string>& {
-  return _overlay;
-}
-
-auto stage::foreground() const noexcept -> const std::optional<std::string>& {
-  return _foreground;
-}
-
-void stage::on_enter() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  lua_getfield(L, -1, "on_enter");
-  auto cb = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
-  lua_pop(L, 1);
-
-  if (cb == LUA_NOREF)
-    return;
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, cb);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  pcall(L, 1, 0);
-  luaL_unref(L, LUA_REGISTRYINDEX, cb);
-}
-
-void stage::on_leave() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  lua_getfield(L, -1, "on_leave");
-  auto cb = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
-  lua_pop(L, 1);
-
-  if (cb == LUA_NOREF)
-    return;
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, cb);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  pcall(L, 1, 0);
-  luaL_unref(L, LUA_REGISTRYINDEX, cb);
-}
-
-void stage::on_tick(uint64_t tick) {
-  if (_on_tick == LUA_NOREF) [[unlikely]]
-    return;
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _on_tick);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  lua_pushinteger(L, static_cast<lua_Integer>(tick));
-  pcall(L, 2, 0);
 }
 
 void stage::update(float delta) {
@@ -938,135 +881,52 @@ void stage::draw() {
 #endif
 }
 
+void stage::on_enter() {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_getfield(L, -1, "on_enter");
+  auto cb = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  lua_pop(L, 1);
 
-void stage::dispatch_collision(entt::entity entity, entt::entity other, std::string_view callback, const b2Vec2* normal) {
-  if (!_registry.valid(entity) || !_registry.valid(other)) return;
-  if (!_registry.all_of<objectproxy>(entity) ||
-      !_registry.all_of<objectproxy>(other)) return;
-
-  const auto& self = _registry.get<objectproxy>(entity);
-  const auto& target = _registry.get<objectproxy>(other);
-
-  const auto* name = _stringpool.get(target.name);
-  const auto* kind = _stringpool.get(target.kind);
-
-  if (self.prototype == LUA_NOREF || self.handle == LUA_NOREF) [[unlikely]]
+  if (cb == LUA_NOREF)
     return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, self.prototype);
-  lua_getfield(L, -1, callback.data());
-  if (lua_isfunction(L, -1)) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, self.handle);
-    lua_pushstring(L, name);
-    lua_pushstring(L, kind);
-    if (normal) {
-      lua_pushnumber(L, static_cast<lua_Number>(normal->x));
-      lua_pushnumber(L, static_cast<lua_Number>(normal->y));
-      pcall(L, 5, 0);
-    } else {
-      pcall(L, 3, 0);
-    }
-  } else {
-    lua_pop(L, 1);
-  }
+  lua_rawgeti(L, LUA_REGISTRYINDEX, cb);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  pcall(L, 1, 0);
+  luaL_unref(L, LUA_REGISTRYINDEX, cb);
+}
+
+void stage::on_leave() {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_getfield(L, -1, "on_leave");
+  auto cb = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
   lua_pop(L, 1);
+
+  if (cb == LUA_NOREF)
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, cb);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  pcall(L, 1, 0);
+  luaL_unref(L, LUA_REGISTRYINDEX, cb);
 }
 
+void stage::on_tick(uint64_t tick) {
+  if (_on_tick == LUA_NOREF) [[unlikely]]
+    return;
 
-int stage::radar(lua_State *state, entt::entity caller, float x, float y, float radius) {
-  struct context {
-    entt::entity *buffer;
-    uint8_t capacity;
-    uint8_t count;
-  };
-
-  std::array<entt::entity, 32> buffer;
-  context ctx{buffer.data(), static_cast<uint8_t>(buffer.size()), 0};
-
-  const b2Vec2 center{x, y};
-  const auto proxy = b2MakeProxy(&center, 1, radius);
-
-  b2World_OverlapShape(
-    _world, &proxy, b2DefaultQueryFilter(),
-    [](b2ShapeId shape, void *userdata) -> bool {
-      auto *ctx = static_cast<context *>(userdata);
-      if (ctx->count >= ctx->capacity) [[unlikely]]
-        return false;
-      ctx->buffer[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
-      return true;
-    },
-    &ctx
-  );
-
-  return push(state, _registry, std::span(buffer.data(), ctx.count), caller);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _on_tick);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_pushinteger(L, static_cast<lua_Integer>(tick));
+  pcall(L, 2, 0);
 }
 
-int stage::raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance) {
-  struct raycast_hit {
-    entt::entity entity;
-    float fraction;
-  };
-
-  struct context {
-    raycast_hit *buffer;
-    uint8_t capacity;
-    uint8_t count;
-  };
-
-  std::array<raycast_hit, 32> buffer;
-  context ctx{buffer.data(), static_cast<uint8_t>(buffer.size()), 0};
-
-  const auto radians = to_radians(angle);
-  auto sine = .0f, cosine = .0f;
-  sincos(radians, sine, cosine);
-  const b2Vec2 origin{x, y};
-  const b2Vec2 translation{cosine * distance, sine * distance};
-
-  b2World_CastRay(
-    _world,
-    origin,
-    translation,
-    b2DefaultQueryFilter(),
-    [](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void *userdata) -> float {
-      auto *ctx = static_cast<context *>(userdata);
-      if (ctx->count >= ctx->capacity) [[unlikely]]
-        return -1.f;
-
-      ctx->buffer[ctx->count++] = {to_entity(b2Shape_GetUserData(shape)), fraction};
-      return 1.f;
-    },
-    &ctx
-  );
-
-  const auto result = std::span(buffer.data(), ctx.count);
-  std::ranges::sort(result, {}, &raycast_hit::fraction);
-
-  lua_newtable(state);
-  int index = 1;
-
-  for (const auto& [entity, fraction] : result) {
-    if (entity == entt::null)
-      continue;
-
-    if (entity == caller)
-      continue;
-
-    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
-      continue;
-
-    const auto& proxy = _registry.get<objectproxy>(entity);
-    if (proxy.handle == LUA_NOREF)
-      continue;
-
-    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy.handle);
-    lua_rawseti(state, -2, index++);
-  }
-
-  return 1;
+auto stage::overlay() const noexcept -> const std::optional<std::string>& {
+  return _overlay;
 }
 
-int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept {
-  return _tilemap.pathfind(state, x1, y1, x2, y2, radius);
+auto stage::foreground() const noexcept -> const std::optional<std::string>& {
+  return _foreground;
 }
 
 int stage::spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y) {
@@ -1321,27 +1181,6 @@ int stage::at(lua_State *state, float x, float y) {
   return push(state, _registry, std::span(buffer.data(), count));
 }
 
-entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexcept {
-  if (hits.empty()) [[unlikely]]
-    return entt::null;
-
-  entt::entity topmost = entt::null;
-
-  for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
-    if (!tf.shown) [[unlikely]]
-      continue;
-
-    for (const auto hit : hits) {
-      if (hit == entity) {
-        topmost = entity;
-        break;
-      }
-    }
-  }
-
-  return topmost;
-}
-
 int stage::count(lua_State *state) {
   const auto x = static_cast<float>(luaL_checknumber(state, 1));
   const auto y = static_cast<float>(luaL_checknumber(state, 2));
@@ -1393,4 +1232,154 @@ int stage::find(lua_State *state) {
   const auto count = overlap_aabb(_world, aabb, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
   return push(state, _registry, std::span(buffer.data(), count), entt::null, kind_hash, filter_kind);
+}
+
+entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexcept {
+  if (hits.empty()) [[unlikely]]
+    return entt::null;
+
+  entt::entity topmost = entt::null;
+
+  for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
+    if (!tf.shown) [[unlikely]]
+      continue;
+
+    for (const auto hit : hits) {
+      if (hit == entity) {
+        topmost = entity;
+        break;
+      }
+    }
+  }
+
+  return topmost;
+}
+
+int stage::radar(lua_State *state, entt::entity caller, float x, float y, float radius) {
+  struct context {
+    entt::entity *buffer;
+    uint8_t capacity;
+    uint8_t count;
+  };
+
+  std::array<entt::entity, 32> buffer;
+  context ctx{buffer.data(), static_cast<uint8_t>(buffer.size()), 0};
+
+  const b2Vec2 center{x, y};
+  const auto proxy = b2MakeProxy(&center, 1, radius);
+
+  b2World_OverlapShape(
+    _world, &proxy, b2DefaultQueryFilter(),
+    [](b2ShapeId shape, void *userdata) -> bool {
+      auto *ctx = static_cast<context *>(userdata);
+      if (ctx->count >= ctx->capacity) [[unlikely]]
+        return false;
+
+      ctx->buffer[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
+      return true;
+    },
+    &ctx
+  );
+
+  return push(state, _registry, std::span(buffer.data(), ctx.count), caller);
+}
+
+int stage::raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance) {
+  struct raycast_hit {
+    entt::entity entity;
+    float fraction;
+  };
+
+  struct context {
+    raycast_hit *buffer;
+    uint8_t capacity;
+    uint8_t count;
+  };
+
+  std::array<raycast_hit, 32> buffer;
+  context ctx{buffer.data(), static_cast<uint8_t>(buffer.size()), 0};
+
+  const auto radians = to_radians(angle);
+  auto sine = .0f, cosine = .0f;
+  sincos(radians, sine, cosine);
+  const b2Vec2 origin{x, y};
+  const b2Vec2 translation{cosine * distance, sine * distance};
+
+  b2World_CastRay(
+    _world,
+    origin,
+    translation,
+    b2DefaultQueryFilter(),
+    [](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void *userdata) -> float {
+      auto *ctx = static_cast<context *>(userdata);
+      if (ctx->count >= ctx->capacity) [[unlikely]]
+        return -1.f;
+
+      ctx->buffer[ctx->count++] = {to_entity(b2Shape_GetUserData(shape)), fraction};
+      return 1.f;
+    },
+    &ctx
+  );
+
+  const auto result = std::span(buffer.data(), ctx.count);
+  std::ranges::sort(result, {}, &raycast_hit::fraction);
+
+  lua_newtable(state);
+  int index = 1;
+
+  for (const auto& [entity, fraction] : result) {
+    if (entity == entt::null)
+      continue;
+
+    if (entity == caller)
+      continue;
+
+    if (!_registry.valid(entity) || !_registry.all_of<objectproxy>(entity))
+      continue;
+
+    const auto& proxy = _registry.get<objectproxy>(entity);
+    if (proxy.handle == LUA_NOREF)
+      continue;
+
+    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy.handle);
+    lua_rawseti(state, -2, index++);
+  }
+
+  return 1;
+}
+
+int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept {
+  return _tilemap.pathfind(state, x1, y1, x2, y2, radius);
+}
+
+void stage::dispatch_collision(entt::entity entity, entt::entity other, std::string_view callback, const b2Vec2* normal) {
+  if (!_registry.valid(entity) || !_registry.valid(other)) return;
+  if (!_registry.all_of<objectproxy>(entity) || !_registry.all_of<objectproxy>(other)) return;
+
+  const auto& self = _registry.get<objectproxy>(entity);
+  const auto& target = _registry.get<objectproxy>(other);
+
+  const auto* name = _stringpool.get(target.name);
+  const auto* kind = _stringpool.get(target.kind);
+
+  if (self.prototype == LUA_NOREF || self.handle == LUA_NOREF) [[unlikely]]
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, self.prototype);
+  lua_getfield(L, -1, callback.data());
+  if (lua_isfunction(L, -1)) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, self.handle);
+    lua_pushstring(L, name);
+    lua_pushstring(L, kind);
+    if (normal) {
+      lua_pushnumber(L, static_cast<lua_Number>(normal->x));
+      lua_pushnumber(L, static_cast<lua_Number>(normal->y));
+      pcall(L, 5, 0);
+    } else {
+      pcall(L, 3, 0);
+    }
+  } else {
+    lua_pop(L, 1);
+  }
+  lua_pop(L, 1);
 }

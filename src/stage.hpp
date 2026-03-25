@@ -13,9 +13,9 @@ public:
   explicit stage(std::string_view name);
   ~stage();
 
-  [[nodiscard]] auto overlay() const noexcept -> const std::optional<std::string>&;
+  void update(float delta);
 
-  [[nodiscard]] auto foreground() const noexcept -> const std::optional<std::string>&;
+  void draw();
 
   void on_enter();
 
@@ -23,21 +23,13 @@ public:
 
   void on_tick(uint64_t tick);
 
-  void update(float delta);
+  [[nodiscard]] auto overlay() const noexcept -> const std::optional<std::string>&;
 
-  void draw();
-
-  [[nodiscard]] int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
-
-  [[nodiscard]] int radar(lua_State* state, entt::entity caller, float x, float y, float radius);
+  [[nodiscard]] auto foreground() const noexcept -> const std::optional<std::string>&;
 
   [[nodiscard]] int spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y);
 
   int destroy(lua_State* state);
-
-  [[nodiscard]] int pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept;
-
-  void dispatch_collision(entt::entity entity, entt::entity other, std::string_view callback, const b2Vec2* normal = nullptr);
 
   [[nodiscard]] uint8_t at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
 
@@ -48,6 +40,14 @@ public:
   [[nodiscard]] int find(lua_State* state);
 
   [[nodiscard]] entt::entity find_topmost(std::span<const entt::entity> hits) const noexcept;
+
+  [[nodiscard]] int radar(lua_State* state, entt::entity caller, float x, float y, float radius);
+
+  [[nodiscard]] int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
+
+  [[nodiscard]] int pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept;
+
+  void dispatch_collision(entt::entity entity, entt::entity other, std::string_view callback, const b2Vec2* normal = nullptr);
 
 private:
   entt::registry _registry{};

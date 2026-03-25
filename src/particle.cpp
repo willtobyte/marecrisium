@@ -152,7 +152,9 @@ void particle::set_sound(class sound* sound, float distance, float volume) noexc
   }
 }
 
-class sound* particle::sound() const noexcept { return _sound; }
+class sound* particle::sound() const noexcept {
+  return _sound;
+}
 
 void particle::update(float delta) noexcept {
   const auto n = _count;
