@@ -39,13 +39,13 @@ font::font(std::string_view family) {
   spng_set_crc_action(spng.get(), SPNG_CRC_USE, SPNG_CRC_USE);
   spng_set_png_buffer(spng.get(), buffer.data(), buffer.size());
 
-  spng_ihdr ihdr;
+  spng_ihdr ihdr{};
   spng_get_ihdr(spng.get(), &ihdr);
 
   const auto width = static_cast<int>(ihdr.width);
   const auto height = static_cast<int>(ihdr.height);
 
-  size_t length;
+  size_t length{};
   spng_decoded_image_size(spng.get(), SPNG_FMT_RGBA8, &length);
 
   auto decoded = std::make_unique_for_overwrite<uint8_t[]>(length);
@@ -177,7 +177,7 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
     _indices[_index_count++] = base + 2;
     _indices[_index_count++] = base + 3;
 
-    cx += glyph.sw + static_cast<float>(_spacing);
+    cx += sw + static_cast<float>(_spacing);
     ++gi;
   }
 

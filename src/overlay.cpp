@@ -27,8 +27,9 @@ static int overlay_label(lua_State *state) {
   }
 
   static std::array<glypheffect, 256> effects{};
+  effects.fill({});
 
-  auto lenght = 0uz;
+  auto length = 0uz;
 
   lua_pushnil(state);
   while (lua_next(state, 6) != 0) {
@@ -78,12 +79,12 @@ static int overlay_label(lua_State *state) {
     effect.b = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.b;
     lua_pop(state, 1);
 
-    if (index >= lenght) lenght = index + 1;
+    if (index >= length) length = index + 1;
 
     lua_pop(state, 1);
   }
 
-  self->render_label(font, text, x, y, std::span{effects.data(), lenght});
+  self->render_label(font, text, x, y, std::span{effects.data(), length});
   return 0;
 }
 

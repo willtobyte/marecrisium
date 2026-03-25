@@ -9,13 +9,13 @@ pixmap::pixmap(std::string_view filename) {
   spng_set_crc_action(spng.get(), SPNG_CRC_USE, SPNG_CRC_USE);
   spng_set_png_buffer(spng.get(), buffer.data(), buffer.size());
 
-  spng_ihdr ihdr;
+  spng_ihdr ihdr{};
   spng_get_ihdr(spng.get(), &ihdr);
 
   _width = static_cast<int>(ihdr.width);
   _height = static_cast<int>(ihdr.height);
 
-  size_t length;
+  size_t length{};
   spng_decoded_image_size(spng.get(), SPNG_FMT_RGBA8, &length);
 
   auto pixels = std::make_unique_for_overwrite<uint8_t[]>(length);
