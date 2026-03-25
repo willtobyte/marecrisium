@@ -1361,7 +1361,6 @@ void stage::dispatch_collision(entt::entity entity, entt::entity other, std::str
 
   const auto& self = _registry.get<objectproxy>(entity);
   const auto& target = _registry.get<objectproxy>(other);
-
   const auto* name = _stringpool.get(target.name);
   const auto* kind = _stringpool.get(target.kind);
 
