@@ -118,6 +118,7 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
 
   auto cx = x;
   auto cy = y;
+  auto ei = 0uz;
   for (const auto character : text) {
     if (character == '\n') {
       cx = x;
@@ -139,7 +140,6 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
 
     auto angle = .0f;
 
-    auto ei = 0uz;
     if (ei < effects.size()) {
       const auto& effect = effects[ei];
 
