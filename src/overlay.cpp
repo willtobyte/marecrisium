@@ -26,8 +26,7 @@ static int overlay_label(lua_State *state) {
     return 0;
   }
 
-  static std::array<glypheffect, 256> effects{};
-  effects.fill({});
+  std::array<glypheffect, 256> effects{};
 
   auto length = 0uz;
 
