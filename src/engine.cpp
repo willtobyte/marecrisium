@@ -86,22 +86,26 @@ engine::engine() {
 
   {
     lua_getfield(L, -1, "splash");
-    const auto filename = std::format("blobs/splashes/{}.png", luaL_checkstring(L, -1));
+
+    if (lua_isstring(L, -1)) [[likely]] {
+      const auto filename = std::format("blobs/splashes/{}.png", lua_tostring(L, -1));
+
+      const pixmap splash{filename};
+
+      SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+      SDL_RenderClear(renderer);
+
+      const auto sw = static_cast<float>(splash.width());
+      const auto sh = static_cast<float>(splash.height());
+      const auto dw = static_cast<float>(width) / scale;
+      const auto dh = static_cast<float>(height) / scale;
+
+      splash.draw(0, 0, sw, sh, 0, 0, dw, dh);
+
+      SDL_RenderPresent(renderer);
+    }
+
     lua_pop(L, 1);
-
-    const pixmap splash{filename};
-
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
-
-    const auto sw = static_cast<float>(splash.width());
-    const auto sh = static_cast<float>(splash.height());
-    const auto dw = static_cast<float>(width) / scale;
-    const auto dh = static_cast<float>(height) / scale;
-
-    splash.draw(0, 0, sw, sh, 0, 0, dw, dh);
-
-    SDL_RenderPresent(renderer);
   }
 
   viewport = {
