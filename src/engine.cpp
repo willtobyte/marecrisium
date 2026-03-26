@@ -86,11 +86,10 @@ engine::engine() {
 
   {
     lua_getfield(L, -1, "splash");
-    const auto *splash_raw = luaL_checkstring(L, -1);
-    const auto splash_path = std::format("blobs/splashes/{}.png", splash_raw);
+    const auto filename = std::format("blobs/splashes/{}.png", luaL_checkstring(L, -1));
     lua_pop(L, 1);
 
-    const pixmap splash{splash_path};
+    const pixmap splash{filename};
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
