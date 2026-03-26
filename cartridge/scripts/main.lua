@@ -2,6 +2,7 @@ local getenv = os.getenv
 
 return {
 	title = "My Game",
+	splash = "loading",
 	width = 1920,
 	height = 1080,
 	scale = 3.0,

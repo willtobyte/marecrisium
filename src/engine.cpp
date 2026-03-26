@@ -84,6 +84,27 @@ engine::engine() {
 
   SDL_RaiseWindow(window);
 
+  {
+    lua_getfield(L, -1, "splash");
+    const auto *splash_raw = luaL_checkstring(L, -1);
+    const auto splash_path = std::format("blobs/splashes/{}.png", splash_raw);
+    lua_pop(L, 1);
+
+    const pixmap splash{splash_path};
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+
+    const auto sw = static_cast<float>(splash.width());
+    const auto sh = static_cast<float>(splash.height());
+    const auto dw = static_cast<float>(width) / scale;
+    const auto dh = static_cast<float>(height) / scale;
+
+    splash.draw(0, 0, sw, sh, 0, 0, dw, dh);
+
+    SDL_RenderPresent(renderer);
+  }
+
   viewport = {
     static_cast<float>(width) / scale,
     static_cast<float>(height) / scale,

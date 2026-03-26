@@ -9,6 +9,10 @@ return scheduler.wrap({
 		{ name = "smoke", kind = "smoke", x = 50, y = 100 },
 	},
 
+	sounds = {
+		{ name = "fx", autoplay = true },
+	},
+
 	objects = {
 		{ name = "player", kind = "player", x = 100, y = 100 },
 		{ name = "robot", kind = "robot", x = 250, y = 150 },

@@ -175,6 +175,7 @@ cassette = {}
 ---@field width number Viewport width in logical pixels.
 ---@field height number Viewport height in logical pixels.
 ---@field title string Window title.
+---@field splash string Splash screen image name. Resolves to `blobs/splashes/<name>.png`. Displayed full-screen on the first frame while the game loads.
 ---@field scale number Render scale factor.
 ---@field fullscreen boolean Whether to start in fullscreen mode.
 ---@field ticks integer|nil Fixed tick rate (ticks per second). Default is 0 (disabled). Set to e.g. 10 for 10 ticks/second.
