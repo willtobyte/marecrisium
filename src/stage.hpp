@@ -21,6 +21,10 @@ public:
 
   void on_leave();
 
+  void expose();
+
+  void conceal();
+
   void on_tick(uint64_t tick);
 
   [[nodiscard]] auto overlay() const noexcept -> const std::optional<std::string>&;
@@ -69,8 +73,8 @@ private:
   float _wake_margin{};
 
   int _reference{LUA_NOREF};
-  int _environment_reference{LUA_NOREF};
   int _pool_reference{LUA_NOREF};
+  int _world_reference{LUA_NOREF};
   int _on_loop{LUA_NOREF};
   int _on_camera{LUA_NOREF};
   int _on_tick{LUA_NOREF};

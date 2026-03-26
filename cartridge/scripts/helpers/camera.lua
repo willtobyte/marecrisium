@@ -1,7 +1,6 @@
 local abs = math.abs
 local max = math.max
 local min = math.min
-local viewport = viewport
 
 local camera = {}
 

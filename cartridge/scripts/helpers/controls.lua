@@ -1,8 +1,5 @@
 local threshold = 0.5
 
-local keyboard = keyboard
-local gamepad = gamepad
-
 local controls = {}
 
 setmetatable(controls, {

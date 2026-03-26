@@ -62,9 +62,13 @@ function scheduler.wrap(stage)
 	stage.on_tick = chain(stage.on_tick, function(_, tick)
 		scheduler.advance(tick)
 	end)
-	stage.on_leave = chain(stage.on_leave, function()
+	local original_on_leave = stage.on_leave
+	stage.on_leave = function(self, ...)
+		if original_on_leave then
+			original_on_leave(self, ...)
+		end
 		scheduler.clear()
-	end)
+	end
 	return stage
 end
 

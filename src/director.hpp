@@ -16,8 +16,6 @@ public:
 
   void preload(std::string name);
 
-  void reset();
-
   void set_overlay(std::string name);
 
   void clear_overlay();

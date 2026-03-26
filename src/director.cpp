@@ -21,12 +21,6 @@ static int preload_callback(lua_State *state) {
   return 0;
 }
 
-static int reset_callback(lua_State *state) {
-  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
-  self->reset();
-  return 0;
-}
-
 static int newindex_callback(lua_State *state) {
   auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
   const auto key = std::string_view{luaL_checkstring(state, 2)};
@@ -56,7 +50,6 @@ void director::wire() {
   bind_closure(L, "navigate", navigate_callback, this);
   bind_closure(L, "destroy", destroy_callback, this);
   bind_closure(L, "preload", preload_callback, this);
-  bind_closure(L, "reset", reset_callback, this);
 
   luaL_newmetatable(L, "director");
   bind_closure(L, "__newindex", newindex_callback, this);
@@ -77,19 +70,6 @@ void director::destroy(std::string_view name) {
   }
 
   _stages.erase(it);
-}
-
-void director::reset() {
-  _stages.clear();
-  _overlays.clear();
-  depot->source.clear();
-  depot->sound.clear();
-  depot->pixmap.clear();
-  depot->particle.clear();
-  depot->font.clear();
-
-  _current = nullptr;
-  _overlay = nullptr;
 }
 
 void director::set_overlay(std::string name) {
@@ -129,6 +109,7 @@ void director::transition() {
 
   _pending.reset();
   _current = it->second.get();
+  _current->expose();
 
   if (const auto& o = _current->overlay(); o.has_value()) {
     set_overlay(o.value());

@@ -204,18 +204,8 @@ stage::stage(std::string_view name)
   compile(L, buffer, label);
 
   lua_newtable(L);
-  lua_newtable(L);
-  lua_pushvalue(L, LUA_GLOBALSINDEX);
-  lua_setfield(L, -2, "__index");
-  lua_setmetatable(L, -2);
-  _environment_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-
-  lua_newtable(L);
   _pool_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
-  lua_setfield(L, -2, "pool");
   lua_newtable(L);
   bind_closure(L, "spawn", world_spawn, this);
   bind_closure(L, "destroy", world_destroy, this);
@@ -225,11 +215,7 @@ stage::stage(std::string_view name)
   bind_closure(L, "radar", world_radar, this);
   bind_closure(L, "raycast", world_raycast, this);
   bind_closure(L, "pathfind", world_pathfind, this);
-  lua_setfield(L, -2, "world");
-  lua_pop(L, 1);
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _environment_reference);
-  lua_setfenv(L, -2);
+  _world_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   pcall(L, 0, 1);
 
@@ -454,10 +440,10 @@ stage::~stage() {
   _on_camera = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   _on_loop = LUA_NOREF;
+  luaL_unref(L, LUA_REGISTRYINDEX, _world_reference);
+  _world_reference = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _pool_reference);
   _pool_reference = LUA_NOREF;
-  luaL_unref(L, LUA_REGISTRYINDEX, _environment_reference);
-  _environment_reference = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
   _reference = LUA_NOREF;
 
@@ -891,16 +877,31 @@ void stage::on_enter() {
 void stage::on_leave() {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_getfield(L, -1, "on_leave");
-  auto cb = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  auto callback = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
   lua_pop(L, 1);
 
-  if (cb == LUA_NOREF)
-    return;
+  if (callback != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    pcall(L, 1, 0);
+    luaL_unref(L, LUA_REGISTRYINDEX, callback);
+  }
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, cb);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  pcall(L, 1, 0);
-  luaL_unref(L, LUA_REGISTRYINDEX, cb);
+  conceal();
+}
+
+void stage::expose() {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+  lua_setglobal(L, "pool");
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _world_reference);
+  lua_setglobal(L, "world");
+}
+
+void stage::conceal() {
+  lua_pushnil(L);
+  lua_setglobal(L, "pool");
+  lua_pushnil(L);
+  lua_setglobal(L, "world");
 }
 
 void stage::on_tick(uint64_t tick) {
@@ -927,7 +928,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   auto& tf = _registry.emplace<transform>(entity);
   tf.x = x;
   tf.y = y;
-  const auto& proxy = _registry.emplace<objectproxy>(entity, _registry, entity, name, kind, _environment_reference);
+  const auto& proxy = _registry.emplace<objectproxy>(entity, _registry, entity, name, kind);
   const auto prototype = proxy.prototype;
   const auto handle = proxy.handle;
 

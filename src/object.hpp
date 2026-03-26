@@ -11,7 +11,7 @@ struct objectproxy final {
   int on_animation_end{LUA_NOREF};
   int on_animation_begin{LUA_NOREF};
 
-  objectproxy(entt::registry& registry, entt::entity entity, std::string_view name, std::string_view kind, int environment);
+  objectproxy(entt::registry& registry, entt::entity entity, std::string_view name, std::string_view kind);
 };
 
 namespace object {

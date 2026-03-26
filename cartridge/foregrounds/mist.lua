@@ -4,7 +4,7 @@ local layers = {
 	{ speed = 35, alpha = 120, scale = 0.75 },
 }
 
-local offsets = { 0, 0, 0 }
+local offsets = { 0 }
 
 local STRIDE = 6
 local MAX_QUADS = 512

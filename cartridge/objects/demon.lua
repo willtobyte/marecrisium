@@ -1,4 +1,4 @@
-local agent = require("helpers/agent")
+local enemy = require("helpers/enemy")
 local cos = math.cos
 local sin = math.sin
 local atan2 = math.atan2
@@ -7,7 +7,7 @@ local ATTACK_RANGE_SQUARED = 120 * 120
 local ATTACK_COOLDOWN = 1.2
 local KEEP_DISTANCE_SQUARED = 80 * 80
 
-local chaser = agent.new({
+return enemy({
 	detect_radius = 250,
 	speed = 60,
 	waypoint_reach = 10,
@@ -16,11 +16,6 @@ local chaser = agent.new({
 	body_radius = 6,
 	stall_threshold = 10,
 	steer_blend = 0.3,
-})
-
-return {
-	body = "dynamic",
-	sleepable = true,
 
 	animation = {
 		idle = {
@@ -29,24 +24,15 @@ return {
 	},
 
 	on_spawn = function(self)
-		self._touching_player = false
 		self._cooldown = 0
 		self._fireball_id = 0
-		chaser:init(self)
 	end,
 
-	on_loop = function(self, delta)
-		local player = pool.player
-		if not player or not player.alive then
-			return
-		end
+	on_collision_begin = function(self, chaser)
+		chaser:stop(self)
+	end,
 
-		if self._touching_player then
-			self.vx = 0
-			self.vy = 0
-			return
-		end
-
+	on_loop = function(self, delta, player, chaser)
 		self._cooldown = self._cooldown - delta
 
 		local delta_x = player.x - self.x
@@ -83,19 +69,4 @@ return {
 
 		chaser:chase(self, player, world)
 	end,
-
-	on_collision_begin = function(self, name, kind)
-		if kind == "player" then
-			self._touching_player = true
-			chaser:stop(self)
-			pool.player:damage()
-		end
-	end,
-
-	on_collision_end = function(self, name, kind)
-		if kind == "player" then
-			self._touching_player = false
-			chaser:reset(self)
-		end
-	end,
-}
+})

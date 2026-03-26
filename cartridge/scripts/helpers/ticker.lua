@@ -30,11 +30,20 @@ function ticker.clear()
 	n = 0
 end
 
-function ticker.wrap(stage)
-	local original_on_tick = stage.on_tick
-	local original_on_leave = stage.on_leave
+local function chain(original, fn)
+	if original then
+		return function(self, ...)
+			fn(self, ...)
+			original(self, ...)
+		end
+	end
+	return function(self, ...)
+		fn(self, ...)
+	end
+end
 
-	stage.on_tick = function(self, tick)
+function ticker.wrap(stage)
+	stage.on_tick = chain(stage.on_tick, function(_, tick)
 		local list = timers
 		for i = n, 1, -1 do
 			local timer = list[i]
@@ -57,15 +66,12 @@ function ticker.wrap(stage)
 				end
 			end
 		end
+	end)
 
-		if original_on_tick then
-			original_on_tick(self, tick)
-		end
-	end
-
-	stage.on_leave = function(self)
+	local original_on_leave = stage.on_leave
+	stage.on_leave = function(self, ...)
 		if original_on_leave then
-			original_on_leave(self)
+			original_on_leave(self, ...)
 		end
 		ticker.clear()
 	end

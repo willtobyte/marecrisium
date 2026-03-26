@@ -3,8 +3,6 @@ local sqrt = math.sqrt
 
 local speed = 90
 
-local topic = 0x0001
-
 return {
 	body = "dynamic",
 

@@ -368,12 +368,9 @@ namespace {
 }
 
 
-objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::string_view name, std::string_view kind, int environment)
+objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::string_view name, std::string_view kind)
     : registry(&registry), entity(entity), name(entt::hashed_string{name.data()}.value()), kind(entt::hashed_string{kind.data()}.value()) {
   depot->source.insert(kind);
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, environment);
-  lua_setfenv(L, -2);
 
   pcall(L, 0, 1);
 
