@@ -14,6 +14,7 @@ DEBUG_CFLAGS := \
 	-Wshadow -Wconversion -Wsign-conversion \
 	-Wimplicit-fallthrough -Wdouble-promotion \
 	-Wformat=2 -Wnull-dereference -Wnon-virtual-dtor \
+	-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 	-fsanitize=address,undefined,nullability,implicit-conversion,float-divide-by-zero,local-bounds \
 	-fsanitize-address-use-after-scope \
 	-fno-omit-frame-pointer \
