@@ -1,3 +1,5 @@
+local clock = os.clock
+local format = string.format
 local getenv = os.getenv
 
 return {
@@ -12,7 +14,12 @@ return {
 	on_begin = function()
 		mouse.shown = false
 
+		local before = clock()
 		director.enroll("forest")
+		local elapsed = (clock() - before) * 1000
+
+		print(format("[director] enrolled all scenes in %.2f ms", elapsed))
+
 		director.navigate("forest")
 	end,
 }
