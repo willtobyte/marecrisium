@@ -14,7 +14,7 @@ public:
 
   void destroy(std::string_view name);
 
-  void preload(std::string name);
+  void enroll(std::string name);
 
   void set_overlay(std::string name);
 

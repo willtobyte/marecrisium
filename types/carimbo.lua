@@ -257,7 +257,7 @@ function Stage.on_camera(self) end
 ---@field overlay string|nil Overlay name (matches `overlays/<name>.lua`). Assign to activate; assign nil to deactivate.
 local Director = {}
 
----Navigate to a named stage. Creates it if not preloaded.
+---Navigate to a named stage. Creates it if not enrolled.
 ---Triggers `on_leave` on the current stage.
 ---@param name string Stage name (matches `stages/<name>.lua`).
 function Director.navigate(name) end
@@ -266,9 +266,9 @@ function Director.navigate(name) end
 ---@param name string Stage name.
 function Director.destroy(name) end
 
----Preload a stage without navigating to it.
+---Enroll a stage without navigating to it.
 ---@param name string Stage name.
-function Director.preload(name) end
+function Director.enroll(name) end
 
 ---Destroy all stages and clear all resource pools.
 function Director.reset() end

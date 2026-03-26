@@ -12,6 +12,7 @@ return {
 	on_begin = function()
 		mouse.shown = false
 
+		director.enroll("forest")
 		director.navigate("forest")
 	end,
 }

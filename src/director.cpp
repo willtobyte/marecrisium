@@ -14,10 +14,10 @@ static int destroy_callback(lua_State *state) {
   return 0;
 }
 
-static int preload_callback(lua_State *state) {
+static int enroll_callback(lua_State *state) {
   auto name = std::string{luaL_checkstring(state, 1)};
   auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
-  self->preload(std::move(name));
+  self->enroll(std::move(name));
   return 0;
 }
 
@@ -49,7 +49,7 @@ void director::wire() {
 
   bind_closure(L, "navigate", navigate_callback, this);
   bind_closure(L, "destroy", destroy_callback, this);
-  bind_closure(L, "preload", preload_callback, this);
+  bind_closure(L, "enroll", enroll_callback, this);
 
   luaL_newmetatable(L, "director");
   bind_closure(L, "__newindex", newindex_callback, this);
@@ -87,7 +87,7 @@ void director::clear_overlay() {
   _overlay = nullptr;
 }
 
-void director::preload(std::string name) {
+void director::enroll(std::string name) {
   const auto [it, inserted] = _stages.try_emplace(std::move(name));
   if (inserted)
     it->second = std::make_unique<stage>(it->first);
