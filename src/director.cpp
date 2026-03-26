@@ -38,21 +38,25 @@ static int newindex_callback(lua_State *state) {
   return luaL_error(state, "director: unknown property '%s'", key.data());
 }
 
-static void bind_closure(lua_State *state, const char *name, lua_CFunction fn, void *ptr) noexcept {
-  lua_pushlightuserdata(state, ptr);
-  lua_pushcclosure(state, fn, 1);
-  lua_setfield(state, -2, name);
-}
-
 void director::wire() {
   lua_newtable(L);
 
-  bind_closure(L, "navigate", navigate_callback, this);
-  bind_closure(L, "destroy", destroy_callback, this);
-  bind_closure(L, "enroll", enroll_callback, this);
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, navigate_callback, 1);
+  lua_setfield(L, -2, "navigate");
+
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, destroy_callback, 1);
+  lua_setfield(L, -2, "destroy");
+
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, enroll_callback, 1);
+  lua_setfield(L, -2, "enroll");
 
   luaL_newmetatable(L, "director");
-  bind_closure(L, "__newindex", newindex_callback, this);
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, newindex_callback, 1);
+  lua_setfield(L, -2, "__newindex");
   lua_setmetatable(L, -2);
 
   lua_setglobal(L, "director");

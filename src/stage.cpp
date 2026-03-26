@@ -186,12 +186,6 @@ static int world_pathfind(lua_State* state) {
   return self->pathfind(state, x1, y1, x2, y2, r);
 }
 
-static void bind_closure(lua_State *state, const char *name, lua_CFunction fn, void *ptr) noexcept {
-  lua_pushlightuserdata(state, ptr);
-  lua_pushcclosure(state, fn, 1);
-  lua_setfield(state, -2, name);
-}
-
 stage::stage(std::string_view name)
     : _name(name) {
   _registry.on_destroy<objectproxy>().connect<&on_objectproxy_destroy>();
@@ -207,14 +201,39 @@ stage::stage(std::string_view name)
   _pool_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_newtable(L);
-  bind_closure(L, "spawn", world_spawn, this);
-  bind_closure(L, "destroy", world_destroy, this);
-  bind_closure(L, "at", world_at, this);
-  bind_closure(L, "count", world_count, this);
-  bind_closure(L, "find", world_find, this);
-  bind_closure(L, "radar", world_radar, this);
-  bind_closure(L, "raycast", world_raycast, this);
-  bind_closure(L, "pathfind", world_pathfind, this);
+
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_spawn, 1);
+  lua_setfield(L, -2, "spawn");
+
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_destroy, 1);
+  lua_setfield(L, -2, "destroy");
+
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_at, 1);
+  lua_setfield(L, -2, "at");
+
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_count, 1);
+  lua_setfield(L, -2, "count");
+
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_find, 1);
+  lua_setfield(L, -2, "find");
+
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_radar, 1);
+  lua_setfield(L, -2, "radar");
+
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_raycast, 1);
+  lua_setfield(L, -2, "raycast");
+
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, world_pathfind, 1);
+  lua_setfield(L, -2, "pathfind");
+
   _world_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   pcall(L, 0, 1);
