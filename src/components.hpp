@@ -93,15 +93,6 @@ struct dormant final {};
 
 static_assert(std::is_trivially_copyable_v<dormant>);
 
-struct grounded final {};
-
-static_assert(std::is_trivially_copyable_v<grounded>);
-
-struct riding final {
-  entt::entity target{entt::null};
-};
-
-static_assert(std::is_trivially_copyable_v<riding>);
 
 struct renderable final {
   int z{};

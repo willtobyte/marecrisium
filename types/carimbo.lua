@@ -214,7 +214,7 @@ cassette = {}
 ---@class Stage
 ---A stage script (`stages/<name>.lua`) returns a table that may contain
 ---these fields, lifecycle callbacks, and entity/sound declarations.
----@field gravity number[]|nil World gravity as {gx, gy}. Default is {0, 0} (no gravity). Set to e.g. {0, 980} for a platformer.
+---@field gravity number[]|nil World gravity as {gx, gy}. Default is {0, 0} (no gravity).
 ---@field objects StageObject[]|nil Objects to spawn when the stage is created.
 ---@field sounds StageSound[]|nil Sounds to preload. Each entry is `{ name = "foo", autoplay = true }`. Loads `sounds/<name>` and is accessible as `pool.<name>`.
 ---@field particles StageParticle[]|nil Particle emitters to create. Each entry spawns a particle system accessible as `pool.<name>`.
@@ -440,8 +440,6 @@ viewport = {}
 ---@field kind string The kind/type string of this object (read-only).
 ---@field alive boolean Whether the object is still alive (read-only).
 ---@field dormant boolean Whether this object is currently sleeping (read-only). Always false for non-sleepable objects.
----@field grounded boolean Whether this dynamic body is touching a surface below it (read-only). Always false for non-dynamic bodies.
----@field riding string|nil Name of the kinematic object this dynamic body is standing on (read-only). Nil when not riding anything.
 ---@field animation string|nil Currently playing animation clip name. Assign to switch clips.
 ---@field [string] any Custom properties from the prototype table.
 ---
@@ -463,7 +461,6 @@ function Object.on_loop(self, delta) end
 
 ---Called when a physics contact begins with another object.
 ---For contact events, the collision normal is provided. The normal points from self toward the other object.
----A normal_y > 0.5 typically indicates the other object is below (ground contact).
 ---@param self Object
 ---@param name string Name of the other object involved in the collision.
 ---@param kind string Kind/type of the other object involved in the collision.

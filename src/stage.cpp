@@ -663,114 +663,78 @@ void stage::update(float delta) {
       _registry.get<renderable>(entity).z = static_cast<int>(tf.y + frame.h * tf.scale);
     }
 
-    static constexpr std::string_view directions[] = {"left", "right", "top", "bottom"};
+    _accumulator -= _timestep;
+  }
 
-    const auto viewport_right  = viewport.x + viewport.width;
-    const auto viewport_bottom = viewport.y + viewport.height;
+  static constexpr std::string_view directions[] = {"left", "right", "top", "bottom"};
 
-    for (auto&& [entity, bd] : _registry.view<const body>(entt::exclude<dormant>).each()) {
-      if (!b2Body_IsValid(bd.id))
-        continue;
+  const auto viewport_right  = viewport.x + viewport.width;
+  const auto viewport_bottom = viewport.y + viewport.height;
 
-      if (bd.type == body_type::dynamic) {
-        const auto capacity = b2Body_GetContactCapacity(bd.id);
-        bool on_ground = false;
-        entt::entity ride_target = entt::null;
+  for (auto&& [entity, bd] : _registry.view<const body>(entt::exclude<dormant>).each()) {
+    if (!b2Body_IsValid(bd.id))
+      continue;
 
-        if (capacity > 0) {
-          std::array<b2ContactData, 16> contacts{};
-          const auto count = b2Body_GetContactData(bd.id, contacts.data(), static_cast<int>(contacts.size()));
-          const auto* user = b2Shape_GetUserData(bd.shape);
+    auto* sb = _registry.try_get<boundary>(entity);
+    if (!sb || !b2Shape_IsValid(bd.shape)) [[unlikely]]
+      continue;
 
-          for (const auto& contact : std::span(contacts.data(), static_cast<size_t>(count))) {
-            const auto& manifold = contact.manifold;
-            const auto is_shape_a = b2Shape_GetUserData(contact.shapeIdA) == user;
-            const auto normal_y = is_shape_a ? manifold.normal.y : -manifold.normal.y;
-            if (normal_y > .5f) {
-              on_ground = true;
+    const auto* proxy = _registry.try_get<objectproxy>(entity);
+    if (!proxy)
+      continue;
 
-              const auto other_shape = is_shape_a ? contact.shapeIdB : contact.shapeIdA;
-              const auto other_body = b2Shape_GetBody(other_shape);
-              if (b2Body_GetType(other_body) == b2_kinematicBody) {
-                const auto* other_data = b2Shape_GetUserData(other_shape);
-                if (other_data)
-                  ride_target = to_entity(other_data);
-              }
+    const auto aabb = b2Shape_GetAABB(bd.shape);
 
-              break;
-            }
-          }
-        }
+    uint8_t current = 0;
+    if (aabb.upperBound.x < viewport.x)
+      current |= boundary::left;
+    if (aabb.lowerBound.x > viewport_right)
+      current |= boundary::right;
+    if (aabb.upperBound.y < viewport.y)
+      current |= boundary::top;
+    if (aabb.lowerBound.y > viewport_bottom)
+      current |= boundary::bottom;
 
-        if (on_ground) {
-          if (!_registry.all_of<grounded>(entity))
-            _registry.emplace<grounded>(entity);
-        } else {
-          _registry.remove<grounded>(entity);
-        }
+    const auto exited  = static_cast<uint8_t>(current & ~sb->previous);
+    const auto entered = static_cast<uint8_t>(sb->previous & ~current);
 
-        _registry.emplace_or_replace<riding>(entity, ride_target);
-      }
-
-      auto* sb = _registry.try_get<boundary>(entity);
-      if (!sb || !b2Shape_IsValid(bd.shape)) [[unlikely]]
-        continue;
-
-      const auto* proxy = _registry.try_get<objectproxy>(entity);
-      if (!proxy)
-        continue;
-
-      const auto aabb = b2Shape_GetAABB(bd.shape);
-
-      uint8_t current = 0;
-      if (aabb.upperBound.x < viewport.x)
-        current |= boundary::left;
-      if (aabb.lowerBound.x > viewport_right)
-        current |= boundary::right;
-      if (aabb.upperBound.y < viewport.y)
-        current |= boundary::top;
-      if (aabb.lowerBound.y > viewport_bottom)
-        current |= boundary::bottom;
-
-      const auto exited  = static_cast<uint8_t>(current & ~sb->previous);
-      const auto entered = static_cast<uint8_t>(sb->previous & ~current);
-
-      if (proxy->prototype == LUA_NOREF || proxy->handle == LUA_NOREF) [[unlikely]] {
-        sb->previous = current;
-        continue;
-      }
-
-      for (uint8_t bit = 0; bit < 4; ++bit) {
-        const auto mask = static_cast<uint8_t>(1u << bit);
-        if (exited & mask) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->prototype);
-          lua_getfield(L, -1, "on_screen_exit");
-          if (lua_isfunction(L, -1)) {
-            lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
-            lua_pushlstring(L, directions[bit].data(), directions[bit].size());
-            pcall(L, 2, 0);
-          } else {
-            lua_pop(L, 1);
-          }
-          lua_pop(L, 1);
-        }
-        if (entered & mask) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->prototype);
-          lua_getfield(L, -1, "on_screen_enter");
-          if (lua_isfunction(L, -1)) {
-            lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
-            lua_pushlstring(L, directions[bit].data(), directions[bit].size());
-            pcall(L, 2, 0);
-          } else {
-            lua_pop(L, 1);
-          }
-          lua_pop(L, 1);
-        }
-      }
-
+    if (proxy->prototype == LUA_NOREF || proxy->handle == LUA_NOREF) [[unlikely]] {
       sb->previous = current;
+      continue;
     }
 
+    for (uint8_t bit = 0; bit < 4; ++bit) {
+      const auto mask = static_cast<uint8_t>(1u << bit);
+      if (exited & mask) {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->prototype);
+        lua_getfield(L, -1, "on_screen_exit");
+        if (lua_isfunction(L, -1)) {
+          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
+          lua_pushlstring(L, directions[bit].data(), directions[bit].size());
+          pcall(L, 2, 0);
+        } else {
+          lua_pop(L, 1);
+        }
+        lua_pop(L, 1);
+      }
+      if (entered & mask) {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->prototype);
+        lua_getfield(L, -1, "on_screen_enter");
+        if (lua_isfunction(L, -1)) {
+          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
+          lua_pushlstring(L, directions[bit].data(), directions[bit].size());
+          pcall(L, 2, 0);
+        } else {
+          lua_pop(L, 1);
+        }
+        lua_pop(L, 1);
+      }
+    }
+
+    sb->previous = current;
+  }
+
+  {
     const auto sensor_events = b2World_GetSensorEvents(_world);
 
     for (const auto& event : std::span(sensor_events.beginEvents, static_cast<size_t>(sensor_events.beginCount)))
@@ -786,8 +750,6 @@ void stage::update(float delta) {
 
     for (const auto& event : std::span(contact_events.endEvents, static_cast<size_t>(contact_events.endCount)))
       dispatch_contact_end_event(*this, event.shapeIdA, event.shapeIdB);
-
-    _accumulator -= _timestep;
   }
 
   for (auto* sound : _sounds) sound->poll();

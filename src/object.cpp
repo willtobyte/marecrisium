@@ -86,11 +86,6 @@ namespace {
       return 1;
     }
 
-    if (key == "grounded") {
-      lua_pushboolean(state, registry.all_of<grounded>(entity) ? 1 : 0);
-      return 1;
-    }
-
     if (key == "animation") {
       if (!registry.all_of<animation>(entity))
         return lua_pushnil(state), 1;
@@ -122,21 +117,6 @@ namespace {
     if (key == "alpha") {
       lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).alpha));
       return 1;
-    }
-
-    if (key == "riding") {
-      const auto* rd = registry.try_get<riding>(entity);
-      if (rd
-          && rd->target != entt::null
-          && registry.valid(rd->target)
-          && registry.all_of<objectproxy>(rd->target)) [[likely]] {
-        const auto* strings = registry.ctx().get<stringpool*>();
-        const auto& target_proxy = registry.get<objectproxy>(rd->target);
-        lua_pushstring(state, strings->get(target_proxy.name));
-        return 1;
-      }
-
-      return lua_pushnil(state), 1;
     }
 
     if (key == "name") {
