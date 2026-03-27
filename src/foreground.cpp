@@ -143,7 +143,10 @@ foreground::foreground(std::string_view name) {
 }
 
 foreground::~foreground() {
-  disappear();
+  try {
+    disappear();
+  } catch (...) {}
+
   luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
   _on_paint = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
@@ -183,6 +186,7 @@ void foreground::disappear() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     pcall(L, 1, 0);
   }
+
   luaL_unref(L, LUA_REGISTRYINDEX, _on_disappear);
   _on_disappear = LUA_NOREF;
 }
