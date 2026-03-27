@@ -47,8 +47,7 @@ engine::engine() {
 #ifndef DEBUG
   {
     lua_getfield(L, -2, "sentry");
-    const auto *dsn_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
-    const auto dsn = dsn_raw ? std::string_view{dsn_raw} : std::string_view{};
+    const std::string dsn = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
     lua_pop(L, 1);
     if (!dsn.empty()) {
       auto* const options = sentry_options_new();
