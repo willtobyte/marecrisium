@@ -58,6 +58,7 @@ engine::engine() {
       sentry_options_add_attachment(options, "cassette.tape");
       sentry_options_add_attachment(options, "stdout.txt");
       sentry_options_add_attachment(options, "stderr.txt");
+      sentry_options_add_attachment(options, "VERSION");
 
       sentry_init(options);
       std::atexit([] { sentry_close(); });
