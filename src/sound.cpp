@@ -169,7 +169,7 @@ sound::sound(std::string_view filename) {
     &_sound
   );
 
-  ma_sound_set_end_callback(&_sound, [](void* ptr, ma_sound*) {
+  ma_sound_set_end_callback(&_sound, +[](void* ptr, ma_sound*) {
     static_cast<sound*>(ptr)->_ended.store(true, std::memory_order_release);
   }, this);
 }

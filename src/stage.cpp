@@ -90,7 +90,7 @@ static uint8_t overlap_aabb(b2WorldId world, b2AABB aabb, entt::entity *buffer, 
 
   b2World_OverlapAABB(
     world, aabb, b2DefaultQueryFilter(),
-    [](b2ShapeId shape, void *userdata) -> bool {
+    +[](b2ShapeId shape, void *userdata) -> bool {
       auto *ctx = static_cast<struct context *>(userdata);
       if (ctx->count >= ctx->capacity) [[unlikely]]
         return false;
@@ -819,7 +819,7 @@ void stage::draw() {
 
   const b2AABB aabb = {{viewport.x, viewport.y}, {viewport.x + viewport.width, viewport.y + viewport.height}};
 
-  b2World_OverlapAABB(_world, aabb, b2DefaultQueryFilter(), [](b2ShapeId shape, void*) -> bool {
+  b2World_OverlapAABB(_world, aabb, b2DefaultQueryFilter(), +[](b2ShapeId shape, void*) -> bool {
     static const auto margin = .01f * b2GetLengthUnitsPerMeter();
     const auto polygon = b2Shape_GetPolygon(shape);
     const auto position = b2Body_GetPosition(b2Shape_GetBody(shape));
@@ -1245,7 +1245,7 @@ int stage::radar(lua_State *state, entt::entity caller, float x, float y, float 
 
   b2World_OverlapShape(
     _world, &proxy, b2DefaultQueryFilter(),
-    [](b2ShapeId shape, void *userdata) -> bool {
+    +[](b2ShapeId shape, void *userdata) -> bool {
       auto *ctx = static_cast<context *>(userdata);
       if (ctx->count >= ctx->capacity) [[unlikely]]
         return false;
@@ -1285,7 +1285,7 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     origin,
     translation,
     b2DefaultQueryFilter(),
-    [](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void *userdata) -> float {
+    +[](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void *userdata) -> float {
       auto *ctx = static_cast<context *>(userdata);
       if (ctx->count >= ctx->capacity) [[unlikely]]
         return -1.f;
