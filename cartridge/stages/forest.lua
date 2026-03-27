@@ -28,11 +28,5 @@ return scheduler.wrap({
 		{ name = "tree8", kind = "tree", x = 450, y = 320 },
 	},
 
-	on_enter = function(self)
-		print("User: " .. user.persona)
-		print("Friends:")
-		for _, friend in ipairs(user.friends) do
-			print("  " .. friend.name .. " (ID: " .. friend.id .. ")")
-		end
-	end,
+	on_enter = function(self) end,
 })
