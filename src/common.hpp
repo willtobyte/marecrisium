@@ -29,9 +29,9 @@
 #include <vector>
 
 #include <box2d/box2d.h>
-// #include <cbor.h>
+#include <cbor.h>
 #include <entt/entt.hpp>
-// #include <libwebsockets.h>
+#include <libwebsockets.h>
 #include <lua.hpp>
 #include <miniaudio.h>
 #include <opusfile.h>

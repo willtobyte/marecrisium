@@ -32,7 +32,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 find_package(box2d CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
-# find_package(libwebsockets CONFIG REQUIRED)
+find_package(libwebsockets CONFIG REQUIRED)
 find_package(PhysFS CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(sentry CONFIG REQUIRED)
@@ -53,7 +53,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   miniaudio::miniaudio
   opusfile::opusfile
   luajit::luajit
-  # websockets
+  websockets
   SQLite::SQLite3
   libcbor::libcbor
 )
