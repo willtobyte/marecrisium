@@ -77,6 +77,7 @@ engine::engine() {
     );
 
     SDL_RenderPresent(renderer);
+    SDL_PumpEvents();
   }
   lua_pop(L, 1);
 
