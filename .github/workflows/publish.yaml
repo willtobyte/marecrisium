@@ -43,8 +43,18 @@ jobs:
 
       - name: Build
         run: |
-          cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+          cmake -Bbuild \
+            -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -g" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -g"
           cmake --build build --config Release --verbose
+
+      - name: Generate dSYM
+        run: dsymutil build/carimbo -o build/carimbo.dSYM
+
+      - name: Strip binary
+        run: strip build/carimbo
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
@@ -52,6 +62,7 @@ jobs:
           name: macos-build
           path: |
             build/carimbo
+            build/carimbo.dSYM
             build/LICENSES
 
   windows:
@@ -95,11 +106,18 @@ jobs:
 
       - name: Build
         run: |
-          cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+          cmake -Bbuild \
+            -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_FLAGS_RELEASE="/O2 /DNDEBUG /Zi" \
+            -DCMAKE_CXX_FLAGS_RELEASE="/O2 /DNDEBUG /Zi" \
+            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG:FULL /OPT:REF /OPT:ICF"
           cmake --build build --config Release --verbose
 
       - name: Collect artifact
-        run: cp build/Release/carimbo.exe build/carimbo.exe
+        run: |
+          cp build/Release/carimbo.exe build/carimbo.exe
+          cp build/Release/carimbo.pdb build/carimbo.pdb
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
@@ -107,6 +125,7 @@ jobs:
           name: windows-build
           path: |
             build/carimbo.exe
+            build/carimbo.pdb
             build/LICENSES
 
   publish:
@@ -167,6 +186,14 @@ jobs:
           depot2Path: windows
           depot3Path: macos
           releaseBranch: alpha
+
+      - name: Upload debug symbols to Sentry
+        run: |
+          curl -sL https://release.sentry.io/install/ | bash
+          sentry-cli debug-files upload --org willtobyte --project marecrisium macos-build/carimbo.dSYM
+          sentry-cli debug-files upload --org willtobyte --project marecrisium windows-build/carimbo.pdb
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - name: Create Sentry release
         uses: getsentry/action-release@v3
