@@ -15,7 +15,7 @@ jobs:
 
       - name: Setup Conan
         run: |
-          brew install conan
+          pip install conan
           conan profile detect --force
           conan config install https://github.com/willtobyte/conan-configs.git --type git
 
