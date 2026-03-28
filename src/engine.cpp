@@ -44,25 +44,6 @@ engine::engine() {
   const auto *title_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
   const auto title = title_raw ? std::string_view{title_raw} : std::string_view{"Untitled"};
 
-#ifndef DEBUG
-  lua_getfield(L, -2, "sentry");
-  const std::string dsn = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
-  lua_pop(L, 1);
-
-  auto *const options = sentry_options_new();
-  sentry_options_set_dsn(options, dsn.data());
-  sentry_options_set_database_path(options, ".sentry");
-  sentry_options_set_sample_rate(options, 1.);
-
-  sentry_options_add_attachment(options, "cassette.tape");
-  sentry_options_add_attachment(options, "stdout.txt");
-  sentry_options_add_attachment(options, "stderr.txt");
-  sentry_options_add_attachment(options, "VERSION");
-
-  sentry_init(options);
-  std::atexit(+[] { sentry_close(); });
-#endif
-
   static const auto window = SDL_CreateWindow(
     title.data(), width, height, fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
 
@@ -81,29 +62,44 @@ engine::engine() {
 
   SDL_RaiseWindow(window);
 
-  {
-    lua_getfield(L, -1, "splash");
+  lua_getfield(L, -1, "splash");
+  if (lua_isstring(L, -1)) [[likely]] {
+    const auto filename = std::format("blobs/splashes/{}.png", lua_tostring(L, -1));
 
-    if (lua_isstring(L, -1)) [[likely]] {
-      const auto filename = std::format("blobs/splashes/{}.png", lua_tostring(L, -1));
+    const pixmap splash{filename};
 
-      const pixmap splash{filename};
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
 
-      SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-      SDL_RenderClear(renderer);
+    const auto srcw = static_cast<float>(splash.width());
+    const auto srch = static_cast<float>(splash.height());
+    const auto dstw = static_cast<float>(width) / scale;
+    const auto dsth = static_cast<float>(height) / scale;
 
-      const auto srcw = static_cast<float>(splash.width());
-      const auto srch = static_cast<float>(splash.height());
-      const auto dstw = static_cast<float>(width) / scale;
-      const auto dsth = static_cast<float>(height) / scale;
+    splash.draw(0, 0, srcw, srch, 0, 0, dstw, dsth);
 
-      splash.draw(0, 0, srcw, srch, 0, 0, dstw, dsth);
-
-      SDL_RenderPresent(renderer);
-    }
-
-    lua_pop(L, 1);
+    SDL_RenderPresent(renderer);
   }
+  lua_pop(L, 1);
+
+  #ifndef DEBUG
+    lua_getfield(L, -2, "sentry");
+    const std::string dsn = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+    lua_pop(L, 1);
+
+    auto *const options = sentry_options_new();
+    sentry_options_set_dsn(options, dsn.data());
+    sentry_options_set_database_path(options, ".sentry");
+    sentry_options_set_sample_rate(options, 1.);
+
+    sentry_options_add_attachment(options, "cassette.tape");
+    sentry_options_add_attachment(options, "stdout.txt");
+    sentry_options_add_attachment(options, "stderr.txt");
+    sentry_options_add_attachment(options, "VERSION");
+
+    sentry_init(options);
+    std::atexit(+[] { sentry_close(); });
+  #endif
 
   viewport = {
     static_cast<float>(width) / scale,
