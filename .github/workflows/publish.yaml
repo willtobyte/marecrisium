@@ -46,8 +46,8 @@ jobs:
           cmake -Bbuild \
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -g" \
-            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -g"
+            -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -g3" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -g3"
           cmake --build build --config Release --verbose
 
       - name: Generate dSYM
