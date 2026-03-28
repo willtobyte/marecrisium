@@ -105,6 +105,8 @@ jobs:
         run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release
 
       - name: Build
+        env:
+          MSYS_NO_PATHCONV: 1
         run: |
           cmake -Bbuild \
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
