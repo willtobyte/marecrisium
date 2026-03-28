@@ -71,12 +71,10 @@ engine::engine() {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    const auto srcw = static_cast<float>(splash.width());
-    const auto srch = static_cast<float>(splash.height());
-    const auto dstw = static_cast<float>(width) / scale;
-    const auto dsth = static_cast<float>(height) / scale;
-
-    splash.draw(0, 0, srcw, srch, 0, 0, dstw, dsth);
+    splash.draw(
+      0, 0, splash.width(), splash.height(),
+      0, 0, width / scale, height / scale
+    );
 
     SDL_RenderPresent(renderer);
   }
