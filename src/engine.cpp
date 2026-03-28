@@ -65,7 +65,6 @@ engine::engine() {
   lua_getfield(L, -1, "splash");
   if (lua_isstring(L, -1)) [[likely]] {
     const auto filename = std::format("blobs/splashes/{}.png", lua_tostring(L, -1));
-
     const pixmap splash{filename};
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
