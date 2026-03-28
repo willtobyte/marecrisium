@@ -191,18 +191,20 @@ jobs:
 
       - name: Upload debug symbols to Sentry
         run: |
-          curl -sL https://release.sentry.io/install/ | bash
-          sentry-cli debug-files upload --org willtobyte --project marecrisium macos-build/carimbo.dSYM
-          sentry-cli debug-files upload --org willtobyte --project marecrisium windows-build/carimbo.pdb
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-
-      - name: Create Sentry release
-        uses: getsentry/action-release@v3
+          npx @sentry/cli debug-files upload macos-build/carimbo.dSYM
+          npx @sentry/cli debug-files upload windows-build/carimbo.pdb
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: willtobyte
           SENTRY_PROJECT: marecrisium
-        with:
-          environment: production
-          release: ${{ github.ref_name }}
+
+      - name: Create Sentry release
+        run: |
+          npx @sentry/cli releases new "${{ github.ref_name }}"
+          npx @sentry/cli releases set-commits "${{ github.ref_name }}" --auto
+          npx @sentry/cli releases deploys "${{ github.ref_name }}" new -e production
+          npx @sentry/cli releases finalize "${{ github.ref_name }}"
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: willtobyte
+          SENTRY_PROJECT: marecrisium
