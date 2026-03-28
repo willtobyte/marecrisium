@@ -116,6 +116,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Download macOS build
         uses: actions/download-artifact@v8
@@ -165,3 +167,13 @@ jobs:
           depot2Path: windows
           depot3Path: macos
           releaseBranch: alpha
+
+      - name: Create Sentry release
+        uses: getsentry/action-release@v3
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: willtobyte
+          SENTRY_PROJECT: marecrisium
+        with:
+          environment: production
+          release: ${{ github.ref_name }}
