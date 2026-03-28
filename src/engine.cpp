@@ -100,8 +100,8 @@ engine::engine() {
   #endif
 
   viewport = {
-    static_cast<float>(width) / scale,
-    static_cast<float>(height) / scale,
+    width / scale,
+    height / scale,
     scale,
     .0f,
     .0f
