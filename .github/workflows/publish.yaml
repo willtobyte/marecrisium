@@ -46,9 +46,6 @@ jobs:
           cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release --verbose
 
-      - name: Create VERSION file
-        run: echo "${GITHUB_REF_NAME}" > build/VERSION
-
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
@@ -56,7 +53,6 @@ jobs:
           path: |
             build/carimbo
             build/LICENSES
-            build/VERSION
 
   windows:
     runs-on: windows-latest
@@ -105,9 +101,6 @@ jobs:
       - name: Collect artifact
         run: cp build/Release/carimbo.exe build/carimbo.exe
 
-      - name: Create VERSION file
-        run: echo "${GITHUB_REF_NAME}" > build/VERSION
-
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
@@ -115,7 +108,6 @@ jobs:
           path: |
             build/carimbo.exe
             build/LICENSES
-            build/VERSION
 
   publish:
     runs-on: ubuntu-latest
@@ -154,12 +146,10 @@ jobs:
 
           cp macos-build/carimbo output/macos/
           cp macos-build/LICENSES output/macos/
-          cp macos-build/VERSION output/macos/
           cp steamworks/redistributable_bin/osx/libsteam_api.dylib output/macos/
 
           cp windows-build/carimbo.exe output/windows/
           cp windows-build/LICENSES output/windows/
-          cp windows-build/VERSION output/windows/
           cp steamworks/redistributable_bin/win64/steam_api64.dll output/windows/
 
       - name: Upload to Steam

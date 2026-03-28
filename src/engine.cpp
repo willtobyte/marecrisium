@@ -89,11 +89,11 @@ engine::engine() {
     sentry_options_set_dsn(options, dsn.data());
     sentry_options_set_database_path(options, ".sentry");
     sentry_options_set_sample_rate(options, 1.);
+    sentry_options_set_release(options, RELEASE_TAG);
 
     sentry_options_add_attachment(options, "cassette.tape");
     sentry_options_add_attachment(options, "stdout.txt");
     sentry_options_add_attachment(options, "stderr.txt");
-    sentry_options_add_attachment(options, "VERSION");
 
     sentry_init(options);
     std::atexit(+[] { sentry_close(); });

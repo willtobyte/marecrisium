@@ -55,6 +55,7 @@ return {
 
 	on_damage = function(self)
 		print("on damage " .. self.name)
+		error("ON DAMAGE")
 		-- foreground:bump()
 	end,
 }
