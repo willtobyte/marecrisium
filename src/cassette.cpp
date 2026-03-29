@@ -20,7 +20,6 @@ static int cassette_clear(lua_State *state) {
 
   sqlite3_step(stmt_clear);
   sqlite3_reset(stmt_clear);
-
   return 0;
 }
 
@@ -76,7 +75,6 @@ static int cassette_newindex(lua_State *state) {
     sqlite3_step(stmt_delete);
     sqlite3_reset(stmt_delete);
     sqlite3_clear_bindings(stmt_delete);
-
     return 0;
   }
 
@@ -85,8 +83,7 @@ static int cassette_newindex(lua_State *state) {
 
   auto [it, inserted] = cache.try_emplace(std::string{key}, reference);
   if (!inserted) [[likely]] {
-    luaL_unref(state, LUA_REGISTRYINDEX, it->second);
-    it->second = reference;
+    luaL_unref(state, LUA_REGISTRYINDEX, std::exchange(it->second, reference));
   }
 
   auto *document = yyjson_mut_doc_new(nullptr);
@@ -102,7 +99,6 @@ static int cassette_newindex(lua_State *state) {
   sqlite3_step(stmt_upsert);
   sqlite3_reset(stmt_upsert);
   sqlite3_clear_bindings(stmt_upsert);
-
   return 0;
 }
 
@@ -133,4 +129,6 @@ void cassette::wire() {
   metatable(L, "Cassette", cassette_index, cassette_newindex);
 
   singleton(L, "Cassette", "cassette");
+
+  cache.reserve(1024);
 }
