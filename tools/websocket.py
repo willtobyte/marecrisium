@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import annotations
-
 import asyncio
 import signal
 import sys
@@ -43,6 +41,42 @@ def dump_subscribers() -> None:
         log("STATE", f"  topic={topic}: {addrs}")
 
 
+def do_subscribe(socket, topic: int) -> None:
+    subscribers[topic].add(socket)
+    log(
+        ">",
+        f"{socket.remote_address} subscribed to topic={topic}  (now {len(subscribers[topic])} subscriber(s))",
+    )
+    dump_subscribers()
+
+
+def do_unsubscribe(socket, topic: int) -> None:
+    subscribers[topic].discard(socket)
+    log(
+        "<",
+        f"{socket.remote_address} unsubscribed from topic={topic}  (now {len(subscribers[topic])} subscriber(s))",
+    )
+    dump_subscribers()
+
+
+async def do_publish(socket, topic: int, message: list) -> None:
+    data = message[2] if len(message) >= 3 else None
+    echo = json.dumps([PUBLISH, topic, data])
+    all_subs = subscribers.get(topic, set())
+    targets = set(all_subs) - {socket}
+    log(
+        "~",
+        f"publish on topic={topic}: {data!r}  subscribers={len(all_subs)} targets={len(targets)}",
+    )
+    if targets:
+        for t in targets:
+            log("->", f"forwarding to {t.remote_address}")
+        await asyncio.gather(*[t.send(echo) for t in targets])
+        log("~", f"forwarded to {len(targets)} client(s)")
+    else:
+        log("~", f"no targets for topic={topic} (sender excluded)")
+
+
 async def handler(socket) -> None:
     log("+", f"connected: {socket.remote_address}  id={id(socket):#x}")
     dump_subscribers()
@@ -52,6 +86,14 @@ async def handler(socket) -> None:
                 "RAW",
                 f"from {socket.remote_address}  {len(payload)} bytes: {payload[:120]!r}",
             )
+
+            match payload:
+                case bytes() | str() as raw if not raw:
+                    log("!", f"empty payload from {socket.remote_address}")
+                    continue
+                case _:
+                    pass
+
             try:
                 message = json.loads(payload)
             except Exception as exc:
@@ -63,60 +105,49 @@ async def handler(socket) -> None:
 
             log("MSG", f"decoded: {message!r}")
 
-            if not isinstance(message, list) or len(message) < 2:
-                log(
-                    "!",
-                    f"dropping malformed message (not a list or len<2): {message!r}",
-                )
-                continue
-
-            opcode = message[0]
-            topic = message[1]
-
-            if not isinstance(opcode, int) or not isinstance(topic, int):
-                log(
-                    "!",
-                    f"dropping message: bad types opcode={type(opcode).__name__} topic={type(topic).__name__}",
-                )
-                continue
+            match message:
+                case [int() as opcode, int() as topic, *_rest]:
+                    pass
+                case [_, _, *_]:
+                    log(
+                        "!",
+                        f"dropping message: bad types opcode={type(message[0]).__name__} topic={type(message[1]).__name__}",
+                    )
+                    continue
+                case _:
+                    log(
+                        "!",
+                        f"dropping malformed message (not a list or len<2): {message!r}",
+                    )
+                    continue
 
             log(
                 "OP",
                 f"{describe_opcode(opcode)} on topic={topic} from {socket.remote_address}",
             )
 
-            if opcode & SUBSCRIBE:
-                subscribers[topic].add(socket)
-                log(
-                    ">",
-                    f"{socket.remote_address} subscribed to topic={topic}  (now {len(subscribers[topic])} subscriber(s))",
-                )
-                dump_subscribers()
-
-            if opcode & UNSUBSCRIBE:
-                subscribers[topic].discard(socket)
-                log(
-                    "<",
-                    f"{socket.remote_address} unsubscribed from topic={topic}  (now {len(subscribers[topic])} subscriber(s))",
-                )
-                dump_subscribers()
-
-            if opcode & PUBLISH:
-                data = message[2] if len(message) >= 3 else None
-                echo = json.dumps([PUBLISH, topic, data])
-                all_subs = subscribers.get(topic, set())
-                targets = set(all_subs) - {socket}
-                log(
-                    "~",
-                    f"publish on topic={topic}: {data!r}  subscribers={len(all_subs)} targets={len(targets)}",
-                )
-                if targets:
-                    for t in targets:
-                        log("->", f"forwarding to {t.remote_address}")
-                    await asyncio.gather(*[t.send(echo) for t in targets])
-                    log("~", f"forwarded to {len(targets)} client(s)")
-                else:
-                    log("~", f"no targets for topic={topic} (sender excluded)")
+            match opcode:
+                case x if x == SUBSCRIBE:
+                    do_subscribe(socket, topic)
+                case x if x == UNSUBSCRIBE:
+                    do_unsubscribe(socket, topic)
+                case x if x == PUBLISH:
+                    await do_publish(socket, topic, message)
+                case x if x == SUBSCRIBE | UNSUBSCRIBE:
+                    do_subscribe(socket, topic)
+                    do_unsubscribe(socket, topic)
+                case x if x == SUBSCRIBE | PUBLISH:
+                    do_subscribe(socket, topic)
+                    await do_publish(socket, topic, message)
+                case x if x == UNSUBSCRIBE | PUBLISH:
+                    do_unsubscribe(socket, topic)
+                    await do_publish(socket, topic, message)
+                case x if x == SUBSCRIBE | UNSUBSCRIBE | PUBLISH:
+                    do_subscribe(socket, topic)
+                    do_unsubscribe(socket, topic)
+                    await do_publish(socket, topic, message)
+                case _:
+                    log("!", f"unknown opcode: 0x{opcode:02x}")
 
     except Exception as e:
         if "ConnectionClosed" not in type(e).__name__:
