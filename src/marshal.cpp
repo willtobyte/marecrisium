@@ -21,139 +21,126 @@ namespace {
 }
 }
 
-void cbor_to_lua(lua_State *state, cbor_item_t *item) {
-  if (!item) [[unlikely]] {
-    lua_pushnil(state);
-    return;
+void json_to_lua(lua_State *state, yyjson_val *val) {
+  if (!val) [[unlikely]]
+    return lua_pushnil(state);
+
+  switch (yyjson_get_type(val)) {
+    case YYJSON_TYPE_NULL:
+      lua_pushnil(state);
+      break;
+
+    case YYJSON_TYPE_BOOL:
+      lua_pushboolean(state, yyjson_get_bool(val) ? 1 : 0);
+      break;
+
+    case YYJSON_TYPE_NUM: {
+      const auto subtype = yyjson_get_subtype(val);
+      switch (subtype) {
+        case YYJSON_SUBTYPE_UINT:
+          lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_uint(val)));
+          break;
+        case YYJSON_SUBTYPE_SINT:
+          lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_sint(val)));
+          break;
+        case YYJSON_SUBTYPE_REAL:
+          lua_pushnumber(state, static_cast<lua_Number>(yyjson_get_real(val)));
+          break;
+        default: [[unlikely]]
+          lua_pushnumber(state, static_cast<lua_Number>(yyjson_get_real(val)));
+          break;
+      }
+    } break;
+
+    case YYJSON_TYPE_STR:
+      lua_pushlstring(state, yyjson_get_str(val), yyjson_get_len(val));
+      break;
+
+    case YYJSON_TYPE_ARR: {
+      const auto size = yyjson_arr_size(val);
+      lua_createtable(state, static_cast<int>(size), 0);
+      yyjson_arr_iter iter;
+      yyjson_arr_iter_init(val, &iter);
+      yyjson_val *elem;
+      auto i = 1;
+      while ((elem = yyjson_arr_iter_next(&iter))) {
+        json_to_lua(state, elem);
+        lua_rawseti(state, -2, i);
+        ++i;
+      }
+    } break;
+
+    case YYJSON_TYPE_OBJ: {
+      const auto size = yyjson_obj_size(val);
+      lua_createtable(state, 0, static_cast<int>(size));
+      yyjson_obj_iter iter;
+      yyjson_obj_iter_init(val, &iter);
+      yyjson_val *key;
+      while ((key = yyjson_obj_iter_next(&iter))) {
+        lua_pushlstring(state, yyjson_get_str(key), yyjson_get_len(key));
+        json_to_lua(state, yyjson_obj_iter_get_val(key));
+        lua_rawset(state, -3);
+      }
+    } break;
+
+    default: [[unlikely]]
+      lua_pushnil(state);
+      break;
   }
-
-  if (cbor_is_null(item) || cbor_is_undef(item)) [[unlikely]] {
-    lua_pushnil(state);
-    return;
-  }
-
-  if (cbor_is_bool(item)) {
-    lua_pushboolean(state, cbor_get_bool(item) ? 1 : 0);
-    return;
-  }
-
-  if (cbor_isa_uint(item)) [[likely]] {
-    lua_pushinteger(state, static_cast<lua_Integer>(cbor_get_int(item)));
-    return;
-  }
-
-  if (cbor_isa_negint(item)) {
-    lua_pushinteger(state, -1 - static_cast<lua_Integer>(cbor_get_int(item)));
-    return;
-  }
-
-  if (cbor_is_float(item)) {
-    lua_pushnumber(state, cbor_float_get_float(item));
-    return;
-  }
-
-  if (cbor_isa_string(item)) {
-    lua_pushlstring(state,
-      reinterpret_cast<const char *>(cbor_string_handle(item)),
-      cbor_string_length(item));
-
-    return;
-  }
-
-  if (cbor_isa_array(item)) {
-    const auto size = cbor_array_size(item);
-    lua_createtable(state, static_cast<int>(size), 0);
-    auto *elements = cbor_array_handle(item);
-    for (size_t i = 0; i < size; ++i) {
-      cbor_to_lua(state, elements[i]);
-      lua_rawseti(state, -2, static_cast<int>(i + 1));
-    }
-
-    return;
-  }
-
-  if (cbor_isa_map(item)) {
-    const auto size = cbor_map_size(item);
-    lua_createtable(state, 0, static_cast<int>(size));
-    auto *pairs = cbor_map_handle(item);
-    for (size_t i = 0; i < size; ++i) {
-      cbor_to_lua(state, pairs[i].key);
-      cbor_to_lua(state, pairs[i].value);
-      lua_rawset(state, -3);
-    }
-
-    return;
-  }
-
-  lua_pushnil(state);
 }
 
-[[nodiscard]] cbor_item_t *lua_to_cbor(lua_State *state, int index) {
+[[nodiscard]] yyjson_mut_val *lua_to_json(lua_State *state, int index, yyjson_mut_doc *doc) {
   const auto abs = abs_index(state, index);
-  const auto type = lua_type(state, abs);
 
-  switch (type) {
+  switch (lua_type(state, abs)) {
     case LUA_TNIL:
-      return cbor_new_null();
+      return yyjson_mut_null(doc);
 
     case LUA_TBOOLEAN:
-      return cbor_build_bool(lua_toboolean(state, abs) != 0);
+      return yyjson_mut_bool(doc, lua_toboolean(state, abs) != 0);
 
     case LUA_TNUMBER: {
       const auto value = lua_tonumber(state, abs);
       const auto as_int = static_cast<lua_Integer>(value);
-      if (static_cast<lua_Number>(as_int) == value) {
-        if (as_int >= 0)
-          return cbor_build_uint64(static_cast<uint64_t>(as_int));
-        return cbor_build_negint64(static_cast<uint64_t>(-1 - as_int));
-      }
-      return cbor_build_float8(value);
+      if (static_cast<lua_Number>(as_int) == value)
+        return yyjson_mut_sint(doc, as_int);
+      return yyjson_mut_real(doc, static_cast<double>(value));
     }
 
     case LUA_TSTRING: {
       size_t len = 0;
       const auto *str = lua_tolstring(state, abs, &len);
-      return cbor_build_stringn(str, len);
+      return yyjson_mut_strncpy(doc, str, len);
     }
 
     case LUA_TTABLE: {
       if (lua_table_is_array(state, abs)) [[likely]] {
+        auto *arr = yyjson_mut_arr(doc);
         const auto length = static_cast<int>(lua_objlen(state, abs));
-        auto *array = cbor_new_definite_array(static_cast<size_t>(length));
         for (auto i = 1; i <= length; ++i) {
           lua_rawgeti(state, abs, i);
-          std::ignore = cbor_array_push(array, cbor_move(lua_to_cbor(state, -1)));
+          yyjson_mut_arr_append(arr, lua_to_json(state, -1, doc));
           lua_pop(state, 1);
         }
-
-        return array;
+        return arr;
       }
 
-      auto *map = cbor_new_indefinite_map();
+      auto *obj = yyjson_mut_obj(doc);
       lua_pushnil(state);
       while (lua_next(state, abs) != 0) {
-        auto *key = lua_to_cbor(state, -2);
-        auto *val = lua_to_cbor(state, -1);
-        std::ignore = cbor_map_add(map, {cbor_move(key), cbor_move(val)});
+        size_t length = 0;
+        lua_pushvalue(state, -2);
+        const auto *name = lua_tolstring(state, -1, &length);
+        auto *key = yyjson_mut_strncpy(doc, name, length);
+        lua_pop(state, 1);
+        auto *value = lua_to_json(state, -1, doc);
+        yyjson_mut_obj_add(obj, key, value);
         lua_pop(state, 1);
       }
-
-      return map;
+      return obj;
     }
 
     default: [[unlikely]]
-      return cbor_new_null();
+      return yyjson_mut_null(doc);
   }
-}
-
-[[nodiscard]] std::vector<uint8_t> serialize(cbor_item_t *item) {
-  unsigned char *buffer = nullptr;
-  size_t length = 0;
-  cbor_serialize_alloc(item, &buffer, &length);
-  if (!buffer) [[unlikely]]
-    return {};
-
-  std::vector<uint8_t> result(buffer, buffer + length);
-  free(buffer);
-  return result;
 }

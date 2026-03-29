@@ -5,42 +5,59 @@
 namespace {
 std::unique_ptr<channel> connection;
 
+[[nodiscard]] std::vector<uint8_t> envelope(yyjson_mut_doc *doc) {
+  size_t len = 0;
+  auto *json = yyjson_mut_write(doc, 0, &len);
+  yyjson_mut_doc_free(doc);
+  if (!json) [[unlikely]]
+    return {};
+
+  std::vector<uint8_t> result(json, json + len);
+  free(json);
+  return result;
+}
+
 [[nodiscard]] std::vector<uint8_t> subscribe(uint16_t topic) {
-  auto *array = cbor_new_definite_array(2);
-  std::ignore = cbor_array_push(array, cbor_move(cbor_build_uint8(std::to_underlying(opcode::subscribe))));
-  std::ignore = cbor_array_push(array, cbor_move(cbor_build_uint16(topic)));
-  return serialize(array);
+  auto *doc = yyjson_mut_doc_new(nullptr);
+  auto *arr = yyjson_mut_arr(doc);
+  yyjson_mut_arr_add_uint(doc, arr, std::to_underlying(opcode::subscribe));
+  yyjson_mut_arr_add_uint(doc, arr, topic);
+  yyjson_mut_doc_set_root(doc, arr);
+  return envelope(doc);
 }
 
 [[nodiscard]] std::vector<uint8_t> unsubscribe(uint16_t topic) {
-  auto *array = cbor_new_definite_array(2);
-  std::ignore = cbor_array_push(array, cbor_move(cbor_build_uint8(std::to_underlying(opcode::unsubscribe))));
-  std::ignore = cbor_array_push(array, cbor_move(cbor_build_uint16(topic)));
-  return serialize(array);
+  auto *doc = yyjson_mut_doc_new(nullptr);
+  auto *arr = yyjson_mut_arr(doc);
+  yyjson_mut_arr_add_uint(doc, arr, std::to_underlying(opcode::unsubscribe));
+  yyjson_mut_arr_add_uint(doc, arr, topic);
+  yyjson_mut_doc_set_root(doc, arr);
+  return envelope(doc);
 }
 
-[[nodiscard]] std::vector<uint8_t> publish(uint16_t topic, cbor_item_t *data) {
-  auto *array = cbor_new_definite_array(3);
-  std::ignore = cbor_array_push(array, cbor_move(cbor_build_uint8(std::to_underlying(opcode::publish))));
-  std::ignore = cbor_array_push(array, cbor_move(cbor_build_uint16(topic)));
-  std::ignore = cbor_array_push(array, cbor_move(data));
-  return serialize(array);
+[[nodiscard]] std::vector<uint8_t> publish(uint16_t topic, yyjson_mut_val *data, yyjson_mut_doc *doc) {
+  auto *arr = yyjson_mut_arr(doc);
+  yyjson_mut_arr_add_uint(doc, arr, std::to_underlying(opcode::publish));
+  yyjson_mut_arr_add_uint(doc, arr, topic);
+  yyjson_mut_arr_append(arr, data);
+  yyjson_mut_doc_set_root(doc, arr);
+  return envelope(doc);
 }
 
-int subscription_publish(lua_State* state) {
-  auto *self = *static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
+int subscription_publish(lua_State *state) {
+  auto *self = *static_cast<subscription **>(luaL_checkudata(state, 1, "Subscription"));
   luaL_checkany(state, 2);
   self->publish(state, 2);
   return 0;
 }
 
-int subscription_unsubscribe(lua_State* state) {
-  auto *self = *static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
+int subscription_unsubscribe(lua_State *state) {
+  auto *self = *static_cast<subscription **>(luaL_checkudata(state, 1, "Subscription"));
   self->unsubscribe();
   return 0;
 }
 
-int subscription_index(lua_State* state) {
+int subscription_index(lua_State *state) {
   luaL_checkudata(state, 1, "Subscription");
   const auto key = std::string_view{luaL_checkstring(state, 2)};
 
@@ -55,7 +72,7 @@ int subscription_index(lua_State* state) {
   }
 
   if (key == "topic") {
-    auto *self = *static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
+    auto *self = *static_cast<subscription **>(luaL_checkudata(state, 1, "Subscription"));
     lua_pushinteger(state, static_cast<lua_Integer>(self->topic()));
     return 1;
   }
@@ -63,29 +80,29 @@ int subscription_index(lua_State* state) {
   return lua_pushnil(state), 1;
 }
 
-int subscription_gc(lua_State* state) {
-  delete *static_cast<subscription**>(luaL_checkudata(state, 1, "Subscription"));
+int subscription_gc(lua_State *state) {
+  delete *static_cast<subscription **>(luaL_checkudata(state, 1, "Subscription"));
   return 0;
 }
 
-int websocket_on_connect(lua_State* state) {
-  auto* instance = *static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
+int websocket_on_connect(lua_State *state) {
+  auto *instance = *static_cast<channel **>(luaL_checkudata(state, 1, "WebSocket"));
   luaL_checktype(state, 2, LUA_TFUNCTION);
   lua_pushvalue(state, 2);
   instance->set_on_connect(luaL_ref(state, LUA_REGISTRYINDEX));
   return 0;
 }
 
-int websocket_on_disconnect(lua_State* state) {
-  auto* instance = *static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
+int websocket_on_disconnect(lua_State *state) {
+  auto *instance = *static_cast<channel **>(luaL_checkudata(state, 1, "WebSocket"));
   luaL_checktype(state, 2, LUA_TFUNCTION);
   lua_pushvalue(state, 2);
   instance->set_on_disconnect(luaL_ref(state, LUA_REGISTRYINDEX));
   return 0;
 }
 
-int websocket_subscribe(lua_State* state) {
-  auto* instance = *static_cast<channel**>(luaL_checkudata(state, 1, "WebSocket"));
+int websocket_subscribe(lua_State *state) {
+  auto *instance = *static_cast<channel **>(luaL_checkudata(state, 1, "WebSocket"));
   const auto raw = static_cast<int>(luaL_checkinteger(state, 2));
   luaL_argcheck(state, raw >= 0 && raw <= std::numeric_limits<uint16_t>::max(), 2, "topic must be 0..65535");
   const auto topic = static_cast<uint16_t>(raw);
@@ -102,14 +119,14 @@ int websocket_subscribe(lua_State* state) {
     throw;
   }
 
-  auto **m = static_cast<subscription**>(lua_newuserdata(state, sizeof(subscription*)));
+  auto **m = static_cast<subscription **>(lua_newuserdata(state, sizeof(subscription *)));
   *m = sub;
   luaL_getmetatable(state, "Subscription");
   lua_setmetatable(state, -2);
   return 1;
 }
 
-int websocket_index(lua_State* state) {
+int websocket_index(lua_State *state) {
   luaL_checkudata(state, 1, "WebSocket");
   const auto key = std::string_view{luaL_checkstring(state, 2)};
 
@@ -131,7 +148,7 @@ int websocket_index(lua_State* state) {
   return lua_pushnil(state), 1;
 }
 
-int websocket_gc(lua_State* state) {
+int websocket_gc(lua_State *state) {
   auto **pointer = static_cast<channel **>(luaL_checkudata(state, 1, "WebSocket"));
   if (*pointer == connection.get())
     connection.reset();
@@ -139,12 +156,12 @@ int websocket_gc(lua_State* state) {
   return 0;
 }
 
-int websocket_call(lua_State* state) {
+int websocket_call(lua_State *state) {
   auto url = std::string{luaL_checkstring(state, 1)};
 
   connection = std::make_unique<channel>(std::move(url));
 
-  auto **m = static_cast<channel**>(lua_newuserdata(state, sizeof(channel*)));
+  auto **m = static_cast<channel **>(lua_newuserdata(state, sizeof(channel *)));
   *m = connection.get();
   luaL_getmetatable(state, "WebSocket");
   lua_setmetatable(state, -2);
@@ -168,9 +185,9 @@ netloc::netloc(std::string_view url) {
   }
 }
 
-int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user*/, void* in, size_t length) {
-  auto* context = lws_get_context(wsi);
-  auto* ws = static_cast<channel*>(lws_context_user(context));
+int lws_callback(struct lws *wsi, enum lws_callback_reasons reason, void * /*user*/, void *in, size_t length) {
+  auto *context = lws_get_context(wsi);
+  auto *ws = static_cast<channel *>(lws_context_user(context));
 
   switch (reason) {
     case LWS_CALLBACK_CLIENT_ESTABLISHED:
@@ -188,35 +205,31 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
       break;
 
     case LWS_CALLBACK_CLIENT_RECEIVE: [[likely]] {
-      const auto *bytes = static_cast<const unsigned char *>(in);
-      cbor_load_result result;
-      auto *root = cbor_load(bytes, length, &result);
-      if (!root || result.error.code != CBOR_ERR_NONE) [[unlikely]] {
-        if (root) cbor_decref(&root);
+      const auto *bytes = static_cast<const char *>(in);
+      auto *doc = yyjson_read(bytes, length, 0);
+      if (!doc) [[unlikely]]
+        break;
+
+      auto *root = yyjson_doc_get_root(doc);
+      if (!yyjson_is_arr(root) || yyjson_arr_size(root) < 2) [[unlikely]] {
+        yyjson_doc_free(doc);
         break;
       }
 
-      if (!cbor_isa_array(root) || cbor_array_size(root) < 2) [[unlikely]] {
-        cbor_decref(&root);
+      auto *topic_val = yyjson_arr_get(root, 1);
+      if (!yyjson_is_int(topic_val)) [[unlikely]] {
+        yyjson_doc_free(doc);
         break;
       }
 
-      auto *topic_item = cbor_array_get(root, 1);
-      if (!cbor_isa_uint(topic_item)) [[unlikely]] {
-        cbor_decref(&topic_item);
-        cbor_decref(&root);
-        break;
-      }
-
-      const auto topic = static_cast<uint16_t>(cbor_get_int(topic_item));
-      cbor_decref(&topic_item);
+      const auto topic = static_cast<uint16_t>(yyjson_get_int(topic_val));
 
       ws->_inbound.push(message{
         topic,
-        std::vector<uint8_t>(bytes, bytes + length)
+        std::vector<uint8_t>(reinterpret_cast<const uint8_t *>(bytes), reinterpret_cast<const uint8_t *>(bytes) + length)
       });
 
-      cbor_decref(&root);
+      yyjson_doc_free(doc);
     } break;
 
     case LWS_CALLBACK_CLIENT_WRITEABLE: {
@@ -228,7 +241,7 @@ int lws_callback(struct lws* wsi, enum lws_callback_reasons reason, void* /*user
         if (ws->_sendbuffer.size() < required) [[unlikely]]
           ws->_sendbuffer.resize(required);
         std::memcpy(ws->_sendbuffer.data() + LWS_PRE, payload.data(), size);
-        lws_write(wsi, ws->_sendbuffer.data() + LWS_PRE, size, LWS_WRITE_BINARY);
+        lws_write(wsi, ws->_sendbuffer.data() + LWS_PRE, size, LWS_WRITE_TEXT);
         lws_callback_on_writable(wsi);
       } else if (ws->_pending_ping.exchange(false, std::memory_order_acq_rel)) {
         if (ws->_sendbuffer.size() < LWS_PRE) [[unlikely]]
@@ -279,8 +292,8 @@ channel::~channel() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_disconnect);
   _on_disconnect = LUA_NOREF;
 
-  for (auto& [topic, subscribers] : _subscriptions) {
-    for (auto* subscriber : subscribers) {
+  for (auto &[topic, subscribers] : _subscriptions) {
+    for (auto *subscriber : subscribers) {
       luaL_unref(L, LUA_REGISTRYINDEX, subscriber->_callback);
       subscriber->_callback = LUA_NOREF;
       subscriber->_active = false;
@@ -299,7 +312,7 @@ channel::~channel() {
 }
 
 void channel::connect() {
-  struct lws_context_creation_info creation{};
+  struct lws_context_creation_info creation {};
   creation.port = CONTEXT_PORT_NO_LISTEN;
   creation.protocols = protocols;
   creation.user = this;
@@ -313,7 +326,7 @@ void channel::connect() {
 }
 
 void channel::reconnect() {
-  struct lws_client_connect_info connect_info{};
+  struct lws_client_connect_info connect_info {};
   connect_info.context = _context;
   connect_info.address = _netloc.host.c_str();
   connect_info.port = _netloc.port;
@@ -345,7 +358,7 @@ void channel::run() {
 
     lws_service(_context, 100);
 
-    auto* current_wsi = _wsi.load(std::memory_order_acquire);
+    auto *current_wsi = _wsi.load(std::memory_order_acquire);
     if (_connected.load(std::memory_order_acquire) && current_wsi) [[likely]]
       lws_callback_on_writable(current_wsi);
   }
@@ -379,16 +392,14 @@ void channel::poll() {
 
   message message;
   while (_inbound.try_pop(message)) {
-    cbor_load_result result;
-    auto *root = cbor_load(message.payload.data(), message.payload.size(), &result);
-    if (!root || result.error.code != CBOR_ERR_NONE) [[unlikely]] {
-      if (root) cbor_decref(&root);
+    auto *doc = yyjson_read(reinterpret_cast<const char *>(message.payload.data()), message.payload.size(), 0);
+    if (!doc) [[unlikely]]
       continue;
-    }
 
-    cbor_item_t *data_value = nullptr;
-    if (cbor_isa_array(root) && cbor_array_size(root) >= 3) [[likely]]
-      data_value = cbor_array_get(root, 2);
+    auto *root = yyjson_doc_get_root(doc);
+    yyjson_val *data_val = nullptr;
+    if (yyjson_is_arr(root) && yyjson_arr_size(root) >= 3) [[likely]]
+      data_val = yyjson_arr_get(root, 2);
 
     std::vector<int> references;
     {
@@ -407,17 +418,15 @@ void channel::poll() {
     for (const auto reference : references) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, reference);
 
-      if (data_value)
-        cbor_to_lua(L, data_value);
+      if (data_val)
+        json_to_lua(L, data_val);
       else
         lua_pushnil(L);
 
       pcall(L, 1, 0);
     }
 
-    if (data_value)
-      cbor_decref(&data_value);
-    cbor_decref(&root);
+    yyjson_doc_free(doc);
   }
 }
 
@@ -431,7 +440,7 @@ void channel::set_on_disconnect(int reference) noexcept {
   _on_disconnect = reference;
 }
 
-void channel::add_subscription(subscription* subscriber) {
+void channel::add_subscription(subscription *subscriber) {
   {
     std::scoped_lock lock(_mutex);
     _subscriptions[subscriber->topic()].emplace_back(subscriber);
@@ -464,7 +473,7 @@ void channel::resubscribe() {
   }
 }
 
-subscription::subscription(channel* owner, uint16_t topic, int callback_ref)
+subscription::subscription(channel *owner, uint16_t topic, int callback_ref)
   : _owner(owner), _topic(topic), _callback(callback_ref) {
   _owner->add_subscription(this);
 }
@@ -477,12 +486,9 @@ void subscription::publish(lua_State *state, int index) {
   if (!_active || !_owner) [[unlikely]]
     return;
 
-  auto *data = lua_to_cbor(state, index);
-  auto *array = cbor_new_definite_array(3);
-  std::ignore = cbor_array_push(array, cbor_move(cbor_build_uint8(std::to_underlying(opcode::publish))));
-  std::ignore = cbor_array_push(array, cbor_move(cbor_build_uint16(_topic)));
-  std::ignore = cbor_array_push(array, cbor_move(data));
-  _owner->send(message{_topic, serialize(array)});
+  auto *doc = yyjson_mut_doc_new(nullptr);
+  auto *data = lua_to_json(state, index, doc);
+  _owner->send(message{_topic, publish(_topic, data, doc)});
 }
 
 void subscription::unsubscribe() {

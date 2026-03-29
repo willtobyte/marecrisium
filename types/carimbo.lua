@@ -149,7 +149,7 @@ gamepad = {}
 ---
 ---Supported value types: `boolean`, `number`, `string`, `table`.
 ---Assign `nil` to delete a key. All writes persist immediately.
----Tables are serialized as CBOR and support nested values.
+---Tables are serialized as JSON and stored as JSONB in SQLite.
 ---
 ---Usage:
 ---```lua
@@ -696,10 +696,10 @@ function openurl(url) end
 --------------------------------------------------------------------------------
 
 ---@class WebSocket
----A WebSocket connection. Supports pub/sub messaging with CBOR payloads.
+---A WebSocket connection. Supports pub/sub messaging with JSON payloads.
 local WebSocket = {}
 
----Subscribe to a topic. The callback receives decoded CBOR data as a Lua value
+---Subscribe to a topic. The callback receives decoded JSON data as a Lua value
 ---whenever a message arrives on this topic.
 ---@param topic integer The topic ID (0–65535) to subscribe to.
 ---@param callback fun(data: any) Called with the decoded message data.
@@ -719,8 +719,8 @@ function WebSocket:on_disconnect(callback) end
 ---Automatically unsubscribes on garbage collection.
 local Subscription = {}
 
----Publish a value as CBOR to this subscription's topic.
----@param data any The data to send (encoded as CBOR).
+---Publish a value as JSON to this subscription's topic.
+---@param data any The data to send (encoded as JSON).
 function Subscription:publish(data) end
 
 ---Unsubscribe from this topic. Also called automatically on garbage collection.

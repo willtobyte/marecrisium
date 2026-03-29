@@ -1,62 +1,39 @@
 #include "cassette.hpp"
 
 namespace {
-constexpr const char* filename = "cassette.tape";
+constexpr const char *filename = "cassette.tape";
 
-sqlite3* database;
-sqlite3_stmt* stmt_select;
-sqlite3_stmt* stmt_upsert;
-sqlite3_stmt* stmt_delete;
-sqlite3_stmt* stmt_clear;
+sqlite3 *database;
+sqlite3_stmt *stmt_select;
+sqlite3_stmt *stmt_upsert;
+sqlite3_stmt *stmt_delete;
+sqlite3_stmt *stmt_clear;
 }
 
-static int cassette_clear(lua_State*) {
+static int cassette_clear(lua_State *) {
   sqlite3_step(stmt_clear);
   sqlite3_reset(stmt_clear);
 
   return 0;
 }
 
-static int cassette_index(lua_State* state) {
+static int cassette_index(lua_State *state) {
   const auto key = std::string_view{luaL_checkstring(state, 2)};
 
   if (key == "clear") [[unlikely]]
     return lua_pushcfunction(state, cassette_clear), 1;
 
-  sqlite3_bind_text(stmt_select, 1, key.data(), -1, SQLITE_STATIC);
+  sqlite3_bind_text(stmt_select, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
   if (sqlite3_step(stmt_select) == SQLITE_ROW) [[likely]] {
-    const auto type = sqlite3_column_int(stmt_select, 0);
-    switch (type) {
-      case 0:
-        lua_pushboolean(state, sqlite3_column_int(stmt_select, 1) != 0 ? 1 : 0);
-        break;
-      case 1:
-        lua_pushnumber(state, static_cast<lua_Number>(sqlite3_column_double(stmt_select, 1)));
-        break;
-      case 2:
-        lua_pushstring(state, reinterpret_cast<const char*>(sqlite3_column_text(stmt_select, 1)));
-        break;
-      case 3: {
-        const auto *blob = sqlite3_column_blob(stmt_select, 1);
-        const auto size = sqlite3_column_bytes(stmt_select, 1);
-        if (!blob || size <= 0) [[unlikely]] {
-          lua_pushnil(state);
-        } else {
-          cbor_load_result result;
-          auto *item = cbor_load(static_cast<const unsigned char *>(blob), static_cast<size_t>(size), &result);
-          if (!item || result.error.code != CBOR_ERR_NONE) [[unlikely]] {
-            if (item)
-              cbor_decref(&item);
-            lua_pushnil(state);
-          } else {
-            cbor_to_lua(state, item);
-            cbor_decref(&item);
-          }
-        }
-      } break;
-      default:
-        lua_pushnil(state);
-        break;
+    const auto *json = reinterpret_cast<const char *>(sqlite3_column_text(stmt_select, 0));
+    const auto len = static_cast<size_t>(sqlite3_column_bytes(stmt_select, 0));
+
+    auto *doc = yyjson_read(json, len, 0);
+    if (!doc) [[unlikely]] {
+      lua_pushnil(state);
+    } else {
+      json_to_lua(state, yyjson_doc_get_root(doc));
+      yyjson_doc_free(doc);
     }
   } else {
     lua_pushnil(state);
@@ -68,14 +45,14 @@ static int cassette_index(lua_State* state) {
   return 1;
 }
 
-static int cassette_newindex(lua_State* state) {
+static int cassette_newindex(lua_State *state) {
   const auto key = std::string_view{luaL_checkstring(state, 2)};
 
   if (key == "clear") [[unlikely]]
     return 0;
 
   if (lua_isnil(state, 3)) [[unlikely]] {
-    sqlite3_bind_text(stmt_delete, 1, key.data(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt_delete, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
     sqlite3_step(stmt_delete);
     sqlite3_reset(stmt_delete);
     sqlite3_clear_bindings(stmt_delete);
@@ -83,32 +60,16 @@ static int cassette_newindex(lua_State* state) {
     return 0;
   }
 
-  sqlite3_bind_text(stmt_upsert, 1, key.data(), -1, SQLITE_STATIC);
-  switch (lua_type(state, 3)) {
-    case LUA_TBOOLEAN:
-      sqlite3_bind_int(stmt_upsert, 2, 0);
-      sqlite3_bind_int(stmt_upsert, 3, lua_toboolean(state, 3));
-      break;
-    case LUA_TNUMBER:
-      sqlite3_bind_int(stmt_upsert, 2, 1);
-      sqlite3_bind_double(stmt_upsert, 3, lua_tonumber(state, 3));
-      break;
-    case LUA_TSTRING:
-      sqlite3_bind_int(stmt_upsert, 2, 2);
-      sqlite3_bind_text(stmt_upsert, 3, lua_tostring(state, 3), -1, SQLITE_TRANSIENT);
-      break;
-    case LUA_TTABLE: {
-      auto *item = lua_to_cbor(state, 3);
-      auto blob = serialize(item);
-      cbor_decref(&item);
-      sqlite3_bind_int(stmt_upsert, 2, 3);
-      sqlite3_bind_blob(stmt_upsert, 3, blob.data(), static_cast<int>(blob.size()), SQLITE_TRANSIENT);
-    } break;
-    default: [[unlikely]]
-      sqlite3_clear_bindings(stmt_upsert);
-      return luaL_error(state, "unsupported type");
-  }
+  auto *document = yyjson_mut_doc_new(nullptr);
+  auto *root = lua_to_json(state, 3, document);
+  yyjson_mut_doc_set_root(document, root);
 
+  size_t length = 0;
+  auto *json = yyjson_mut_write(document, 0, &length);
+  yyjson_mut_doc_free(document);
+
+  sqlite3_bind_text(stmt_upsert, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
+  sqlite3_bind_text(stmt_upsert, 2, json, static_cast<int>(length), free);
   sqlite3_step(stmt_upsert);
   sqlite3_reset(stmt_upsert);
   sqlite3_clear_bindings(stmt_upsert);
@@ -123,13 +84,12 @@ void cassette::wire() {
     "PRAGMA synchronous=FULL;"
     "CREATE TABLE IF NOT EXISTS data("
       "key TEXT PRIMARY KEY,"
-      "type INTEGER NOT NULL,"
-      "value BLOB NOT NULL"
+      "value JSONB NOT NULL"
     ")WITHOUT ROWID;",
     nullptr, nullptr, nullptr);
 
-  sqlite3_prepare_v2(database, "SELECT type,value FROM data WHERE key=?", -1, &stmt_select, nullptr);
-  sqlite3_prepare_v2(database, "INSERT OR REPLACE INTO data(key,type,value) VALUES(?,?,?)", -1, &stmt_upsert, nullptr);
+  sqlite3_prepare_v2(database, "SELECT json(value) FROM data WHERE key=?", -1, &stmt_select, nullptr);
+  sqlite3_prepare_v2(database, "INSERT OR REPLACE INTO data(key,value) VALUES(?,jsonb(?))", -1, &stmt_upsert, nullptr);
   sqlite3_prepare_v2(database, "DELETE FROM data WHERE key=?", -1, &stmt_delete, nullptr);
   sqlite3_prepare_v2(database, "DELETE FROM data", -1, &stmt_clear, nullptr);
 

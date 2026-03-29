@@ -8,7 +8,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 
-import cbor2
+import json
 
 SUBSCRIBE = 1 << 0
 UNSUBSCRIBE = 1 << 1
@@ -53,11 +53,11 @@ async def handler(socket) -> None:
                 f"from {socket.remote_address}  {len(payload)} bytes: {payload[:120]!r}",
             )
             try:
-                message = cbor2.loads(payload)
+                message = json.loads(payload)
             except Exception as exc:
                 log(
                     "!",
-                    f"invalid cbor from {socket.remote_address}: {exc}  raw={payload!r}",
+                    f"invalid json from {socket.remote_address}: {exc}  raw={payload!r}",
                 )
                 continue
 
@@ -103,7 +103,7 @@ async def handler(socket) -> None:
 
             if opcode & PUBLISH:
                 data = message[2] if len(message) >= 3 else None
-                echo = cbor2.dumps([PUBLISH, topic, data])
+                echo = json.dumps([PUBLISH, topic, data])
                 all_subs = subscribers.get(topic, set())
                 targets = set(all_subs) - {socket}
                 log(

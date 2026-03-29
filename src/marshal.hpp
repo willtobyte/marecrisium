@@ -1,5 +1,4 @@
 #pragma once
 
-void cbor_to_lua(lua_State *state, cbor_item_t *item);
-[[nodiscard]] cbor_item_t *lua_to_cbor(lua_State *state, int index);
-[[nodiscard]] std::vector<uint8_t> serialize(cbor_item_t *item);
+void json_to_lua(lua_State *state, yyjson_val *val);
+[[nodiscard]] yyjson_mut_val *lua_to_json(lua_State *state, int index, yyjson_mut_doc *doc);
