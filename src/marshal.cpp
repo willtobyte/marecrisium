@@ -1,22 +1,22 @@
 #include "marshal.hpp"
 
 namespace {
-[[nodiscard]] int abs_index(lua_State *state, int index) noexcept {
+[[nodiscard]] int absolute_index(lua_State *state, int index) noexcept {
   return (index > 0 || index <= LUA_REGISTRYINDEX)
     ? index
     : lua_gettop(state) + index + 1;
 }
 
 [[nodiscard]] bool lua_table_is_array(lua_State *state, int index) {
-  const auto abs = abs_index(state, index);
+  const auto absolute = absolute_index(state, index);
   auto count = 0;
   lua_pushnil(state);
-  while (lua_next(state, abs) != 0) {
+  while (lua_next(state, absolute) != 0) {
     lua_pop(state, 1);
     ++count;
   }
 
-  const auto length = static_cast<int>(lua_objlen(state, abs));
+  const auto length = static_cast<int>(lua_objlen(state, absolute));
   return length > 0 && length == count;
 }
 }
@@ -90,17 +90,17 @@ void json_to_lua(lua_State *state, yyjson_val *val) {
 }
 
 [[nodiscard]] yyjson_mut_val *lua_to_json(lua_State *state, int index, yyjson_mut_doc *document) {
-  const auto abs = abs_index(state, index);
+  const auto absolute = absolute_index(state, index);
 
-  switch (lua_type(state, abs)) {
+  switch (lua_type(state, absolute)) {
     case LUA_TNIL:
       return yyjson_mut_null(document);
 
     case LUA_TBOOLEAN:
-      return yyjson_mut_bool(document, lua_toboolean(state, abs) != 0);
+      return yyjson_mut_bool(document, lua_toboolean(state, absolute) != 0);
 
     case LUA_TNUMBER: {
-      const auto value = lua_tonumber(state, abs);
+      const auto value = lua_tonumber(state, absolute);
       const auto as_int = static_cast<lua_Integer>(value);
       if (static_cast<lua_Number>(as_int) == value)
         return yyjson_mut_sint(document, as_int);
@@ -109,16 +109,16 @@ void json_to_lua(lua_State *state, yyjson_val *val) {
 
     case LUA_TSTRING: {
       size_t lenght = 0;
-      const auto *str = lua_tolstring(state, abs, &lenght);
+      const auto *str = lua_tolstring(state, absolute, &lenght);
       return yyjson_mut_strncpy(document, str, lenght);
     }
 
     case LUA_TTABLE: {
-      if (lua_table_is_array(state, abs)) [[likely]] {
+      if (lua_table_is_array(state, absolute)) [[likely]] {
         auto *arr = yyjson_mut_arr(document);
-        const auto length = static_cast<int>(lua_objlen(state, abs));
+        const auto length = static_cast<int>(lua_objlen(state, absolute));
         for (auto i = 1; i <= length; ++i) {
-          lua_rawgeti(state, abs, i);
+          lua_rawgeti(state, absolute, i);
           yyjson_mut_arr_append(arr, lua_to_json(state, -1, document));
           lua_pop(state, 1);
         }
@@ -127,7 +127,7 @@ void json_to_lua(lua_State *state, yyjson_val *val) {
 
       auto *obj = yyjson_mut_obj(document);
       lua_pushnil(state);
-      while (lua_next(state, abs) != 0) {
+      while (lua_next(state, absolute) != 0) {
         size_t length = 0;
         lua_pushvalue(state, -2);
         const auto *name = lua_tolstring(state, -1, &length);
