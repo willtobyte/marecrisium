@@ -22,6 +22,11 @@ namespace {
 }
 
 void cbor_to_lua(lua_State *state, cbor_item_t *item) {
+  if (!item) [[unlikely]] {
+    lua_pushnil(state);
+    return;
+  }
+
   if (cbor_is_null(item) || cbor_is_undef(item)) [[unlikely]] {
     lua_pushnil(state);
     return;
@@ -42,8 +47,8 @@ void cbor_to_lua(lua_State *state, cbor_item_t *item) {
     return;
   }
 
-  if (cbor_is_float(item)) {
-    lua_pushnumber(state, static_cast<lua_Number>(cbor_float_get_float(item)));
+  if (cbor_isa_float_ctrl(item)) {
+    lua_pushnumber(state, cbor_float_get_float8(item));
     return;
   }
 
@@ -147,7 +152,6 @@ void cbor_to_lua(lua_State *state, cbor_item_t *item) {
   unsigned char *buffer = nullptr;
   size_t length = 0;
   cbor_serialize_alloc(item, &buffer, &length);
-  cbor_decref(&item);
   if (!buffer) [[unlikely]]
     return {};
 
