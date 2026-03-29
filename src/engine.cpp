@@ -30,8 +30,6 @@ engine::engine() {
   const auto fullscreen = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : false;
   lua_pop(L, 1);
 
-  b2SetLengthUnitsPerMeter(100.f);
-
   lua_getfield(L, -1, "ticks");
   const auto ticks = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 0;
   lua_pop(L, 1);
@@ -106,6 +104,8 @@ engine::engine() {
     .0f,
     .0f
   };
+
+  b2SetLengthUnitsPerMeter(100.f);
 
   lua_newtable(L);
   lua_pushnumber(L, static_cast<lua_Number>(viewport.width));
