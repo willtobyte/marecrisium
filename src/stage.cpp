@@ -191,6 +191,7 @@ stage::stage(std::string_view name)
   _registry.on_destroy<objectproxy>().connect<&on_objectproxy_destroy>();
   _registry.on_destroy<body>().connect<&on_object_destroy>();
   _registry.ctx().emplace<stringpool*>(&_stringpool);
+  _registry.ctx().emplace<reorder>();
 
   const auto filename = std::format("stages/{}.lua", name);
   const auto buffer = io::read(filename);
@@ -661,6 +662,7 @@ void stage::update(float delta) {
       tf.y = position.y - frame.cy * tf.scale - bd->cached_hy;
 
       _registry.get<renderable>(entity).z = static_cast<int>(tf.y + frame.h * tf.scale);
+      _registry.ctx().get<reorder>().dirty = true;
     }
 
     _accumulator -= _timestep;
@@ -756,9 +758,14 @@ void stage::update(float delta) {
 
   _particlesystem.update(delta);
 
-  _registry.sort<renderable>([](const renderable& lhs, const renderable& rhs) noexcept {
-    return lhs.z < rhs.z;
-  }, entt::insertion_sort{});
+  auto& rd = _registry.ctx().get<reorder>();
+  if (rd.dirty) [[unlikely]] {
+    _registry.sort<renderable>([](const renderable& lhs, const renderable& rhs) noexcept {
+      return lhs.z < rhs.z;
+    });
+
+    rd.dirty = false;
+  }
 }
 
 void stage::draw() {
@@ -1030,6 +1037,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 
     const auto& fr = a.clips[a.active].frames[0];
     _registry.get<renderable>(entity).z = static_cast<int>(tf.y + fr.h * tf.scale);
+    _registry.ctx().get<reorder>().dirty = true;
 
     bool collidable = false;
     for (uint8_t ci = 0; ci < a.clip_count && !collidable; ++ci)

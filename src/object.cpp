@@ -186,6 +186,7 @@ namespace {
       auto& r = registry.get<renderable>(entity);
       const auto value = static_cast<int>(luaL_checkinteger(state, 3));
       r.z = value;
+      registry.ctx().get<reorder>().dirty = true;
 
       return 0;
     }

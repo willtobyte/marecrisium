@@ -99,3 +99,9 @@ struct renderable final {
 };
 
 static_assert(std::is_trivially_copyable_v<renderable>);
+
+struct reorder final {
+  bool dirty{true};
+};
+
+static_assert(std::is_trivially_copyable_v<reorder>);
