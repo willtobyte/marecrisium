@@ -259,7 +259,6 @@ function Stage.on_camera(self) end
 --------------------------------------------------------------------------------
 
 ---@class Director
----@field overlay string|nil Overlay name (matches `overlays/<name>.lua`). Assign to activate; assign nil to deactivate.
 local Director = {}
 
 ---Navigate to a named stage. Creates it if not enrolled.

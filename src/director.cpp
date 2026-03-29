@@ -21,23 +21,6 @@ static int enroll_callback(lua_State *state) {
   return 0;
 }
 
-static int newindex_callback(lua_State *state) {
-  auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
-  const auto key = std::string_view{luaL_checkstring(state, 2)};
-
-  if (key == "overlay") {
-    if (lua_isnil(state, 3) || lua_isnone(state, 3)) {
-      self->clear_overlay();
-    } else {
-      self->set_overlay(std::string{luaL_checkstring(state, 3)});
-    }
-
-    return 0;
-  }
-
-  return luaL_error(state, "director: unknown property '%s'", key.data());
-}
-
 void director::wire() {
   lua_newtable(L);
 
@@ -52,12 +35,6 @@ void director::wire() {
   lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, enroll_callback, 1);
   lua_setfield(L, -2, "enroll");
-
-  luaL_newmetatable(L, "director");
-  lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, newindex_callback, 1);
-  lua_setfield(L, -2, "__newindex");
-  lua_setmetatable(L, -2);
 
   lua_setglobal(L, "director");
 }
