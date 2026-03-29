@@ -35,17 +35,19 @@ engine::engine() {
   lua_getfield(L, -1, "ticks");
   const auto ticks = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 0;
   lua_pop(L, 1);
-  if (ticks > 0)
+  if (ticks > 0) [[likely]]
     _tick_interval = 1.f / static_cast<float>(ticks);
 
   lua_getfield(L, -1, "title");
-  const auto *title_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
-  const auto title = title_raw ? std::string_view{title_raw} : std::string_view{"Untitled"};
+  const std::string title = lua_isstring(L, -1) ? lua_tostring(L, -1) : "Untitled";
+  lua_pop(L, 1);
 
   static const auto window = SDL_CreateWindow(
-    title.data(), width, height, fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
-
-  lua_pop(L, 1);
+    title.data(),
+    width,
+    height,
+    fullscreen ? SDL_WINDOW_FULLSCREEN : 0
+  );
 
   const auto vsync = std::getenv("NOVSYNC") == nullptr;
   const auto properties = SDL_CreateProperties();
@@ -174,7 +176,7 @@ void engine::loop() {
   ++frames;
   const auto elapsed = static_cast<double>(now - tick) / frequency;
 
-  if (elapsed >= 1.0) {
+  if (elapsed >= 1.0) [[unlikely]] {
     const auto fps = frames / elapsed;
     const auto memory = lua_gc(L, LUA_GCCOUNT, 0);
     std::println("{:.1f} {}KB", fps, memory);
@@ -188,7 +190,7 @@ void engine::loop() {
 
   _director.transition();
 
-  if (_tick_interval > .0f) {
+  if (_tick_interval > .0f) [[likely]] {
     _tick_accumulator += delta;
 
     while (_tick_accumulator >= _tick_interval) {
