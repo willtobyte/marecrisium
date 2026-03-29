@@ -48,5 +48,7 @@ return {
 			self._alive = false
 			world.destroy(self)
 		end
+
+		error("Fireball")
 	end,
 }
