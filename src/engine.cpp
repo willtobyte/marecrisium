@@ -105,8 +105,6 @@ engine::engine() {
     .0f
   };
 
-  b2SetLengthUnitsPerMeter(100.f);
-
   lua_newtable(L);
   lua_pushnumber(L, static_cast<lua_Number>(viewport.width));
   lua_setfield(L, -2, "width");
@@ -115,6 +113,8 @@ engine::engine() {
   lua_pushnumber(L, static_cast<lua_Number>(viewport.scale));
   lua_setfield(L, -2, "scale");
   lua_setglobal(L, "viewport");
+
+  b2SetLengthUnitsPerMeter(100.f);
 
   _director.wire();
 
