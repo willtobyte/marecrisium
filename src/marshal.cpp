@@ -89,51 +89,51 @@ void json_to_lua(lua_State *state, yyjson_val *val) {
   }
 }
 
-[[nodiscard]] yyjson_mut_val *lua_to_json(lua_State *state, int index, yyjson_mut_doc *doc) {
+[[nodiscard]] yyjson_mut_val *lua_to_json(lua_State *state, int index, yyjson_mut_doc *document) {
   const auto abs = abs_index(state, index);
 
   switch (lua_type(state, abs)) {
     case LUA_TNIL:
-      return yyjson_mut_null(doc);
+      return yyjson_mut_null(document);
 
     case LUA_TBOOLEAN:
-      return yyjson_mut_bool(doc, lua_toboolean(state, abs) != 0);
+      return yyjson_mut_bool(document, lua_toboolean(state, abs) != 0);
 
     case LUA_TNUMBER: {
       const auto value = lua_tonumber(state, abs);
       const auto as_int = static_cast<lua_Integer>(value);
       if (static_cast<lua_Number>(as_int) == value)
-        return yyjson_mut_sint(doc, as_int);
-      return yyjson_mut_real(doc, static_cast<double>(value));
+        return yyjson_mut_sint(document, as_int);
+      return yyjson_mut_real(document, static_cast<double>(value));
     }
 
     case LUA_TSTRING: {
-      size_t len = 0;
-      const auto *str = lua_tolstring(state, abs, &len);
-      return yyjson_mut_strncpy(doc, str, len);
+      size_t lenght = 0;
+      const auto *str = lua_tolstring(state, abs, &lenght);
+      return yyjson_mut_strncpy(document, str, lenght);
     }
 
     case LUA_TTABLE: {
       if (lua_table_is_array(state, abs)) [[likely]] {
-        auto *arr = yyjson_mut_arr(doc);
+        auto *arr = yyjson_mut_arr(document);
         const auto length = static_cast<int>(lua_objlen(state, abs));
         for (auto i = 1; i <= length; ++i) {
           lua_rawgeti(state, abs, i);
-          yyjson_mut_arr_append(arr, lua_to_json(state, -1, doc));
+          yyjson_mut_arr_append(arr, lua_to_json(state, -1, document));
           lua_pop(state, 1);
         }
         return arr;
       }
 
-      auto *obj = yyjson_mut_obj(doc);
+      auto *obj = yyjson_mut_obj(document);
       lua_pushnil(state);
       while (lua_next(state, abs) != 0) {
         size_t length = 0;
         lua_pushvalue(state, -2);
         const auto *name = lua_tolstring(state, -1, &length);
-        auto *key = yyjson_mut_strncpy(doc, name, length);
+        auto *key = yyjson_mut_strncpy(document, name, length);
         lua_pop(state, 1);
-        auto *value = lua_to_json(state, -1, doc);
+        auto *value = lua_to_json(state, -1, document);
         yyjson_mut_obj_add(obj, key, value);
         lua_pop(state, 1);
       }
@@ -141,6 +141,6 @@ void json_to_lua(lua_State *state, yyjson_val *val) {
     }
 
     default: [[unlikely]]
-      return yyjson_mut_null(doc);
+      return yyjson_mut_null(document);
   }
 }
