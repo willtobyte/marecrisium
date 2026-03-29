@@ -121,6 +121,7 @@ static int gamepad_index(lua_State *state) {
     const auto& e = it->second;
     if (e.type == type::axis)
       return push_gamepad_axis(state, e.axis);
+
     return push_gamepad_button(state, e.button);
   }
 
