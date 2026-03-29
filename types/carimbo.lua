@@ -150,6 +150,8 @@ gamepad = {}
 ---Supported value types: `boolean`, `number`, `string`, `table`.
 ---Assign `nil` to delete a key. All writes persist immediately.
 ---Tables are serialized as JSON and stored as JSONB in SQLite.
+---Reads return cached values. Mutating a returned table in-place does not
+---persist the change; assign the table back to persist it.
 ---
 ---Usage:
 ---```lua

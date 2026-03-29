@@ -8,9 +8,16 @@ sqlite3_stmt *stmt_select;
 sqlite3_stmt *stmt_upsert;
 sqlite3_stmt *stmt_delete;
 sqlite3_stmt *stmt_clear;
+
+std::unordered_map<std::string, int, transparent_hash, std::equal_to<>> cache;
 }
 
-static int cassette_clear(lua_State *) {
+static int cassette_clear(lua_State *state) {
+  for (auto &[_, ref] : cache)
+    luaL_unref(state, LUA_REGISTRYINDEX, ref);
+
+  cache.clear();
+
   sqlite3_step(stmt_clear);
   sqlite3_reset(stmt_clear);
 
@@ -23,6 +30,11 @@ static int cassette_index(lua_State *state) {
   if (key == "clear") [[unlikely]]
     return lua_pushcfunction(state, cassette_clear), 1;
 
+  if (const auto it = cache.find(key); it != cache.end()) [[likely]] {
+    lua_rawgeti(state, LUA_REGISTRYINDEX, it->second);
+    return 1;
+  }
+
   sqlite3_bind_text(stmt_select, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
   if (sqlite3_step(stmt_select) == SQLITE_ROW) [[likely]] {
     const auto *json = reinterpret_cast<const char *>(sqlite3_column_text(stmt_select, 0));
@@ -34,6 +46,9 @@ static int cassette_index(lua_State *state) {
     } else {
       json_to_lua(state, yyjson_doc_get_root(document));
       yyjson_doc_free(document);
+
+      lua_pushvalue(state, -1);
+      cache.emplace(std::string{key}, luaL_ref(state, LUA_REGISTRYINDEX));
     }
   } else {
     lua_pushnil(state);
@@ -52,12 +67,26 @@ static int cassette_newindex(lua_State *state) {
     return 0;
 
   if (lua_isnil(state, 3)) [[unlikely]] {
+    if (const auto it = cache.find(key); it != cache.end()) [[unlikely]] {
+      luaL_unref(state, LUA_REGISTRYINDEX, it->second);
+      cache.erase(it);
+    }
+
     sqlite3_bind_text(stmt_delete, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
     sqlite3_step(stmt_delete);
     sqlite3_reset(stmt_delete);
     sqlite3_clear_bindings(stmt_delete);
 
     return 0;
+  }
+
+  lua_pushvalue(state, 3);
+  const auto reference = luaL_ref(state, LUA_REGISTRYINDEX);
+
+  auto [it, inserted] = cache.try_emplace(std::string{key}, reference);
+  if (!inserted) [[likely]] {
+    luaL_unref(state, LUA_REGISTRYINDEX, it->second);
+    it->second = reference;
   }
 
   auto *document = yyjson_mut_doc_new(nullptr);
