@@ -84,24 +84,29 @@ static int cassette_newindex(lua_State* state) {
   }
 
   sqlite3_bind_text(stmt_upsert, 1, key.data(), -1, SQLITE_STATIC);
-  if (lua_isboolean(state, 3)) {
-    sqlite3_bind_int(stmt_upsert, 2, 0);
-    sqlite3_bind_int(stmt_upsert, 3, lua_toboolean(state, 3));
-  } else if (lua_isnumber(state, 3)) {
-    sqlite3_bind_int(stmt_upsert, 2, 1);
-    sqlite3_bind_double(stmt_upsert, 3, lua_tonumber(state, 3));
-  } else if (lua_isstring(state, 3)) {
-    sqlite3_bind_int(stmt_upsert, 2, 2);
-    sqlite3_bind_text(stmt_upsert, 3, lua_tostring(state, 3), -1, SQLITE_TRANSIENT);
-  } else if (lua_istable(state, 3)) {
-    auto *item = lua_to_cbor(state, 3);
-    auto blob = serialize(item);
-    cbor_decref(&item);
-    sqlite3_bind_int(stmt_upsert, 2, 3);
-    sqlite3_bind_blob(stmt_upsert, 3, blob.data(), static_cast<int>(blob.size()), SQLITE_TRANSIENT);
-  } else [[unlikely]] {
-    sqlite3_clear_bindings(stmt_upsert);
-    return luaL_error(state, "unsupported type");
+  switch (lua_type(state, 3)) {
+    case LUA_TBOOLEAN:
+      sqlite3_bind_int(stmt_upsert, 2, 0);
+      sqlite3_bind_int(stmt_upsert, 3, lua_toboolean(state, 3));
+      break;
+    case LUA_TNUMBER:
+      sqlite3_bind_int(stmt_upsert, 2, 1);
+      sqlite3_bind_double(stmt_upsert, 3, lua_tonumber(state, 3));
+      break;
+    case LUA_TSTRING:
+      sqlite3_bind_int(stmt_upsert, 2, 2);
+      sqlite3_bind_text(stmt_upsert, 3, lua_tostring(state, 3), -1, SQLITE_TRANSIENT);
+      break;
+    case LUA_TTABLE: {
+      auto *item = lua_to_cbor(state, 3);
+      auto blob = serialize(item);
+      cbor_decref(&item);
+      sqlite3_bind_int(stmt_upsert, 2, 3);
+      sqlite3_bind_blob(stmt_upsert, 3, blob.data(), static_cast<int>(blob.size()), SQLITE_TRANSIENT);
+    } break;
+    default: [[unlikely]]
+      sqlite3_clear_bindings(stmt_upsert);
+      return luaL_error(state, "unsupported type");
   }
 
   sqlite3_step(stmt_upsert);

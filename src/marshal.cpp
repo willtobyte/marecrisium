@@ -47,8 +47,8 @@ void cbor_to_lua(lua_State *state, cbor_item_t *item) {
     return;
   }
 
-  if (cbor_isa_float_ctrl(item)) {
-    lua_pushnumber(state, cbor_float_get_float8(item));
+  if (cbor_is_float(item)) {
+    lua_pushnumber(state, cbor_float_get_float(item));
     return;
   }
 
@@ -132,11 +132,9 @@ void cbor_to_lua(lua_State *state, cbor_item_t *item) {
       auto *map = cbor_new_indefinite_map();
       lua_pushnil(state);
       while (lua_next(state, abs) != 0) {
-        if (lua_type(state, -2) == LUA_TSTRING) {
-          auto *key = lua_to_cbor(state, -2);
-          auto *val = lua_to_cbor(state, -1);
-          std::ignore = cbor_map_add(map, {cbor_move(key), cbor_move(val)});
-        }
+        auto *key = lua_to_cbor(state, -2);
+        auto *val = lua_to_cbor(state, -1);
+        std::ignore = cbor_map_add(map, {cbor_move(key), cbor_move(val)});
         lua_pop(state, 1);
       }
 
