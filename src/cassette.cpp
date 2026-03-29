@@ -36,6 +36,14 @@ static int cassette_index(lua_State* state) {
       case 2:
         lua_pushstring(state, reinterpret_cast<const char*>(sqlite3_column_text(stmt_select, 1)));
         break;
+      case 3: {
+        const auto *blob = sqlite3_column_blob(stmt_select, 1);
+        const auto size = sqlite3_column_bytes(stmt_select, 1);
+        cbor_load_result result;
+        auto *item = cbor_load(static_cast<const unsigned char *>(blob), static_cast<size_t>(size), &result);
+        cbor_to_lua(state, item);
+        cbor_decref(&item);
+      } break;
       default:
         lua_pushnil(state);
         break;
@@ -75,6 +83,10 @@ static int cassette_newindex(lua_State* state) {
   } else if (lua_isstring(state, 3)) {
     sqlite3_bind_int(stmt_upsert, 2, 2);
     sqlite3_bind_text(stmt_upsert, 3, lua_tostring(state, 3), -1, SQLITE_TRANSIENT);
+  } else if (lua_istable(state, 3)) {
+    auto blob = serialize(lua_to_cbor(state, 3));
+    sqlite3_bind_int(stmt_upsert, 2, 3);
+    sqlite3_bind_blob(stmt_upsert, 3, blob.data(), static_cast<int>(blob.size()), SQLITE_TRANSIENT);
   } else [[unlikely]] {
     sqlite3_clear_bindings(stmt_upsert);
     return luaL_error(state, "unsupported type");

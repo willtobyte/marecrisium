@@ -147,17 +147,20 @@ gamepad = {}
 ---@class Cassette
 ---Persistent save-data store. Read/write arbitrary keys.
 ---
----Supported value types: `boolean`, `number`, `string`.
+---Supported value types: `boolean`, `number`, `string`, `table`.
 ---Assign `nil` to delete a key. All writes persist immediately.
+---Tables are serialized as CBOR and support nested values.
 ---
 ---Usage:
 ---```lua
 ---cassette.score = 100
 ---local s = cassette.score
+---cassette.inventory = { "sword", "shield" }
+---cassette.progress = { level = 3, stars = 2 }
 ---cassette.score = nil -- delete
 ---cassette:clear()     -- delete all
 ---```
----@field [string] boolean|number|string|nil
+---@field [string] boolean|number|string|table|nil
 local Cassette = {}
 
 ---Clear all saved data.
