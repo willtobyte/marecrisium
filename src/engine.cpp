@@ -32,13 +32,11 @@ engine::engine() {
 
   b2SetLengthUnitsPerMeter(100.f);
 
-  {
-    lua_getfield(L, -1, "ticks");
-    const auto ticks = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 0;
-    lua_pop(L, 1);
-    if (ticks > 0)
-      _tick_interval = 1.f / static_cast<float>(ticks);
-  }
+  lua_getfield(L, -1, "ticks");
+  const auto ticks = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 0;
+  lua_pop(L, 1);
+  if (ticks > 0)
+    _tick_interval = 1.f / static_cast<float>(ticks);
 
   lua_getfield(L, -1, "title");
   const auto *title_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
