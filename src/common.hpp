@@ -30,6 +30,8 @@
 #include <ankerl/unordered_dense.h>
 #include <box2d/box2d.h>
 #include <entt/entt.hpp>
+
+using namespace entt::literals;
 #include <libwebsockets.h>
 #include <lua.hpp>
 #include <miniaudio.h>

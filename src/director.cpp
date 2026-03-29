@@ -67,21 +67,21 @@ void director::navigate(std::string name) {
 }
 
 void director::destroy(std::string_view name) {
-  auto it = _stages.find(name);
+  const auto key = entt::hashed_string{name.data()}.value();
+  auto it = _stages.find(key);
 
-  if (it == _stages.end() || it->second.get() == _current) [[unlikely]] {
+  if (it == _stages.end() || it->second.get() == _current) [[unlikely]]
     return;
-  }
 
   _stages.erase(it);
 }
 
 void director::set_overlay(std::string name) {
-  const auto [it, inserted] = _overlays.try_emplace(std::move(name), nullptr);
+  const auto key = entt::hashed_string{name.data()}.value();
+  const auto [it, inserted] = _overlays.try_emplace(key, nullptr);
 
-  if (inserted) {
-    it->second = std::make_unique<overlay>(it->first);
-  }
+  if (inserted)
+    it->second = std::make_unique<overlay>(name);
 
   _overlay = it->second.get();
   _overlay->expose();
@@ -92,9 +92,10 @@ void director::clear_overlay() {
 }
 
 void director::enroll(std::string name) {
-  const auto [it, inserted] = _stages.try_emplace(std::move(name));
+  const auto key = entt::hashed_string{name.data()}.value();
+  const auto [it, inserted] = _stages.try_emplace(key);
   if (inserted)
-    it->second = std::make_unique<stage>(it->first);
+    it->second = std::make_unique<stage>(name);
 }
 
 void director::transition() {
@@ -107,9 +108,10 @@ void director::transition() {
     clear_overlay();
   }
 
-  auto [it, inserted] = _stages.try_emplace(*_pending);
+  const auto key = entt::hashed_string{_pending->data()}.value();
+  auto [it, inserted] = _stages.try_emplace(key);
   if (inserted)
-    it->second = std::make_unique<stage>(it->first);
+    it->second = std::make_unique<stage>(*_pending);
 
   _pending.reset();
   _current = it->second.get();

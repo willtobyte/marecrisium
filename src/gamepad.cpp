@@ -90,28 +90,28 @@ static int gamepad_index(lua_State *state) {
     };
   };
 
-  static const ankerl::unordered_dense::map<std::string_view, entry> mapping{
-    {"left_x", {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFTX}}},
-    {"left_y", {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFTY}}},
-    {"right_x", {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHTX}}},
-    {"right_y", {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHTY}}},
-    {"trigger_left", {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFT_TRIGGER}}},
-    {"trigger_right", {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHT_TRIGGER}}},
-    {"south", {type::button, {.button = SDL_GAMEPAD_BUTTON_SOUTH}}},
-    {"east", {type::button, {.button = SDL_GAMEPAD_BUTTON_EAST}}},
-    {"west", {type::button, {.button = SDL_GAMEPAD_BUTTON_WEST}}},
-    {"north", {type::button, {.button = SDL_GAMEPAD_BUTTON_NORTH}}},
-    {"back", {type::button, {.button = SDL_GAMEPAD_BUTTON_BACK}}},
-    {"guide", {type::button, {.button = SDL_GAMEPAD_BUTTON_GUIDE}}},
-    {"start", {type::button, {.button = SDL_GAMEPAD_BUTTON_START}}},
-    {"shoulder_left", {type::button, {.button = SDL_GAMEPAD_BUTTON_LEFT_SHOULDER}}},
-    {"shoulder_right", {type::button, {.button = SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER}}},
-    {"stick_left", {type::button, {.button = SDL_GAMEPAD_BUTTON_LEFT_STICK}}},
-    {"stick_right", {type::button, {.button = SDL_GAMEPAD_BUTTON_RIGHT_STICK}}},
-    {"up", {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_UP}}},
-    {"down", {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_DOWN}}},
-    {"left", {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_LEFT}}},
-    {"right", {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_RIGHT}}},
+  static const ankerl::unordered_dense::map<entt::id_type, entry> mapping{
+    {"left_x"_hs.value(), {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFTX}}},
+    {"left_y"_hs.value(), {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFTY}}},
+    {"right_x"_hs.value(), {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHTX}}},
+    {"right_y"_hs.value(), {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHTY}}},
+    {"trigger_left"_hs.value(), {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFT_TRIGGER}}},
+    {"trigger_right"_hs.value(), {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHT_TRIGGER}}},
+    {"south"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_SOUTH}}},
+    {"east"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_EAST}}},
+    {"west"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_WEST}}},
+    {"north"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_NORTH}}},
+    {"back"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_BACK}}},
+    {"guide"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_GUIDE}}},
+    {"start"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_START}}},
+    {"shoulder_left"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_LEFT_SHOULDER}}},
+    {"shoulder_right"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER}}},
+    {"stick_left"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_LEFT_STICK}}},
+    {"stick_right"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_RIGHT_STICK}}},
+    {"up"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_UP}}},
+    {"down"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_DOWN}}},
+    {"left"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_LEFT}}},
+    {"right"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_RIGHT}}},
   };
 
   const auto name = std::string_view{luaL_checkstring(state, 2)};
@@ -135,7 +135,7 @@ static int gamepad_index(lua_State *state) {
     return 1;
   }
 
-  const auto it = mapping.find(name);
+  const auto it = mapping.find(entt::hashed_string{name.data()}.value());
   if (it == mapping.end()) [[unlikely]]
     return lua_pushnil(state), 1;
 

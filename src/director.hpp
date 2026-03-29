@@ -31,7 +31,9 @@ public:
 private:
   stage *_current{nullptr};
   overlay *_overlay{nullptr};
+
   std::optional<std::string> _pending;
-  ankerl::unordered_dense::map<std::string, std::unique_ptr<stage>, transparent_hash, std::equal_to<>> _stages;
-  ankerl::unordered_dense::map<std::string, std::unique_ptr<overlay>, transparent_hash, std::equal_to<>> _overlays;
+
+  ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<stage>> _stages;
+  ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<overlay>> _overlays;
 };
