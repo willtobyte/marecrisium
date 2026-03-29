@@ -90,7 +90,7 @@ static int gamepad_index(lua_State *state) {
     };
   };
 
-  static const std::unordered_map<std::string_view, entry> mapping{
+  static const ankerl::unordered_dense::map<std::string_view, entry> mapping{
     {"left_x", {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFTX}}},
     {"left_y", {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFTY}}},
     {"right_x", {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHTX}}},

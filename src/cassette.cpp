@@ -9,7 +9,7 @@ sqlite3_stmt *stmt_upsert;
 sqlite3_stmt *stmt_delete;
 sqlite3_stmt *stmt_clear;
 
-std::unordered_map<std::string, int, transparent_hash, std::equal_to<>> cache;
+ankerl::unordered_dense::map<std::string, int, transparent_hash, std::equal_to<>> cache;
 }
 
 static int cassette_clear(lua_State *state) {

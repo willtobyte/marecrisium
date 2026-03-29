@@ -7,7 +7,7 @@ public:
   particlesystem() = default;
   ~particlesystem() = default;
 
-  [[nodiscard]] particle& add(std::string_view name, std::string_view kind, float x, float y, bool active);
+  [[nodiscard]] particle* add(std::string_view name, std::string_view kind, float x, float y, bool active);
 
   void update(float delta) noexcept;
   void draw() noexcept;
@@ -15,5 +15,5 @@ public:
   void clear();
 
 private:
-  std::unordered_map<entt::id_type, particle> _particles;
+  ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<particle>> _particles;
 };

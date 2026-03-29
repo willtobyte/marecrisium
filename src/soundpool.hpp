@@ -5,10 +5,10 @@ public:
   soundpool() = default;
   ~soundpool() = default;
 
-  [[nodiscard]] sound& get(std::string_view name);
+  [[nodiscard]] sound* get(std::string_view name);
 
   void clear();
 
 private:
-  std::unordered_map<entt::id_type, sound> _pool;
+  ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<sound>> _pool;
 };

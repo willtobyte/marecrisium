@@ -5,10 +5,10 @@ public:
   pixmappool() = default;
   ~pixmappool() = default;
 
-  [[nodiscard]] pixmap& get(std::string_view name);
+  [[nodiscard]] pixmap* get(std::string_view name);
 
   void clear();
 
 private:
-  std::unordered_map<entt::id_type, pixmap> _pool;
+  ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<pixmap>> _pool;
 };

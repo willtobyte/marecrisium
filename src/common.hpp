@@ -23,11 +23,11 @@
 #include <string_view>
 #include <thread>
 #include <type_traits>
-#include <unordered_map>
 #include <unordered_set>
 #include <variant>
 #include <vector>
 
+#include <ankerl/unordered_dense.h>
 #include <box2d/box2d.h>
 #include <entt/entt.hpp>
 #include <libwebsockets.h>
@@ -106,8 +106,9 @@ struct PHYSFS_Deleter final {
 
 struct transparent_hash final {
   using is_transparent = void;
+  using is_avalanching = void;
   auto operator()(std::string_view sv) const noexcept {
-    return std::hash<std::string_view>{}(sv);
+    return ankerl::unordered_dense::hash<std::string_view>{}(sv);
   }
 };
 

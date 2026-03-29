@@ -7,10 +7,10 @@ public:
   particlepool() = default;
   ~particlepool() = default;
 
-  [[nodiscard]] config& get(std::string_view kind);
+  [[nodiscard]] config* get(std::string_view kind);
 
   void clear();
 
 private:
-  std::unordered_map<entt::id_type, config> _pool;
+  ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<config>> _pool;
 };

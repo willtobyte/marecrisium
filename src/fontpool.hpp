@@ -5,10 +5,10 @@ public:
   fontpool() = default;
   ~fontpool() = default;
 
-  [[nodiscard]] font& get(std::string_view family);
+  [[nodiscard]] font* get(std::string_view family);
 
   void clear();
 
 private:
-  std::unordered_map<entt::id_type, font> _pool;
+  ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<font>> _pool;
 };

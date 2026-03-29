@@ -32,7 +32,7 @@ static void load_atlas(tilemap::layer& layer, std::string_view name, std::string
   if (layer.tiles.empty())
     return;
 
-  layer.atlas = &depot->pixmap.get(std::format("tilemaps/{}/{}", name, path));
+  layer.atlas = depot->pixmap.get(std::format("tilemaps/{}/{}", name, path));
   const auto atlas_width = static_cast<float>(layer.atlas->width());
   const auto atlas_height = static_cast<float>(layer.atlas->height());
   const auto u_scale = size / atlas_width;

@@ -200,11 +200,11 @@ void overlay::expose() {
 }
 
 void overlay::render_label(std::string_view family, std::string_view text, float x, float y) {
-  auto& f = depot->font.get(family);
-  f.draw(text, x, y);
+  auto *f = depot->font.get(family);
+  f->draw(text, x, y);
 }
 
 void overlay::render_label(std::string_view family, std::string_view text, float x, float y, std::span<const glypheffect> effects) {
-  auto& f = depot->font.get(family);
-  f.draw(text, x, y, effects);
+  auto *f = depot->font.get(family);
+  f->draw(text, x, y, effects);
 }

@@ -100,8 +100,7 @@ foreground::foreground(std::string_view name) {
   _vertices.reserve(2048);
   _indices.reserve(3072);
 
-  auto &p = depot->pixmap.get(std::format("foregrounds/{}/pixmap", name));
-  _texture = &p;
+  _texture = depot->pixmap.get(std::format("foregrounds/{}/pixmap", name));
 
   const auto filename = std::format("foregrounds/{}.lua", name);
   const auto buffer = io::read(filename);
@@ -111,9 +110,9 @@ foreground::foreground(std::string_view name) {
   pcall(L, 0, 1);
 
   lua_newtable(L);
-  lua_pushnumber(L, static_cast<lua_Number>(static_cast<float>(p.width())));
+  lua_pushnumber(L, static_cast<lua_Number>(_texture->width()));
   lua_setfield(L, -2, "width");
-  lua_pushnumber(L, static_cast<lua_Number>(static_cast<float>(p.height())));
+  lua_pushnumber(L, static_cast<lua_Number>(_texture->height()));
   lua_setfield(L, -2, "height");
   lua_setfield(L, -2, "pixmap");
 

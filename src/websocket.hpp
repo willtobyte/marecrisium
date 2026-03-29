@@ -94,7 +94,7 @@ private:
   ringbuffer<message> _outbound;
 
   std::mutex _mutex;
-  std::unordered_map<uint16_t, std::vector<subscription*>> _subscriptions;
+  ankerl::unordered_dense::map<uint16_t, std::vector<subscription*>> _subscriptions;
   std::vector<uint8_t> _sendbuffer;
 
   std::atomic<bool> _stop{false};
