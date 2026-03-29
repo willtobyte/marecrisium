@@ -108,9 +108,9 @@ void json_to_lua(lua_State *state, yyjson_val *val) {
     }
 
     case LUA_TSTRING: {
-      size_t lenght = 0;
-      const auto *str = lua_tolstring(state, absolute, &lenght);
-      return yyjson_mut_strncpy(document, str, lenght);
+      size_t length = 0;
+      const auto *str = lua_tolstring(state, absolute, &length);
+      return yyjson_mut_strncpy(document, str, length);
     }
 
     case LUA_TTABLE: {

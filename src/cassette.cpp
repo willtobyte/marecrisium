@@ -26,9 +26,9 @@ static int cassette_index(lua_State *state) {
   sqlite3_bind_text(stmt_select, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
   if (sqlite3_step(stmt_select) == SQLITE_ROW) [[likely]] {
     const auto *json = reinterpret_cast<const char *>(sqlite3_column_text(stmt_select, 0));
-    const auto lenght = static_cast<size_t>(sqlite3_column_bytes(stmt_select, 0));
+    const auto length = static_cast<size_t>(sqlite3_column_bytes(stmt_select, 0));
 
-    auto *document = yyjson_read(json, lenght, 0);
+    auto *document = yyjson_read(json, length, 0);
     if (!document) [[unlikely]] {
       lua_pushnil(state);
     } else {
