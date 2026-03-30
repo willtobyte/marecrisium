@@ -31,3 +31,5 @@ Types, annotations, and everything related to the exposed Lua API
 are documented in `types/carimbo.lua`.
 
 See [BUILDING.md](BUILDING.md) for build and run instructions.
+
+See [MODIFICATIONS.md](MODIFICATIONS.md) for modifications support.
