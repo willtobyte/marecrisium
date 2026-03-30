@@ -35,7 +35,7 @@ are documented in `types/carimbo.lua`.
 Install Conan, then set up profile and dependencies (once each):
 
 ```shell
-mise use -g conan                # or: brew install conan / pip install conan
+mise use -g conan # or: brew install conan / pip install conan
 conan profile detect --force
 make conan
 ```
@@ -43,7 +43,7 @@ make conan
 Build and run:
 
 ```shell
-make run                         # debug
+make run # debug
 # or
-make conan build buildtype=Release && CARTRIDGE=cartridge ./build/carimbo  # release
+make conan build buildtype=Release && CARTRIDGE=cartridge ./build/carimbo # release
 ```
