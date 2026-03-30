@@ -18,7 +18,7 @@ crater called Mare Crisium.
 
 ## Engine
 
-Carimbo is an engine written in modern C++ (C++23), using Box2D, EnTT,
+Carimbo is an engine written in modern C++, using Box2D, EnTT,
 libspng, LuaJIT, miniaudio, opusfile, PhysFS, SDL, SQLite, and yyjson.
 
 The engine exposes a minimal interface to games;
