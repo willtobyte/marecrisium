@@ -114,10 +114,5 @@ return scheduler.wrap({
 		assert(cassette.nested_val == nil, "clear nested")
 
 		print("[cassette] all tests passed")
-
-		local player = pool.player
-		if player then
-			camera.snap(player)
-		end
 	end,
 })
