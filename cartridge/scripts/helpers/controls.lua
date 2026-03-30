@@ -5,13 +5,13 @@ local controls = {}
 setmetatable(controls, {
 	__index = function(_, key)
 		if key == "left" then
-			return keyboard.left or gamepad.left or gamepad.left_x < -threshold
+			return gamepad.left_x < -threshold or gamepad.left or keyboard.left
 		elseif key == "right" then
-			return keyboard.right or gamepad.right or gamepad.left_x > threshold
+			return gamepad.left_x > threshold or gamepad.right or keyboard.right
 		elseif key == "up" then
-			return keyboard.up or gamepad.up or gamepad.left_y < -threshold
+			return gamepad.left_y < -threshold or gamepad.up or keyboard.up
 		elseif key == "down" then
-			return keyboard.down or gamepad.down or gamepad.left_y > threshold
+			return gamepad.left_y > threshold or gamepad.down or keyboard.down
 		end
 	end,
 })
