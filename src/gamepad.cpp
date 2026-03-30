@@ -2,12 +2,14 @@
 
 static constexpr float DEADZONE_THRESHOLD = .1f;
 
-[[nodiscard]] static float deadzone(Sint16 raw) noexcept {
-  const auto value = static_cast<float>(raw) / 32767.f;
-  if (std::abs(value) < DEADZONE_THRESHOLD)
+[[nodiscard]] static float deadzone(Sint16 axis) noexcept {
+  const auto value = static_cast<float>(axis) / 32768.f;
+  const auto magnitude = std::abs(value);
+  if (magnitude < DEADZONE_THRESHOLD)
     return .0f;
 
-  return value;
+  const auto sign = std::copysign(1.f, value);
+  return sign * (magnitude - DEADZONE_THRESHOLD) / (1.f - DEADZONE_THRESHOLD);
 }
 
 static std::unique_ptr<SDL_Gamepad, SDL_Deleter> ptr{nullptr};
