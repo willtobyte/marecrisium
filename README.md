@@ -9,3 +9,29 @@
 To believe in what? In a symbol? In an absent force created by ignorance?
 Yes, I'm a rebel... Against the fools like you!
 ```
+
+## Install Conan, choose one method
+
+```shell
+mise use -g conan # recommended
+# brew install conan
+# pip install conan
+```
+
+Initialize Conan profile, only one time.
+
+```shell
+conan profile detect --force
+```
+
+Install dependencies, also only one time.
+
+```shell
+make conan
+```
+
+Build and run.
+
+```shell
+make run
+```
