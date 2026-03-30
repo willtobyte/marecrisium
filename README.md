@@ -8,9 +8,9 @@
 > To believe in what? In a symbol? In an absent force created by ignorance?
 > Yes, I'm a rebel... Against the fools like you!
 
-## Dummy
+## Game & Engine
 
-### Build and Run
+### Build & Run
 
 Install Conan (choose one method)
 
@@ -32,8 +32,14 @@ Install dependencies, (also only once)
 make conan
 ```
 
-Build and run.
+Build and run (debug)
 
 ```shell
 make run
+```
+
+Build and run (release)
+
+```shell
+make conan build buildtype=Release && CARTRIDGE=cartridge ./build/carimbo
 ```
