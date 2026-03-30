@@ -5,7 +5,7 @@ static constexpr float DEADZONE_THRESHOLD = .1f;
 [[nodiscard]] static float deadzone(Sint16 axis) noexcept {
   const auto value = static_cast<float>(axis) / 32768.f;
   const auto magnitude = std::abs(value);
-  if (magnitude < DEADZONE_THRESHOLD)
+  if (magnitude < DEADZONE_THRESHOLD) [[likely]]
     return .0f;
 
   const auto sign = std::copysign(1.f, value);
@@ -17,7 +17,7 @@ static std::unique_ptr<SDL_Gamepad, SDL_Deleter> ptr{nullptr};
 static bool on_event(void *, SDL_Event *event) {
   switch (event->type) {
     case SDL_EVENT_GAMEPAD_ADDED:
-      if (!ptr)
+      if (!ptr) [[unlikely]]
         ptr.reset(SDL_OpenGamepad(event->gdevice.which));
       break;
 
@@ -127,18 +127,18 @@ static int gamepad_index(lua_State *state) {
     return push_gamepad_button(state, e.button);
   }
 
-  if (name == "connected") {
+  if (name == "connected") [[unlikely]] {
     lua_pushboolean(state, ptr != nullptr ? 1 : 0);
     return 1;
   }
 
-  if (name == "rumble")
+  if (name == "rumble") [[unlikely]]
     return lua_pushcfunction(state, gamepad_rumble), 1;
 
-  if (name == "led")
+  if (name == "led") [[unlikely]]
     return lua_pushcfunction(state, gamepad_led), 1;
 
-  if (name == "name") {
+  if (name == "name") [[unlikely]] {
     if (!ptr) [[unlikely]]
       return lua_pushstring(state, ""), 1;
 
