@@ -154,7 +154,7 @@ jobs:
 
       - name: Create cartridge
         working-directory: cartridge
-        run: zip -3 -r ../cartridge.rom .
+        run: zip -r ../cartridge.rom .
 
       - name: Clone Steam SDK
         run: gh repo clone willtobyte/steamworks steamworks -- --depth 1

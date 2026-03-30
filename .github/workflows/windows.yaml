@@ -61,7 +61,7 @@ jobs:
 
       - name: Package cartridge
         working-directory: cartridge
-        run: 7z a -tzip ../build/cartridge.rom .
+        run: zip -r ../build/cartridge.rom .
 
       - name: Collect artifacts
         run: cp build/Release/carimbo.exe build/carimbo.exe
