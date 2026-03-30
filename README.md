@@ -10,9 +10,9 @@ To believe in what? In a symbol? In an absent force created by ignorance?
 Yes, I'm a rebel... Against the fools like you!
 ```
 
-## Build & Run
+## Build and Run
 
-Install Conan, choose one method.
+Install Conan (choose one method)
 
 ```shell
 mise use -g conan # recommended
@@ -20,13 +20,13 @@ mise use -g conan # recommended
 # pip install conan
 ```
 
-Initialize Conan profile, only one time.
+Initialize Conan profile (only once)
 
 ```shell
 conan profile detect --force
 ```
 
-Install dependencies, also only one time.
+Install dependencies, (also only once)
 
 ```shell
 make conan
