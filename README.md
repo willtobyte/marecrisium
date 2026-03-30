@@ -45,5 +45,5 @@ Build and run:
 ```shell
 make run # debug
 # or
-make conan build buildtype=Release && CARTRIDGE=cartridge ./build/carimbo # release
+make build buildtype=Release && CARTRIDGE=cartridge ./build/carimbo # release
 ```
