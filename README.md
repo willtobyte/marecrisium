@@ -8,7 +8,7 @@
 > To believe in what? In a symbol? In an absent force created by ignorance?
 > Yes, I'm a rebel... Against the fools like you!
 
-## Game & Engine
+## Engine
 
 Carimbo is an engine written in modern C++ (C++23), using Box2D, EnTT,
 libspng, LuaJIT, miniaudio, opusfile, PhysFS, SDL, SQLite, and yyjson.
