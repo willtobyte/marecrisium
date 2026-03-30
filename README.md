@@ -7,5 +7,5 @@
 - From where comes all this disbelief? It looks like a revolt... against who?
 - You have too much to learn, Antônio. I can't have disbelief if I never had belief...
 To believe in what? In a symbol? In an absent force created by ignorance?
-Yes, I'm a rebel... against the fools like you!
+Yes, I'm a rebel... Against the fools like you!
 ```
