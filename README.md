@@ -18,7 +18,7 @@ all heavy lifting is done on the C++ side.
 
 ## Game
 
-The game is written in pure Lua with JIT.
+The game is written in pure Lua with JIT. See the cartridge directory.
 
 ### Run
 
