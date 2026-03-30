@@ -1,4 +1,5 @@
 local scheduler = require("helpers/scheduler")
+local camera = require("helpers/camera")
 
 return scheduler.wrap({
 	tilemap = "forest",
@@ -27,6 +28,17 @@ return scheduler.wrap({
 		{ name = "tree7", kind = "tree", x = 220, y = 50 },
 		{ name = "tree8", kind = "tree", x = 450, y = 320 },
 	},
+
+	on_camera = function(self)
+		return camera.position()
+	end,
+
+	on_loop = function(self, delta)
+		local player = pool.player
+		if player then
+			camera.update(player, delta)
+		end
+	end,
 
 	on_enter = function(self)
 		local pairs = pairs
@@ -102,5 +114,10 @@ return scheduler.wrap({
 		assert(cassette.nested_val == nil, "clear nested")
 
 		print("[cassette] all tests passed")
+
+		local player = pool.player
+		if player then
+			camera.snap(player)
+		end
 	end,
 })
