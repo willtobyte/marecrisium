@@ -44,7 +44,7 @@ namespace {
       return 1;
     }
 
-    if (key == "vx") {
+    if (key == "velocity_x") {
       const auto* bd = registry.try_get<body>(entity);
       if (bd && b2Body_IsValid(bd->id)) [[likely]] {
         lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(bd->id).x));
@@ -54,7 +54,7 @@ namespace {
       return 1;
     }
 
-    if (key == "vy") {
+    if (key == "velocity_y") {
       const auto* bd = registry.try_get<body>(entity);
       if (bd && b2Body_IsValid(bd->id)) [[likely]] {
         lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(bd->id).y));
@@ -191,7 +191,7 @@ namespace {
       return 0;
     }
 
-    if (key == "vx") {
+    if (key == "velocity_x") {
       auto* bd = registry.try_get<body>(entity);
       if (bd
           && bd->type == body_type::dynamic
@@ -203,7 +203,7 @@ namespace {
       return 0;
     }
 
-    if (key == "vy") {
+    if (key == "velocity_y") {
       auto* bd = registry.try_get<body>(entity);
       if (bd
           && bd->type == body_type::dynamic

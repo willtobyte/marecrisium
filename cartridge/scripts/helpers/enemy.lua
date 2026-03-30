@@ -27,8 +27,8 @@ local function enemy(config)
 			end
 
 			if self._touching_player then
-				self.vx = 0
-				self.vy = 0
+				self.velocity_x = 0
+				self.velocity_y = 0
 				return
 			end
 

@@ -7,8 +7,8 @@ local camera = {}
 local state = {
 	x = 0,
 	y = 0,
-	vx = 0,
-	vy = 0,
+	velocity_x = 0,
+	velocity_y = 0,
 }
 
 local config = {
@@ -41,8 +41,8 @@ end
 function camera.reset(x, y)
 	state.x = x or 0
 	state.y = y or 0
-	state.vx = 0
-	state.vy = 0
+	state.velocity_x = 0
+	state.velocity_y = 0
 end
 
 function camera.set_bounds(min_x, min_y, max_x, max_y)
@@ -65,8 +65,8 @@ function camera.snap(target)
 
 	state.x = target_x
 	state.y = target_y
-	state.vx = 0
-	state.vy = 0
+	state.velocity_x = 0
+	state.velocity_y = 0
 end
 
 function camera.update(target, delta)
@@ -92,29 +92,29 @@ function camera.update(target, delta)
 		delta_y = 0
 	end
 
-	state.vx = state.vx + (delta_x * stiffness - state.vx * damping_coefficient) * delta
-	state.vy = state.vy + (delta_y * stiffness - state.vy * damping_coefficient) * delta
+	state.velocity_x = state.velocity_x + (delta_x * stiffness - state.velocity_x * damping_coefficient) * delta
+	state.velocity_y = state.velocity_y + (delta_y * stiffness - state.velocity_y * damping_coefficient) * delta
 
-	state.x = state.x + state.vx * delta
-	state.y = state.y + state.vy * delta
+	state.x = state.x + state.velocity_x * delta
+	state.y = state.y + state.velocity_y * delta
 
 	if bounds_x_min then
 		if state.x <= bounds_x_min or state.x >= bounds_x_max then
-			state.vx = 0
+			state.velocity_x = 0
 		end
 		if state.y <= bounds_y_min or state.y >= bounds_y_max then
-			state.vy = 0
+			state.velocity_y = 0
 		end
 		state.x = max(bounds_x_min, min(bounds_x_max, state.x))
 		state.y = max(bounds_y_min, min(bounds_y_max, state.y))
 	end
 
 	local snap = config.snap_threshold
-	if abs(state.vx) < snap and delta_x == 0 then
-		state.vx = 0
+	if abs(state.velocity_x) < snap and delta_x == 0 then
+		state.velocity_x = 0
 	end
-	if abs(state.vy) < snap and delta_y == 0 then
-		state.vy = 0
+	if abs(state.velocity_y) < snap and delta_y == 0 then
+		state.velocity_y = 0
 	end
 end
 

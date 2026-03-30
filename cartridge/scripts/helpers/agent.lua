@@ -62,8 +62,8 @@ end
 function agent:stop(object)
 	object._path = {}
 	object._waypoint_index = 1
-	object.vx = 0
-	object.vy = 0
+	object.velocity_x = 0
+	object.velocity_y = 0
 end
 
 function agent:reset(object)
@@ -142,8 +142,8 @@ function agent:chase(object, target, world)
 	local distance_squared = delta_x * delta_x + delta_y * delta_y
 
 	if distance_squared <= 0 or distance_squared > self._detect_radius_sq then
-		object.vx = 0
-		object.vy = 0
+		object.velocity_x = 0
+		object.velocity_y = 0
 		object._angle = nil
 		return
 	end
@@ -156,8 +156,8 @@ function agent:chase(object, target, world)
 	if player_dist_sq > 0 and player_dist_sq <= close_range_sq then
 		local desired = atan2(player_dy, player_dx)
 		object._angle = desired
-		object.vx = cos(desired) * self.speed
-		object.vy = sin(desired) * self.speed
+		object.velocity_x = cos(desired) * self.speed
+		object.velocity_y = sin(desired) * self.speed
 		return
 	end
 
@@ -193,8 +193,8 @@ function agent:chase(object, target, world)
 		if chosen then
 			desired = chosen
 		else
-			object.vx = 0
-			object.vy = 0
+			object.velocity_x = 0
+			object.velocity_y = 0
 			object._angle = nil
 			object._timer = 0
 			return
@@ -213,8 +213,8 @@ function agent:chase(object, target, world)
 	local velocity_y = sin(angle) * self.speed
 
 	object.flip = velocity_x < 0 and "horizontal" or velocity_x > 0 and "none" or object.flip
-	object.vx = velocity_x
-	object.vy = velocity_y
+	object.velocity_x = velocity_x
+	object.velocity_y = velocity_y
 end
 
 function agent:in_range(object, target)

@@ -31,8 +31,8 @@ return {
 		end
 
 		local angle = self._angle or 0
-		self.vx = cos(angle) * SPEED
-		self.vy = sin(angle) * SPEED
+		self.velocity_x = cos(angle) * SPEED
+		self.velocity_y = sin(angle) * SPEED
 	end,
 
 	on_collision_begin = function(self, name, kind)

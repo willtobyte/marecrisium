@@ -49,8 +49,8 @@ return {
 			self.flip = "none"
 		end
 
-		self.vx = velocity_x
-		self.vy = velocity_y
+		self.velocity_x = velocity_x
+		self.velocity_y = velocity_y
 	end,
 
 	on_damage = function(self)

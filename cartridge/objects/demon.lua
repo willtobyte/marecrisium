@@ -40,8 +40,8 @@ return enemy({
 		local distance_squared = delta_x * delta_x + delta_y * delta_y
 
 		if distance_squared <= ATTACK_RANGE_SQUARED and distance_squared > 0 then
-			self.vx = 0
-			self.vy = 0
+			self.velocity_x = 0
+			self.velocity_y = 0
 
 			local angle = atan2(delta_y, delta_x)
 			self.flip = delta_x < 0 and "horizontal" or delta_x > 0 and "none" or self.flip
@@ -60,8 +60,8 @@ return enemy({
 
 			if distance_squared < KEEP_DISTANCE_SQUARED then
 				local retreat_angle = atan2(-delta_y, -delta_x)
-				self.vx = cos(retreat_angle) * chaser.speed
-				self.vy = sin(retreat_angle) * chaser.speed
+				self.velocity_x = cos(retreat_angle) * chaser.speed
+				self.velocity_y = sin(retreat_angle) * chaser.speed
 			end
 
 			return
