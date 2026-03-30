@@ -118,8 +118,7 @@ static int gamepad_index(lua_State *state) {
 
   const auto name = std::string_view{luaL_checkstring(state, 2)};
 
-  const auto it = mapping.find(entt::hashed_string{name.data()}.value());
-  if (it != mapping.end()) [[likely]] {
+  if (const auto it = mapping.find(entt::hashed_string{name.data()}.value()); it != mapping.end()) [[likely]] {
     const auto& e = it->second;
     if (e.type == type::axis)
       return push_gamepad_axis(state, e.axis);
