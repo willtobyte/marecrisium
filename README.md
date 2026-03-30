@@ -18,7 +18,7 @@ all heavy lifting is done on the C++ side.
 
 The game is written in pure Lua with JIT.
 
-### Build & Run
+### Run
 
 Install Conan (choose one method)
 
