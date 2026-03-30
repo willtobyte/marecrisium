@@ -1,7 +1,7 @@
 local controls = require("helpers/controls")
 local sqrt = math.sqrt
 
-local speed = 90
+local speed = 60
 
 return {
 	body = "dynamic",
