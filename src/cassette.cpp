@@ -47,7 +47,7 @@ static int cassette_index(lua_State *state) {
       yyjson_doc_free(document);
 
       lua_pushvalue(state, -1);
-      cache.emplace(std::string{key}, luaL_ref(state, LUA_REGISTRYINDEX));
+      cache.emplace(key, luaL_ref(state, LUA_REGISTRYINDEX));
     }
   } else {
     lua_pushnil(state);
@@ -81,7 +81,7 @@ static int cassette_newindex(lua_State *state) {
   lua_pushvalue(state, 3);
   const auto reference = luaL_ref(state, LUA_REGISTRYINDEX);
 
-  auto [it, inserted] = cache.try_emplace(std::string{key}, reference);
+  auto [it, inserted] = cache.try_emplace(key, reference);
   if (!inserted) [[likely]] {
     luaL_unref(state, LUA_REGISTRYINDEX, std::exchange(it->second, reference));
   }
