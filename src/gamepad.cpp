@@ -116,9 +116,8 @@ static int gamepad_index(lua_State *state) {
     {"right"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_RIGHT}}},
   };
 
-  const auto name = std::string_view{luaL_checkstring(state, 2)};
+  const auto key = entt::hashed_string{luaL_checkstring(state, 2)}.value();
 
-  const auto key = entt::hashed_string{name.data()}.value();
   const auto it = mapping.find(key);
   if (it != mapping.end()) [[likely]] {
     const auto& e = it->second;
@@ -128,18 +127,18 @@ static int gamepad_index(lua_State *state) {
     return push_gamepad_button(state, e.button);
   }
 
-  if (name == "connected") [[unlikely]] {
+  if (key == "connected"_hs.value()) [[unlikely]] {
     lua_pushboolean(state, ptr != nullptr ? 1 : 0);
     return 1;
   }
 
-  if (name == "rumble") [[unlikely]]
+  if (key == "rumble"_hs.value()) [[unlikely]]
     return lua_pushcfunction(state, gamepad_rumble), 1;
 
-  if (name == "led") [[unlikely]]
+  if (key == "led"_hs.value()) [[unlikely]]
     return lua_pushcfunction(state, gamepad_led), 1;
 
-  if (name == "name") [[unlikely]] {
+  if (key == "name"_hs.value()) [[unlikely]] {
     if (!ptr) [[unlikely]]
       return lua_pushstring(state, ""), 1;
 
