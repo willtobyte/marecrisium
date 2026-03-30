@@ -10,6 +10,14 @@
 
 ## Game & Engine
 
+Carimbo is an engine written in modern C++ (C++23), using Box2D, EnTT,
+libspng, LuaJIT, miniaudio, opusfile, PhysFS, SDL, SQLite, and yyjson.
+
+The engine exposes a minimal interface to games;
+all heavy lifting is done on the C++ side.
+
+The game is written in pure Lua with JIT.
+
 ### Build & Run
 
 Install Conan (choose one method)
