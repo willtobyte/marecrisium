@@ -8,6 +8,14 @@
 > To believe in what? In a symbol? In an absent force created by ignorance?
 > Yes, I'm a rebel... Against the fools like you!
 
+After a series of apocalyptic AI events on Earth and numerous failed attempts
+by billionaires to colonize Mars, the Moon became a refuge and a source
+of valuable metals and gases for the production of advanced chips.
+
+And you inherit it from your great-great-grandfather, who was an astronaut
+and the first man to buy land on the Moon—specifically in a dark and mysterious
+crater called Mare Crisium.
+
 ## Engine
 
 Carimbo is an engine written in modern C++ (C++23), using Box2D, EnTT,
