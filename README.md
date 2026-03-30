@@ -29,37 +29,3 @@ all heavy lifting is done on the C++ side.
 The game is written in pure Lua with JIT. See the cartridge directory.
 Types, annotations, and everything related to the exposed Lua API
 are documented in `types/carimbo.lua`.
-
-### Run
-
-Install Conan (choose one method)
-
-```shell
-mise use -g conan # recommended
-# brew install conan
-# pip install conan
-```
-
-Initialize Conan profile (only once)
-
-```shell
-conan profile detect --force
-```
-
-Install dependencies, (also only once)
-
-```shell
-make conan
-```
-
-Build and run (debug)
-
-```shell
-make run
-```
-
-Build and run (release)
-
-```shell
-make conan build buildtype=Release && CARTRIDGE=cartridge ./build/carimbo
-```
