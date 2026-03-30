@@ -8,7 +8,9 @@
 > To believe in what? In a symbol? In an absent force created by ignorance?
 > Yes, I'm a rebel... Against the fools like you!
 
-## Build and Run
+## Dummy
+
+### Build and Run
 
 Install Conan (choose one method)
 
