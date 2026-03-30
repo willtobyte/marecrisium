@@ -7,23 +7,29 @@ to override original game content without altering the base cartridge.
 
 At startup, the engine mounts the game content (the `cartridge/`
 directory or `cartridge.rom` archive) and then attempts to mount
-a `modifications.zip` archive. Files inside `modifications.zip`
-take **higher precedence** than files in the cartridge. When the
-engine reads a file, it searches `modifications.zip` first; if
-the file exists there, it is used instead of the original.
+modifications from one of two sources:
 
-If `modifications.zip` does not exist, the engine runs normally
-with just the base cartridge content.
+1. A `modifications.zip` archive
+2. A `modifications/` directory
+
+If both exist, `modifications.zip` is used. Files inside the
+modifications layer take **higher precedence** than files in
+the cartridge. When the engine reads a file, it searches the
+modifications layer first; if the file exists there, it is used
+instead of the original.
+
+If neither `modifications.zip` nor `modifications/` exist, the
+engine runs normally with just the base cartridge content.
 
 ## Usage
 
-Create a `modifications.zip` archive alongside the game executable
-(or in the working directory) containing files using the same
-directory structure as the cartridge. For example, to replace
-a sprite:
+Place a `modifications.zip` archive or a `modifications/`
+directory alongside the game executable (or in the working
+directory) with files using the same directory structure as the
+cartridge. For example, to replace a sprite:
 
 ```text
-modifications.zip
+modifications.zip          (or modifications/)
   blobs/
     player.png
 ```
