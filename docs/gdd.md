@@ -10,6 +10,9 @@ crater called Mare Crisium.
 
 ## Ambiance
 
+The game takes place in a crater with the same name as the title—dark,
+gloomy, and solitary, yet rich in precious metals.
+
 ## Gameplay
 
 ## Resources
