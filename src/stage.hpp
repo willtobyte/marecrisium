@@ -41,8 +41,6 @@ public:
 
   [[nodiscard]] int find(lua_State* state);
 
-  [[nodiscard]] entt::entity find_topmost(std::span<const entt::entity> hits) const noexcept;
-
   [[nodiscard]] int radar(lua_State* state, entt::entity caller, float x, float y, float radius);
 
   [[nodiscard]] int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
