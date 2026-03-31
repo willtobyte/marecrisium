@@ -79,6 +79,8 @@ private:
 
   std::vector<hit> _hits{};
 
+  friend void overlap_aabb(b2WorldId, b2AABB, std::vector<hit>&) noexcept;
+
   float _sleep_margin{};
   float _wake_margin{};
 

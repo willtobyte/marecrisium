@@ -111,7 +111,7 @@ static void on_object_destroy(entt::registry& registry, entt::entity entity) {
     b2DestroyBody(bo.id);
 }
 
-static void overlap_aabb(b2WorldId world, b2AABB aabb, std::vector<stage::hit> &hits) noexcept {
+void overlap_aabb(b2WorldId world, b2AABB aabb, std::vector<stage::hit> &hits) noexcept {
   b2World_OverlapAABB(
     world,
     aabb,
