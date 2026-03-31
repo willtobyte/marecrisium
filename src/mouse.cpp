@@ -1,8 +1,6 @@
 #include "mouse.hpp"
 
 namespace {
-using entt::operator""_hs;
-
 namespace property {
   constexpr auto x = "x"_hs;
   constexpr auto y = "y"_hs;

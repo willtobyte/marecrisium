@@ -2,8 +2,6 @@
 
 namespace {
 namespace property {
-  using entt::operator""_hs;
-
   constexpr auto clear = "clear"_hs;
 }
 

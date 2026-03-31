@@ -5,8 +5,6 @@ namespace {
 constexpr float TWO_PI = 6.28318530718f;
 
 namespace property {
-  using entt::operator""_hs;
-
   constexpr auto active = "active"_hs;
   constexpr auto x = "x"_hs;
   constexpr auto y = "y"_hs;
