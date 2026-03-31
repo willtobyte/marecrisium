@@ -2,8 +2,6 @@
 
 namespace {
   namespace property {
-    using entt::operator""_hs;
-
     constexpr auto connected = "connected"_hs;
     constexpr auto rumble = "rumble"_hs;
     constexpr auto led = "led"_hs;

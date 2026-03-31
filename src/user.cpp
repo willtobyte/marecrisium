@@ -2,8 +2,6 @@
 
 namespace {
   namespace property {
-    using entt::operator""_hs;
-
     constexpr auto id = "id"_hs;
     constexpr auto name = "name"_hs;
     constexpr auto persona = "persona"_hs;

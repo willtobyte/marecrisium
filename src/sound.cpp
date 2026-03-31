@@ -2,8 +2,6 @@
 
 namespace {
   namespace property {
-    using entt::operator""_hs;
-
     constexpr auto volume = "volume"_hs;
     constexpr auto pan = "pan"_hs;
     constexpr auto loop = "loop"_hs;

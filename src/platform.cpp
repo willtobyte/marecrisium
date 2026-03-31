@@ -2,8 +2,6 @@
 
 namespace {
   namespace property {
-    using entt::operator""_hs;
-
     constexpr auto name      = "name"_hs;
     constexpr auto cores     = "cores"_hs;
     constexpr auto memory    = "memory"_hs;

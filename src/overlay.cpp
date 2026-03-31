@@ -89,8 +89,6 @@ static int overlay_label(lua_State *state) {
 
 namespace {
   namespace property {
-    using entt::operator""_hs;
-
     constexpr auto label = "label"_hs;
   }
 }

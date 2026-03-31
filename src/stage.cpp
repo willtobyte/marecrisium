@@ -2,8 +2,6 @@
 
 namespace {
   namespace property {
-    using entt::operator""_hs;
-
     constexpr auto dynamic_bodytype = "dynamic"_hs;
     constexpr auto static_bodytype  = "static"_hs;
   }

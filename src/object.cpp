@@ -3,8 +3,6 @@
 
 namespace {
   namespace property {
-    using entt::operator""_hs;
-
     constexpr auto alive = "alive"_hs;
     constexpr auto x = "x"_hs;
     constexpr auto y = "y"_hs;
