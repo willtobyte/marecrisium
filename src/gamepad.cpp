@@ -7,17 +7,44 @@ namespace {
     constexpr auto led = "led"_hs;
     constexpr auto name = "name"_hs;
   }
+
+  static const ankerl::unordered_dense::map<entt::id_type, SDL_GamepadAxis> axis{
+    {"left_x"_hs, SDL_GAMEPAD_AXIS_LEFTX},
+    {"left_y"_hs, SDL_GAMEPAD_AXIS_LEFTY},
+    {"right_x"_hs, SDL_GAMEPAD_AXIS_RIGHTX},
+    {"right_y"_hs, SDL_GAMEPAD_AXIS_RIGHTY},
+    {"trigger_left"_hs, SDL_GAMEPAD_AXIS_LEFT_TRIGGER},
+    {"trigger_right"_hs, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER},
+  };
+
+  static const ankerl::unordered_dense::map<entt::id_type, SDL_GamepadButton> buttons{
+    {"south"_hs, SDL_GAMEPAD_BUTTON_SOUTH},
+    {"east"_hs, SDL_GAMEPAD_BUTTON_EAST},
+    {"west"_hs, SDL_GAMEPAD_BUTTON_WEST},
+    {"north"_hs, SDL_GAMEPAD_BUTTON_NORTH},
+    {"back"_hs, SDL_GAMEPAD_BUTTON_BACK},
+    {"guide"_hs, SDL_GAMEPAD_BUTTON_GUIDE},
+    {"start"_hs, SDL_GAMEPAD_BUTTON_START},
+    {"shoulder_left"_hs, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER},
+    {"shoulder_right"_hs, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER},
+    {"stick_left"_hs, SDL_GAMEPAD_BUTTON_LEFT_STICK},
+    {"stick_right"_hs, SDL_GAMEPAD_BUTTON_RIGHT_STICK},
+    {"up"_hs, SDL_GAMEPAD_BUTTON_DPAD_UP},
+    {"down"_hs, SDL_GAMEPAD_BUTTON_DPAD_DOWN},
+    {"left"_hs, SDL_GAMEPAD_BUTTON_DPAD_LEFT},
+    {"right"_hs, SDL_GAMEPAD_BUTTON_DPAD_RIGHT},
+  };
 }
 
 static constexpr float DEADZONE_THRESHOLD = .1f;
 
-[[nodiscard]] static float deadzone(Sint16 axis) noexcept {
-  const auto value = static_cast<float>(axis) / 32768.f;
+[[nodiscard]] static float deadzone(Sint16 value) noexcept {
+  const auto normalized = static_cast<float>(value) / 32768.f;
   const auto magnitude = std::abs(value);
   if (magnitude < DEADZONE_THRESHOLD) [[likely]]
     return .0f;
 
-  const auto sign = std::copysign(1.f, value);
+  const auto sign = std::copysign(1.f, normalized);
   return sign * (magnitude - DEADZONE_THRESHOLD) / (1.f - DEADZONE_THRESHOLD);
 }
 
@@ -90,49 +117,13 @@ static int push_gamepad_button(lua_State *state, SDL_GamepadButton b) {
 }
 
 static int gamepad_index(lua_State *state) {
-  enum class type : uint8_t { axis, button };
-
-  struct entry final {
-    type type;
-
-    union {
-      SDL_GamepadAxis axis;
-      SDL_GamepadButton button;
-    };
-  };
-
-  static const ankerl::unordered_dense::map<entt::id_type, entry> mapping{
-    {"left_x"_hs, {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFTX}}},
-    {"left_y"_hs, {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFTY}}},
-    {"right_x"_hs, {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHTX}}},
-    {"right_y"_hs, {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHTY}}},
-    {"trigger_left"_hs, {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFT_TRIGGER}}},
-    {"trigger_right"_hs, {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHT_TRIGGER}}},
-    {"south"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_SOUTH}}},
-    {"east"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_EAST}}},
-    {"west"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_WEST}}},
-    {"north"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_NORTH}}},
-    {"back"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_BACK}}},
-    {"guide"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_GUIDE}}},
-    {"start"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_START}}},
-    {"shoulder_left"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_LEFT_SHOULDER}}},
-    {"shoulder_right"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER}}},
-    {"stick_left"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_LEFT_STICK}}},
-    {"stick_right"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_RIGHT_STICK}}},
-    {"up"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_UP}}},
-    {"down"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_DOWN}}},
-    {"left"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_LEFT}}},
-    {"right"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_RIGHT}}},
-  };
-
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
-  if (const auto it = mapping.find(id); it != mapping.end()) [[likely]] {
-    const auto& entry = it->second;
-    return entry.type == type::axis
-      ? push_gamepad_axis(state, entry.axis)
-      : push_gamepad_button(state, entry.button);
-  }
+  if (const auto it = axis.find(id); it != axis.end()) [[likely]]
+    return push_gamepad_axis(state, it->second);
+
+  if (const auto it = buttons.find(id); it != buttons.end()) [[likely]]
+    return push_gamepad_button(state, it->second);
 
   switch (id) {
     case property::connected:
