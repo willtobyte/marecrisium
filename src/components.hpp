@@ -13,6 +13,8 @@ enum class flipmode : uint8_t {
 struct transform final {
   float x{};
   float y{};
+  float previous_x{};
+  float previous_y{};
   float scale{1.f};
   float angle{};
   float alpha{255.f};

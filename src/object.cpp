@@ -158,7 +158,7 @@ namespace {
 
     if (key == "x") {
       auto& tf = registry.get<transform>(entity);
-      tf.x = static_cast<float>(luaL_checknumber(state, 3));
+      tf.previous_x = tf.x = static_cast<float>(luaL_checknumber(state, 3));
 
       auto* bd = registry.try_get<body>(entity);
       if (bd
@@ -171,7 +171,7 @@ namespace {
 
     if (key == "y") {
       auto& tf = registry.get<transform>(entity);
-      tf.y = static_cast<float>(luaL_checknumber(state, 3));
+      tf.previous_y = tf.y = static_cast<float>(luaL_checknumber(state, 3));
 
       auto* bd = registry.try_get<body>(entity);
       if (bd
@@ -312,8 +312,8 @@ namespace {
       lua_pop(state, 2);
 
       auto& tf = registry.get<transform>(entity);
-      tf.x = px;
-      tf.y = py;
+      tf.previous_x = tf.x = px;
+      tf.previous_y = tf.y = py;
 
       auto* bd = registry.try_get<body>(entity);
       if (bd

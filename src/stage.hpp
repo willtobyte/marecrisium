@@ -69,6 +69,15 @@ private:
   float _accumulator{};
   int _substeps{4};
 
+  struct {
+    struct {
+      float x{};
+      float y{};
+    } previous, current;
+    float alpha{};
+    bool ready{false};
+  } _interpolation;
+
   float _sleep_margin{};
   float _wake_margin{};
 

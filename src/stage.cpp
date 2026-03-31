@@ -593,6 +593,11 @@ void stage::update(float delta) {
   while (_accumulator >= _timestep) {
     for (auto&& [en, bd, an, tf] :
          _registry.view<body, animation, transform>(entt::exclude<dormant>).each()) {
+      if (bd.type == body_type::dynamic) {
+        tf.previous_x = tf.x;
+        tf.previous_y = tf.y;
+      }
+
       const auto& frame = an.clips[an.active].frames[an.current];
       const auto hx = frame.cw * .5f;
       const auto hy = frame.ch * .5f;
@@ -665,8 +670,30 @@ void stage::update(float delta) {
       _registry.ctx().get<reorder>().dirty = true;
     }
 
+    _interpolation.previous = _interpolation.current;
+
+    if (_on_camera != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+
+      pcall(L, 1, 2);
+
+      if (lua_isnumber(L, -2))
+        _interpolation.current.x = static_cast<float>(lua_tonumber(L, -2));
+      if (lua_isnumber(L, -1))
+        _interpolation.current.y = static_cast<float>(lua_tonumber(L, -1));
+      lua_pop(L, 2);
+    }
+
+    if (!_interpolation.ready) [[unlikely]] {
+      _interpolation.previous = _interpolation.current;
+      _interpolation.ready = true;
+    }
+
     _accumulator -= _timestep;
   }
+
+  _interpolation.alpha = _timestep > .0f ? _accumulator / _timestep : .0f;
 
   static constexpr std::string_view directions[] = {"left", "right", "top", "bottom"};
 
@@ -769,21 +796,10 @@ void stage::update(float delta) {
 }
 
 void stage::draw() {
-  viewport.x = .0f;
-  viewport.y = .0f;
-
-  if (_on_camera != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-
-    pcall(L, 1, 2);
-
-    if (lua_isnumber(L, -2))
-      viewport.x = std::floor(static_cast<float>(lua_tonumber(L, -2)) * viewport.scale) / viewport.scale;
-    if (lua_isnumber(L, -1))
-      viewport.y = std::floor(static_cast<float>(lua_tonumber(L, -1)) * viewport.scale) / viewport.scale;
-    lua_pop(L, 2);
-  }
+  const auto cx = _interpolation.previous.x + _interpolation.alpha * (_interpolation.current.x - _interpolation.previous.x);
+  const auto cy = _interpolation.previous.y + _interpolation.alpha * (_interpolation.current.y - _interpolation.previous.y);
+  viewport.x = std::floor(cx * viewport.scale) / viewport.scale;
+  viewport.y = std::floor(cy * viewport.scale) / viewport.scale;
 
   _tilemap.draw_background();
 
@@ -799,10 +815,15 @@ void stage::draw() {
 
     const auto& fr = c.frames[a.current];
 
+    const auto* bd = _registry.try_get<body>(entity);
+    const auto dynamic = bd && bd->type == body_type::dynamic;
+    const auto rx = dynamic ? tf.previous_x + _interpolation.alpha * (tf.x - tf.previous_x) : tf.x;
+    const auto ry = dynamic ? tf.previous_y + _interpolation.alpha * (tf.y - tf.previous_y) : tf.y;
+
     const auto dw = fr.w * tf.scale;
     const auto dh = fr.h * tf.scale;
-    const auto sx = std::floor((tf.x - viewport.x) * viewport.scale) / viewport.scale;
-    const auto sy = std::floor((tf.y - viewport.y) * viewport.scale) / viewport.scale;
+    const auto sx = std::floor((rx - viewport.x) * viewport.scale) / viewport.scale;
+    const auto sy = std::floor((ry - viewport.y) * viewport.scale) / viewport.scale;
 
     if (sx + dw < .0f || sx > viewport.width ||
         sy + dh < .0f || sy > viewport.height)
@@ -914,8 +935,8 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   const auto entity = _registry.create();
   _registry.emplace<renderable>(entity);
   auto& tf = _registry.emplace<transform>(entity);
-  tf.x = x;
-  tf.y = y;
+  tf.previous_x = tf.x = x;
+  tf.previous_y = tf.y = y;
   const auto& proxy = _registry.emplace<objectproxy>(entity, _registry, entity, name, kind);
   const auto prototype = proxy.prototype;
   const auto handle = proxy.handle;
