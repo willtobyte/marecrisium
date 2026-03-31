@@ -86,13 +86,36 @@ int foreground_draw(lua_State *state) {
 int foreground_index(lua_State *state) {
   auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
   const auto key = std::string_view{luaL_checkstring(state, 2)};
+  const auto id = entt::hashed_string{key.data()}.value();
 
-  if (key == "draw") {
+  if (id == "draw"_hs.value()) {
     lua_pushcfunction(state, foreground_draw);
     return 1;
   }
 
-  return dispatch(state, self->_reference, key);
+  lua_rawgeti(state, LUA_REGISTRYINDEX, self->_reference);
+  lua_getfield(state, -1, key.data());
+  if (!lua_isnil(state, -1)) [[likely]] {
+    lua_remove(state, -2);
+    return 1;
+  }
+  lua_pop(state, 1);
+
+  std::array<char, 64> buffer;
+  const auto length = std::min(key.size(), std::size_t{60});
+  buffer[0] = 'o';
+  buffer[1] = 'n';
+  buffer[2] = '_';
+  std::memcpy(buffer.data() + 3, key.data(), length);
+  buffer[3 + length] = '\0';
+
+  lua_getfield(state, -1, buffer.data());
+  lua_remove(state, -2);
+  if (!lua_isnil(state, -1))
+    return 1;
+  lua_pop(state, 1);
+
+  return lua_pushnil(state), 1;
 }
 }
 

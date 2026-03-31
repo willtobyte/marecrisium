@@ -177,32 +177,6 @@ void compile(lua_State *state, const std::vector<uint8_t> &buffer, std::string_v
   }
 }
 
-int dispatch(lua_State *state, int reference, std::string_view key) {
-  lua_rawgeti(state, LUA_REGISTRYINDEX, reference);
-  lua_getfield(state, -1, key.data());
-  if (!lua_isnil(state, -1)) {
-    lua_remove(state, -2);
-    return 1;
-  }
-  lua_pop(state, 1);
-
-  std::array<char, 64> buffer;
-  const auto length = std::min(key.size(), std::size_t{60});
-  buffer[0] = 'o';
-  buffer[1] = 'n';
-  buffer[2] = '_';
-  std::memcpy(buffer.data() + 3, key.data(), length);
-  buffer[3 + length] = '\0';
-
-  lua_getfield(state, -1, buffer.data());
-  lua_remove(state, -2);
-  if (!lua_isnil(state, -1))
-    return 1;
-  lua_pop(state, 1);
-
-  return lua_pushnil(state), 1;
-}
-
 void singleton(lua_State *state, const char *metatable, const char *global) noexcept {
   lua_newuserdata(state, 1);
   luaL_getmetatable(state, metatable);

@@ -2,6 +2,27 @@
 #include "sound.hpp"
 
 namespace {
+  namespace property {
+    using entt::operator""_hs;
+
+    constexpr auto alive      = "alive"_hs.value();
+    constexpr auto x          = "x"_hs.value();
+    constexpr auto y          = "y"_hs.value();
+    constexpr auto z          = "z"_hs.value();
+    constexpr auto velocity_x = "velocity_x"_hs.value();
+    constexpr auto velocity_y = "velocity_y"_hs.value();
+    constexpr auto flip       = "flip"_hs.value();
+    constexpr auto dormant    = "dormant"_hs.value();
+    constexpr auto animation  = "animation"_hs.value();
+    constexpr auto shown      = "shown"_hs.value();
+    constexpr auto scale      = "scale"_hs.value();
+    constexpr auto angle      = "angle"_hs.value();
+    constexpr auto alpha      = "alpha"_hs.value();
+    constexpr auto name       = "name"_hs.value();
+    constexpr auto kind       = "kind"_hs.value();
+    constexpr auto position   = "position"_hs.value();
+  }
+
   static void sync_body_position(body& bd, const transform& tf, const animation* an) noexcept {
     auto ox = .0f;
     auto oy = .0f;
@@ -16,9 +37,10 @@ namespace {
 
   int object_index(lua_State* state) {
     const auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
-    const auto key = std::string_view{luaL_checkstring(state, 2)};
+    const auto* key = luaL_checkstring(state, 2);
+    const auto id = entt::hashed_string{key}.value();
 
-    if (key == "alive") {
+    if (id == property::alive) {
       lua_pushboolean(state, proxy->registry->valid(proxy->entity) ? 1 : 0);
       return 1;
     }
@@ -29,126 +51,144 @@ namespace {
     auto& registry = *proxy->registry;
     const auto entity = proxy->entity;
 
-    if (key == "x") {
-      lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).x));
-      return 1;
-    }
+    switch (id) {
+      case property::x:
+        lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).x));
+        return 1;
 
-    if (key == "y") {
-      lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).y));
-      return 1;
-    }
+      case property::y:
+        lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).y));
+        return 1;
 
-    if (key == "z") {
-      lua_pushinteger(state, static_cast<lua_Integer>(registry.get<renderable>(entity).z));
-      return 1;
-    }
+      case property::z:
+        lua_pushinteger(state, static_cast<lua_Integer>(registry.get<renderable>(entity).z));
+        return 1;
 
-    if (key == "velocity_x") {
-      const auto* bd = registry.try_get<body>(entity);
-      if (bd && b2Body_IsValid(bd->id)) [[likely]] {
-        lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(bd->id).x));
+      case property::velocity_x: {
+        const auto* bd = registry.try_get<body>(entity);
+        if (bd && b2Body_IsValid(bd->id)) [[likely]] {
+          lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(bd->id).x));
+          return 1;
+        }
+        lua_pushnumber(state, static_cast<lua_Number>(.0f));
         return 1;
       }
-      lua_pushnumber(state, static_cast<lua_Number>(.0f));
-      return 1;
-    }
 
-    if (key == "velocity_y") {
-      const auto* bd = registry.try_get<body>(entity);
-      if (bd && b2Body_IsValid(bd->id)) [[likely]] {
-        lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(bd->id).y));
+      case property::velocity_y: {
+        const auto* bd = registry.try_get<body>(entity);
+        if (bd && b2Body_IsValid(bd->id)) [[likely]] {
+          lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(bd->id).y));
+          return 1;
+        }
+        lua_pushnumber(state, static_cast<lua_Number>(.0f));
         return 1;
       }
-      lua_pushnumber(state, static_cast<lua_Number>(.0f));
-      return 1;
-    }
 
-    if (key == "flip") {
-      switch (registry.get<transform>(entity).flip) {
-        case flipmode::horizontal:
-          lua_pushstring(state, "horizontal");
+      case property::flip:
+        switch (registry.get<transform>(entity).flip) {
+          case flipmode::horizontal:
+            lua_pushstring(state, "horizontal");
+            return 1;
+          case flipmode::vertical:
+            lua_pushstring(state, "vertical");
+            return 1;
+          case flipmode::both:
+            lua_pushstring(state, "both");
+            return 1;
+          default:
+            lua_pushstring(state, "none");
+            return 1;
+        }
+
+      case property::dormant:
+        lua_pushboolean(state, registry.all_of<dormant>(entity) ? 1 : 0);
+        return 1;
+
+      case property::animation: {
+        if (!registry.all_of<animation>(entity))
+          return lua_pushnil(state), 1;
+
+        const auto& a = registry.get<animation>(entity);
+        if (!a.playing || a.clip_count == 0) [[unlikely]]
+          return lua_pushnil(state), 1;
+
+        const auto* strings = registry.ctx().get<stringpool*>();
+        lua_pushstring(state, strings->get(a.clips[a.active].name));
+        return 1;
+      }
+
+      case property::shown:
+        lua_pushboolean(state, registry.get<transform>(entity).shown ? 1 : 0);
+        return 1;
+
+      case property::scale:
+        lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).scale));
+        return 1;
+
+      case property::angle:
+        lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).angle));
+        return 1;
+
+      case property::alpha:
+        lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).alpha));
+        return 1;
+
+      case property::name: {
+        const auto* strings = registry.ctx().get<stringpool*>();
+        lua_pushstring(state, strings->get(proxy->name));
+        return 1;
+      }
+
+      case property::kind: {
+        const auto* strings = registry.ctx().get<stringpool*>();
+        lua_pushstring(state, strings->get(proxy->kind));
+        return 1;
+      }
+
+      case property::position: {
+        const auto& tf = registry.get<transform>(entity);
+        lua_createtable(state, 2, 0);
+        lua_pushnumber(state, static_cast<lua_Number>(tf.x));
+        lua_rawseti(state, -2, 1);
+        lua_pushnumber(state, static_cast<lua_Number>(tf.y));
+        lua_rawseti(state, -2, 2);
+        return 1;
+      }
+
+      default: {
+        assert(proxy->prototype != LUA_NOREF && "object must have an object reference");
+
+        lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->prototype);
+        lua_getfield(state, -1, key);
+        if (!lua_isnil(state, -1)) [[likely]] {
+          lua_remove(state, -2);
           return 1;
-        case flipmode::vertical:
-          lua_pushstring(state, "vertical");
+        }
+        lua_pop(state, 1);
+
+        std::array<char, 64> buffer;
+        const auto length = std::min(std::strlen(key), std::size_t{60});
+        buffer[0] = 'o';
+        buffer[1] = 'n';
+        buffer[2] = '_';
+        std::memcpy(buffer.data() + 3, key, length);
+        buffer[3 + length] = '\0';
+
+        lua_getfield(state, -1, buffer.data());
+        lua_remove(state, -2);
+        if (!lua_isnil(state, -1))
           return 1;
-        case flipmode::both:
-          lua_pushstring(state, "both");
-          return 1;
-        default:
-          lua_pushstring(state, "none");
-          return 1;
+        lua_pop(state, 1);
+
+        return lua_pushnil(state), 1;
       }
     }
-
-    if (key == "dormant") {
-      lua_pushboolean(state, registry.all_of<dormant>(entity) ? 1 : 0);
-      return 1;
-    }
-
-    if (key == "animation") {
-      if (!registry.all_of<animation>(entity))
-        return lua_pushnil(state), 1;
-
-      const auto& a = registry.get<animation>(entity);
-      if (!a.playing || a.clip_count == 0) [[unlikely]]
-        return lua_pushnil(state), 1;
-
-      const auto* strings = registry.ctx().get<stringpool*>();
-      lua_pushstring(state, strings->get(a.clips[a.active].name));
-      return 1;
-    }
-
-    if (key == "shown") {
-      lua_pushboolean(state, registry.get<transform>(entity).shown ? 1 : 0);
-      return 1;
-    }
-
-    if (key == "scale") {
-      lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).scale));
-      return 1;
-    }
-
-    if (key == "angle") {
-      lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).angle));
-      return 1;
-    }
-
-    if (key == "alpha") {
-      lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).alpha));
-      return 1;
-    }
-
-    if (key == "name") {
-      const auto* strings = registry.ctx().get<stringpool*>();
-      lua_pushstring(state, strings->get(proxy->name));
-      return 1;
-    }
-
-    if (key == "kind") {
-      const auto* strings = registry.ctx().get<stringpool*>();
-      lua_pushstring(state, strings->get(proxy->kind));
-      return 1;
-    }
-
-    if (key == "position") {
-      const auto& tf = registry.get<transform>(entity);
-      lua_createtable(state, 2, 0);
-      lua_pushnumber(state, static_cast<lua_Number>(tf.x));
-      lua_rawseti(state, -2, 1);
-      lua_pushnumber(state, static_cast<lua_Number>(tf.y));
-      lua_rawseti(state, -2, 2);
-      return 1;
-    }
-
-    assert(proxy->prototype != LUA_NOREF && "object must have an object reference");
-
-    return dispatch(state, proxy->prototype, key);
   }
 
   int object_newindex(lua_State* state) {
     auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
-    const auto key = std::string_view{luaL_checkstring(state, 2)};
+    const auto* key = luaL_checkstring(state, 2);
+    const auto id = entt::hashed_string{key}.value();
 
     if (!proxy->registry->valid(proxy->entity))
       return 0;
@@ -156,181 +196,180 @@ namespace {
     auto& registry = *proxy->registry;
     const auto entity = proxy->entity;
 
-    if (key == "x") {
-      auto& tf = registry.get<transform>(entity);
-      tf.previous_x = tf.x = static_cast<float>(luaL_checknumber(state, 3));
+    switch (id) {
+      case property::x: {
+        auto& tf = registry.get<transform>(entity);
+        tf.previous_x = tf.x = static_cast<float>(luaL_checknumber(state, 3));
 
-      auto* bd = registry.try_get<body>(entity);
-      if (bd
-          && bd->type != body_type::kinematic
-          && b2Body_IsValid(bd->id)) [[likely]]
-        sync_body_position(*bd, tf, registry.try_get<animation>(entity));
+        auto* bd = registry.try_get<body>(entity);
+        if (bd
+            && bd->type != body_type::kinematic
+            && b2Body_IsValid(bd->id)) [[likely]]
+          sync_body_position(*bd, tf, registry.try_get<animation>(entity));
 
-      return 0;
-    }
-
-    if (key == "y") {
-      auto& tf = registry.get<transform>(entity);
-      tf.previous_y = tf.y = static_cast<float>(luaL_checknumber(state, 3));
-
-      auto* bd = registry.try_get<body>(entity);
-      if (bd
-          && bd->type != body_type::kinematic
-          && b2Body_IsValid(bd->id)) [[likely]]
-        sync_body_position(*bd, tf, registry.try_get<animation>(entity));
-
-      return 0;
-    }
-
-    if (key == "z") {
-      auto& r = registry.get<renderable>(entity);
-      const auto value = static_cast<int>(luaL_checkinteger(state, 3));
-      r.z = value;
-      registry.ctx().get<reorder>().dirty = true;
-
-      return 0;
-    }
-
-    if (key == "velocity_x") {
-      auto* bd = registry.try_get<body>(entity);
-      if (bd
-          && bd->type == body_type::dynamic
-          && b2Body_IsValid(bd->id)) [[likely]] {
-        const auto current = b2Body_GetLinearVelocity(bd->id);
-        b2Body_SetLinearVelocity(bd->id, {static_cast<float>(luaL_checknumber(state, 3)), current.y});
-      }
-
-      return 0;
-    }
-
-    if (key == "velocity_y") {
-      auto* bd = registry.try_get<body>(entity);
-      if (bd
-          && bd->type == body_type::dynamic
-          && b2Body_IsValid(bd->id)) [[likely]] {
-        const auto current = b2Body_GetLinearVelocity(bd->id);
-        b2Body_SetLinearVelocity(bd->id, {current.x, static_cast<float>(luaL_checknumber(state, 3))});
-      }
-
-      return 0;
-    }
-
-    if (key == "flip") {
-      const auto value = std::string_view{luaL_checkstring(state, 3)};
-      auto& tf = registry.get<transform>(entity);
-      if (value == "horizontal") {
-        tf.flip = flipmode::horizontal;
-      } else if (value == "vertical") {
-        tf.flip = flipmode::vertical;
-      } else if (value == "both") {
-        tf.flip = flipmode::both;
-      } else if (value == "none") {
-        tf.flip = flipmode::none;
-      } else {
-        return luaL_error(state, "invalid flip value: %s", value.data());
-      }
-
-      return 0;
-    }
-
-    if (key == "animation") {
-      if (!registry.all_of<animation>(entity))
         return 0;
+      }
 
-      const auto value = std::string_view{luaL_checkstring(state, 3)};
-      const auto hash = entt::hashed_string{value.data()}.value();
+      case property::y: {
+        auto& tf = registry.get<transform>(entity);
+        tf.previous_y = tf.y = static_cast<float>(luaL_checknumber(state, 3));
 
-      auto& a = registry.get<animation>(entity);
+        auto* bd = registry.try_get<body>(entity);
+        if (bd
+            && bd->type != body_type::kinematic
+            && b2Body_IsValid(bd->id)) [[likely]]
+          sync_body_position(*bd, tf, registry.try_get<animation>(entity));
 
-      for (uint8_t i = 0; i < a.clip_count; ++i) {
-        if (a.clips[i].name != hash)
-          continue;
+        return 0;
+      }
 
-        const auto previous = a.playing ? a.clips[a.active].name : entt::id_type{};
-        a.active = i;
-        a.current = 0;
-        a.elapsed = .0f;
-        a.playing = true;
+      case property::z: {
+        auto& r = registry.get<renderable>(entity);
+        const auto value = static_cast<int>(luaL_checkinteger(state, 3));
+        r.z = value;
+        registry.ctx().get<reorder>().dirty = true;
 
-        if (a.clips[i].fx)
-          a.clips[i].fx->play();
+        return 0;
+      }
 
-        if (proxy->handle == LUA_NOREF)
+      case property::velocity_x: {
+        auto* bd = registry.try_get<body>(entity);
+        if (bd
+            && bd->type == body_type::dynamic
+            && b2Body_IsValid(bd->id)) [[likely]] {
+          const auto current = b2Body_GetLinearVelocity(bd->id);
+          b2Body_SetLinearVelocity(bd->id, {static_cast<float>(luaL_checknumber(state, 3)), current.y});
+        }
+
+        return 0;
+      }
+
+      case property::velocity_y: {
+        auto* bd = registry.try_get<body>(entity);
+        if (bd
+            && bd->type == body_type::dynamic
+            && b2Body_IsValid(bd->id)) [[likely]] {
+          const auto current = b2Body_GetLinearVelocity(bd->id);
+          b2Body_SetLinearVelocity(bd->id, {current.x, static_cast<float>(luaL_checknumber(state, 3))});
+        }
+
+        return 0;
+      }
+
+      case property::flip: {
+        const auto value = std::string_view{luaL_checkstring(state, 3)};
+        auto& tf = registry.get<transform>(entity);
+        if (value == "horizontal") {
+          tf.flip = flipmode::horizontal;
+        } else if (value == "vertical") {
+          tf.flip = flipmode::vertical;
+        } else if (value == "both") {
+          tf.flip = flipmode::both;
+        } else if (value == "none") {
+          tf.flip = flipmode::none;
+        } else {
+          return luaL_error(state, "invalid flip value: %s", value.data());
+        }
+
+        return 0;
+      }
+
+      case property::animation: {
+        if (!registry.all_of<animation>(entity))
           return 0;
 
-        const auto* strings = registry.ctx().get<stringpool*>();
+        const auto value = std::string_view{luaL_checkstring(state, 3)};
+        const auto hash = entt::hashed_string{value.data()}.value();
 
-        if (previous != 0
-            && previous != hash
-            && proxy->on_animation_end != LUA_NOREF) [[unlikely]] {
-          lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
-          lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-          lua_pushstring(state, strings->get(previous));
-          pcall(state, 2, 0);
-        }
+        auto& a = registry.get<animation>(entity);
 
-        if (proxy->on_animation_begin != LUA_NOREF) {
-          lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
-          lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-          lua_pushstring(state, strings->get(hash));
-          pcall(state, 2, 0);
+        for (uint8_t i = 0; i < a.clip_count; ++i) {
+          if (a.clips[i].name != hash)
+            continue;
+
+          const auto previous = a.playing ? a.clips[a.active].name : entt::id_type{};
+          a.active = i;
+          a.current = 0;
+          a.elapsed = .0f;
+          a.playing = true;
+
+          if (a.clips[i].fx)
+            a.clips[i].fx->play();
+
+          if (proxy->handle == LUA_NOREF)
+            return 0;
+
+          const auto* strings = registry.ctx().get<stringpool*>();
+
+          if (previous != 0
+              && previous != hash
+              && proxy->on_animation_end != LUA_NOREF) [[unlikely]] {
+            lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
+            lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
+            lua_pushstring(state, strings->get(previous));
+            pcall(state, 2, 0);
+          }
+
+          if (proxy->on_animation_begin != LUA_NOREF) {
+            lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
+            lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
+            lua_pushstring(state, strings->get(hash));
+            pcall(state, 2, 0);
+          }
+
+          return 0;
         }
 
         return 0;
       }
 
-      return 0;
+      case property::scale:
+        registry.get<transform>(entity).scale = static_cast<float>(luaL_checknumber(state, 3));
+        return 0;
+
+      case property::angle:
+        registry.get<transform>(entity).angle = static_cast<float>(luaL_checknumber(state, 3));
+        return 0;
+
+      case property::alpha:
+        registry.get<transform>(entity).alpha =
+          std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 255.0f);
+        return 0;
+
+      case property::shown:
+        registry.get<transform>(entity).shown = lua_toboolean(state, 3) != 0;
+        return 0;
+
+      case property::position: {
+        luaL_checktype(state, 3, LUA_TTABLE);
+        lua_rawgeti(state, 3, 1);
+        lua_rawgeti(state, 3, 2);
+        const auto px = static_cast<float>(lua_tonumber(state, -2));
+        const auto py = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 2);
+
+        auto& tf = registry.get<transform>(entity);
+        tf.previous_x = tf.x = px;
+        tf.previous_y = tf.y = py;
+
+        auto* bd = registry.try_get<body>(entity);
+        if (bd
+            && bd->type != body_type::kinematic
+            && b2Body_IsValid(bd->id)) [[likely]]
+          sync_body_position(*bd, tf, registry.try_get<animation>(entity));
+
+        return 0;
+      }
+
+      default:
+        assert(proxy->prototype != LUA_NOREF && "object must have an object reference");
+
+        lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->prototype);
+        lua_pushvalue(state, 3);
+        lua_setfield(state, -2, key);
+        lua_pop(state, 1);
+        return 0;
     }
-
-    if (key == "scale") {
-      registry.get<transform>(entity).scale = static_cast<float>(luaL_checknumber(state, 3));
-      return 0;
-    }
-
-    if (key == "angle") {
-      registry.get<transform>(entity).angle = static_cast<float>(luaL_checknumber(state, 3));
-      return 0;
-    }
-
-    if (key == "alpha") {
-      registry.get<transform>(entity).alpha =
-        std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 255.0f);
-      return 0;
-    }
-
-    if (key == "shown") {
-      registry.get<transform>(entity).shown = lua_toboolean(state, 3) != 0;
-      return 0;
-    }
-
-    if (key == "position") {
-      luaL_checktype(state, 3, LUA_TTABLE);
-      lua_rawgeti(state, 3, 1);
-      lua_rawgeti(state, 3, 2);
-      const auto px = static_cast<float>(lua_tonumber(state, -2));
-      const auto py = static_cast<float>(lua_tonumber(state, -1));
-      lua_pop(state, 2);
-
-      auto& tf = registry.get<transform>(entity);
-      tf.previous_x = tf.x = px;
-      tf.previous_y = tf.y = py;
-
-      auto* bd = registry.try_get<body>(entity);
-      if (bd
-          && bd->type != body_type::kinematic
-          && b2Body_IsValid(bd->id)) [[likely]]
-        sync_body_position(*bd, tf, registry.try_get<animation>(entity));
-
-      return 0;
-    }
-
-    assert(proxy->prototype != LUA_NOREF && "object must have an object reference");
-
-    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->prototype);
-    lua_pushvalue(state, 3);
-    lua_setfield(state, -2, key.data());
-    lua_pop(state, 1);
-    return 0;
   }
 
   int object_gc(lua_State* state) {

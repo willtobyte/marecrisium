@@ -4,6 +4,5 @@
 
 void pcall(lua_State *state, int nargs, int nresults);
 void compile(lua_State *state, const std::vector<uint8_t> &buffer, std::string_view label);
-int dispatch(lua_State *state, int reference, std::string_view key);
 void metatable(lua_State *state, const char *name, lua_CFunction index, lua_CFunction newindex = nullptr, lua_CFunction gc = nullptr) noexcept;
 void singleton(lua_State *state, const char *metatable, const char *global) noexcept;
