@@ -771,7 +771,7 @@ void stage::update(float delta) {
       if (!resolve(event.shapeIdA, event.shapeIdB, ea, eb))
         continue;
 
-      const b2Vec2 flipped = {-event.manifold.normal.x, -event.manifold.normal.y};
+      const auto flipped = b2Vec2{-event.manifold.normal.x, -event.manifold.normal.y};
       dispatch_collision(ea, eb, "on_collision_begin", &event.manifold.normal);
       dispatch_collision(eb, ea, "on_collision_begin", &flipped);
     }
