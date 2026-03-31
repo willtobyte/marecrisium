@@ -67,7 +67,7 @@ private:
     struct {
       float x{};
       float y{};
-    } previous, current;
+    } before, current, previous;
     float alpha{};
     bool ready{false};
   } _interpolation;

@@ -243,7 +243,7 @@ stage::stage(std::string_view name)
   _world = b2CreateWorld(&def);
 
   const auto largest = std::max(viewport.width, viewport.height);
-  _sleep_margin = largest * 1.f;
+  _sleep_margin = largest;
   _wake_margin  = largest * .5f;
   _hits.reserve(64);
 
@@ -588,6 +588,9 @@ void stage::update(float delta) {
 
   _accumulator += delta;
 
+  _interpolation.before = _interpolation.current;
+
+  auto steps = 0;
   while (_accumulator >= _timestep) {
     for (auto&& [en, bd, an, tf] :
          _registry.view<body, animation, transform>(entt::exclude<dormant>).each()) {
@@ -623,8 +626,8 @@ void stage::update(float delta) {
       auto& tf = _registry.get<transform>(entity);
       const auto& frame = an->clips[an->active].frames[an->current];
       const auto position = event.transform.p;
-      tf.x = position.x - frame.cx * tf.scale - bd->cached_hx;
-      tf.y = position.y - frame.cy * tf.scale - bd->cached_hy;
+      tf.x = position.x - frame.cx - bd->cached_hx;
+      tf.y = position.y - frame.cy - bd->cached_hy;
 
       _registry.get<renderable>(entity).z = static_cast<int>(tf.y + frame.h * tf.scale);
     }
@@ -633,9 +636,8 @@ void stage::update(float delta) {
       _registry.ctx().get<reorder>().dirty = true;
 
     _accumulator -= _timestep;
+    ++steps;
   }
-
-  _interpolation.previous = _interpolation.current;
 
   if (_on_camera != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
@@ -650,7 +652,13 @@ void stage::update(float delta) {
     lua_pop(L, 2);
   }
 
-  if (!_interpolation.ready) [[unlikely]] {
+  if (steps > 0 && _interpolation.ready) {
+    const auto inverse = 1.f / static_cast<float>(steps);
+    _interpolation.previous.x = _interpolation.current.x
+      - (_interpolation.current.x - _interpolation.before.x) * inverse;
+    _interpolation.previous.y = _interpolation.current.y
+      - (_interpolation.current.y - _interpolation.before.y) * inverse;
+  } else {
     _interpolation.previous = _interpolation.current;
     _interpolation.ready = true;
   }
@@ -840,30 +848,26 @@ void stage::draw() {
 void stage::on_enter() {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_getfield(L, -1, "on_enter");
-  auto cb = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
-  lua_pop(L, 1);
-
-  if (cb == LUA_NOREF)
+  if (!lua_isfunction(L, -1)) {
+    lua_pop(L, 2);
     return;
+  }
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, cb);
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   pcall(L, 1, 0);
-  luaL_unref(L, LUA_REGISTRYINDEX, cb);
+  lua_pop(L, 1);
 }
 
 void stage::on_leave() {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_getfield(L, -1, "on_leave");
-  auto callback = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
-  lua_pop(L, 1);
-
-  if (callback != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
+  if (lua_isfunction(L, -1)) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     pcall(L, 1, 0);
-    luaL_unref(L, LUA_REGISTRYINDEX, callback);
+  } else {
+    lua_pop(L, 1);
   }
+  lua_pop(L, 1);
 
   conceal();
 }
