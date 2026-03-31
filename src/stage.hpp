@@ -10,11 +10,6 @@ void sincos(float x, float& osin, float& ocos) noexcept;
 
 class stage final {
 public:
-  struct hit {
-    entt::entity entity;
-    float fraction{};
-  };
-
   explicit stage(std::string_view name);
   ~stage();
 
@@ -76,6 +71,11 @@ private:
     float alpha{};
     bool ready{false};
   } _interpolation;
+
+  struct hit {
+    entt::entity entity;
+    float fraction{};
+  };
 
   std::vector<hit> _hits{};
 
