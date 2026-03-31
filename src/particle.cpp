@@ -245,8 +245,8 @@ void particle::draw() noexcept {
 
     const auto sc = scales[i];
     const auto se = extent * sc;
-    const auto px = std::roundf(xs[i] - viewport.x);
-    const auto py = std::roundf(ys[i] - viewport.y);
+    const auto px = xs[i] - viewport.x;
+    const auto py = ys[i] - viewport.y;
 
     if (px + se < .0f || px - se > vw ||
         py + se < .0f || py - se > vh) [[unlikely]] {

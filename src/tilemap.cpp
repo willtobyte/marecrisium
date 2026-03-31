@@ -454,8 +454,8 @@ void tilemap::build_layer(layer& layer) noexcept {
   auto dy = static_cast<float>(start_row) * _size - viewport.y;
 
   for (auto row = start_row; row <= end_row; ++row, row_offset += _width, dy += _size) {
-    const auto snapped_y0 = std::roundf(dy);
-    const auto snapped_y1 = std::roundf(dy + _size);
+    const auto y0 = dy;
+    const auto y1 = dy + _size;
 
     for (auto column = start_column; column <= end_column; ++column) {
       const auto tile_id = layer.tiles[static_cast<size_t>(row_offset + column)];
@@ -464,14 +464,14 @@ void tilemap::build_layer(layer& layer) noexcept {
 
       const auto& entry = layer.uvs[tile_id - 1];
       const auto dx = static_cast<float>(column) * _size - viewport.x;
-      const auto snapped_x0 = std::roundf(dx);
-      const auto snapped_x1 = std::roundf(dx + _size);
+      const auto x0 = dx;
+      const auto x1 = dx + _size;
       const auto base = static_cast<int32_t>(layer.vertices.size());
 
-      layer.vertices.emplace_back(SDL_Vertex{{snapped_x0, snapped_y0}, white, {entry.u0, entry.v0}});
-      layer.vertices.emplace_back(SDL_Vertex{{snapped_x1, snapped_y0}, white, {entry.u1, entry.v0}});
-      layer.vertices.emplace_back(SDL_Vertex{{snapped_x1, snapped_y1}, white, {entry.u1, entry.v1}});
-      layer.vertices.emplace_back(SDL_Vertex{{snapped_x0, snapped_y1}, white, {entry.u0, entry.v1}});
+      layer.vertices.emplace_back(SDL_Vertex{{x0, y0}, white, {entry.u0, entry.v0}});
+      layer.vertices.emplace_back(SDL_Vertex{{x1, y0}, white, {entry.u1, entry.v0}});
+      layer.vertices.emplace_back(SDL_Vertex{{x1, y1}, white, {entry.u1, entry.v1}});
+      layer.vertices.emplace_back(SDL_Vertex{{x0, y1}, white, {entry.u0, entry.v1}});
 
       layer.indices.emplace_back(base);
       layer.indices.emplace_back(base + 1);

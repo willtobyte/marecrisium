@@ -801,8 +801,8 @@ void stage::draw() {
 
     const auto dw = fr.w * tf.scale;
     const auto dh = fr.h * tf.scale;
-    const auto sx = std::roundf(tf.x - viewport.x);
-    const auto sy = std::roundf(tf.y - viewport.y);
+    const auto sx = tf.x - viewport.x;
+    const auto sy = tf.y - viewport.y;
 
     if (sx + dw < .0f || sx > viewport.width ||
         sy + dh < .0f || sy > viewport.height)
