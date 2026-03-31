@@ -8,45 +8,83 @@ static entt::entity to_entity(const void* p) noexcept {
   return static_cast<entt::entity>(reinterpret_cast<uintptr_t>(p) - 1);
 }
 
+static const auto query_filter = b2DefaultQueryFilter();
+
+struct query_context final {
+  entt::entity *hits;
+  uint8_t capacity;
+  uint8_t count;
+};
+
 static b2Vec2 body_center(const transform& tf, const frame& fr, const body& bd) noexcept {
   return {tf.x + fr.cx + bd.cached_hx,
           tf.y + fr.cy + bd.cached_hy};
 }
 
-static std::optional<std::pair<entt::entity, entt::entity>> resolve(b2ShapeId a, b2ShapeId b) noexcept {
+static constexpr auto map_body_type(std::string_view s) noexcept -> std::pair<body_type, b2BodyType> {
+  if (s == "dynamic") return {body_type::dynamic, b2_dynamicBody};
+  if (s == "static") return {body_type::stationary, b2_staticBody};
+  return {body_type::kinematic, b2_kinematicBody};
+}
+
+static bool ensure_shape(body &bd, const frame &fr, entt::entity en, const transform &tf, float timestep) noexcept {
+  const auto hx = fr.cw * .5f;
+  const auto hy = fr.ch * .5f;
+
+  if (!b2Shape_IsValid(bd.shape)) {
+    const auto polygon = b2MakeBox(hx, hy);
+
+    auto sdef = b2DefaultShapeDef();
+    sdef.userData = to_userdata(en);
+    sdef.enableContactEvents = true;
+    sdef.enableSensorEvents = true;
+
+    if (bd.type == body_type::dynamic) {
+      sdef.density = 1.f;
+      sdef.material.friction = .0f;
+    }
+
+    bd.shape = b2CreatePolygonShape(bd.id, &sdef, &polygon);
+    bd.cached_hx = hx;
+    bd.cached_hy = hy;
+
+    const auto center = body_center(tf, fr, bd);
+
+    if (bd.type == body_type::kinematic)
+      b2Body_SetTargetTransform(bd.id, {center, b2Rot_identity}, timestep);
+    else
+      b2Body_SetTransform(bd.id, center, b2Rot_identity);
+
+    return true;
+  }
+
+  if (hx != bd.cached_hx || hy != bd.cached_hy) [[unlikely]] {
+    const auto polygon = b2MakeBox(hx, hy);
+    b2Shape_SetPolygon(bd.shape, &polygon);
+    bd.cached_hx = hx;
+    bd.cached_hy = hy;
+  }
+
+  if (bd.type == body_type::kinematic) {
+    const auto center = body_center(tf, fr, bd);
+    b2Body_SetTargetTransform(bd.id, {center, b2Rot_identity}, timestep);
+  }
+
+  return false;
+}
+
+static bool resolve(b2ShapeId a, b2ShapeId b, entt::entity &ea, entt::entity &eb) noexcept {
   if (!b2Shape_IsValid(a) || !b2Shape_IsValid(b)) [[unlikely]]
-    return std::nullopt;
+    return false;
 
   const auto *uda = b2Shape_GetUserData(a);
   const auto *udb = b2Shape_GetUserData(b);
   if (!uda || !udb) [[unlikely]]
-    return std::nullopt;
+    return false;
 
-  return std::pair{to_entity(uda), to_entity(udb)};
-}
-
-static void dispatch_sensor_event(stage& self, b2ShapeId sensor_shape, b2ShapeId visitor_shape, std::string_view callback) {
-  if (const auto pair = resolve(sensor_shape, visitor_shape))
-    self.dispatch_collision(pair->first, pair->second, callback);
-}
-
-static void dispatch_contact_begin_event(stage& self, b2ShapeId sa, b2ShapeId sb, const b2Manifold& manifold) {
-  const auto pair = resolve(sa, sb);
-  if (!pair)
-    return;
-
-  const b2Vec2 flipped = {-manifold.normal.x, -manifold.normal.y};
-  self.dispatch_collision(pair->first, pair->second, "on_collision_begin", &manifold.normal);
-  self.dispatch_collision(pair->second, pair->first, "on_collision_begin", &flipped);
-}
-
-static void dispatch_contact_end_event(stage& self, b2ShapeId sa, b2ShapeId sb) {
-  const auto pair = resolve(sa, sb);
-  if (!pair)
-    return;
-
-  self.dispatch_collision(pair->first, pair->second, "on_collision_end");
-  self.dispatch_collision(pair->second, pair->first, "on_collision_end");
+  ea = to_entity(uda);
+  eb = to_entity(udb);
+  return true;
 }
 
 static void on_objectproxy_destroy(entt::registry& registry, entt::entity entity) {
@@ -80,18 +118,12 @@ static void on_object_destroy(entt::registry& registry, entt::entity entity) {
 }
 
 static uint8_t overlap_aabb(b2WorldId world, b2AABB aabb, entt::entity *buffer, uint8_t capacity) noexcept {
-  struct context {
-    entt::entity *hits;
-    uint8_t capacity;
-    uint8_t count;
-  };
-
-  context ctx{buffer, capacity, 0};
+  query_context ctx{buffer, capacity, 0};
 
   b2World_OverlapAABB(
-    world, aabb, b2DefaultQueryFilter(),
+    world, aabb, query_filter,
     +[](b2ShapeId shape, void *userdata) -> bool {
-      auto *ctx = static_cast<struct context *>(userdata);
+      auto *ctx = static_cast<query_context *>(userdata);
       if (ctx->count >= ctx->capacity) [[unlikely]]
         return false;
 
@@ -491,47 +523,49 @@ void stage::update(float delta) {
       screen_y + height >= -_wake_margin &&
       screen_y          <   viewport.height + _wake_margin;
 
-    if (nearscreen && _registry.all_of<dormant>(entity)) {
+    const auto is_dormant = _registry.all_of<dormant>(entity);
+
+    if (nearscreen && is_dormant) {
       if (auto* bd = _registry.try_get<body>(entity);
           bd && b2Body_IsValid(bd->id))
         b2Body_Enable(bd->id);
 
       _registry.remove<dormant>(entity);
 
-      if (proxy.prototype != LUA_NOREF && proxy.handle != LUA_NOREF) [[likely]] {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-        lua_getfield(L, -1, "on_wake");
-        if (lua_isfunction(L, -1)) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-          pcall(L, 1, 0);
-        } else {
-          lua_pop(L, 1);
-        }
+      if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF) [[unlikely]]
+        continue;
+
+      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+      lua_getfield(L, -1, "on_wake");
+      if (lua_isfunction(L, -1)) {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+        pcall(L, 1, 0);
+      } else {
         lua_pop(L, 1);
       }
-    } else if (offscreen && !_registry.all_of<dormant>(entity)) {
+      lua_pop(L, 1);
+      continue;
+    }
+
+    if (offscreen && !is_dormant) {
       _registry.emplace<dormant>(entity);
 
       if (auto* bd = _registry.try_get<body>(entity);
-          bd && b2Body_IsValid(bd->id)) {
-        bd->shape = b2_nullShapeId;
-        bd->cached_hx = .0f;
-        bd->cached_hy = .0f;
-
+          bd && b2Body_IsValid(bd->id))
         b2Body_Disable(bd->id);
-      }
 
-      if (proxy.prototype != LUA_NOREF && proxy.handle != LUA_NOREF) [[likely]] {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-        lua_getfield(L, -1, "on_sleep");
-        if (lua_isfunction(L, -1)) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-          pcall(L, 1, 0);
-        } else {
-          lua_pop(L, 1);
-        }
+      if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF) [[unlikely]]
+        continue;
+
+      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+      lua_getfield(L, -1, "on_sleep");
+      if (lua_isfunction(L, -1)) {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+        pcall(L, 1, 0);
+      } else {
         lua_pop(L, 1);
       }
+      lua_pop(L, 1);
     }
   }
 
@@ -599,47 +633,9 @@ void stage::update(float delta) {
       }
 
       const auto& frame = an.clips[an.active].frames[an.current];
-      const auto hx = frame.cw * .5f;
-      const auto hy = frame.ch * .5f;
 
-      if (!b2Shape_IsValid(bd.shape)) {
-        const auto polygon = b2MakeBox(hx, hy);
-
-        auto sdef = b2DefaultShapeDef();
-        sdef.userData = to_userdata(en);
-        sdef.enableContactEvents = true;
-        sdef.enableSensorEvents = true;
-
-        if (bd.type == body_type::dynamic) {
-          sdef.density = 1.f;
-          sdef.material.friction = .0f;
-        }
-
-        bd.shape = b2CreatePolygonShape(bd.id, &sdef, &polygon);
-        bd.cached_hx = hx;
-        bd.cached_hy = hy;
-
-        const auto center = body_center(tf, frame, bd);
-
-        if (bd.type == body_type::kinematic)
-          b2Body_SetTargetTransform(bd.id, {center, b2Rot_identity}, _timestep);
-        else
-          b2Body_SetTransform(bd.id, center, b2Rot_identity);
-
+      if (ensure_shape(bd, frame, en, tf, _timestep))
         continue;
-      }
-
-      if (hx != bd.cached_hx || hy != bd.cached_hy) [[unlikely]] {
-        const auto polygon = b2MakeBox(hx, hy);
-        b2Shape_SetPolygon(bd.shape, &polygon);
-        bd.cached_hx = hx;
-        bd.cached_hy = hy;
-      }
-
-      if (bd.type == body_type::kinematic) {
-        const auto center = body_center(tf, frame, bd);
-        b2Body_SetTargetTransform(bd.id, {center, b2Rot_identity}, _timestep);
-      }
     }
 
     b2World_Step(_world, _timestep, _substeps);
@@ -765,20 +761,34 @@ void stage::update(float delta) {
 
   {
     const auto sensor_events = b2World_GetSensorEvents(_world);
+    entt::entity ea, eb;
 
     for (const auto& event : std::span(sensor_events.beginEvents, static_cast<size_t>(sensor_events.beginCount)))
-      dispatch_sensor_event(*this, event.sensorShapeId, event.visitorShapeId, "on_collision_begin");
+      if (resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
+        dispatch_collision(ea, eb, "on_collision_begin");
 
     for (const auto& event : std::span(sensor_events.endEvents, static_cast<size_t>(sensor_events.endCount)))
-      dispatch_sensor_event(*this, event.sensorShapeId, event.visitorShapeId, "on_collision_end");
+      if (resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
+        dispatch_collision(ea, eb, "on_collision_end");
 
     const auto contact_events = b2World_GetContactEvents(_world);
 
-    for (const auto& event : std::span(contact_events.beginEvents, static_cast<size_t>(contact_events.beginCount)))
-      dispatch_contact_begin_event(*this, event.shapeIdA, event.shapeIdB, event.manifold);
+    for (const auto& event : std::span(contact_events.beginEvents, static_cast<size_t>(contact_events.beginCount))) {
+      if (!resolve(event.shapeIdA, event.shapeIdB, ea, eb))
+        continue;
 
-    for (const auto& event : std::span(contact_events.endEvents, static_cast<size_t>(contact_events.endCount)))
-      dispatch_contact_end_event(*this, event.shapeIdA, event.shapeIdB);
+      const b2Vec2 flipped = {-event.manifold.normal.x, -event.manifold.normal.y};
+      dispatch_collision(ea, eb, "on_collision_begin", &event.manifold.normal);
+      dispatch_collision(eb, ea, "on_collision_begin", &flipped);
+    }
+
+    for (const auto& event : std::span(contact_events.endEvents, static_cast<size_t>(contact_events.endCount))) {
+      if (!resolve(event.shapeIdA, event.shapeIdB, ea, eb))
+        continue;
+
+      dispatch_collision(ea, eb, "on_collision_end");
+      dispatch_collision(eb, ea, "on_collision_end");
+    }
   }
 
   for (auto* sound : _sounds) sound->poll();
@@ -847,7 +857,7 @@ void stage::draw() {
 
   const b2AABB aabb = {{viewport.x, viewport.y}, {viewport.x + viewport.width, viewport.y + viewport.height}};
 
-  b2World_OverlapAABB(_world, aabb, b2DefaultQueryFilter(), +[](b2ShapeId shape, void*) -> bool {
+  b2World_OverlapAABB(_world, aabb, query_filter, +[](b2ShapeId shape, void*) -> bool {
     static const auto margin = .01f * b2GetLengthUnitsPerMeter();
     const auto polygon = b2Shape_GetPolygon(shape);
     const auto position = b2Body_GetPosition(b2Shape_GetBody(shape));
@@ -1073,16 +1083,11 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       lua_pop(L, 1);
       lua_pop(L, 1);
 
-      const auto type = str == "dynamic" ? body_type::dynamic
-                    : str == "static" ? body_type::stationary
-                                    : body_type::kinematic;
+      const auto [type, b2type] = map_body_type(str);
 
       b2BodyDef bdef = b2DefaultBodyDef();
       bdef.userData = to_userdata(entity);
-
-      bdef.type = type == body_type::dynamic ? b2_dynamicBody
-               : type == body_type::stationary ? b2_staticBody
-                                             : b2_kinematicBody;
+      bdef.type = b2type;
 
       if (type == body_type::dynamic) {
         bdef.isBullet = true;
@@ -1143,12 +1148,8 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       _registry.emplace<dormant>(entity);
 
       if (auto* bd = _registry.try_get<body>(entity);
-          bd && b2Body_IsValid(bd->id)) {
-        bd->shape     = b2_nullShapeId;
-        bd->cached_hx = .0f;
-        bd->cached_hy = .0f;
+          bd && b2Body_IsValid(bd->id))
         b2Body_Disable(bd->id);
-      }
     }
   }
 
@@ -1260,26 +1261,20 @@ entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexc
 }
 
 int stage::radar(lua_State *state, entt::entity caller, float x, float y, float radius) {
-  struct context {
-    entt::entity *buffer;
-    uint8_t capacity;
-    uint8_t count;
-  };
-
   std::array<entt::entity, 32> buffer;
-  context ctx{buffer.data(), static_cast<uint8_t>(buffer.size()), 0};
+  query_context ctx{buffer.data(), static_cast<uint8_t>(buffer.size()), 0};
 
   const b2Vec2 center{x, y};
   const auto proxy = b2MakeProxy(&center, 1, radius);
 
   b2World_OverlapShape(
-    _world, &proxy, b2DefaultQueryFilter(),
+    _world, &proxy, query_filter,
     +[](b2ShapeId shape, void *userdata) -> bool {
-      auto *ctx = static_cast<context *>(userdata);
+      auto *ctx = static_cast<query_context *>(userdata);
       if (ctx->count >= ctx->capacity) [[unlikely]]
         return false;
 
-      ctx->buffer[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
+      ctx->hits[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
       return true;
     },
     &ctx
@@ -1313,7 +1308,7 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     _world,
     origin,
     translation,
-    b2DefaultQueryFilter(),
+    query_filter,
     +[](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void *userdata) -> float {
       auto *ctx = static_cast<context *>(userdata);
       if (ctx->count >= ctx->capacity) [[unlikely]]
