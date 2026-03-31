@@ -5,9 +5,9 @@ namespace {
     using entt::operator""_hs;
 
     constexpr auto connected = "connected"_hs.value();
-    constexpr auto rumble    = "rumble"_hs.value();
-    constexpr auto led       = "led"_hs.value();
-    constexpr auto name      = "name"_hs.value();
+    constexpr auto rumble = "rumble"_hs.value();
+    constexpr auto led = "led"_hs.value();
+    constexpr auto name = "name"_hs.value();
   }
 }
 

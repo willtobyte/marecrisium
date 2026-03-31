@@ -4,14 +4,14 @@ namespace {
   namespace property {
     using entt::operator""_hs;
 
-    constexpr auto volume   = "volume"_hs.value();
-    constexpr auto pan      = "pan"_hs.value();
-    constexpr auto loop     = "loop"_hs.value();
-    constexpr auto play     = "play"_hs.value();
-    constexpr auto stop     = "stop"_hs.value();
-    constexpr auto fade     = "fade"_hs.value();
+    constexpr auto volume = "volume"_hs.value();
+    constexpr auto pan = "pan"_hs.value();
+    constexpr auto loop = "loop"_hs.value();
+    constexpr auto play = "play"_hs.value();
+    constexpr auto stop = "stop"_hs.value();
+    constexpr auto fade = "fade"_hs.value();
     constexpr auto on_begin = "on_begin"_hs.value();
-    constexpr auto on_end   = "on_end"_hs.value();
+    constexpr auto on_end = "on_end"_hs.value();
   }
 
   int sound_play(lua_State* state) {

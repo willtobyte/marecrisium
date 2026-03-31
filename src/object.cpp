@@ -5,22 +5,22 @@ namespace {
   namespace property {
     using entt::operator""_hs;
 
-    constexpr auto alive      = "alive"_hs.value();
-    constexpr auto x          = "x"_hs.value();
-    constexpr auto y          = "y"_hs.value();
-    constexpr auto z          = "z"_hs.value();
+    constexpr auto alive = "alive"_hs.value();
+    constexpr auto x = "x"_hs.value();
+    constexpr auto y = "y"_hs.value();
+    constexpr auto z = "z"_hs.value();
     constexpr auto velocity_x = "velocity_x"_hs.value();
     constexpr auto velocity_y = "velocity_y"_hs.value();
-    constexpr auto flip       = "flip"_hs.value();
-    constexpr auto dormant    = "dormant"_hs.value();
-    constexpr auto animation  = "animation"_hs.value();
-    constexpr auto shown      = "shown"_hs.value();
-    constexpr auto scale      = "scale"_hs.value();
-    constexpr auto angle      = "angle"_hs.value();
-    constexpr auto alpha      = "alpha"_hs.value();
-    constexpr auto name       = "name"_hs.value();
-    constexpr auto kind       = "kind"_hs.value();
-    constexpr auto position   = "position"_hs.value();
+    constexpr auto flip = "flip"_hs.value();
+    constexpr auto dormant = "dormant"_hs.value();
+    constexpr auto animation = "animation"_hs.value();
+    constexpr auto shown = "shown"_hs.value();
+    constexpr auto scale = "scale"_hs.value();
+    constexpr auto angle = "angle"_hs.value();
+    constexpr auto alpha = "alpha"_hs.value();
+    constexpr auto name = "name"_hs.value();
+    constexpr auto kind = "kind"_hs.value();
+    constexpr auto position = "position"_hs.value();
   }
 
   static void sync_body_position(body& bd, const transform& tf, const animation* an) noexcept {

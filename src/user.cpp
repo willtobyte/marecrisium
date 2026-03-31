@@ -4,8 +4,8 @@ namespace {
   namespace property {
     using entt::operator""_hs;
 
-    constexpr auto id      = "id"_hs.value();
-    constexpr auto name    = "name"_hs.value();
+    constexpr auto id = "id"_hs.value();
+    constexpr auto name = "name"_hs.value();
     constexpr auto persona = "persona"_hs.value();
     constexpr auto friends = "friends"_hs.value();
   }

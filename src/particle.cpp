@@ -7,11 +7,11 @@ constexpr float TWO_PI = 6.28318530718f;
 namespace property {
   using entt::operator""_hs;
 
-  constexpr auto active   = "active"_hs.value();
-  constexpr auto x        = "x"_hs.value();
-  constexpr auto y        = "y"_hs.value();
+  constexpr auto active = "active"_hs.value();
+  constexpr auto x = "x"_hs.value();
+  constexpr auto y = "y"_hs.value();
   constexpr auto position = "position"_hs.value();
-  constexpr auto sound    = "sound"_hs.value();
+  constexpr auto sound = "sound"_hs.value();
 }
 
 int particle_index(lua_State* state) {

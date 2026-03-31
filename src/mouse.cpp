@@ -4,11 +4,11 @@ namespace {
 using entt::operator""_hs;
 
 namespace property {
-  constexpr auto x        = "x"_hs.value();
-  constexpr auto y        = "y"_hs.value();
+  constexpr auto x = "x"_hs.value();
+  constexpr auto y = "y"_hs.value();
   constexpr auto position = "position"_hs.value();
-  constexpr auto button   = "button"_hs.value();
-  constexpr auto shown    = "shown"_hs.value();
+  constexpr auto button = "button"_hs.value();
+  constexpr auto shown = "shown"_hs.value();
 }
 }
 
