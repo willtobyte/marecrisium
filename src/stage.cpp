@@ -640,9 +640,9 @@ void stage::update(float delta) {
 
     b2World_Step(_world, _timestep, _substeps);
 
-    const auto body_events = b2World_GetBodyEvents(_world);
+    const auto events = b2World_GetBodyEvents(_world);
 
-    for (const auto& event : std::span(body_events.moveEvents, static_cast<size_t>(body_events.moveCount))) {
+    for (const auto& event : std::span(events.moveEvents, static_cast<size_t>(events.moveCount))) {
       const auto entity = to_entity(event.userData);
 
       if (!_registry.valid(entity)) [[unlikely]]
@@ -663,8 +663,10 @@ void stage::update(float delta) {
       tf.y = position.y - frame.cy * tf.scale - bd->cached_hy;
 
       _registry.get<renderable>(entity).z = static_cast<int>(tf.y + frame.h * tf.scale);
-      _registry.ctx().get<reorder>().dirty = true;
     }
+
+    if (events.moveCount > 0) [[likely]]
+      _registry.ctx().get<reorder>().dirty = true;
 
     _interpolation.previous = _interpolation.current;
 
@@ -696,16 +698,8 @@ void stage::update(float delta) {
   const auto viewport_right  = viewport.x + viewport.width;
   const auto viewport_bottom = viewport.y + viewport.height;
 
-  for (auto&& [entity, bd] : _registry.view<const body>(entt::exclude<dormant>).each()) {
-    if (!b2Body_IsValid(bd.id))
-      continue;
-
-    auto* sb = _registry.try_get<boundary>(entity);
-    if (!sb || !b2Shape_IsValid(bd.shape)) [[unlikely]]
-      continue;
-
-    const auto* proxy = _registry.try_get<objectproxy>(entity);
-    if (!proxy)
+  for (auto&& [entity, bd, sb, proxy] : _registry.view<const body, boundary, const objectproxy>(entt::exclude<dormant>).each()) {
+    if (!b2Body_IsValid(bd.id) || !b2Shape_IsValid(bd.shape)) [[unlikely]]
       continue;
 
     const auto aabb = b2Shape_GetAABB(bd.shape);
@@ -720,21 +714,21 @@ void stage::update(float delta) {
     if (aabb.lowerBound.y > viewport_bottom)
       current |= boundary::bottom;
 
-    const auto exited  = static_cast<uint8_t>(current & ~sb->previous);
-    const auto entered = static_cast<uint8_t>(sb->previous & ~current);
+    const auto exited  = static_cast<uint8_t>(current & ~sb.previous);
+    const auto entered = static_cast<uint8_t>(sb.previous & ~current);
 
-    if (proxy->prototype == LUA_NOREF || proxy->handle == LUA_NOREF) [[unlikely]] {
-      sb->previous = current;
+    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF) [[unlikely]] {
+      sb.previous = current;
       continue;
     }
 
     for (uint8_t bit = 0; bit < 4; ++bit) {
       const auto mask = static_cast<uint8_t>(1u << bit);
       if (exited & mask) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->prototype);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
         lua_getfield(L, -1, "on_screen_exit");
         if (lua_isfunction(L, -1)) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
+          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
           lua_pushlstring(L, directions[bit].data(), directions[bit].size());
           pcall(L, 2, 0);
         } else {
@@ -743,10 +737,10 @@ void stage::update(float delta) {
         lua_pop(L, 1);
       }
       if (entered & mask) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->prototype);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
         lua_getfield(L, -1, "on_screen_enter");
         if (lua_isfunction(L, -1)) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
+          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
           lua_pushlstring(L, directions[bit].data(), directions[bit].size());
           pcall(L, 2, 0);
         } else {
@@ -756,18 +750,18 @@ void stage::update(float delta) {
       }
     }
 
-    sb->previous = current;
+    sb.previous = current;
   }
 
   {
-    const auto sensor_events = b2World_GetSensorEvents(_world);
+    const auto events = b2World_GetSensorEvents(_world);
     entt::entity ea, eb;
 
-    for (const auto& event : std::span(sensor_events.beginEvents, static_cast<size_t>(sensor_events.beginCount)))
+    for (const auto& event : std::span(events.beginEvents, static_cast<size_t>(events.beginCount)))
       if (resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
         dispatch_collision(ea, eb, "on_collision_begin");
 
-    for (const auto& event : std::span(sensor_events.endEvents, static_cast<size_t>(sensor_events.endCount)))
+    for (const auto& event : std::span(events.endEvents, static_cast<size_t>(events.endCount)))
       if (resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
         dispatch_collision(ea, eb, "on_collision_end");
 
@@ -799,7 +793,7 @@ void stage::update(float delta) {
   if (rd.dirty) [[unlikely]] {
     _registry.sort<renderable>([](const renderable& lhs, const renderable& rhs) noexcept {
       return lhs.z < rhs.z;
-    });
+    }, entt::insertion_sort{});
 
     rd.dirty = false;
   }
@@ -813,9 +807,10 @@ void stage::draw() {
 
   _tilemap.draw_background();
 
-  for (auto entity : _registry.view<renderable>(entt::exclude<dormant>)) {
-    const auto& [a, tf] = _registry.get<animation, transform>(entity);
+  auto view = _registry.view<const renderable, const animation, const transform>(entt::exclude<dormant>);
+  view.use<renderable>();
 
+  for (auto&& [entity, r, a, tf] : view.each()) {
     if (!tf.shown || !a.playing || !a.pixmap || a.clip_count == 0) [[unlikely]]
       continue;
 
