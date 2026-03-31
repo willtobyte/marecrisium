@@ -10,12 +10,6 @@ static entt::entity to_entity(const void* p) noexcept {
 
 static const auto filter = b2DefaultQueryFilter();
 
-struct query_context final {
-  entt::entity *hits;
-  uint8_t capacity;
-  uint8_t count;
-};
-
 static b2Vec2 body_center(const transform& tf, const frame& fr, const body& bd) noexcept {
   return {tf.x + fr.cx + bd.cached_hx,
           tf.y + fr.cy + bd.cached_hy};
@@ -117,22 +111,17 @@ static void on_object_destroy(entt::registry& registry, entt::entity entity) {
     b2DestroyBody(bo.id);
 }
 
-static uint8_t overlap_aabb(b2WorldId world, b2AABB aabb, entt::entity *buffer, uint8_t capacity) noexcept {
-  query_context ctx{buffer, capacity, 0};
-
+static void overlap_aabb(b2WorldId world, b2AABB aabb, std::vector<entt::entity> &hits) noexcept {
   b2World_OverlapAABB(
-    world, aabb, query_filter,
+    world,
+    aabb,
+    filter,
     +[](b2ShapeId shape, void *userdata) -> bool {
-      auto *ctx = static_cast<query_context *>(userdata);
-      if (ctx->count >= ctx->capacity) [[unlikely]]
-        return false;
-
-      ctx->hits[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
+      auto *hits = static_cast<std::vector<entt::entity> *>(userdata);
+      hits->emplace_back(to_entity(b2Shape_GetUserData(shape)));
       return true;
     },
-    &ctx);
-
-  return ctx.count;
+    &hits);
 }
 
 static int push(lua_State *state, entt::registry& registry, std::span<const entt::entity> entities, entt::entity caller = entt::null, entt::id_type kind = 0, bool filter_kind = false) {
@@ -1168,16 +1157,12 @@ int stage::destroy(lua_State* state) {
   return 0;
 }
 
-uint8_t stage::at(float x, float y, entt::entity *buffer, uint8_t capacity) const noexcept {
+int stage::at(lua_State *state, float x, float y) {
   constexpr auto HALF = .5f;
   const b2AABB aabb = {{x - HALF, y - HALF}, {x + HALF, y + HALF}};
-  return overlap_aabb(_world, aabb, buffer, capacity);
-}
-
-int stage::at(lua_State *state, float x, float y) {
-  std::array<entt::entity, 32> buffer;
-  const auto count = at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
-  return push(state, _registry, std::span(buffer.data(), count));
+  std::vector<entt::entity> hits;
+  overlap_aabb(_world, aabb, hits);
+  return push(state, _registry, hits);
 }
 
 int stage::count(lua_State *state) {
@@ -1193,12 +1178,12 @@ int stage::count(lua_State *state) {
 
   const b2AABB aabb = {{x, y}, {x + w, y + h}};
 
-  std::array<entt::entity, 64> buffer;
-  const auto found = overlap_aabb(_world, aabb, buffer.data(), static_cast<uint8_t>(buffer.size()));
+  std::vector<entt::entity> hits;
+  overlap_aabb(_world, aabb, hits);
 
   int total = 0;
 
-  for (const auto entity : std::span(buffer.data(), found)) {
+  for (const auto entity : hits) {
     if (!_registry.valid(entity)
         || !_registry.all_of<objectproxy>(entity)) [[unlikely]]
       continue;
@@ -1228,54 +1213,31 @@ int stage::find(lua_State *state) {
 
   const b2AABB aabb = {{x, y}, {x + w, y + h}};
 
-  std::array<entt::entity, 64> buffer;
-  const auto count = overlap_aabb(_world, aabb, buffer.data(), static_cast<uint8_t>(buffer.size()));
+  std::vector<entt::entity> hits;
+  overlap_aabb(_world, aabb, hits);
 
-  return push(state, _registry, std::span(buffer.data(), count), entt::null, kind_hash, filter_kind);
-}
-
-entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexcept {
-  if (hits.empty()) [[unlikely]]
-    return entt::null;
-
-  entt::entity topmost = entt::null;
-
-  for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
-    if (!tf.shown) [[unlikely]]
-      continue;
-
-    for (const auto hit : hits) {
-      if (hit == entity) {
-        topmost = entity;
-        break;
-      }
-    }
-  }
-
-  return topmost;
+  return push(state, _registry, hits, entt::null, kind_hash, filter_kind);
 }
 
 int stage::radar(lua_State *state, entt::entity caller, float x, float y, float radius) {
-  std::array<entt::entity, 32> buffer;
-  query_context ctx{buffer.data(), static_cast<uint8_t>(buffer.size()), 0};
+  std::vector<entt::entity> hits;
 
   const b2Vec2 center{x, y};
   const auto proxy = b2MakeProxy(&center, 1, radius);
 
   b2World_OverlapShape(
-    _world, &proxy, query_filter,
+    _world,
+    &proxy,
+    filter,
     +[](b2ShapeId shape, void *userdata) -> bool {
-      auto *ctx = static_cast<query_context *>(userdata);
-      if (ctx->count >= ctx->capacity) [[unlikely]]
-        return false;
-
-      ctx->hits[ctx->count++] = to_entity(b2Shape_GetUserData(shape));
+      auto *hits = static_cast<std::vector<entt::entity> *>(userdata);
+      hits->emplace_back(to_entity(b2Shape_GetUserData(shape)));
       return true;
     },
-    &ctx
+    &hits
   );
 
-  return push(state, _registry, std::span(buffer.data(), ctx.count), caller);
+  return push(state, _registry, hits, caller);
 }
 
 int stage::raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance) {
@@ -1284,44 +1246,32 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     float fraction;
   };
 
-  struct context {
-    raycast_hit *buffer;
-    uint8_t capacity;
-    uint8_t count;
-  };
-
-  std::array<raycast_hit, 32> buffer;
-  context ctx{buffer.data(), static_cast<uint8_t>(buffer.size()), 0};
-
   const auto radians = to_radians(angle);
   auto sine = .0f, cosine = .0f;
   sincos(radians, sine, cosine);
   const b2Vec2 origin{x, y};
   const b2Vec2 translation{cosine * distance, sine * distance};
+  std::vector<raycast_hit> hits;
 
   b2World_CastRay(
     _world,
     origin,
     translation,
-    query_filter,
+    filter,
     +[](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void *userdata) -> float {
-      auto *ctx = static_cast<context *>(userdata);
-      if (ctx->count >= ctx->capacity) [[unlikely]]
-        return -1.f;
-
-      ctx->buffer[ctx->count++] = {to_entity(b2Shape_GetUserData(shape)), fraction};
+      auto *hits = static_cast<std::vector<raycast_hit> *>(userdata);
+      hits->emplace_back(to_entity(b2Shape_GetUserData(shape)), fraction);
       return 1.f;
     },
-    &ctx
+    &hits
   );
 
-  const auto result = std::span(buffer.data(), ctx.count);
-  std::ranges::sort(result, {}, &raycast_hit::fraction);
+  std::ranges::sort(hits, {}, &raycast_hit::fraction);
 
   lua_newtable(state);
   int index = 1;
 
-  for (const auto& [entity, fraction] : result) {
+  for (const auto& [entity, fraction] : hits) {
     if (entity == entt::null)
       continue;
 

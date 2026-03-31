@@ -35,8 +35,6 @@ public:
 
   int destroy(lua_State* state);
 
-  [[nodiscard]] uint8_t at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
-
   int at(lua_State* state, float x, float y);
 
   [[nodiscard]] int count(lua_State* state);
