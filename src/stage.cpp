@@ -21,7 +21,7 @@ static b2Vec2 body_center(const transform& tf, const frame& fr, const body& bd) 
           tf.y + fr.cy + bd.cached_hy};
 }
 
-static constexpr auto map_body_type(std::string_view s) noexcept -> std::pair<body_type, b2BodyType> {
+static constexpr auto mapping(std::string_view s) noexcept -> std::pair<body_type, b2BodyType> {
   if (s == "dynamic") return {body_type::dynamic, b2_dynamicBody};
   if (s == "static") return {body_type::stationary, b2_staticBody};
   return {body_type::kinematic, b2_kinematicBody};
@@ -77,13 +77,13 @@ static bool resolve(b2ShapeId a, b2ShapeId b, entt::entity &ea, entt::entity &eb
   if (!b2Shape_IsValid(a) || !b2Shape_IsValid(b)) [[unlikely]]
     return false;
 
-  const auto *uda = b2Shape_GetUserData(a);
-  const auto *udb = b2Shape_GetUserData(b);
-  if (!uda || !udb) [[unlikely]]
+  const auto *ua = b2Shape_GetUserData(a);
+  const auto *ub = b2Shape_GetUserData(b);
+  if (!ua || !ub) [[unlikely]]
     return false;
 
-  ea = to_entity(uda);
-  eb = to_entity(udb);
+  ea = to_entity(ua);
+  eb = to_entity(ub);
   return true;
 }
 
@@ -1078,7 +1078,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       lua_pop(L, 1);
       lua_pop(L, 1);
 
-      const auto [type, b2type] = map_body_type(str);
+      const auto [type, b2type] = mapping(str);
 
       b2BodyDef bdef = b2DefaultBodyDef();
       bdef.userData = to_userdata(entity);
