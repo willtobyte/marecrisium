@@ -87,11 +87,19 @@ static int overlay_label(lua_State *state) {
   return 0;
 }
 
+namespace {
+  namespace property {
+    using entt::operator""_hs;
+
+    constexpr auto label = "label"_hs.value();
+  }
+}
+
 static int overlay_index(lua_State *state) {
   luaL_checkudata(state, 1, "Overlay");
-  const auto key = std::string_view{luaL_checkstring(state, 2)};
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
 
-  if (key == "label") {
+  if (id == property::label) {
     lua_pushcfunction(state, overlay_label);
     return 1;
   }

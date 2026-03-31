@@ -1,6 +1,12 @@
 #include "foreground.hpp"
 
 namespace {
+namespace property {
+  using entt::operator""_hs;
+
+  constexpr auto draw = "draw"_hs.value();
+}
+
 int foreground_draw(lua_State *state) {
   auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
   luaL_checktype(state, 2, LUA_TTABLE);
@@ -88,7 +94,7 @@ int foreground_index(lua_State *state) {
   const auto key = std::string_view{luaL_checkstring(state, 2)};
   const auto id = entt::hashed_string{key.data()}.value();
 
-  if (id == "draw"_hs.value()) {
+  if (id == property::draw) {
     lua_pushcfunction(state, foreground_draw);
     return 1;
   }

@@ -1,5 +1,13 @@
 #include "achievement.hpp"
 
+namespace {
+  namespace property {
+    using entt::operator""_hs;
+
+    constexpr auto unlock = "unlock"_hs.value();
+  }
+}
+
 static int achievement_unlock(lua_State *state) {
   const auto *id = luaL_checkstring(state, 2);
 
@@ -21,9 +29,9 @@ static int achievement_unlock(lua_State *state) {
 }
 
 static int achievement_index(lua_State *state) {
-  const auto key = std::string_view{luaL_checkstring(state, 2)};
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
 
-  if (key == "unlock")
+  if (id == property::unlock)
     return lua_pushcfunction(state, achievement_unlock), 1;
 
   return lua_pushnil(state), 1;

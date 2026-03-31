@@ -1,5 +1,14 @@
 #include "stage.hpp"
 
+namespace {
+  namespace property {
+    using entt::operator""_hs;
+
+    constexpr auto dynamic_bodytype = "dynamic"_hs.value();
+    constexpr auto static_bodytype  = "static"_hs.value();
+  }
+}
+
 static void* to_userdata(entt::entity e) noexcept {
   return reinterpret_cast<void*>(static_cast<uintptr_t>(e) + 1);
 }
@@ -15,10 +24,13 @@ static b2Vec2 body_center(const transform& tf, const frame& fr, const body& bd) 
           tf.y + fr.cy + bd.cached_hy};
 }
 
-static constexpr auto mapping(std::string_view s) noexcept -> std::pair<body_type, b2BodyType> {
-  if (s == "dynamic") return {body_type::dynamic, b2_dynamicBody};
-  if (s == "static") return {body_type::stationary, b2_staticBody};
-  return {body_type::kinematic, b2_kinematicBody};
+static constexpr auto mapping(const char *s) noexcept -> std::pair<body_type, b2BodyType> {
+  const auto id = entt::hashed_string{s}.value();
+  switch (id) {
+    case property::dynamic_bodytype: return {body_type::dynamic, b2_dynamicBody};
+    case property::static_bodytype:  return {body_type::stationary, b2_staticBody};
+    default:                     return {body_type::kinematic, b2_kinematicBody};
+  }
 }
 
 static bool ensure_shape(body &bd, const frame &fr, entt::entity en, const transform &tf, float timestep) noexcept {
@@ -1041,12 +1053,11 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
     if (collidable) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
       lua_getfield(L, -1, "body");
-      const auto *body_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
-      const auto str = body_raw ? std::string_view{body_raw} : std::string_view{};
+      const auto *behavior = lua_isstring(L, -1) ? lua_tostring(L, -1) : "kinematic";
       lua_pop(L, 1);
       lua_pop(L, 1);
 
-      const auto [type, b2type] = mapping(str);
+      const auto [type, b2type] = mapping(behavior);
 
       b2BodyDef bdef = b2DefaultBodyDef();
       bdef.userData = to_userdata(entity);

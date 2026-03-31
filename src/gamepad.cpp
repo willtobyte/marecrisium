@@ -1,5 +1,16 @@
 #include "gamepad.hpp"
 
+namespace {
+  namespace property {
+    using entt::operator""_hs;
+
+    constexpr auto connected = "connected"_hs.value();
+    constexpr auto rumble    = "rumble"_hs.value();
+    constexpr auto led       = "led"_hs.value();
+    constexpr auto name      = "name"_hs.value();
+  }
+}
+
 static constexpr float DEADZONE_THRESHOLD = .1f;
 
 [[nodiscard]] static float deadzone(Sint16 axis) noexcept {
@@ -127,18 +138,18 @@ static int gamepad_index(lua_State *state) {
     return push_gamepad_button(state, e.button);
   }
 
-  if (key == "connected"_hs.value()) [[unlikely]] {
+  if (key == property::connected) [[unlikely]] {
     lua_pushboolean(state, ptr != nullptr ? 1 : 0);
     return 1;
   }
 
-  if (key == "rumble"_hs.value()) [[unlikely]]
+  if (key == property::rumble) [[unlikely]]
     return lua_pushcfunction(state, gamepad_rumble), 1;
 
-  if (key == "led"_hs.value()) [[unlikely]]
+  if (key == property::led) [[unlikely]]
     return lua_pushcfunction(state, gamepad_led), 1;
 
-  if (key == "name"_hs.value()) [[unlikely]] {
+  if (key == property::name) [[unlikely]] {
     if (!ptr) [[unlikely]]
       return lua_pushstring(state, ""), 1;
 

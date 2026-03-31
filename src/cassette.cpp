@@ -1,6 +1,12 @@
 #include "cassette.hpp"
 
 namespace {
+namespace property {
+  using entt::operator""_hs;
+
+  constexpr auto clear = "clear"_hs.value();
+}
+
 constexpr const char *filename = "cassette.tape";
 
 sqlite3 *database;
@@ -25,8 +31,9 @@ static int cassette_clear(lua_State *state) {
 
 static int cassette_index(lua_State *state) {
   const auto key = std::string_view{luaL_checkstring(state, 2)};
+  const auto id = entt::hashed_string{key.data()}.value();
 
-  if (key == "clear") [[unlikely]]
+  if (id == property::clear) [[unlikely]]
     return lua_pushcfunction(state, cassette_clear), 1;
 
   if (const auto it = cache.find(key); it != cache.end()) [[likely]] {
@@ -61,8 +68,9 @@ static int cassette_index(lua_State *state) {
 
 static int cassette_newindex(lua_State *state) {
   const auto key = std::string_view{luaL_checkstring(state, 2)};
+  const auto id = entt::hashed_string{key.data()}.value();
 
-  if (key == "clear") [[unlikely]]
+  if (id == property::clear) [[unlikely]]
     return 0;
 
   if (lua_isnil(state, 3)) [[unlikely]] {

@@ -1,6 +1,19 @@
 #include "sound.hpp"
 
 namespace {
+  namespace property {
+    using entt::operator""_hs;
+
+    constexpr auto volume   = "volume"_hs.value();
+    constexpr auto pan      = "pan"_hs.value();
+    constexpr auto loop     = "loop"_hs.value();
+    constexpr auto play     = "play"_hs.value();
+    constexpr auto stop     = "stop"_hs.value();
+    constexpr auto fade     = "fade"_hs.value();
+    constexpr auto on_begin = "on_begin"_hs.value();
+    constexpr auto on_end   = "on_end"_hs.value();
+  }
+
   int sound_play(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     instance->play();
@@ -48,71 +61,66 @@ namespace {
 
   int sound_index(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    const auto key = std::string_view{luaL_checkstring(state, 2)};
+    const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
 
-    if (key == "volume") {
-      lua_pushnumber(state, static_cast<lua_Number>(instance->volume()));
-      return 1;
+    switch (id) {
+      case property::volume:
+        lua_pushnumber(state, static_cast<lua_Number>(instance->volume()));
+        return 1;
+
+      case property::pan:
+        lua_pushnumber(state, static_cast<lua_Number>(instance->pan()));
+        return 1;
+
+      case property::loop:
+        lua_pushboolean(state, instance->loop() ? 1 : 0);
+        return 1;
+
+      case property::play:
+        lua_pushcfunction(state, sound_play);
+        return 1;
+
+      case property::stop:
+        lua_pushcfunction(state, sound_stop);
+        return 1;
+
+      case property::fade:
+        lua_pushcfunction(state, sound_fade);
+        return 1;
+
+      case property::on_begin:
+        lua_pushcfunction(state, sound_on_begin);
+        return 1;
+
+      case property::on_end:
+        lua_pushcfunction(state, sound_on_end);
+        return 1;
+
+      default:
+        return lua_pushnil(state), 1;
     }
-
-    if (key == "pan") {
-      lua_pushnumber(state, static_cast<lua_Number>(instance->pan()));
-      return 1;
-    }
-
-    if (key == "loop") {
-      lua_pushboolean(state, instance->loop() ? 1 : 0);
-      return 1;
-    }
-
-    if (key == "play") {
-      lua_pushcfunction(state, sound_play);
-      return 1;
-    }
-
-    if (key == "stop") {
-      lua_pushcfunction(state, sound_stop);
-      return 1;
-    }
-
-    if (key == "fade") {
-      lua_pushcfunction(state, sound_fade);
-      return 1;
-    }
-
-    if (key == "on_begin") {
-      lua_pushcfunction(state, sound_on_begin);
-      return 1;
-    }
-
-    if (key == "on_end") {
-      lua_pushcfunction(state, sound_on_end);
-      return 1;
-    }
-
-    return lua_pushnil(state), 1;
   }
 
   int sound_newindex(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    const auto key = std::string_view{luaL_checkstring(state, 2)};
+    const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
 
-    if (key == "volume") {
-      instance->set_volume(static_cast<float>(luaL_checknumber(state, 3)));
-      return 0;
+    switch (id) {
+      case property::volume:
+        instance->set_volume(static_cast<float>(luaL_checknumber(state, 3)));
+        return 0;
+
+      case property::pan:
+        instance->set_pan(static_cast<float>(luaL_checknumber(state, 3)));
+        return 0;
+
+      case property::loop:
+        instance->set_loop(lua_toboolean(state, 3) != 0);
+        return 0;
+
+      default:
+        return 0;
     }
-
-    if (key == "pan") {
-      instance->set_pan(static_cast<float>(luaL_checknumber(state, 3)));
-      return 0;
-    }
-
-    if (key == "loop") {
-      instance->set_loop(lua_toboolean(state, 3) != 0);
-      return 0;
-    }
-
-    return 0;
   }
 }
 
