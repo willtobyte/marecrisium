@@ -4,16 +4,16 @@ namespace {
   namespace property {
     using entt::operator""_hs;
 
-    constexpr auto name      = "name"_hs.value();
-    constexpr auto cores     = "cores"_hs.value();
-    constexpr auto memory    = "memory"_hs.value();
-    constexpr auto locale    = "locale"_hs.value();
-    constexpr auto clipboard = "clipboard"_hs.value();
+    constexpr auto name      = "name"_hs;
+    constexpr auto cores     = "cores"_hs;
+    constexpr auto memory    = "memory"_hs;
+    constexpr auto locale    = "locale"_hs;
+    constexpr auto clipboard = "clipboard"_hs;
   }
 }
 
 static int platform_index(lua_State *state) {
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {
     case property::name:
@@ -58,7 +58,7 @@ static int platform_index(lua_State *state) {
 }
 
 static int platform_newindex(lua_State *state) {
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id == property::clipboard) {
     const auto *text = luaL_checkstring(state, 3);

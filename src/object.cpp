@@ -5,22 +5,22 @@ namespace {
   namespace property {
     using entt::operator""_hs;
 
-    constexpr auto alive = "alive"_hs.value();
-    constexpr auto x = "x"_hs.value();
-    constexpr auto y = "y"_hs.value();
-    constexpr auto z = "z"_hs.value();
-    constexpr auto velocity_x = "velocity_x"_hs.value();
-    constexpr auto velocity_y = "velocity_y"_hs.value();
-    constexpr auto flip = "flip"_hs.value();
-    constexpr auto dormant = "dormant"_hs.value();
-    constexpr auto animation = "animation"_hs.value();
-    constexpr auto shown = "shown"_hs.value();
-    constexpr auto scale = "scale"_hs.value();
-    constexpr auto angle = "angle"_hs.value();
-    constexpr auto alpha = "alpha"_hs.value();
-    constexpr auto name = "name"_hs.value();
-    constexpr auto kind = "kind"_hs.value();
-    constexpr auto position = "position"_hs.value();
+    constexpr auto alive = "alive"_hs;
+    constexpr auto x = "x"_hs;
+    constexpr auto y = "y"_hs;
+    constexpr auto z = "z"_hs;
+    constexpr auto velocity_x = "velocity_x"_hs;
+    constexpr auto velocity_y = "velocity_y"_hs;
+    constexpr auto flip = "flip"_hs;
+    constexpr auto dormant = "dormant"_hs;
+    constexpr auto animation = "animation"_hs;
+    constexpr auto shown = "shown"_hs;
+    constexpr auto scale = "scale"_hs;
+    constexpr auto angle = "angle"_hs;
+    constexpr auto alpha = "alpha"_hs;
+    constexpr auto name = "name"_hs;
+    constexpr auto kind = "kind"_hs;
+    constexpr auto position = "position"_hs;
   }
 
   static void sync_body_position(body& bd, const transform& tf, const animation* an) noexcept {
@@ -38,7 +38,7 @@ namespace {
   int object_index(lua_State* state) {
     const auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
     const auto* key = luaL_checkstring(state, 2);
-    const auto id = entt::hashed_string{key}.value();
+    const auto id = entt::hashed_string{key};
 
     if (id == property::alive) {
       lua_pushboolean(state, proxy->registry->valid(proxy->entity) ? 1 : 0);
@@ -188,7 +188,7 @@ namespace {
   int object_newindex(lua_State* state) {
     auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
     const auto* key = luaL_checkstring(state, 2);
-    const auto id = entt::hashed_string{key}.value();
+    const auto id = entt::hashed_string{key};
 
     if (!proxy->registry->valid(proxy->entity))
       return 0;
@@ -279,7 +279,7 @@ namespace {
           return 0;
 
         const auto value = std::string_view{luaL_checkstring(state, 3)};
-        const auto hash = entt::hashed_string{value.data()}.value();
+        const auto hash = entt::hashed_string{value.data()};
 
         auto& a = registry.get<animation>(entity);
 
@@ -389,7 +389,7 @@ namespace {
 
 
 objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::string_view name, std::string_view kind)
-    : registry(&registry), entity(entity), name(entt::hashed_string{name.data()}.value()), kind(entt::hashed_string{kind.data()}.value()) {
+    : registry(&registry), entity(entity), name(entt::hashed_string{name.data()}), kind(entt::hashed_string{kind.data()}) {
   depot->source.insert(kind);
 
   pcall(L, 0, 1);

@@ -4,11 +4,11 @@ namespace {
 using entt::operator""_hs;
 
 namespace property {
-  constexpr auto x = "x"_hs.value();
-  constexpr auto y = "y"_hs.value();
-  constexpr auto position = "position"_hs.value();
-  constexpr auto button = "button"_hs.value();
-  constexpr auto shown = "shown"_hs.value();
+  constexpr auto x = "x"_hs;
+  constexpr auto y = "y"_hs;
+  constexpr auto position = "position"_hs;
+  constexpr auto button = "button"_hs;
+  constexpr auto shown = "shown"_hs;
 }
 }
 
@@ -24,7 +24,7 @@ static int mouse_position(lua_State *state) {
 }
 
 static int mouse_index(lua_State *state) {
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   float x, y;
   const auto button = SDL_GetMouseState(&x, &y);
@@ -74,7 +74,7 @@ static int mouse_index(lua_State *state) {
 }
 
 static int mouse_newindex(lua_State *state) {
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id == property::shown && lua_isboolean(state, 3)) {
     if (lua_toboolean(state, 3))

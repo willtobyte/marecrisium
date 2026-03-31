@@ -7,16 +7,16 @@ constexpr float TWO_PI = 6.28318530718f;
 namespace property {
   using entt::operator""_hs;
 
-  constexpr auto active = "active"_hs.value();
-  constexpr auto x = "x"_hs.value();
-  constexpr auto y = "y"_hs.value();
-  constexpr auto position = "position"_hs.value();
-  constexpr auto sound = "sound"_hs.value();
+  constexpr auto active = "active"_hs;
+  constexpr auto x = "x"_hs;
+  constexpr auto y = "y"_hs;
+  constexpr auto position = "position"_hs;
+  constexpr auto sound = "sound"_hs;
 }
 
 int particle_index(lua_State* state) {
   const auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {
     case property::active:
@@ -59,7 +59,7 @@ int particle_index(lua_State* state) {
 
 int particle_newindex(lua_State* state) {
   auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {
     case property::active:

@@ -4,7 +4,7 @@ namespace {
 namespace property {
   using entt::operator""_hs;
 
-  constexpr auto draw = "draw"_hs.value();
+  constexpr auto draw = "draw"_hs;
 }
 
 int foreground_draw(lua_State *state) {
@@ -92,7 +92,7 @@ int foreground_draw(lua_State *state) {
 int foreground_index(lua_State *state) {
   auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
   const auto key = std::string_view{luaL_checkstring(state, 2)};
-  const auto id = entt::hashed_string{key.data()}.value();
+  const auto id = entt::hashed_string{key.data()};
 
   if (id == property::draw) {
     lua_pushcfunction(state, foreground_draw);

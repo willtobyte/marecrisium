@@ -4,10 +4,10 @@ namespace {
   namespace property {
     using entt::operator""_hs;
 
-    constexpr auto connected = "connected"_hs.value();
-    constexpr auto rumble = "rumble"_hs.value();
-    constexpr auto led = "led"_hs.value();
-    constexpr auto name = "name"_hs.value();
+    constexpr auto connected = "connected"_hs;
+    constexpr auto rumble = "rumble"_hs;
+    constexpr auto led = "led"_hs;
+    constexpr auto name = "name"_hs;
   }
 }
 
@@ -104,30 +104,30 @@ static int gamepad_index(lua_State *state) {
   };
 
   static const ankerl::unordered_dense::map<entt::id_type, entry> mapping{
-    {"left_x"_hs.value(), {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFTX}}},
-    {"left_y"_hs.value(), {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFTY}}},
-    {"right_x"_hs.value(), {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHTX}}},
-    {"right_y"_hs.value(), {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHTY}}},
-    {"trigger_left"_hs.value(), {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFT_TRIGGER}}},
-    {"trigger_right"_hs.value(), {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHT_TRIGGER}}},
-    {"south"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_SOUTH}}},
-    {"east"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_EAST}}},
-    {"west"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_WEST}}},
-    {"north"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_NORTH}}},
-    {"back"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_BACK}}},
-    {"guide"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_GUIDE}}},
-    {"start"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_START}}},
-    {"shoulder_left"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_LEFT_SHOULDER}}},
-    {"shoulder_right"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER}}},
-    {"stick_left"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_LEFT_STICK}}},
-    {"stick_right"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_RIGHT_STICK}}},
-    {"up"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_UP}}},
-    {"down"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_DOWN}}},
-    {"left"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_LEFT}}},
-    {"right"_hs.value(), {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_RIGHT}}},
+    {"left_x"_hs, {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFTX}}},
+    {"left_y"_hs, {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFTY}}},
+    {"right_x"_hs, {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHTX}}},
+    {"right_y"_hs, {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHTY}}},
+    {"trigger_left"_hs, {type::axis, {.axis = SDL_GAMEPAD_AXIS_LEFT_TRIGGER}}},
+    {"trigger_right"_hs, {type::axis, {.axis = SDL_GAMEPAD_AXIS_RIGHT_TRIGGER}}},
+    {"south"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_SOUTH}}},
+    {"east"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_EAST}}},
+    {"west"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_WEST}}},
+    {"north"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_NORTH}}},
+    {"back"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_BACK}}},
+    {"guide"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_GUIDE}}},
+    {"start"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_START}}},
+    {"shoulder_left"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_LEFT_SHOULDER}}},
+    {"shoulder_right"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER}}},
+    {"stick_left"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_LEFT_STICK}}},
+    {"stick_right"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_RIGHT_STICK}}},
+    {"up"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_UP}}},
+    {"down"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_DOWN}}},
+    {"left"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_LEFT}}},
+    {"right"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_RIGHT}}},
   };
 
-  const auto key = entt::hashed_string{luaL_checkstring(state, 2)}.value();
+  const auto key = entt::hashed_string{luaL_checkstring(state, 2)};
 
   const auto it = mapping.find(key);
   if (it != mapping.end()) [[likely]] {

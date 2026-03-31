@@ -44,7 +44,7 @@ void director::navigate(std::string name) {
 }
 
 void director::destroy(std::string_view name) {
-  const auto key = entt::hashed_string{name.data()}.value();
+  const auto key = entt::hashed_string{name.data()};
   auto it = _stages.find(key);
 
   if (it == _stages.end() || it->second.get() == _current) [[unlikely]]
@@ -54,7 +54,7 @@ void director::destroy(std::string_view name) {
 }
 
 void director::set_overlay(std::string name) {
-  const auto key = entt::hashed_string{name.data()}.value();
+  const auto key = entt::hashed_string{name.data()};
   const auto [it, inserted] = _overlays.try_emplace(key, nullptr);
 
   if (inserted)
@@ -69,7 +69,7 @@ void director::clear_overlay() {
 }
 
 void director::enroll(std::string name) {
-  const auto key = entt::hashed_string{name.data()}.value();
+  const auto key = entt::hashed_string{name.data()};
   const auto [it, inserted] = _stages.try_emplace(key);
   if (inserted)
     it->second = std::make_unique<stage>(name);
@@ -85,7 +85,7 @@ void director::transition() {
     clear_overlay();
   }
 
-  const auto key = entt::hashed_string{_pending->data()}.value();
+  const auto key = entt::hashed_string{_pending->data()};
   auto [it, inserted] = _stages.try_emplace(key);
   if (inserted)
     it->second = std::make_unique<stage>(*_pending);

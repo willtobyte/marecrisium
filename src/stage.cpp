@@ -4,8 +4,8 @@ namespace {
   namespace property {
     using entt::operator""_hs;
 
-    constexpr auto dynamic_bodytype = "dynamic"_hs.value();
-    constexpr auto static_bodytype  = "static"_hs.value();
+    constexpr auto dynamic_bodytype = "dynamic"_hs;
+    constexpr auto static_bodytype  = "static"_hs;
   }
 }
 
@@ -25,7 +25,7 @@ static b2Vec2 body_center(const transform& tf, const frame& fr, const body& bd) 
 }
 
 static constexpr auto mapping(const char *s) noexcept -> std::pair<body_type, b2BodyType> {
-  const auto id = entt::hashed_string{s}.value();
+  const auto id = entt::hashed_string{s};
   switch (id) {
     case property::dynamic_bodytype: return {body_type::dynamic, b2_dynamicBody};
     case property::static_bodytype:  return {body_type::stationary, b2_staticBody};
@@ -1031,7 +1031,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       const auto default_clip = def_raw ? std::string_view{def_raw} : std::string_view{};
       lua_pop(L, 1);
       if (!default_clip.empty()) {
-        const auto hash = entt::hashed_string{default_clip.data()}.value();
+        const auto hash = entt::hashed_string{default_clip.data()};
         for (uint8_t i = 0; i < a.clip_count; ++i) {
           if (a.clips[i].name == hash) {
             a.active = i;
@@ -1152,7 +1152,7 @@ int stage::count(lua_State *state) {
   const auto y = static_cast<float>(luaL_checknumber(state, 2));
   const auto w = static_cast<float>(luaL_checknumber(state, 3));
   const auto h = static_cast<float>(luaL_checknumber(state, 4));
-  const auto kind = entt::hashed_string{luaL_checkstring(state, 5)}.value();
+  const auto kind = entt::hashed_string{luaL_checkstring(state, 5)};
 
   const auto aabb = b2AABB{{x, y}, {x + w, y + h}};
 
@@ -1194,7 +1194,7 @@ int stage::find(lua_State *state) {
   const auto y = static_cast<float>(luaL_checknumber(state, 2));
   const auto w = static_cast<float>(luaL_checknumber(state, 3));
   const auto h = static_cast<float>(luaL_checknumber(state, 4));
-  const auto kind = entt::hashed_string{luaL_checkstring(state, 5)}.value();
+  const auto kind = entt::hashed_string{luaL_checkstring(state, 5)};
 
   const b2AABB aabb = {{x, y}, {x + w, y + h}};
 

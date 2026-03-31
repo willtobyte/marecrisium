@@ -10,7 +10,7 @@ namespace {
 }
 
 void sourcepool::insert(std::string_view name) {
-  const auto key = entt::hashed_string{name.data()}.value();
+  const auto key = entt::hashed_string{name.data()};
 
   if (const auto it = _pool.find(key); it != _pool.end()) [[likely]] {
     const auto& [label, bytecode] = it->second;

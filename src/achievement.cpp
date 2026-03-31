@@ -4,7 +4,7 @@ namespace {
   namespace property {
     using entt::operator""_hs;
 
-    constexpr auto unlock = "unlock"_hs.value();
+    constexpr auto unlock = "unlock"_hs;
   }
 }
 
@@ -29,7 +29,7 @@ static int achievement_unlock(lua_State *state) {
 }
 
 static int achievement_index(lua_State *state) {
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id == property::unlock)
     return lua_pushcfunction(state, achievement_unlock), 1;

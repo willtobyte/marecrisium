@@ -18,7 +18,7 @@
 }
 
 config* particlepool::get(std::string_view kind) {
-  const auto key = entt::hashed_string{kind.data()}.value();
+  const auto key = entt::hashed_string{kind.data()};
   const auto [it, inserted] = _pool.try_emplace(key, nullptr);
   if (inserted) [[unlikely]] {
     auto config = std::make_unique<struct config>();

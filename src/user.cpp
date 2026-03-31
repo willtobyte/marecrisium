@@ -4,10 +4,10 @@ namespace {
   namespace property {
     using entt::operator""_hs;
 
-    constexpr auto id = "id"_hs.value();
-    constexpr auto name = "name"_hs.value();
-    constexpr auto persona = "persona"_hs.value();
-    constexpr auto friends = "friends"_hs.value();
+    constexpr auto id = "id"_hs;
+    constexpr auto name = "name"_hs;
+    constexpr auto persona = "persona"_hs;
+    constexpr auto friends = "friends"_hs;
   }
 }
 
@@ -23,7 +23,7 @@ static int user_newindex(lua_State *state) {
 
 static int friend_index(lua_State *state) {
   luaL_checkudata(state, 1, "Friend");
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {
     case property::id:
@@ -44,7 +44,7 @@ static int friend_index(lua_State *state) {
 }
 
 static int user_index(lua_State *state) {
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {
     case property::persona:

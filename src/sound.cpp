@@ -4,14 +4,14 @@ namespace {
   namespace property {
     using entt::operator""_hs;
 
-    constexpr auto volume = "volume"_hs.value();
-    constexpr auto pan = "pan"_hs.value();
-    constexpr auto loop = "loop"_hs.value();
-    constexpr auto play = "play"_hs.value();
-    constexpr auto stop = "stop"_hs.value();
-    constexpr auto fade = "fade"_hs.value();
-    constexpr auto on_begin = "on_begin"_hs.value();
-    constexpr auto on_end = "on_end"_hs.value();
+    constexpr auto volume = "volume"_hs;
+    constexpr auto pan = "pan"_hs;
+    constexpr auto loop = "loop"_hs;
+    constexpr auto play = "play"_hs;
+    constexpr auto stop = "stop"_hs;
+    constexpr auto fade = "fade"_hs;
+    constexpr auto on_begin = "on_begin"_hs;
+    constexpr auto on_end = "on_end"_hs;
   }
 
   int sound_play(lua_State* state) {
@@ -61,7 +61,7 @@ namespace {
 
   int sound_index(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
+    const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
     switch (id) {
       case property::volume:
@@ -103,7 +103,7 @@ namespace {
 
   int sound_newindex(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
+    const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
     switch (id) {
       case property::volume:

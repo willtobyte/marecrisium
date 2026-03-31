@@ -91,13 +91,13 @@ namespace {
   namespace property {
     using entt::operator""_hs;
 
-    constexpr auto label = "label"_hs.value();
+    constexpr auto label = "label"_hs;
   }
 }
 
 static int overlay_index(lua_State *state) {
   luaL_checkudata(state, 1, "Overlay");
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)}.value();
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id == property::label) {
     lua_pushcfunction(state, overlay_label);
