@@ -8,7 +8,7 @@ namespace {
     constexpr auto name = "name"_hs;
   }
 
-  static const ankerl::unordered_dense::map<entt::id_type, SDL_GamepadAxis> axis{
+  static const ankerl::unordered_dense::map<entt::id_type, SDL_GamepadAxis> axes{
     {"left_x"_hs, SDL_GAMEPAD_AXIS_LEFTX},
     {"left_y"_hs, SDL_GAMEPAD_AXIS_LEFTY},
     {"right_x"_hs, SDL_GAMEPAD_AXIS_RIGHTX},
@@ -38,9 +38,9 @@ namespace {
 
 static constexpr float DEADZONE_THRESHOLD = .1f;
 
-[[nodiscard]] static float deadzone(Sint16 value) noexcept {
-  const auto normalized = static_cast<float>(value) / 32768.f;
-  const auto magnitude = std::abs(value);
+[[nodiscard]] static float deadzone(Sint16 axis) noexcept {
+  const auto normalized = static_cast<float>(axis) / 32768.f;
+  const auto magnitude = std::abs(normalized);
   if (magnitude < DEADZONE_THRESHOLD) [[likely]]
     return .0f;
 
@@ -119,7 +119,7 @@ static int push_gamepad_button(lua_State *state, SDL_GamepadButton b) {
 static int gamepad_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
-  if (const auto it = axis.find(id); it != axis.end()) [[likely]]
+  if (const auto it = axes.find(id); it != axes.end()) [[likely]]
     return push_gamepad_axis(state, it->second);
 
   if (const auto it = buttons.find(id); it != buttons.end()) [[likely]]
