@@ -111,40 +111,17 @@ static void on_object_destroy(entt::registry& registry, entt::entity entity) {
     b2DestroyBody(bo.id);
 }
 
-static void overlap_aabb(b2WorldId world, b2AABB aabb, std::vector<entt::entity> &hits) noexcept {
+static void overlap_aabb(b2WorldId world, b2AABB aabb, std::vector<stage::hit> &hits) noexcept {
   b2World_OverlapAABB(
     world,
     aabb,
     filter,
     +[](b2ShapeId shape, void *userdata) -> bool {
-      auto *hits = static_cast<std::vector<entt::entity> *>(userdata);
+      auto *hits = static_cast<std::vector<stage::hit> *>(userdata);
       hits->emplace_back(to_entity(b2Shape_GetUserData(shape)));
       return true;
     },
     &hits);
-}
-
-static int push(lua_State *state, entt::registry& registry, std::span<const entt::entity> entities, entt::entity caller = entt::null, entt::id_type kind = 0, bool filter_kind = false) {
-  lua_newtable(state);
-  int index = 1;
-
-  for (const auto entity : entities) {
-    if (entity == caller)
-      continue;
-    if (!registry.valid(entity)
-        || !registry.all_of<objectproxy>(entity)) [[unlikely]]
-      continue;
-    const auto& proxy = registry.get<objectproxy>(entity);
-    if (proxy.handle == LUA_NOREF)
-      continue;
-    if (filter_kind && proxy.kind != kind)
-      continue;
-
-    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy.handle);
-    lua_rawseti(state, -2, index++);
-  }
-
-  return 1;
 }
 
 static int world_spawn(lua_State* state) {
@@ -159,13 +136,6 @@ static int world_spawn(lua_State* state) {
 static int world_destroy(lua_State* state) {
   auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
   return self->destroy(state);
-}
-
-static int world_at(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  const auto x = static_cast<float>(luaL_checknumber(state, 1));
-  const auto y = static_cast<float>(luaL_checknumber(state, 2));
-  return self->at(state, x, y);
 }
 
 static int world_count(lua_State* state) {
@@ -233,10 +203,6 @@ stage::stage(std::string_view name)
   lua_setfield(L, -2, "destroy");
 
   lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, world_at, 1);
-  lua_setfield(L, -2, "at");
-
-  lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, world_count, 1);
   lua_setfield(L, -2, "count");
 
@@ -279,6 +245,7 @@ stage::stage(std::string_view name)
   const auto largest = std::max(viewport.width, viewport.height);
   _sleep_margin = largest * 1.f;
   _wake_margin  = largest * .5f;
+  _hits.reserve(64);
 
   lua_getfield(L, -1, "objects");
   if (lua_istable(L, -1)) {
@@ -493,7 +460,44 @@ stage::~stage() {
 
 void stage::update(float delta) {
   for (auto&& [entity, proxy, tf, an] :
-       _registry.view<sleepable, objectproxy, transform, animation>().each()) {
+       _registry.view<sleepable, dormant, objectproxy, transform, animation>().each()) {
+    const auto& frame = an.clips[an.active].frames[an.current];
+    const auto width  = frame.w * tf.scale;
+    const auto height = frame.h * tf.scale;
+    const auto screen_x = tf.x - viewport.x;
+    const auto screen_y = tf.y - viewport.y;
+
+    const auto nearscreen =
+      screen_x + width  >= -_wake_margin &&
+      screen_x          <   viewport.width  + _wake_margin &&
+      screen_y + height >= -_wake_margin &&
+      screen_y          <   viewport.height + _wake_margin;
+
+    if (!nearscreen)
+      continue;
+
+    if (auto* bd = _registry.try_get<body>(entity);
+        bd && b2Body_IsValid(bd->id))
+      b2Body_Enable(bd->id);
+
+    _registry.remove<dormant>(entity);
+
+    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF) [[unlikely]]
+      continue;
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+    lua_getfield(L, -1, "on_wake");
+    if (lua_isfunction(L, -1)) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+      pcall(L, 1, 0);
+    } else {
+      lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+  }
+
+  for (auto&& [entity, proxy, tf, an] :
+       _registry.view<sleepable, objectproxy, transform, animation>(entt::exclude<dormant>).each()) {
     const auto& frame = an.clips[an.active].frames[an.current];
     const auto width  = frame.w * tf.scale;
     const auto height = frame.h * tf.scale;
@@ -506,56 +510,27 @@ void stage::update(float delta) {
       screen_y + height < -_sleep_margin ||
       screen_y          >  viewport.height + _sleep_margin;
 
-    const auto nearscreen =
-      screen_x + width  >= -_wake_margin &&
-      screen_x          <   viewport.width  + _wake_margin &&
-      screen_y + height >= -_wake_margin &&
-      screen_y          <   viewport.height + _wake_margin;
-
-    const auto is_dormant = _registry.all_of<dormant>(entity);
-
-    if (nearscreen && is_dormant) {
-      if (auto* bd = _registry.try_get<body>(entity);
-          bd && b2Body_IsValid(bd->id))
-        b2Body_Enable(bd->id);
-
-      _registry.remove<dormant>(entity);
-
-      if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF) [[unlikely]]
-        continue;
-
-      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-      lua_getfield(L, -1, "on_wake");
-      if (lua_isfunction(L, -1)) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-        pcall(L, 1, 0);
-      } else {
-        lua_pop(L, 1);
-      }
-      lua_pop(L, 1);
+    if (!offscreen)
       continue;
-    }
 
-    if (offscreen && !is_dormant) {
-      _registry.emplace<dormant>(entity);
+    _registry.emplace<dormant>(entity);
 
-      if (auto* bd = _registry.try_get<body>(entity);
-          bd && b2Body_IsValid(bd->id))
-        b2Body_Disable(bd->id);
+    if (auto* bd = _registry.try_get<body>(entity);
+        bd && b2Body_IsValid(bd->id))
+      b2Body_Disable(bd->id);
 
-      if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF) [[unlikely]]
-        continue;
+    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF) [[unlikely]]
+      continue;
 
-      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-      lua_getfield(L, -1, "on_sleep");
-      if (lua_isfunction(L, -1)) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-        pcall(L, 1, 0);
-      } else {
-        lua_pop(L, 1);
-      }
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+    lua_getfield(L, -1, "on_sleep");
+    if (lua_isfunction(L, -1)) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+      pcall(L, 1, 0);
+    } else {
       lua_pop(L, 1);
     }
+    lua_pop(L, 1);
   }
 
   if (_on_loop != LUA_NOREF) {
@@ -657,27 +632,27 @@ void stage::update(float delta) {
     if (events.moveCount > 0) [[likely]]
       _registry.ctx().get<reorder>().dirty = true;
 
-    _interpolation.previous = _interpolation.current;
-
-    if (_on_camera != LUA_NOREF) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-
-      pcall(L, 1, 2);
-
-      if (lua_isnumber(L, -2))
-        _interpolation.current.x = static_cast<float>(lua_tonumber(L, -2));
-      if (lua_isnumber(L, -1))
-        _interpolation.current.y = static_cast<float>(lua_tonumber(L, -1));
-      lua_pop(L, 2);
-    }
-
-    if (!_interpolation.ready) [[unlikely]] {
-      _interpolation.previous = _interpolation.current;
-      _interpolation.ready = true;
-    }
-
     _accumulator -= _timestep;
+  }
+
+  _interpolation.previous = _interpolation.current;
+
+  if (_on_camera != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+
+    pcall(L, 1, 2);
+
+    if (lua_isnumber(L, -2))
+      _interpolation.current.x = static_cast<float>(lua_tonumber(L, -2));
+    if (lua_isnumber(L, -1))
+      _interpolation.current.y = static_cast<float>(lua_tonumber(L, -1));
+    lua_pop(L, 2);
+  }
+
+  if (!_interpolation.ready) [[unlikely]] {
+    _interpolation.previous = _interpolation.current;
+    _interpolation.ready = true;
   }
 
   _interpolation.alpha = _timestep > .0f ? _accumulator / _timestep : .0f;
@@ -1157,46 +1132,45 @@ int stage::destroy(lua_State* state) {
   return 0;
 }
 
-int stage::at(lua_State *state, float x, float y) {
-  constexpr auto HALF = .5f;
-  const b2AABB aabb = {{x - HALF, y - HALF}, {x + HALF, y + HALF}};
-  std::vector<entt::entity> hits;
-  overlap_aabb(_world, aabb, hits);
-  return push(state, _registry, hits);
-}
-
 int stage::count(lua_State *state) {
   const auto x = static_cast<float>(luaL_checknumber(state, 1));
   const auto y = static_cast<float>(luaL_checknumber(state, 2));
   const auto w = static_cast<float>(luaL_checknumber(state, 3));
   const auto h = static_cast<float>(luaL_checknumber(state, 4));
+  const auto kind = entt::hashed_string{luaL_checkstring(state, 5)}.value();
 
-  const auto filter_kind = lua_isstring(state, 5);
-  const auto kind_hash = filter_kind
-    ? entt::hashed_string{lua_tostring(state, 5)}.value()
-    : entt::id_type{};
+  const auto aabb = b2AABB{{x, y}, {x + w, y + h}};
 
-  const b2AABB aabb = {{x, y}, {x + w, y + h}};
+  struct counter {
+    entt::registry *registry;
+    entt::id_type kind;
+    int total;
+  } ctx{&_registry, kind, 0};
 
-  std::vector<entt::entity> hits;
-  overlap_aabb(_world, aabb, hits);
+  b2World_OverlapAABB(
+    _world,
+    aabb,
+    filter,
+    +[](b2ShapeId shape, void *userdata) -> bool {
+      auto *ctx = static_cast<counter *>(userdata);
+      const auto e = to_entity(b2Shape_GetUserData(shape));
 
-  int total = 0;
+      if (!ctx->registry->valid(e)
+          || !ctx->registry->all_of<objectproxy>(e)) [[unlikely]]
+        return true;
+      const auto& proxy = ctx->registry->get<objectproxy>(e);
+      if (proxy.handle == LUA_NOREF)
+        return true;
+      if (proxy.kind != ctx->kind)
+        return true;
 
-  for (const auto entity : hits) {
-    if (!_registry.valid(entity)
-        || !_registry.all_of<objectproxy>(entity)) [[unlikely]]
-      continue;
-    const auto& proxy = _registry.get<objectproxy>(entity);
-    if (proxy.handle == LUA_NOREF)
-      continue;
-    if (filter_kind && proxy.kind != kind_hash)
-      continue;
+      ++ctx->total;
+      return true;
+    },
+    &ctx
+  );
 
-    ++total;
-  }
-
-  lua_pushinteger(state, static_cast<lua_Integer>(total));
+  lua_pushinteger(state, static_cast<lua_Integer>(ctx.total));
   return 1;
 }
 
@@ -1205,73 +1179,97 @@ int stage::find(lua_State *state) {
   const auto y = static_cast<float>(luaL_checknumber(state, 2));
   const auto w = static_cast<float>(luaL_checknumber(state, 3));
   const auto h = static_cast<float>(luaL_checknumber(state, 4));
-
-  const auto filter_kind = lua_isstring(state, 5);
-  const auto kind_hash = filter_kind
-    ? entt::hashed_string{lua_tostring(state, 5)}.value()
-    : entt::id_type{};
+  const auto kind = entt::hashed_string{luaL_checkstring(state, 5)}.value();
 
   const b2AABB aabb = {{x, y}, {x + w, y + h}};
 
-  std::vector<entt::entity> hits;
-  overlap_aabb(_world, aabb, hits);
+  _hits.clear();
+  overlap_aabb(_world, aabb, _hits);
 
-  return push(state, _registry, hits, entt::null, kind_hash, filter_kind);
+  lua_newtable(state);
+  int index = 1;
+
+  for (const auto& [entity, fraction] : _hits) {
+    if (!_registry.valid(entity)
+        || !_registry.all_of<objectproxy>(entity)) [[unlikely]]
+      continue;
+    const auto& proxy = _registry.get<objectproxy>(entity);
+    if (proxy.handle == LUA_NOREF)
+      continue;
+    if (proxy.kind != kind)
+      continue;
+
+    lua_rawgeti(state, LUA_REGISTRYINDEX, proxy.handle);
+    lua_rawseti(state, -2, index++);
+  }
+
+  return 1;
 }
 
 int stage::radar(lua_State *state, entt::entity caller, float x, float y, float radius) {
-  std::vector<entt::entity> hits;
-
   const b2Vec2 center{x, y};
   const auto proxy = b2MakeProxy(&center, 1, radius);
 
+  _hits.clear();
   b2World_OverlapShape(
     _world,
     &proxy,
     filter,
     +[](b2ShapeId shape, void *userdata) -> bool {
-      auto *hits = static_cast<std::vector<entt::entity> *>(userdata);
+      auto *hits = static_cast<std::vector<hit> *>(userdata);
       hits->emplace_back(to_entity(b2Shape_GetUserData(shape)));
       return true;
     },
-    &hits
+    &_hits
   );
 
-  return push(state, _registry, hits, caller);
+  lua_newtable(state);
+  int index = 1;
+
+  for (const auto& [entity, fraction] : _hits) {
+    if (entity == caller)
+      continue;
+    if (!_registry.valid(entity)
+        || !_registry.all_of<objectproxy>(entity)) [[unlikely]]
+      continue;
+    const auto& op = _registry.get<objectproxy>(entity);
+    if (op.handle == LUA_NOREF)
+      continue;
+
+    lua_rawgeti(state, LUA_REGISTRYINDEX, op.handle);
+    lua_rawseti(state, -2, index++);
+  }
+
+  return 1;
 }
 
 int stage::raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance) {
-  struct raycast_hit {
-    entt::entity entity;
-    float fraction;
-  };
-
   const auto radians = to_radians(angle);
   auto sine = .0f, cosine = .0f;
   sincos(radians, sine, cosine);
   const b2Vec2 origin{x, y};
   const b2Vec2 translation{cosine * distance, sine * distance};
-  std::vector<raycast_hit> hits;
 
+  _hits.clear();
   b2World_CastRay(
     _world,
     origin,
     translation,
     filter,
     +[](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void *userdata) -> float {
-      auto *hits = static_cast<std::vector<raycast_hit> *>(userdata);
+      auto *hits = static_cast<std::vector<hit> *>(userdata);
       hits->emplace_back(to_entity(b2Shape_GetUserData(shape)), fraction);
       return 1.f;
     },
-    &hits
+    &_hits
   );
 
-  std::ranges::sort(hits, {}, &raycast_hit::fraction);
+  std::ranges::sort(_hits, {}, &hit::fraction);
 
   lua_newtable(state);
   int index = 1;
 
-  for (const auto& [entity, fraction] : hits) {
+  for (const auto& [entity, fraction] : _hits) {
     if (entity == entt::null)
       continue;
 

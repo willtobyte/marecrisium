@@ -567,14 +567,6 @@ function World.raycast(caller, x, y, angle, distance) end
 ---@return Object[] hits Array of objects within the area.
 function World.radar(caller, x, y, radius) end
 
----Return all objects at a single world point.
----Uses a zero-size AABB query, so only objects whose physics body
----overlaps the exact point are returned.
----@param x number Query X position in world coordinates.
----@param y number Query Y position in world coordinates.
----@return Object[] hits Array of objects at the point.
-function World.at(x, y) end
-
 ---Find a path between two world positions avoiding solid tilemap tiles.
 ---Uses A* on the tilemap collision grid with corner-cutting prevention.
 ---Returns an empty table when no path exists.
@@ -590,25 +582,21 @@ function World.at(x, y) end
 ---@return number[][] path Array of {x, y} waypoints in world coordinates (tile centers).
 function World.pathfind(x1, y1, x2, y2, radius) end
 
----Count objects whose physics body overlaps the given rectangle.
----Without a kind filter, counts all matching objects.
----With a kind filter, counts only objects of that type.
+---Count objects of a given kind whose physics body overlaps the given rectangle.
 ---@param x number Left edge of the query region in world coordinates.
 ---@param y number Top edge of the query region in world coordinates.
 ---@param w number Width of the query region.
 ---@param h number Height of the query region.
----@param kind? string Object kind to filter by (e.g. "enemy").
+---@param kind string Object kind to filter by (e.g. "enemy").
 ---@return integer count Number of matching objects.
 function World.count(x, y, w, h, kind) end
 
----Find objects whose physics body overlaps the given rectangle.
----Without a kind filter, returns all matching objects.
----With a kind filter, returns only objects of that type.
+---Find objects of a given kind whose physics body overlaps the given rectangle.
 ---@param x number Left edge of the query region in world coordinates.
 ---@param y number Top edge of the query region in world coordinates.
 ---@param w number Width of the query region.
 ---@param h number Height of the query region.
----@param kind? string Object kind to filter by (e.g. "enemy").
+---@param kind string Object kind to filter by (e.g. "enemy").
 ---@return Object[] objects Array of matching objects.
 function World.find(x, y, w, h, kind) end
 

@@ -10,6 +10,11 @@ void sincos(float x, float& osin, float& ocos) noexcept;
 
 class stage final {
 public:
+  struct hit {
+    entt::entity entity;
+    float fraction{};
+  };
+
   explicit stage(std::string_view name);
   ~stage();
 
@@ -34,8 +39,6 @@ public:
   [[nodiscard]] int spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y);
 
   int destroy(lua_State* state);
-
-  int at(lua_State* state, float x, float y);
 
   [[nodiscard]] int count(lua_State* state);
 
@@ -73,6 +76,8 @@ private:
     float alpha{};
     bool ready{false};
   } _interpolation;
+
+  std::vector<hit> _hits{};
 
   float _sleep_margin{};
   float _wake_margin{};
