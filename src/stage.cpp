@@ -8,7 +8,7 @@ static entt::entity to_entity(const void* p) noexcept {
   return static_cast<entt::entity>(reinterpret_cast<uintptr_t>(p) - 1);
 }
 
-static const auto query_filter = b2DefaultQueryFilter();
+static const auto filter = b2DefaultQueryFilter();
 
 struct query_context final {
   entt::entity *hits;
@@ -850,9 +850,9 @@ void stage::draw() {
 #ifdef DEBUG
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
 
-  const b2AABB aabb = {{viewport.x, viewport.y}, {viewport.x + viewport.width, viewport.y + viewport.height}};
+  const auto aabb = b2AABB{{viewport.x, viewport.y}, {viewport.x + viewport.width, viewport.y + viewport.height}};
 
-  b2World_OverlapAABB(_world, aabb, query_filter, +[](b2ShapeId shape, void*) -> bool {
+  b2World_OverlapAABB(_world, aabb, filter, +[](b2ShapeId shape, void*) -> bool {
     static const auto margin = .01f * b2GetLengthUnitsPerMeter();
     const auto polygon = b2Shape_GetPolygon(shape);
     const auto position = b2Body_GetPosition(b2Shape_GetBody(shape));
