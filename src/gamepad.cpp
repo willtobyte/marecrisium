@@ -125,9 +125,9 @@ static int gamepad_index(lua_State *state) {
     {"right"_hs, {type::button, {.button = SDL_GAMEPAD_BUTTON_DPAD_RIGHT}}},
   };
 
-  const auto key = entt::hashed_string{luaL_checkstring(state, 2)};
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
-  const auto it = mapping.find(key);
+  const auto it = mapping.find(id);
   if (it != mapping.end()) [[likely]] {
     const auto& e = it->second;
     if (e.type == type::axis)
@@ -136,18 +136,18 @@ static int gamepad_index(lua_State *state) {
     return push_gamepad_button(state, e.button);
   }
 
-  if (key == property::connected) [[unlikely]] {
+  if (id == property::connected) [[unlikely]] {
     lua_pushboolean(state, ptr != nullptr ? 1 : 0);
     return 1;
   }
 
-  if (key == property::rumble) [[unlikely]]
+  if (id == property::rumble) [[unlikely]]
     return lua_pushcfunction(state, gamepad_rumble), 1;
 
-  if (key == property::led) [[unlikely]]
+  if (id == property::led) [[unlikely]]
     return lua_pushcfunction(state, gamepad_led), 1;
 
-  if (key == property::name) [[unlikely]] {
+  if (id == property::name) [[unlikely]] {
     if (!ptr) [[unlikely]]
       return lua_pushstring(state, ""), 1;
 
