@@ -9,4 +9,8 @@ And you inherit it from your great-great-grandfather, who was an astronaut
 and the first man to buy land on the Moon—specifically in a dark and mysterious
 crater called Mare Crisium.
 
-##
+## Ambiance
+
+## Gameplay
+
+## Enemies
