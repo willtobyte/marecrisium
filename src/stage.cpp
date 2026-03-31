@@ -779,9 +779,9 @@ void stage::draw() {
     pcall(L, 1, 2);
 
     if (lua_isnumber(L, -2))
-      viewport.x = static_cast<float>(lua_tonumber(L, -2));
+      viewport.x = std::floor(static_cast<float>(lua_tonumber(L, -2)) * viewport.scale) / viewport.scale;
     if (lua_isnumber(L, -1))
-      viewport.y = static_cast<float>(lua_tonumber(L, -1));
+      viewport.y = std::floor(static_cast<float>(lua_tonumber(L, -1)) * viewport.scale) / viewport.scale;
     lua_pop(L, 2);
   }
 
@@ -801,8 +801,8 @@ void stage::draw() {
 
     const auto dw = fr.w * tf.scale;
     const auto dh = fr.h * tf.scale;
-    const auto sx = tf.x - viewport.x;
-    const auto sy = tf.y - viewport.y;
+    const auto sx = std::floor((tf.x - viewport.x) * viewport.scale) / viewport.scale;
+    const auto sy = std::floor((tf.y - viewport.y) * viewport.scale) / viewport.scale;
 
     if (sx + dw < .0f || sx > viewport.width ||
         sy + dh < .0f || sy > viewport.height)
