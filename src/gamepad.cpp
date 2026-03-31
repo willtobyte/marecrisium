@@ -127,35 +127,34 @@ static int gamepad_index(lua_State *state) {
 
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
-  const auto it = mapping.find(id);
-  if (it != mapping.end()) [[likely]] {
-    const auto& e = it->second;
-    if (e.type == type::axis)
-      return push_gamepad_axis(state, e.axis);
-
-    return push_gamepad_button(state, e.button);
+  if (const auto it = mapping.find(id); it != mapping.end()) [[likely]] {
+    const auto& entry = it->second;
+    return entry.type == type::axis
+      ? push_gamepad_axis(state, entry.axis)
+      : push_gamepad_button(state, entry.button);
   }
 
-  if (id == property::connected) [[unlikely]] {
-    lua_pushboolean(state, ptr != nullptr ? 1 : 0);
-    return 1;
+  switch (id) {
+    case property::connected:
+      lua_pushboolean(state, ptr != nullptr ? 1 : 0);
+      return 1;
+
+    case property::rumble:
+      lua_pushcfunction(state, gamepad_rumble);
+      return 1;
+
+    case property::led:
+      lua_pushcfunction(state, gamepad_led);
+      return 1;
+
+    case property::name:
+      lua_pushstring(state, ptr ? SDL_GetGamepadName(ptr.get()) : "");
+      return 1;
+
+    default:
+      lua_pushnil(state);
+      return 1;
   }
-
-  if (id == property::rumble) [[unlikely]]
-    return lua_pushcfunction(state, gamepad_rumble), 1;
-
-  if (id == property::led) [[unlikely]]
-    return lua_pushcfunction(state, gamepad_led), 1;
-
-  if (id == property::name) [[unlikely]] {
-    if (!ptr) [[unlikely]]
-      return lua_pushstring(state, ""), 1;
-
-    lua_pushstring(state, SDL_GetGamepadName(ptr.get()));
-    return 1;
-  }
-
-  return lua_pushnil(state), 1;
 }
 
 void gamepad::wire() {
