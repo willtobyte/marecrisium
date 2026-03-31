@@ -779,9 +779,9 @@ void stage::draw() {
     pcall(L, 1, 2);
 
     if (lua_isnumber(L, -2))
-      viewport.x = std::roundf(static_cast<float>(lua_tonumber(L, -2)));
+      viewport.x = static_cast<float>(lua_tonumber(L, -2));
     if (lua_isnumber(L, -1))
-      viewport.y = std::roundf(static_cast<float>(lua_tonumber(L, -1)));
+      viewport.y = static_cast<float>(lua_tonumber(L, -1));
     lua_pop(L, 2);
   }
 
