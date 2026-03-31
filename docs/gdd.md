@@ -13,6 +13,8 @@ crater called Mare Crisium.
 
 ## Gameplay
 
+## Resources
+
 ## Enemies
 
 ## Relationships
