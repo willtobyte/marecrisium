@@ -29,7 +29,7 @@ static int keyboard_index(lua_State *state) {
     return lua_pushnil(state), 1;
 
   const auto *keyboard = SDL_GetKeyboardState(nullptr);
-  lua_pushboolean(state, keyboard[it->second] != 0 ? 1 : 0);
+  lua_pushboolean(state, !!keyboard[it->second]);
   return 1;
 }
 
