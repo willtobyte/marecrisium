@@ -103,8 +103,11 @@ int main(int argc, char **argv) {
       e.data.resize(bound);
 
       const auto result = ZSTD_compress(
-        e.data.data(), e.data.size(),
-        raw.data(), raw.size(), ZSTD_defaultCLevel());
+        e.data.data(),
+        e.data.size(),
+        raw.data(),
+        raw.size(),
+        ZSTD_defaultCLevel());
 
       if (ZSTD_isError(result)) {
         std::cerr << "error: zstd compression failed for " << path << ": " << ZSTD_getErrorName(result) << "\n";
