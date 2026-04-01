@@ -18,9 +18,9 @@ constexpr uint8_t FLAG_DIRECTORY = 1;
 
 struct entry {
   std::string path;
-  uint64_t data_offset;
-  uint64_t compressed_size;
-  uint64_t uncompressed_size;
+  uint64_t offset;
+  uint64_t compressed;
+  uint64_t uncompressed;
   uint8_t flags;
   std::vector<uint8_t> compressed_data;
 };
@@ -79,9 +79,9 @@ int main(int argc, char **argv) {
 
     entry e;
     e.path = std::move(relative);
-    e.data_offset = 0;
-    e.compressed_size = 0;
-    e.uncompressed_size = 0;
+    e.offset = 0;
+    e.compressed = 0;
+    e.uncompressed = 0;
     e.flags = 0;
 
     if (std::filesystem::is_directory(path)) {
@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
       std::vector<uint8_t> raw(static_cast<size_t>(size));
       input.read(reinterpret_cast<char *>(raw.data()), static_cast<std::streamsize>(size));
 
-      e.uncompressed_size = size;
+      e.uncompressed = size;
 
       const auto bound = ZSTD_compressBound(raw.size());
       e.compressed_data.resize(bound);
@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
       }
 
       e.compressed_data.resize(result);
-      e.compressed_size = result;
+      e.compressed = result;
     } else {
       continue;
     }
@@ -127,8 +127,8 @@ int main(int argc, char **argv) {
   uint64_t data_offset = 12 + toc_size;
   for (auto &e : entries) {
     if (!(e.flags & FLAG_DIRECTORY)) {
-      e.data_offset = data_offset;
-      data_offset += e.compressed_size;
+      e.offset = data_offset;
+      data_offset += e.compressed;
     }
   }
 
@@ -145,9 +145,9 @@ int main(int argc, char **argv) {
   for (const auto &e : entries) {
     write_u16(output, static_cast<uint16_t>(e.path.size()));
     output.write(e.path.data(), static_cast<std::streamsize>(e.path.size()));
-    write_u64(output, e.data_offset);
-    write_u64(output, e.compressed_size);
-    write_u64(output, e.uncompressed_size);
+    write_u64(output, e.offset);
+    write_u64(output, e.compressed);
+    write_u64(output, e.uncompressed);
     output.put(static_cast<char>(e.flags));
   }
 

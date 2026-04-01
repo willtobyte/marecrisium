@@ -7,9 +7,9 @@ constexpr uint8_t FLAG_DIRECTORY = 1;
 
 struct entry final {
   std::string path;
-  uint64_t data_offset;
-  uint64_t compressed_size;
-  uint64_t uncompressed_size;
+  uint64_t offset;
+  uint64_t compressed;
+  uint64_t uncompressed;
   uint8_t flags;
 };
 
@@ -152,31 +152,31 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
     return nullptr;
   }
 
-  const auto entry_count = read_le<uint32_t>(header + 8);
+  const auto count = read_le<uint32_t>(header + 8);
 
   auto arc = std::unique_ptr<archive>(new (std::nothrow) archive{});
   arc->io = io;
   arc->dctx = ZSTD_createDCtx();
-  arc->entries.reserve(entry_count);
-  arc->index.reserve(entry_count);
+  arc->entries.reserve(count);
+  arc->index.reserve(count);
 
-  std::vector<uint8_t> entry_buffer;
-  for (uint32_t i = 0; i < entry_count; ++i) {
+  std::vector<uint8_t> buffer;
+  for (uint32_t i = 0; i < count; ++i) {
     uint8_t length_buffer[2];
     if (!read_all(io, length_buffer, 2)) [[unlikely]]
       return nullptr;
 
-    const auto path_length = read_le<uint16_t>(length_buffer);
-    const auto entry_size = static_cast<size_t>(path_length + 25);
+    const auto length = read_le<uint16_t>(length_buffer);
+    const auto size = static_cast<size_t>(length + 25);
 
-    entry_buffer.resize(entry_size);
-    if (!read_all(io, entry_buffer.data(), entry_size)) [[unlikely]]
+    buffer.resize(size);
+    if (!read_all(io, buffer.data(), size)) [[unlikely]]
       return nullptr;
 
-    const auto *metadata = entry_buffer.data() + path_length;
+    const auto *metadata = buffer.data() + length;
 
     auto &item = arc->entries.emplace_back(entry{
-      std::string(reinterpret_cast<const char *>(entry_buffer.data()), path_length),
+      std::string(reinterpret_cast<const char *>(buffer.data()), length),
       read_le<uint64_t>(metadata),
       read_le<uint64_t>(metadata + 8),
       read_le<uint64_t>(metadata + 16),
@@ -226,24 +226,24 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     return nullptr;
   }
 
-  const auto compressed_size = static_cast<size_t>(found.compressed_size);
+  const auto size = static_cast<size_t>(found.compressed);
 
-  const auto uncompressed_size = static_cast<size_t>(found.uncompressed_size);
+  const auto uncompressed = static_cast<size_t>(found.uncompressed);
 
-  auto compressed = std::make_unique_for_overwrite<uint8_t[]>(compressed_size);
-  if (!arc->io->seek(arc->io, found.data_offset) ||
-      !read_all(arc->io, compressed.get(), found.compressed_size)) [[unlikely]] {
+  auto compressed = std::make_unique_for_overwrite<uint8_t[]>(size);
+  if (!arc->io->seek(arc->io, found.offset) ||
+      !read_all(arc->io, compressed.get(), found.compressed)) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_IO);
     return nullptr;
   }
 
-  auto buffer = std::make_shared<uint8_t[]>(uncompressed_size);
+  auto buffer = std::make_shared<uint8_t[]>(uncompressed);
 
-  if (uncompressed_size > 0) {
+  if (uncompressed > 0) {
     const auto result = ZSTD_decompressDCtx(
       arc->dctx,
-      buffer.get(), uncompressed_size,
-      compressed.get(), compressed_size);
+      buffer.get(), uncompressed,
+      compressed.get(), size);
 
     if (ZSTD_isError(result)) [[unlikely]] {
       PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
@@ -251,7 +251,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     }
   }
 
-  auto *reader = new (std::nothrow) handle{std::move(buffer), uncompressed_size, 0};
+  auto *reader = new (std::nothrow) handle{std::move(buffer), uncompressed, 0};
 
   auto *io = new (std::nothrow) PHYSFS_Io{
     .version = 0,
@@ -303,7 +303,7 @@ int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
   const auto is_dir = (e.flags & FLAG_DIRECTORY) != 0;
   stat->filesize = is_dir
     ? -1
-    : static_cast<PHYSFS_sint64>(e.uncompressed_size);
+    : static_cast<PHYSFS_sint64>(e.uncompressed);
   stat->modtime = -1;
   stat->createtime = -1;
   stat->accesstime = -1;

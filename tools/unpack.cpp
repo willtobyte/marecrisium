@@ -15,9 +15,9 @@ constexpr uint8_t FLAG_DIRECTORY = 1;
 
 struct entry {
   std::string path;
-  uint64_t data_offset;
-  uint64_t compressed_size;
-  uint64_t uncompressed_size;
+  uint64_t offset;
+  uint64_t compressed;
+  uint64_t uncompressed;
   uint8_t flags;
 };
 
@@ -120,18 +120,18 @@ int main() {
 
     std::filesystem::create_directories(destination.parent_path());
 
-    std::vector<uint8_t> compressed(static_cast<size_t>(entry.compressed_size));
-    input.seekg(static_cast<std::streamoff>(entry.data_offset));
+    std::vector<uint8_t> compressed(static_cast<size_t>(entry.compressed));
+    input.seekg(static_cast<std::streamoff>(entry.offset));
     input.read(reinterpret_cast<char *>(compressed.data()),
-               static_cast<std::streamsize>(entry.compressed_size));
+               static_cast<std::streamsize>(entry.compressed));
     if (!input) {
       std::cerr << "error: cannot read data for " << entry.path << "\n";
       return 1;
     }
 
-    std::vector<uint8_t> decompressed(static_cast<size_t>(entry.uncompressed_size));
+    std::vector<uint8_t> decompressed(static_cast<size_t>(entry.uncompressed));
 
-    if (entry.uncompressed_size > 0) {
+    if (entry.uncompressed > 0) {
       const auto result = ZSTD_decompress(
         decompressed.data(), decompressed.size(),
         compressed.data(), compressed.size());
