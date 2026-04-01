@@ -16,6 +16,8 @@ struct entry final {
 struct archive final {
   PHYSFS_Io *io;
   std::vector<entry> entries;
+  ankerl::unordered_dense::map<std::string, size_t, transparent_hash, std::equal_to<>> index;
+  ankerl::unordered_dense::map<std::string, std::vector<std::string>, transparent_hash, std::equal_to<>> children;
 };
 
 struct handle final {
@@ -206,19 +208,25 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
     });
   }
 
+  arc->index.reserve(arc->entries.size());
+  for (size_t i = 0; i < arc->entries.size(); ++i) {
+    const auto &e = arc->entries[i];
+    arc->index.emplace(e.path, i);
+    arc->children[std::string(parent_dir(e.path))].emplace_back(filename(e.path));
+  }
+
   return arc;
 }
 
 PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname, PHYSFS_EnumerateCallback callback, const char *origdir, void *cbdata) {
   auto *arc = static_cast<archive *>(opaque);
-  const std::string dir = dirname;
+  const std::string_view dir = dirname;
 
-  for (const auto &e : arc->entries) {
-    const auto parent = parent_dir(e.path);
-    if (parent != dir)
-      continue;
+  const auto it = arc->children.find(dir);
+  if (it == arc->children.end())
+    return PHYSFS_ENUM_OK;
 
-    const auto name = filename(e.path);
+  for (const auto &name : it->second) {
     const auto result = callback(cbdata, origdir, name.c_str());
     if (result == PHYSFS_ENUM_ERROR)
       return PHYSFS_ENUM_ERROR;
@@ -233,27 +241,22 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   auto *arc = static_cast<archive *>(opaque);
   const std::string_view path = name;
 
-  const entry *found = nullptr;
-  for (const auto &e : arc->entries) {
-    if (e.path == path) {
-      found = &e;
-      break;
-    }
-  }
-
-  if (!found) [[unlikely]] {
+  const auto it = arc->index.find(path);
+  if (it == arc->index.end()) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_NOT_FOUND);
     return nullptr;
   }
 
-  if (found->flags & FLAG_DIRECTORY) [[unlikely]] {
+  const auto &found = arc->entries[it->second];
+
+  if (found.flags & FLAG_DIRECTORY) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_NOT_A_FILE);
     return nullptr;
   }
 
-  std::vector<uint8_t> compressed(static_cast<size_t>(found->compressed_size));
-  if (!arc->io->seek(arc->io, found->data_offset) ||
-      !read_all(arc->io, compressed.data(), found->compressed_size)) [[unlikely]] {
+  std::vector<uint8_t> compressed(static_cast<size_t>(found.compressed_size));
+  if (!arc->io->seek(arc->io, found.data_offset) ||
+      !read_all(arc->io, compressed.data(), found.compressed_size)) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_IO);
     return nullptr;
   }
@@ -264,10 +267,10 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     return nullptr;
   }
 
-  h->data.resize(static_cast<size_t>(found->uncompressed_size));
+  h->data.resize(static_cast<size_t>(found.uncompressed_size));
   h->position = 0;
 
-  if (found->uncompressed_size > 0) {
+  if (found.uncompressed_size > 0) {
     const auto result = ZSTD_decompress(
       h->data.data(), h->data.size(),
       compressed.data(), compressed.size());
@@ -324,25 +327,25 @@ int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
   auto *arc = static_cast<archive *>(opaque);
   const std::string_view path = name;
 
-  for (const auto &e : arc->entries) {
-    if (e.path == path) {
-      stat->filesize = (e.flags & FLAG_DIRECTORY)
-        ? -1
-        : static_cast<PHYSFS_sint64>(e.uncompressed_size);
-      stat->modtime = -1;
-      stat->createtime = -1;
-      stat->accesstime = -1;
-      stat->filetype = (e.flags & FLAG_DIRECTORY)
-        ? PHYSFS_FILETYPE_DIRECTORY
-        : PHYSFS_FILETYPE_REGULAR;
-      stat->readonly = 1;
-
-      return 1;
-    }
+  const auto it = arc->index.find(path);
+  if (it == arc->index.end()) [[unlikely]] {
+    PHYSFS_setErrorCode(PHYSFS_ERR_NOT_FOUND);
+    return 0;
   }
 
-  PHYSFS_setErrorCode(PHYSFS_ERR_NOT_FOUND);
-  return 0;
+  const auto &e = arc->entries[it->second];
+  stat->filesize = (e.flags & FLAG_DIRECTORY)
+    ? -1
+    : static_cast<PHYSFS_sint64>(e.uncompressed_size);
+  stat->modtime = -1;
+  stat->createtime = -1;
+  stat->accesstime = -1;
+  stat->filetype = (e.flags & FLAG_DIRECTORY)
+    ? PHYSFS_FILETYPE_DIRECTORY
+    : PHYSFS_FILETYPE_REGULAR;
+  stat->readonly = 1;
+
+  return 1;
 }
 
 void crom_close_archive(void *opaque) {
