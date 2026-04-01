@@ -158,7 +158,7 @@ jobs:
           conan profile detect --force
           conan config install https://github.com/willtobyte/conan-configs.git --type git
           conan install tools/ --output-folder=tools/build --build=missing --settings compiler.cppstd=23 --settings build_type=Release
-          cmake -Btools/build -Stools -DCMAKE_TOOLCHAIN_FILE=tools/build/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+          cmake -Btools/build -Stools -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
           cmake --build tools/build --config Release
           ./tools/build/pack cartridge
 

@@ -61,17 +61,17 @@ bool read_all(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   return true;
 }
 
-std::string parent_dir(const std::string &path) {
+std::string_view parent_dir(std::string_view path) noexcept {
   const auto position = path.rfind('/');
-  if (position == std::string::npos)
+  if (position == std::string_view::npos)
     return {};
 
   return path.substr(0, position);
 }
 
-std::string filename(const std::string &path) {
+std::string_view filename(std::string_view path) noexcept {
   const auto position = path.rfind('/');
-  if (position == std::string::npos)
+  if (position == std::string_view::npos)
     return path;
 
   return path.substr(position + 1);
