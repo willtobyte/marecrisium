@@ -133,8 +133,10 @@ int main() {
 
     if (entry.uncompressed > 0) {
       const auto result = ZSTD_decompress(
-        decompressed.data(), decompressed.size(),
-        compressed.data(), compressed.size());
+        decompressed.data(),
+        decompressed.size(),
+        compressed.data(),
+        compressed.size());
 
       if (ZSTD_isError(result)) {
         std::cerr << "error: decompression failed for " << entry.path << ": " << ZSTD_getErrorName(result) << "\n";
