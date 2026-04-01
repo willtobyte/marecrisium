@@ -17,8 +17,8 @@ struct archive final {
   PHYSFS_Io *io;
   ZSTD_DCtx *dctx;
   std::vector<entry> entries;
-  ankerl::unordered_dense::map<std::string, size_t, transparent_hash, std::equal_to<>> index;
-  ankerl::unordered_dense::map<std::string, std::vector<std::string>, transparent_hash, std::equal_to<>> children;
+  ankerl::unordered_dense::map<std::string_view, size_t, transparent_hash, std::equal_to<>> index;
+  ankerl::unordered_dense::map<std::string_view, std::vector<std::string_view>, transparent_hash, std::equal_to<>> children;
 };
 
 struct handle final {
@@ -188,6 +188,7 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
 
   arc->entries.reserve(entry_count);
 
+  std::vector<uint8_t> entry_buffer;
   for (uint32_t i = 0; i < entry_count; ++i) {
     uint8_t length_buffer[2];
     if (!read_all(io, length_buffer, 2)) [[unlikely]] {
@@ -199,17 +200,17 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
     const auto path_length = read_u16(length_buffer);
     const auto entry_size = static_cast<size_t>(path_length + 25);
 
-    auto entry_buffer = std::make_unique_for_overwrite<uint8_t[]>(entry_size);
-    if (!read_all(io, entry_buffer.get(), entry_size)) [[unlikely]] {
+    entry_buffer.resize(entry_size);
+    if (!read_all(io, entry_buffer.data(), entry_size)) [[unlikely]] {
       ZSTD_freeDCtx(arc->dctx);
       delete arc;
       return nullptr;
     }
 
-    const auto *metadata = entry_buffer.get() + path_length;
+    const auto *metadata = entry_buffer.data() + path_length;
 
     entry item{
-      std::string(reinterpret_cast<const char *>(entry_buffer.get()), path_length),
+      std::string(reinterpret_cast<const char *>(entry_buffer.data()), path_length),
       read_u64(metadata),
       read_u64(metadata + 8),
       read_u64(metadata + 16),
@@ -222,8 +223,8 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
   arc->index.reserve(arc->entries.size());
   for (size_t i = 0; i < arc->entries.size(); ++i) {
     const auto &e = arc->entries[i];
-    arc->index.emplace(e.path, i);
-    arc->children[std::string(parent_dir(e.path))].emplace_back(filename(e.path));
+    arc->index.emplace(std::string_view{e.path}, i);
+    arc->children[parent_dir(e.path)].emplace_back(filename(e.path));
   }
 
   return arc;
@@ -238,7 +239,7 @@ PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname,
     return PHYSFS_ENUM_OK;
 
   for (const auto &name : it->second) {
-    const auto result = callback(cbdata, origdir, name.c_str());
+    const auto result = callback(cbdata, origdir, name.data());
     if (result == PHYSFS_ENUM_ERROR)
       return PHYSFS_ENUM_ERROR;
     if (result == PHYSFS_ENUM_STOP)
@@ -275,13 +276,14 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     return nullptr;
   }
 
+  auto buffer = std::make_shared_for_overwrite<uint8_t[]>(uncompressed_size);
+
   auto *reader = new (std::nothrow) handle{};
   if (!reader) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
     return nullptr;
   }
 
-  auto buffer = std::make_unique_for_overwrite<uint8_t[]>(uncompressed_size);
   reader->size = uncompressed_size;
   reader->position = 0;
 
