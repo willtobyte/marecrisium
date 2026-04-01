@@ -51,6 +51,7 @@ find_package(opusfile CONFIG REQUIRED)
 find_package(SQLite3 CONFIG REQUIRED)
 find_package(unordered_dense CONFIG REQUIRED)
 find_package(yyjson CONFIG REQUIRED)
+find_package(zstd CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
   box2d::box2d
@@ -66,6 +67,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   SQLite::SQLite3
   unordered_dense::unordered_dense
   yyjson::yyjson
+  zstd::libzstd_static
 )
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE ${HEADER_FILES})

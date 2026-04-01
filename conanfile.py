@@ -21,6 +21,7 @@ class Carimbo(ConanFile):
             "opusfile/0.12",
             "unordered_dense/4.8.1",
             "yyjson/0.12.0",
+            "zstd/1.5.7",
         ]:
             self.requires(package)
 

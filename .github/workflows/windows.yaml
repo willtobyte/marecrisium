@@ -6,11 +6,13 @@ on:
       - "*"
     paths:
       - "src/**"
+      - "tools/**"
   pull_request:
     branches:
       - main
     paths:
       - "src/**"
+      - "tools/**"
 
 jobs:
   build:
@@ -59,12 +61,22 @@ jobs:
           cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release --verbose
 
+      - name: Build tools
+        run: |
+          conan install tools/ --output-folder=tools/build --build=missing --settings compiler.cppstd=23 --settings build_type=Release
+          cmake -Btools/build -Stools -DCMAKE_TOOLCHAIN_FILE=tools/build/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+          cmake --build tools/build --config Release
+
       - name: Package cartridge
-        working-directory: cartridge
-        run: 7z a -tzip ../build/cartridge.rom .
+        run: |
+          ./tools/build/Release/pack.exe cartridge
+          mv cartridge.rom build/
 
       - name: Collect artifacts
-        run: cp build/Release/carimbo.exe build/carimbo.exe
+        run: |
+          cp build/Release/carimbo.exe build/carimbo.exe
+          cp tools/build/Release/pack.exe build/pack.exe
+          cp tools/build/Release/unpack.exe build/unpack.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
@@ -73,3 +85,5 @@ jobs:
           path: |
             build/carimbo.exe
             build/cartridge.rom
+            build/pack.exe
+            build/unpack.exe

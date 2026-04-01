@@ -153,8 +153,14 @@ jobs:
           path: windows-build
 
       - name: Create cartridge
-        working-directory: cartridge
-        run: zip -r ../cartridge.rom .
+        run: |
+          pip install conan
+          conan profile detect --force
+          conan config install https://github.com/willtobyte/conan-configs.git --type git
+          conan install tools/ --output-folder=tools/build --build=missing --settings compiler.cppstd=23 --settings build_type=Release
+          cmake -Btools/build -Stools -DCMAKE_TOOLCHAIN_FILE=tools/build/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+          cmake --build tools/build --config Release
+          ./tools/build/pack cartridge
 
       - name: Clone Steam SDK
         run: gh repo clone willtobyte/steamworks steamworks -- --depth 1

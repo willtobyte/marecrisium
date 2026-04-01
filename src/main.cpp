@@ -15,6 +15,7 @@ int main(int argc, char **argv) {
   SDL_Init(SDL_INIT_GAMEPAD | SDL_INIT_VIDEO);
 
   PHYSFS_init(argv[0]);
+  PHYSFS_registerArchiver(&archiver);
 
   ma_engine engine;
   auto config = ma_engine_config_init();

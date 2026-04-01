@@ -42,6 +42,7 @@ using namespace entt::literals;
 #include <spng.h>
 #include <sqlite3.h>
 #include <yyjson.h>
+#include <zstd.h>
 
 #ifdef _MSC_VER
 #  define noalias __restrict
