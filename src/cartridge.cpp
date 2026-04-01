@@ -183,7 +183,7 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
       metadata[24]
     });
 
-    arc->index.emplace(std::string_view{item.path}, i);
+    arc->index.emplace(item.path, i);
     arc->children[parent_dir(item.path)].emplace_back(filename(item.path));
   }
 
