@@ -226,21 +226,26 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
 
-  auto compressed = std::make_unique_for_overwrite<uint8_t[]>(size);
+  static uint8_t scratch[4096];
+  auto heap = (size > sizeof(scratch))
+    ? std::make_unique_for_overwrite<uint8_t[]>(size)
+    : nullptr;
+  auto *compressed = heap ? heap.get() : scratch;
+
   if (!arc->io->seek(arc->io, found.offset) ||
-      !read_all(arc->io, compressed.get(), found.compressed)) [[unlikely]] {
+      !read_all(arc->io, compressed, found.compressed)) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_IO);
     return nullptr;
   }
 
-  auto buffer = std::make_shared<uint8_t[]>(uncompressed);
+  auto buffer = std::make_shared_for_overwrite<uint8_t[]>(uncompressed);
 
   if (uncompressed > 0) {
     const auto result = ZSTD_decompressDCtx(
       arc->dctx,
       buffer.get(),
       uncompressed,
-      compressed.get(),
+      compressed,
       size);
 
     if (ZSTD_isError(result)) [[unlikely]] {
