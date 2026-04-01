@@ -242,8 +242,10 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   if (uncompressed > 0) {
     const auto result = ZSTD_decompressDCtx(
       arc->dctx,
-      buffer.get(), uncompressed,
-      compressed.get(), size);
+      buffer.get(),
+      uncompressed,
+      compressed.get(),
+      size);
 
     if (ZSTD_isError(result)) [[unlikely]] {
       PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
