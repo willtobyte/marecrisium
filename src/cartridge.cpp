@@ -227,6 +227,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   }
 
   const auto compressed_size = static_cast<size_t>(found.compressed_size);
+
   const auto uncompressed_size = static_cast<size_t>(found.uncompressed_size);
 
   auto compressed = std::make_unique_for_overwrite<uint8_t[]>(compressed_size);
