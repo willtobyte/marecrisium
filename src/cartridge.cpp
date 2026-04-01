@@ -33,7 +33,7 @@ struct handle final {
 };
 
 template <std::integral T>
-T read_le(const uint8_t *p) noexcept {
+static T read_le(const uint8_t *p) noexcept {
   T val;
   std::memcpy(&val, p, sizeof(T));
   if constexpr (std::endian::native != std::endian::little)
@@ -41,7 +41,7 @@ T read_le(const uint8_t *p) noexcept {
   return val;
 }
 
-bool read_all(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
+static bool read_all(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   auto *destination = static_cast<uint8_t *>(buffer);
   while (length > 0) {
     const auto got = io->read(io, destination, length);
@@ -55,7 +55,7 @@ bool read_all(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   return true;
 }
 
-std::string_view parent_dir(std::string_view path) noexcept {
+static std::string_view parent_dir(std::string_view path) noexcept {
   const auto position = path.rfind('/');
   if (position == std::string_view::npos)
     return {};
@@ -63,7 +63,7 @@ std::string_view parent_dir(std::string_view path) noexcept {
   return path.substr(0, position);
 }
 
-std::string_view filename(std::string_view path) noexcept {
+static std::string_view filename(std::string_view path) noexcept {
   const auto position = path.rfind('/');
   if (position == std::string_view::npos)
     return path;
@@ -71,7 +71,7 @@ std::string_view filename(std::string_view path) noexcept {
   return path.substr(position + 1);
 }
 
-PHYSFS_sint64 file_read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
+static PHYSFS_sint64 file_read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   auto *reader = static_cast<handle *>(io->opaque);
   const auto remaining = reader->size - reader->position;
   if (remaining == 0)
@@ -83,12 +83,12 @@ PHYSFS_sint64 file_read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   return static_cast<PHYSFS_sint64>(count);
 }
 
-PHYSFS_sint64 file_write(PHYSFS_Io *, const void *, PHYSFS_uint64) {
+static PHYSFS_sint64 file_write(PHYSFS_Io *, const void *, PHYSFS_uint64) {
   PHYSFS_setErrorCode(PHYSFS_ERR_READ_ONLY);
   return -1;
 }
 
-int file_seek(PHYSFS_Io *io, PHYSFS_uint64 offset) {
+static int file_seek(PHYSFS_Io *io, PHYSFS_uint64 offset) {
   auto *reader = static_cast<handle *>(io->opaque);
   if (offset > reader->size) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_PAST_EOF);
@@ -99,21 +99,19 @@ int file_seek(PHYSFS_Io *io, PHYSFS_uint64 offset) {
   return 1;
 }
 
-PHYSFS_sint64 file_tell(PHYSFS_Io *io) {
+static PHYSFS_sint64 file_tell(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
   return static_cast<PHYSFS_sint64>(reader->position);
 }
 
-PHYSFS_sint64 file_length(PHYSFS_Io *io) {
+static PHYSFS_sint64 file_length(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
   return static_cast<PHYSFS_sint64>(reader->size);
 }
 
-PHYSFS_Io *file_duplicate(PHYSFS_Io *io) {
+static PHYSFS_Io *file_duplicate(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
-
   auto copy = std::unique_ptr<handle>(new (std::nothrow) handle{reader->data, reader->size, 0});
-
   auto *clone = new (std::nothrow) PHYSFS_Io{};
 
   *clone = *io;
@@ -121,16 +119,16 @@ PHYSFS_Io *file_duplicate(PHYSFS_Io *io) {
   return clone;
 }
 
-int file_flush(PHYSFS_Io *) {
+static int file_flush(PHYSFS_Io *) {
   return 1;
 }
 
-void file_destroy(PHYSFS_Io *io) {
+static void file_destroy(PHYSFS_Io *io) {
   delete static_cast<handle *>(io->opaque);
   delete io;
 }
 
-void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed) {
+static void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed) {
   if (for_write) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_READ_ONLY);
     return nullptr;
@@ -190,7 +188,7 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
   return arc.release();
 }
 
-PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname, PHYSFS_EnumerateCallback callback, const char *origdir, void *cbdata) {
+static PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname, PHYSFS_EnumerateCallback callback, const char *origdir, void *cbdata) {
   auto *arc = static_cast<archive *>(opaque);
   const std::string_view dir = dirname;
 
@@ -209,7 +207,7 @@ PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname,
   return PHYSFS_ENUM_OK;
 }
 
-PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
+static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   auto *arc = static_cast<archive *>(opaque);
   const std::string_view path = name;
 
@@ -271,27 +269,27 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   return io;
 }
 
-PHYSFS_Io *crom_open_write(void *, const char *) {
+static PHYSFS_Io *crom_open_write(void *, const char *) {
   PHYSFS_setErrorCode(PHYSFS_ERR_READ_ONLY);
   return nullptr;
 }
 
-PHYSFS_Io *crom_open_append(void *, const char *) {
+static PHYSFS_Io *crom_open_append(void *, const char *) {
   PHYSFS_setErrorCode(PHYSFS_ERR_READ_ONLY);
   return nullptr;
 }
 
-int crom_remove(void *, const char *) {
+static int crom_remove(void *, const char *) {
   PHYSFS_setErrorCode(PHYSFS_ERR_READ_ONLY);
   return 0;
 }
 
-int crom_mkdir(void *, const char *) {
+static int crom_mkdir(void *, const char *) {
   PHYSFS_setErrorCode(PHYSFS_ERR_READ_ONLY);
   return 0;
 }
 
-int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
+static int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
   auto *arc = static_cast<archive *>(opaque);
   const std::string_view path = name;
 
@@ -317,7 +315,7 @@ int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
   return 1;
 }
 
-void crom_close_archive(void *opaque) {
+static void crom_close_archive(void *opaque) {
   auto *arc = static_cast<archive *>(opaque);
   if (arc->io)
     arc->io->destroy(arc->io);
