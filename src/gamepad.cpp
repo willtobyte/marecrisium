@@ -100,19 +100,19 @@ static int gamepad_led(lua_State *state) {
   return 1;
 }
 
-static int push_gamepad_axis(lua_State *state, SDL_GamepadAxis a) {
+static int push_gamepad_axis(lua_State *state, SDL_GamepadAxis axis) {
   if (!ptr) [[unlikely]]
     return lua_pushnumber(state, static_cast<lua_Number>(.0f)), 1;
 
-  lua_pushnumber(state, static_cast<lua_Number>(deadzone(SDL_GetGamepadAxis(ptr.get(), a))));
+  lua_pushnumber(state, static_cast<lua_Number>(deadzone(SDL_GetGamepadAxis(ptr.get(), axis))));
   return 1;
 }
 
-static int push_gamepad_button(lua_State *state, SDL_GamepadButton b) {
+static int push_gamepad_button(lua_State *state, SDL_GamepadButton button) {
   if (!ptr) [[unlikely]]
     return lua_pushboolean(state, 0), 1;
 
-  lua_pushboolean(state, static_cast<bool>(SDL_GetGamepadButton(ptr.get(), b)) ? 1 : 0);
+  lua_pushboolean(state, static_cast<bool>(SDL_GetGamepadButton(ptr.get(), button)) ? 1 : 0);
   return 1;
 }
 
