@@ -331,7 +331,7 @@ const PHYSFS_Archiver archiver = {
   0,
   {
     "ROM",
-    "Carimbo ROM archive (ZStandard)",
+    "Carimbo ROM archive",
     "Carimbo",
     "https://willtobyte.net",
     0,
