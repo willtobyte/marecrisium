@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <bit>
 #include <array>
 #include <atomic>
 #include <charconv>

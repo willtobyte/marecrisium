@@ -27,28 +27,13 @@ struct handle final {
   uint64_t position;
 };
 
-uint16_t read_u16(const uint8_t *pointer) noexcept {
-  return static_cast<uint16_t>(
-    static_cast<uint16_t>(pointer[0]) |
-    static_cast<uint16_t>(static_cast<uint16_t>(pointer[1]) << 8));
-}
-
-uint32_t read_u32(const uint8_t *pointer) noexcept {
-  return static_cast<uint32_t>(pointer[0]) |
-         (static_cast<uint32_t>(pointer[1]) << 8) |
-         (static_cast<uint32_t>(pointer[2]) << 16) |
-         (static_cast<uint32_t>(pointer[3]) << 24);
-}
-
-uint64_t read_u64(const uint8_t *pointer) noexcept {
-  return static_cast<uint64_t>(pointer[0]) |
-         (static_cast<uint64_t>(pointer[1]) << 8) |
-         (static_cast<uint64_t>(pointer[2]) << 16) |
-         (static_cast<uint64_t>(pointer[3]) << 24) |
-         (static_cast<uint64_t>(pointer[4]) << 32) |
-         (static_cast<uint64_t>(pointer[5]) << 40) |
-         (static_cast<uint64_t>(pointer[6]) << 48) |
-         (static_cast<uint64_t>(pointer[7]) << 56);
+template <std::integral T>
+T read_le(const uint8_t *p) noexcept {
+  T val;
+  std::memcpy(&val, p, sizeof(T));
+  if constexpr (std::endian::native != std::endian::little)
+    val = std::byteswap(val);
+  return val;
 }
 
 bool read_all(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
@@ -159,20 +144,21 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
   if (!io->seek(io, 0) || !read_all(io, header, sizeof(header)))
     return nullptr;
 
-  const auto magic = read_u32(header);
+  const auto magic = read_le<uint32_t>(header);
   if (magic != CROM_MAGIC)
     return nullptr;
 
   *claimed = 1;
 
-  const auto version = read_u32(header + 4);
+  const auto version = read_le<uint32_t>(header + 4);
   if (version != CROM_VERSION) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_UNSUPPORTED);
     return nullptr;
   }
 
-  const auto entry_count = read_u32(header + 8);
-  auto *arc = new (std::nothrow) archive{};
+  const auto entry_count = read_le<uint32_t>(header + 8);
+
+  auto arc = std::unique_ptr<archive>(new (std::nothrow) archive{});
   if (!arc) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
     return nullptr;
@@ -181,7 +167,6 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
   arc->io = io;
   arc->dctx = ZSTD_createDCtx();
   if (!arc->dctx) [[unlikely]] {
-    delete arc;
     PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
     return nullptr;
   }
@@ -193,17 +178,15 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
     uint8_t length_buffer[2];
     if (!read_all(io, length_buffer, 2)) [[unlikely]] {
       ZSTD_freeDCtx(arc->dctx);
-      delete arc;
       return nullptr;
     }
 
-    const auto path_length = read_u16(length_buffer);
+    const auto path_length = read_le<uint16_t>(length_buffer);
     const auto entry_size = static_cast<size_t>(path_length + 25);
 
     entry_buffer.resize(entry_size);
     if (!read_all(io, entry_buffer.data(), entry_size)) [[unlikely]] {
       ZSTD_freeDCtx(arc->dctx);
-      delete arc;
       return nullptr;
     }
 
@@ -211,9 +194,9 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
 
     entry item{
       std::string(reinterpret_cast<const char *>(entry_buffer.data()), path_length),
-      read_u64(metadata),
-      read_u64(metadata + 8),
-      read_u64(metadata + 16),
+      read_le<uint64_t>(metadata),
+      read_le<uint64_t>(metadata + 8),
+      read_le<uint64_t>(metadata + 16),
       metadata[24]
     };
 
@@ -227,7 +210,7 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
     arc->children[parent_dir(e.path)].emplace_back(filename(e.path));
   }
 
-  return arc;
+  return arc.release();
 }
 
 PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname, PHYSFS_EnumerateCallback callback, const char *origdir, void *cbdata) {
@@ -278,15 +261,6 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
   auto buffer = std::make_shared_for_overwrite<uint8_t[]>(uncompressed_size);
 
-  auto *reader = new (std::nothrow) handle{};
-  if (!reader) [[unlikely]] {
-    PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
-    return nullptr;
-  }
-
-  reader->size = uncompressed_size;
-  reader->position = 0;
-
   if (uncompressed_size > 0) {
     const auto result = ZSTD_decompressDCtx(
       arc->dctx,
@@ -294,31 +268,34 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
       compressed.get(), compressed_size);
 
     if (ZSTD_isError(result)) [[unlikely]] {
-      delete reader;
       PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
       return nullptr;
     }
   }
 
-  reader->data = std::move(buffer);
+  auto *reader = new (std::nothrow) handle{std::move(buffer), uncompressed_size, 0};
+  if (!reader) [[unlikely]] {
+    PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
+    return nullptr;
+  }
 
-  auto *io = new (std::nothrow) PHYSFS_Io{};
+  auto *io = new (std::nothrow) PHYSFS_Io{
+    .version = 0,
+    .opaque = reader,
+    .read = file_read,
+    .write = file_write,
+    .seek = file_seek,
+    .tell = file_tell,
+    .length = file_length,
+    .duplicate = file_duplicate,
+    .flush = file_flush,
+    .destroy = file_destroy,
+  };
   if (!io) [[unlikely]] {
     delete reader;
     PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
     return nullptr;
   }
-
-  io->version = 0;
-  io->opaque = reader;
-  io->read = file_read;
-  io->write = file_write;
-  io->seek = file_seek;
-  io->tell = file_tell;
-  io->length = file_length;
-  io->duplicate = file_duplicate;
-  io->flush = file_flush;
-  io->destroy = file_destroy;
 
   return io;
 }
