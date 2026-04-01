@@ -14,11 +14,16 @@ struct entry final {
 };
 
 struct archive final {
-  PHYSFS_Io *io;
-  ZSTD_DCtx *dctx;
+  PHYSFS_Io *io{nullptr};
+  ZSTD_DCtx *dctx{nullptr};
   std::vector<entry> entries;
   ankerl::unordered_dense::map<std::string_view, size_t, transparent_hash, std::equal_to<>> index;
   ankerl::unordered_dense::map<std::string_view, std::vector<std::string_view>, transparent_hash, std::equal_to<>> children;
+
+  ~archive() noexcept {
+    if (dctx)
+      ZSTD_freeDCtx(dctx);
+  }
 };
 
 struct handle final {
@@ -107,7 +112,7 @@ PHYSFS_sint64 file_length(PHYSFS_Io *io) {
 PHYSFS_Io *file_duplicate(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
 
-  auto *copy = new (std::nothrow) handle{reader->data, reader->size, 0};
+  auto copy = std::unique_ptr<handle>(new (std::nothrow) handle{reader->data, reader->size, 0});
   if (!copy) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
     return nullptr;
@@ -115,13 +120,12 @@ PHYSFS_Io *file_duplicate(PHYSFS_Io *io) {
 
   auto *clone = new (std::nothrow) PHYSFS_Io{};
   if (!clone) [[unlikely]] {
-    delete copy;
     PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
     return nullptr;
   }
 
   *clone = *io;
-  clone->opaque = copy;
+  clone->opaque = copy.release();
   return clone;
 }
 
@@ -172,42 +176,33 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
   }
 
   arc->entries.reserve(entry_count);
+  arc->index.reserve(entry_count);
 
   std::vector<uint8_t> entry_buffer;
   for (uint32_t i = 0; i < entry_count; ++i) {
     uint8_t length_buffer[2];
-    if (!read_all(io, length_buffer, 2)) [[unlikely]] {
-      ZSTD_freeDCtx(arc->dctx);
+    if (!read_all(io, length_buffer, 2)) [[unlikely]]
       return nullptr;
-    }
 
     const auto path_length = read_le<uint16_t>(length_buffer);
     const auto entry_size = static_cast<size_t>(path_length + 25);
 
     entry_buffer.resize(entry_size);
-    if (!read_all(io, entry_buffer.data(), entry_size)) [[unlikely]] {
-      ZSTD_freeDCtx(arc->dctx);
+    if (!read_all(io, entry_buffer.data(), entry_size)) [[unlikely]]
       return nullptr;
-    }
 
     const auto *metadata = entry_buffer.data() + path_length;
 
-    entry item{
+    auto &item = arc->entries.emplace_back(entry{
       std::string(reinterpret_cast<const char *>(entry_buffer.data()), path_length),
       read_le<uint64_t>(metadata),
       read_le<uint64_t>(metadata + 8),
       read_le<uint64_t>(metadata + 16),
       metadata[24]
-    };
+    });
 
-    arc->entries.push_back(std::move(item));
-  }
-
-  arc->index.reserve(arc->entries.size());
-  for (size_t i = 0; i < arc->entries.size(); ++i) {
-    const auto &e = arc->entries[i];
-    arc->index.emplace(std::string_view{e.path}, i);
-    arc->children[parent_dir(e.path)].emplace_back(filename(e.path));
+    arc->index.emplace(std::string_view{item.path}, i);
+    arc->children[parent_dir(item.path)].emplace_back(filename(item.path));
   }
 
   return arc.release();
@@ -331,13 +326,14 @@ int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
   }
 
   const auto &e = arc->entries[it->second];
-  stat->filesize = (e.flags & FLAG_DIRECTORY)
+  const auto is_dir = (e.flags & FLAG_DIRECTORY) != 0;
+  stat->filesize = is_dir
     ? -1
     : static_cast<PHYSFS_sint64>(e.uncompressed_size);
   stat->modtime = -1;
   stat->createtime = -1;
   stat->accesstime = -1;
-  stat->filetype = (e.flags & FLAG_DIRECTORY)
+  stat->filetype = is_dir
     ? PHYSFS_FILETYPE_DIRECTORY
     : PHYSFS_FILETYPE_REGULAR;
   stat->readonly = 1;
@@ -349,9 +345,6 @@ void crom_close_archive(void *opaque) {
   auto *arc = static_cast<archive *>(opaque);
   if (arc->io)
     arc->io->destroy(arc->io);
-
-  if (arc->dctx)
-    ZSTD_freeDCtx(arc->dctx);
 
   delete arc;
 }
