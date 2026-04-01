@@ -113,16 +113,8 @@ PHYSFS_Io *file_duplicate(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
 
   auto copy = std::unique_ptr<handle>(new (std::nothrow) handle{reader->data, reader->size, 0});
-  if (!copy) [[unlikely]] {
-    PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
-    return nullptr;
-  }
 
   auto *clone = new (std::nothrow) PHYSFS_Io{};
-  if (!clone) [[unlikely]] {
-    PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
-    return nullptr;
-  }
 
   *clone = *io;
   clone->opaque = copy.release();
@@ -163,18 +155,8 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
   const auto entry_count = read_le<uint32_t>(header + 8);
 
   auto arc = std::unique_ptr<archive>(new (std::nothrow) archive{});
-  if (!arc) [[unlikely]] {
-    PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
-    return nullptr;
-  }
-
   arc->io = io;
   arc->dctx = ZSTD_createDCtx();
-  if (!arc->dctx) [[unlikely]] {
-    PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
-    return nullptr;
-  }
-
   arc->entries.reserve(entry_count);
   arc->index.reserve(entry_count);
 
@@ -269,10 +251,6 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   }
 
   auto *reader = new (std::nothrow) handle{std::move(buffer), uncompressed_size, 0};
-  if (!reader) [[unlikely]] {
-    PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
-    return nullptr;
-  }
 
   auto *io = new (std::nothrow) PHYSFS_Io{
     .version = 0,
@@ -286,11 +264,6 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     .flush = file_flush,
     .destroy = file_destroy,
   };
-  if (!io) [[unlikely]] {
-    delete reader;
-    PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
-    return nullptr;
-  }
 
   return io;
 }
