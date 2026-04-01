@@ -71,20 +71,17 @@ jobs:
       - name: Package cartridge
         run: |
           ./tools/build/Release/pack.exe cartridge
-          mv cartridge.rom build/
 
       - name: Collect artifacts
         run: |
-          cp build/Release/carimbo.exe build/carimbo.exe
-          cp tools/build/Release/pack.exe build/pack.exe
-          cp tools/build/Release/unpack.exe build/unpack.exe
+          mkdir -p artifact
+          cp build/Release/carimbo.exe artifact/
+          cp cartridge.rom artifact/
+          cp tools/build/Release/pack.exe artifact/
+          cp tools/build/Release/unpack.exe artifact/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: build
-          path: |
-            build/carimbo.exe
-            build/cartridge.rom
-            build/pack.exe
-            build/unpack.exe
+          path: artifact/
