@@ -22,7 +22,7 @@ struct entry {
   uint64_t compressed;
   uint64_t uncompressed;
   uint8_t flags;
-  std::vector<uint8_t> compressed_data;
+  std::vector<uint8_t> data;
 };
 
 void write_u16(std::ostream &output, uint16_t value) {
@@ -100,10 +100,10 @@ int main(int argc, char **argv) {
       e.uncompressed = size;
 
       const auto bound = ZSTD_compressBound(raw.size());
-      e.compressed_data.resize(bound);
+      e.data.resize(bound);
 
       const auto result = ZSTD_compress(
-        e.compressed_data.data(), e.compressed_data.size(),
+        e.data.data(), e.data.size(),
         raw.data(), raw.size(), ZSTD_defaultCLevel());
 
       if (ZSTD_isError(result)) {
@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
         return 1;
       }
 
-      e.compressed_data.resize(result);
+      e.data.resize(result);
       e.compressed = result;
     } else {
       continue;
@@ -152,9 +152,9 @@ int main(int argc, char **argv) {
   }
 
   for (const auto &e : entries) {
-    if (!(e.flags & FLAG_DIRECTORY) && !e.compressed_data.empty())
-      output.write(reinterpret_cast<const char *>(e.compressed_data.data()),
-                static_cast<std::streamsize>(e.compressed_data.size()));
+    if (!(e.flags & FLAG_DIRECTORY) && !e.data.empty())
+      output.write(reinterpret_cast<const char *>(e.data.data()),
+                static_cast<std::streamsize>(e.data.size()));
   }
 
   const auto total = output.tellp();
