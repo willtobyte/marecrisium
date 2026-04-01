@@ -33,11 +33,9 @@ struct handle final {
 };
 
 template <std::integral T>
-static T read_le(const uint8_t *p) noexcept {
+static T read(const uint8_t *p) noexcept {
   T val;
   std::memcpy(&val, p, sizeof(T));
-  if constexpr (std::endian::native != std::endian::little)
-    val = std::byteswap(val);
   return val;
 }
 
@@ -138,19 +136,19 @@ static void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *
   if (!io->seek(io, 0) || !read_all(io, header, sizeof(header)))
     return nullptr;
 
-  const auto magic = read_le<uint32_t>(header);
+  const auto magic = read<uint32_t>(header);
   if (magic != CROM_MAGIC)
     return nullptr;
 
   *claimed = 1;
 
-  const auto version = read_le<uint32_t>(header + 4);
+  const auto version = read<uint32_t>(header + 4);
   if (version != CROM_VERSION) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_UNSUPPORTED);
     return nullptr;
   }
 
-  const auto count = read_le<uint32_t>(header + 8);
+  const auto count = read<uint32_t>(header + 8);
 
   auto arc = std::unique_ptr<archive>(new (std::nothrow) archive{});
   arc->io = io;
@@ -164,7 +162,7 @@ static void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *
     if (!read_all(io, length_buffer, 2)) [[unlikely]]
       return nullptr;
 
-    const auto length = read_le<uint16_t>(length_buffer);
+    const auto length = read<uint16_t>(length_buffer);
     const auto size = static_cast<size_t>(length + 25);
 
     buffer.resize(size);
@@ -175,9 +173,9 @@ static void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *
 
     auto &item = arc->entries.emplace_back(entry{
       std::string(reinterpret_cast<const char *>(buffer.data()), length),
-      read_le<uint64_t>(metadata),
-      read_le<uint64_t>(metadata + 8),
-      read_le<uint64_t>(metadata + 16),
+      read<uint64_t>(metadata),
+      read<uint64_t>(metadata + 8),
+      read<uint64_t>(metadata + 16),
       metadata[24]
     });
 
