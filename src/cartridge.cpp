@@ -226,7 +226,7 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
 
-  static uint8_t scratch[4096];
+  static uint8_t scratch[8192];
   auto heap = (size > sizeof(scratch))
     ? std::make_unique_for_overwrite<uint8_t[]>(size)
     : nullptr;
