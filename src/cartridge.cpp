@@ -15,13 +15,15 @@ struct entry final {
 
 struct archive final {
   PHYSFS_Io *io;
+  ZSTD_DCtx *dctx;
   std::vector<entry> entries;
   ankerl::unordered_dense::map<std::string, size_t, transparent_hash, std::equal_to<>> index;
   ankerl::unordered_dense::map<std::string, std::vector<std::string>, transparent_hash, std::equal_to<>> children;
 };
 
 struct handle final {
-  std::vector<uint8_t> data;
+  std::shared_ptr<uint8_t[]> data;
+  size_t size;
   uint64_t position;
 };
 
@@ -80,14 +82,14 @@ std::string_view filename(std::string_view path) noexcept {
 }
 
 PHYSFS_sint64 file_read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
-  auto *h = static_cast<handle *>(io->opaque);
-  const auto remaining = h->data.size() - h->position;
+  auto *reader = static_cast<handle *>(io->opaque);
+  const auto remaining = reader->size - reader->position;
   if (remaining == 0)
     return 0;
 
   const auto count = std::min(length, static_cast<PHYSFS_uint64>(remaining));
-  std::memcpy(buffer, h->data.data() + h->position, static_cast<size_t>(count));
-  h->position += count;
+  std::memcpy(buffer, reader->data.get() + reader->position, static_cast<size_t>(count));
+  reader->position += count;
   return static_cast<PHYSFS_sint64>(count);
 }
 
@@ -97,30 +99,30 @@ PHYSFS_sint64 file_write(PHYSFS_Io *, const void *, PHYSFS_uint64) {
 }
 
 int file_seek(PHYSFS_Io *io, PHYSFS_uint64 offset) {
-  auto *h = static_cast<handle *>(io->opaque);
-  if (offset > h->data.size()) [[unlikely]] {
+  auto *reader = static_cast<handle *>(io->opaque);
+  if (offset > reader->size) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_PAST_EOF);
     return 0;
   }
 
-  h->position = offset;
+  reader->position = offset;
   return 1;
 }
 
 PHYSFS_sint64 file_tell(PHYSFS_Io *io) {
-  auto *h = static_cast<handle *>(io->opaque);
-  return static_cast<PHYSFS_sint64>(h->position);
+  auto *reader = static_cast<handle *>(io->opaque);
+  return static_cast<PHYSFS_sint64>(reader->position);
 }
 
 PHYSFS_sint64 file_length(PHYSFS_Io *io) {
-  auto *h = static_cast<handle *>(io->opaque);
-  return static_cast<PHYSFS_sint64>(h->data.size());
+  auto *reader = static_cast<handle *>(io->opaque);
+  return static_cast<PHYSFS_sint64>(reader->size);
 }
 
 PHYSFS_Io *file_duplicate(PHYSFS_Io *io) {
-  auto *h = static_cast<handle *>(io->opaque);
+  auto *reader = static_cast<handle *>(io->opaque);
 
-  auto *copy = new (std::nothrow) handle{h->data, 0};
+  auto *copy = new (std::nothrow) handle{reader->data, reader->size, 0};
   if (!copy) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
     return nullptr;
@@ -177,35 +179,44 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *claimed
   }
 
   arc->io = io;
+  arc->dctx = ZSTD_createDCtx();
+  if (!arc->dctx) [[unlikely]] {
+    delete arc;
+    PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
+    return nullptr;
+  }
+
   arc->entries.reserve(entry_count);
 
   for (uint32_t i = 0; i < entry_count; ++i) {
-    uint8_t buffer[2];
-    if (!read_all(io, buffer, 2)) [[unlikely]] {
-      delete arc;
-      return nullptr;
-    }
-    const auto length = read_u16(buffer);
-
-    std::string path(length, '\0');
-    if (!read_all(io, path.data(), length)) [[unlikely]] {
+    uint8_t length_buffer[2];
+    if (!read_all(io, length_buffer, 2)) [[unlikely]] {
+      ZSTD_freeDCtx(arc->dctx);
       delete arc;
       return nullptr;
     }
 
-    uint8_t metadata[25];
-    if (!read_all(io, metadata, sizeof(metadata))) [[unlikely]] {
+    const auto path_length = read_u16(length_buffer);
+    const auto entry_size = static_cast<size_t>(path_length + 25);
+
+    auto entry_buffer = std::make_unique_for_overwrite<uint8_t[]>(entry_size);
+    if (!read_all(io, entry_buffer.get(), entry_size)) [[unlikely]] {
+      ZSTD_freeDCtx(arc->dctx);
       delete arc;
       return nullptr;
     }
 
-    arc->entries.push_back({
-      std::move(path),
+    const auto *metadata = entry_buffer.get() + path_length;
+
+    entry item{
+      std::string(reinterpret_cast<const char *>(entry_buffer.get()), path_length),
       read_u64(metadata),
       read_u64(metadata + 8),
       read_u64(metadata + 16),
       metadata[24]
-    });
+    };
+
+    arc->entries.push_back(std::move(item));
   }
 
   arc->index.reserve(arc->entries.size());
@@ -254,43 +265,50 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     return nullptr;
   }
 
-  std::vector<uint8_t> compressed(static_cast<size_t>(found.compressed_size));
+  const auto compressed_size = static_cast<size_t>(found.compressed_size);
+  const auto uncompressed_size = static_cast<size_t>(found.uncompressed_size);
+
+  auto compressed = std::make_unique_for_overwrite<uint8_t[]>(compressed_size);
   if (!arc->io->seek(arc->io, found.data_offset) ||
-      !read_all(arc->io, compressed.data(), found.compressed_size)) [[unlikely]] {
+      !read_all(arc->io, compressed.get(), found.compressed_size)) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_IO);
     return nullptr;
   }
 
-  auto *h = new (std::nothrow) handle{};
-  if (!h) [[unlikely]] {
+  auto *reader = new (std::nothrow) handle{};
+  if (!reader) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
     return nullptr;
   }
 
-  h->data.resize(static_cast<size_t>(found.uncompressed_size));
-  h->position = 0;
+  auto buffer = std::make_unique_for_overwrite<uint8_t[]>(uncompressed_size);
+  reader->size = uncompressed_size;
+  reader->position = 0;
 
-  if (found.uncompressed_size > 0) {
-    const auto result = ZSTD_decompress(
-      h->data.data(), h->data.size(),
-      compressed.data(), compressed.size());
+  if (uncompressed_size > 0) {
+    const auto result = ZSTD_decompressDCtx(
+      arc->dctx,
+      buffer.get(), uncompressed_size,
+      compressed.get(), compressed_size);
 
     if (ZSTD_isError(result)) [[unlikely]] {
-      delete h;
+      delete reader;
       PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
       return nullptr;
     }
   }
 
+  reader->data = std::move(buffer);
+
   auto *io = new (std::nothrow) PHYSFS_Io{};
   if (!io) [[unlikely]] {
-    delete h;
+    delete reader;
     PHYSFS_setErrorCode(PHYSFS_ERR_OUT_OF_MEMORY);
     return nullptr;
   }
 
   io->version = 0;
-  io->opaque = h;
+  io->opaque = reader;
   io->read = file_read;
   io->write = file_write;
   io->seek = file_seek;
@@ -352,6 +370,9 @@ void crom_close_archive(void *opaque) {
   auto *arc = static_cast<archive *>(opaque);
   if (arc->io)
     arc->io->destroy(arc->io);
+
+  if (arc->dctx)
+    ZSTD_freeDCtx(arc->dctx);
 
   delete arc;
 }
