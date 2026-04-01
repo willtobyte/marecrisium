@@ -254,7 +254,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     return nullptr;
   }
 
-  auto buffer = std::make_shared_for_overwrite<uint8_t[]>(uncompressed_size);
+  auto buffer = std::make_shared<uint8_t[]>(uncompressed_size);
 
   if (uncompressed_size > 0) {
     const auto result = ZSTD_decompressDCtx(
