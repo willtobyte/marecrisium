@@ -17,8 +17,8 @@ struct archive final {
   PHYSFS_Io *io{nullptr};
   ZSTD_DCtx *dctx{nullptr};
   std::vector<entry> entries;
-  ankerl::unordered_dense::map<std::string_view, size_t, transparent_hash, std::equal_to<>> index;
-  ankerl::unordered_dense::map<std::string_view, std::vector<std::string_view>, transparent_hash, std::equal_to<>> children;
+  ankerl::unordered_dense::map<std::string_view, size_t> index;
+  ankerl::unordered_dense::map<std::string_view, std::vector<std::string_view>> children;
 
   ~archive() noexcept {
     if (dctx)
