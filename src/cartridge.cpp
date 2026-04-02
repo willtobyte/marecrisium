@@ -109,11 +109,10 @@ static PHYSFS_sint64 file_length(PHYSFS_Io *io) {
 
 static PHYSFS_Io *file_duplicate(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
-  auto copy = std::unique_ptr<handle>(new (std::nothrow) handle{reader->data, reader->size, 0});
-  auto *clone = new (std::nothrow) PHYSFS_Io{};
+  auto *copy = new handle{reader->data, reader->size, 0};
+  auto *clone = new PHYSFS_Io(*io);
 
-  *clone = *io;
-  clone->opaque = copy.release();
+  clone->opaque = copy;
   return clone;
 }
 
@@ -150,7 +149,7 @@ static void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *
 
   const auto count = read<uint32_t>(header + 8);
 
-  auto arc = std::unique_ptr<archive>(new (std::nothrow) archive{});
+  auto arc = new archive();
   arc->io = io;
   arc->dctx = ZSTD_createDCtx();
   arc->entries.reserve(count);
@@ -183,7 +182,7 @@ static void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *
     arc->children[parent_dir(item.path)].emplace_back(filename(item.path));
   }
 
-  return arc.release();
+  return arc;
 }
 
 static PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname, PHYSFS_EnumerateCallback callback, const char *origdir, void *cbdata) {
@@ -249,9 +248,9 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     }
   }
 
-  auto *reader = new (std::nothrow) handle{std::move(buffer), uncompressed, 0};
+  auto *reader = new handle{std::move(buffer), uncompressed, 0};
 
-  auto *io = new (std::nothrow) PHYSFS_Io{
+  auto *io = new PHYSFS_Io{
     .version = 0,
     .opaque = reader,
     .read = file_read,
