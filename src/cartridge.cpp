@@ -207,9 +207,8 @@ static PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *d
 
 static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   auto *arc = static_cast<archive *>(opaque);
-  const std::string_view path = name;
 
-  const auto it = arc->index.find(path);
+  const auto it = arc->index.find(name);
   if (it == arc->index.end()) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_NOT_FOUND);
     return nullptr;
