@@ -39,7 +39,7 @@ template <std::integral T>
   return val;
 }
 
-[[nodiscard]] static bool read_all(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
+[[nodiscard]] static bool drain(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   auto *destination = static_cast<uint8_t *>(buffer);
   while (length > 0) {
     const auto got = io->read(io, destination, length);
@@ -132,7 +132,7 @@ static void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *
   }
 
   uint8_t header[12];
-  if (!io->seek(io, 0) || !read_all(io, header, sizeof(header))) [[unlikely]]
+  if (!io->seek(io, 0) || !drain(io, header, sizeof(header))) [[unlikely]]
     return nullptr;
 
   const auto magic = read<uint32_t>(header);
@@ -157,15 +157,15 @@ static void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *
 
   std::vector<uint8_t> buffer;
   for (uint32_t i = 0; i < count; ++i) {
-    uint8_t length_buffer[2];
-    if (!read_all(io, length_buffer, 2)) [[unlikely]]
+    uint8_t preamble[2];
+    if (!drain(io, preamble, 2)) [[unlikely]]
       return nullptr;
 
-    const auto length = read<uint16_t>(length_buffer);
+    const auto length = read<uint16_t>(preamble);
     const auto size = static_cast<size_t>(length + 25);
 
     buffer.resize(size);
-    if (!read_all(io, buffer.data(), size)) [[unlikely]]
+    if (!drain(io, buffer.data(), size)) [[unlikely]]
       return nullptr;
 
     const auto *metadata = buffer.data() + length;
@@ -227,7 +227,7 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   auto compressed = std::make_unique_for_overwrite<uint8_t[]>(size);
 
   if (!arc->io->seek(arc->io, found.offset) ||
-      !read_all(arc->io, compressed.get(), found.compressed)) [[unlikely]] {
+      !drain(arc->io, compressed.get(), found.compressed)) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_IO);
     return nullptr;
   }
