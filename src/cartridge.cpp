@@ -33,13 +33,13 @@ struct handle final {
 };
 
 template <std::integral T>
-static T read(const uint8_t *p) noexcept {
+[[nodiscard]] static T read(const uint8_t *p) noexcept {
   T val;
   std::memcpy(&val, p, sizeof(T));
   return val;
 }
 
-static bool read_all(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
+[[nodiscard]] static bool read_all(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   auto *destination = static_cast<uint8_t *>(buffer);
   while (length > 0) {
     const auto got = io->read(io, destination, length);
@@ -53,7 +53,7 @@ static bool read_all(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   return true;
 }
 
-static std::string_view parent_dir(std::string_view path) noexcept {
+[[nodiscard]] static std::string_view parent_dir(std::string_view path) noexcept {
   const auto position = path.rfind('/');
   if (position == std::string_view::npos)
     return {};
@@ -61,7 +61,7 @@ static std::string_view parent_dir(std::string_view path) noexcept {
   return path.substr(0, position);
 }
 
-static std::string_view filename(std::string_view path) noexcept {
+[[nodiscard]] static std::string_view filename(std::string_view path) noexcept {
   const auto position = path.rfind('/');
   if (position == std::string_view::npos)
     return path;
@@ -133,7 +133,7 @@ static void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *
   }
 
   uint8_t header[12];
-  if (!io->seek(io, 0) || !read_all(io, header, sizeof(header)))
+  if (!io->seek(io, 0) || !read_all(io, header, sizeof(header))) [[unlikely]]
     return nullptr;
 
   const auto magic = read<uint32_t>(header);
@@ -235,7 +235,7 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
   auto buffer = std::make_shared_for_overwrite<uint8_t[]>(uncompressed);
 
-  if (uncompressed > 0) {
+  if (uncompressed > 0) [[likely]] {
     const auto result = ZSTD_decompressDCtx(
       arc->dctx,
       buffer.get(),
@@ -315,7 +315,7 @@ static int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
 
 static void crom_close_archive(void *opaque) {
   auto *arc = static_cast<archive *>(opaque);
-  if (arc->io)
+  if (arc->io) [[likely]]
     arc->io->destroy(arc->io);
 
   delete arc;
