@@ -149,7 +149,7 @@ static void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *
 
   const auto count = read<uint32_t>(header + 8);
 
-  auto arc = new archive();
+  auto arc = std::make_unique<archive>();
   arc->io = io;
   arc->dctx = ZSTD_createDCtx();
   arc->entries.reserve(count);
@@ -182,7 +182,7 @@ static void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *
     arc->children[parent_dir(item.path)].emplace_back(filename(item.path));
   }
 
-  return arc;
+  return arc.release();
 }
 
 static PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname, PHYSFS_EnumerateCallback callback, const char *origdir, void *cbdata) {
