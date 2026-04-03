@@ -52,6 +52,13 @@ Johnny 5 with a drill.
 
 ### Basalt Wastes
 
+An unforgiving volcanic wasteland of blackened basalt
+and obsidian shards, carved by ancient eruptions and
+constant bombardment. The ground is unstable in
+places, with hidden fissures, heat pockets, and
+mineral-rich veins—making it both dangerous and
+valuable for extraction.
+
 ### Subsurface Fungal
 
 A subterranean biome where symbiotic fungi
