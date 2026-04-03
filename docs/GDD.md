@@ -25,6 +25,15 @@ Cerite — Low rarity
 Gases
 Argon-40
 
+Rare minerals can be mined using the Quantum Bore, while noble
+gases require a probe that collects them automatically.
+
+## Tools & Weapons
+
+Quantum Bore
+
 ## Enemies
+
+Johnny 5 with a drill.
 
 ## Relationships
