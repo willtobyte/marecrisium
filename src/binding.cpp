@@ -166,11 +166,11 @@ void pcall(lua_State *state, int nargs, int nresults) {
   lua_remove(state, handler);
 }
 
-void compile(lua_State *state, const std::vector<uint8_t> &buffer, std::string_view label) {
+void compile(lua_State *state, const std::vector<uint8_t> &buffer, std::string_view chunk) {
   const auto *data = reinterpret_cast<const char *>(buffer.data());
   const auto size = buffer.size();
 
-  if (luaL_loadbuffer(state, data, size, label.data()) != 0) [[unlikely]] {
+  if (luaL_loadbuffer(state, data, size, chunk.data()) != 0) [[unlikely]] {
     std::string error{lua_tostring(state, -1)};
     lua_pop(state, 1);
     throw std::runtime_error{std::move(error)};

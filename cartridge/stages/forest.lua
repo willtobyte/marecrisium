@@ -11,7 +11,7 @@ return scheduler.wrap({
 	},
 
 	sounds = {
-		{ name = "theme1", autoplay = true, loop = true },
+		{ name = "theme1", loop = true },
 	},
 
 	objects = {
@@ -38,6 +38,8 @@ return scheduler.wrap({
 	end,
 
 	on_enter = function(self)
+		pool.theme1:play()
+
 		local pairs = pairs
 		local type = type
 
@@ -111,5 +113,9 @@ return scheduler.wrap({
 		assert(cassette.nested_val == nil, "clear nested")
 
 		print("[cassette] all tests passed")
+	end,
+
+	on_leave = function(self)
+		pool.theme1:stop()
 	end,
 })

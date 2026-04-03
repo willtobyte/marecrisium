@@ -59,8 +59,8 @@ static void load_atlas(tilemap::layer& layer, std::string_view name, std::string
 tilemap::tilemap(std::string_view name, b2WorldId world) {
   const auto filename = std::format("tilemaps/{}.lua", name);
   const auto buffer = io::read(filename);
-  const auto label = std::format("@{}", filename);
-  compile(L, buffer, label);
+  const auto chunk = std::format("@{}", filename);
+  compile(L, buffer, chunk);
 
   pcall(L, 0, 1);
 

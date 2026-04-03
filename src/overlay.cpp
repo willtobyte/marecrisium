@@ -108,8 +108,8 @@ static int overlay_index(lua_State *state) {
 overlay::overlay(std::string_view name) {
   const auto filename = std::format("overlays/{}.lua", name);
   const auto buffer = io::read(filename);
-  const auto label = std::format("@{}", filename);
-  compile(L, buffer, label);
+  const auto chunk = std::format("@{}", filename);
+  compile(L, buffer, chunk);
 
   pcall(L, 0, 1);
 

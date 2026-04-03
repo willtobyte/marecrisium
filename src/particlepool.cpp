@@ -25,8 +25,8 @@ config* particlepool::get(std::string_view kind) {
 
     const auto filename = std::format("particles/{}.lua", kind);
     const auto buffer = io::read(filename);
-    const auto label = std::format("@{}", filename);
-    compile(L, buffer, label);
+    const auto chunk = std::format("@{}", filename);
+    compile(L, buffer, chunk);
 
     pcall(L, 0, 1);
 

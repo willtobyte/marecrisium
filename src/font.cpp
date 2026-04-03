@@ -9,8 +9,8 @@
 font::font(std::string_view family) {
   const auto filename = std::format("overlay/fonts/{}.lua", family);
   const auto meta = io::read(filename);
-  const auto label = std::format("@{}", filename);
-  compile(L, meta, label);
+  const auto chunk = std::format("@{}", filename);
+  compile(L, meta, chunk);
 
   pcall(L, 0, 1);
 

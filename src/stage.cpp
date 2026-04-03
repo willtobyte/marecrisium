@@ -196,8 +196,8 @@ stage::stage(std::string_view name)
 
   const auto filename = std::format("stages/{}.lua", name);
   const auto buffer = io::read(filename);
-  const auto label = std::format("@{}", filename);
-  compile(L, buffer, label);
+  const auto chunk = std::format("@{}", filename);
+  compile(L, buffer, chunk);
 
   lua_newtable(L);
   _pool_reference = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -266,12 +266,12 @@ stage::stage(std::string_view name)
 
       lua_getfield(L, -1, "name");
       const auto *name_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
-      const auto object_name = std::string(name_raw);
+      const auto label = std::string(name_raw);
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "kind");
       const auto *kind_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
-      const auto object_kind = std::string(kind_raw);
+      const auto kind = std::string(kind_raw);
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "x");
@@ -284,7 +284,7 @@ stage::stage(std::string_view name)
 
       lua_pop(L, 1);
 
-      std::ignore = spawn(L, object_name, object_kind, ox, oy);
+      std::ignore = spawn(L, label, kind, ox, oy);
       lua_pop(L, 1);
     }
   }
@@ -305,18 +305,14 @@ stage::stage(std::string_view name)
 
       lua_getfield(L, -1, "name");
       const auto *snd_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
-      const auto sound_name = std::string(snd_raw);
-      lua_pop(L, 1);
-
-      lua_getfield(L, -1, "autoplay");
-      const auto autoplay = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : false;
+      const auto label = std::string(snd_raw);
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "loop");
       const auto loop = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : false;
       lua_pop(L, 1);
 
-      auto *instance = depot->sound.get(std::format("sounds/{}", sound_name));
+      auto *instance = depot->sound.get(std::format("sounds/{}", label));
 
       auto **memory = static_cast<class sound **>(lua_newuserdata(L, sizeof(class sound *)));
       *memory = instance;
@@ -325,7 +321,7 @@ stage::stage(std::string_view name)
 
       lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
       lua_pushvalue(L, -2);
-      lua_setfield(L, -2, sound_name.data());
+      lua_setfield(L, -2, label.data());
       lua_pop(L, 1);
 
       _sounds.emplace_back(instance);
@@ -334,8 +330,6 @@ stage::stage(std::string_view name)
       if (loop)
         instance->set_loop(true);
 
-      if (autoplay)
-        instance->play();
 
       lua_pop(L, 1);
     }
@@ -344,10 +338,9 @@ stage::stage(std::string_view name)
 
   lua_getfield(L, -1, "tilemap");
   const auto *tilemap_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
-  const auto tilemap_name = tilemap_raw ? std::string_view{tilemap_raw} : std::string_view{};
   lua_pop(L, 1);
-  if (!tilemap_name.empty())
-    _tilemap = tilemap(tilemap_name, _world);
+  if (tilemap_raw)
+    _tilemap = tilemap(std::string_view{tilemap_raw}, _world);
 
   lua_getfield(L, -1, "overlay");
   if (lua_istable(L, -1)) {
@@ -376,12 +369,12 @@ stage::stage(std::string_view name)
 
       lua_getfield(L, -1, "name");
       const auto *pn_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
-      const auto particle_name = std::string(pn_raw);
+      const auto label = std::string(pn_raw);
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "kind");
       const auto *pk_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
-      const auto particle_kind = std::string(pk_raw);
+      const auto kind = std::string(pk_raw);
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "x");
@@ -398,26 +391,26 @@ stage::stage(std::string_view name)
 
       lua_getfield(L, -1, "sound");
       const auto *ps_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
-      const auto sound_name = ps_raw ? std::string_view{ps_raw} : std::string_view{};
+      const auto sound = ps_raw ? std::string_view{ps_raw} : std::string_view{};
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "distance");
-      const auto particle_distance = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 300.f;
+      const auto distance = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 300.f;
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "volume");
-      const auto particle_volume = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 1.f;
+      const auto volume = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 1.f;
       lua_pop(L, 1);
 
       lua_pop(L, 1);
 
-      auto *particle = _particlesystem.add(particle_name, particle_kind, px, py, active);
+      auto *particle = _particlesystem.add(label, kind, px, py, active);
 
-      if (!sound_name.empty()) {
-        auto *fx = depot->sound.get(std::format("sounds/{}", sound_name));
+      if (!sound.empty()) {
+        auto *fx = depot->sound.get(std::format("sounds/{}", sound));
         fx->set_loop(true);
 
-        particle->set_sound(fx, particle_distance, particle_volume);
+        particle->set_sound(fx, distance, volume);
       }
 
       auto **pmem = static_cast<class particle **>(lua_newuserdata(L, sizeof(class particle *)));
@@ -427,7 +420,7 @@ stage::stage(std::string_view name)
 
       lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
       lua_pushvalue(L, -2);
-      lua_setfield(L, -2, particle_name.data());
+      lua_setfield(L, -2, label.data());
       lua_pop(L, 1);
 
       lua_pop(L, 1);
@@ -947,9 +940,9 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       }
 
       lua_pushvalue(L, -2);
-      const auto clip_name = std::string_view{lua_tostring(L, -1)};
+      const auto label = std::string_view{lua_tostring(L, -1)};
       lua_pop(L, 1);
-      const auto cid = _stringpool.get(clip_name);
+      const auto cid = _stringpool.get(label);
 
       auto& c = a.clips[a.clip_count];
       c.name = cid;
@@ -1011,10 +1004,10 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       {
         lua_getfield(L, -1, "sound");
         const auto *snd_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
-        const auto sound_name = snd_raw ? std::string_view{snd_raw} : std::string_view{};
+        const auto sound = snd_raw ? std::string_view{snd_raw} : std::string_view{};
         lua_pop(L, 1);
-        if (!sound_name.empty())
-          c.fx = depot->sound.get(std::format("sounds/{}", sound_name));
+        if (!sound.empty())
+          c.fx = depot->sound.get(std::format("sounds/{}", sound));
       }
 
       ++a.clip_count;
@@ -1134,11 +1127,11 @@ int stage::destroy(lua_State* state) {
   if (!_registry.valid(proxy->entity))
     return 0;
 
-  const auto* object_name = _stringpool.get(proxy->name);
+  const auto* label = _stringpool.get(proxy->name);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
   lua_pushnil(L);
-  lua_setfield(L, -2, object_name);
+  lua_setfield(L, -2, label);
   lua_pop(L, 1);
 
   _registry.destroy(proxy->entity);
