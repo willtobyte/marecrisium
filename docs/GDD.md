@@ -8,6 +8,8 @@ You inherit it from your great-great-grandfather, an astronaut
 and the first man to buy land on the Moon—specifically in a dark and mysterious
 crater called Mare Crisium.
 
+The Earth is in a nuclear winter.
+
 ## Ambiance
 
 The game takes place in a crater with the same name as the title—dark,
