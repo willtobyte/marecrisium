@@ -68,6 +68,9 @@ networks of fluorescent mycelium.
 
 ### Glacial Cryo Plains
 
-A vast, frozen expanse of crystalline ice and
-compacted regolith, where temperatures
-remain perpetually cryogenic.
+A vast frozen expanse of crystalline cryo-lattice
+ice and compacted regolith, where temperatures
+remain perpetually near absolute extremes.
+The ice forms complex geometric structures that
+refract light into shifting patterns, distorting
+depth and distance.
