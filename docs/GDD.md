@@ -17,6 +17,14 @@ gloomy, and solitary, yet rich in precious metals.
 
 ## Resources
 
+Minerals
+Xenotime — High rarity
+Monazite — Medium rarity
+Cerite — Low rarity
+
+Gases
+Argon-40
+
 ## Enemies
 
 ## Relationships
