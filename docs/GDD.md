@@ -50,6 +50,12 @@ Johnny 5 with a drill.
 
 ## Biomes
 
-Basalt Wastes
-Subsurface Fungal
-Glacial Cryo Plains
+### Basalt Wastes
+
+### Subsurface Fungal
+
+A subterranean biome where symbiotic fungi, associated with
+chemosynthetic microorganisms, thrive in hot caves
+and volcanic environments, forming vast networks of fluorescent mycelium.
+
+### Glacial Cryo Plains
