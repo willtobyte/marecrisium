@@ -38,6 +38,7 @@ return scheduler.wrap({
 	end,
 
 	on_enter = function(self)
+		pool.theme1:fade(0, 1, 500)
 		pool.theme1:play()
 	end,
 

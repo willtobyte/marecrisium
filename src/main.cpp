@@ -21,6 +21,7 @@ int main(int argc, char **argv) {
   auto config = ma_engine_config_init();
   config.channels = 2;
   config.sampleRate = 48000;
+  config.periodSizeInFrames = 2048;
   ma_engine_init(&config, &engine);
   audioengine = &engine;
 
