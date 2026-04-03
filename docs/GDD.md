@@ -50,5 +50,6 @@ Johnny 5 with a drill.
 
 ## Biomes
 
+Basalt Wastes
 Subsurface Fungal
-Cryogenic Ice
+Glacial Cryo Plains
