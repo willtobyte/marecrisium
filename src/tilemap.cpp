@@ -102,20 +102,20 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
     std::vector<uint8_t> visited(total);
     const auto* noalias tiles = _collision.data();
-    auto* noalias visited_data = visited.data();
+    auto* noalias data = visited.data();
 
     for (size_t row = 0; row < h; ++row) {
       const auto row_offset = row * w;
 
       for (size_t column = 0; column < w; ++column) {
         const auto index = row_offset + column;
-        if (tiles[index] == 0 || visited_data[index]) [[likely]]
+        if (tiles[index] == 0 || data[index]) [[likely]]
           continue;
 
         auto run_width = size_t{1};
         while (column + run_width < w &&
                tiles[index + run_width] != 0 &&
-               !visited_data[index + run_width]) {
+               !data[index + run_width]) {
           ++run_width;
         }
 
@@ -125,7 +125,7 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
           auto valid = true;
 
           for (size_t dx = 0; dx < run_width; ++dx) {
-            if (tiles[check_offset + dx] == 0 || visited_data[check_offset + dx]) [[likely]] {
+            if (tiles[check_offset + dx] == 0 || data[check_offset + dx]) [[likely]] {
               valid = false;
               break;
             }
@@ -138,7 +138,7 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
         }
 
         for (size_t dy = 0; dy < run_height; ++dy) {
-          std::memset(visited_data + (row + dy) * w + column, 1, run_width);
+          std::memset(data + (row + dy) * w + column, 1, run_width);
         }
 
         const auto half  = _size * .5f;
