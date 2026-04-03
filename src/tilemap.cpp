@@ -24,7 +24,7 @@ static void load_tiles(tilemap::layer& layer, const char* field, size_t total) {
   }
 
   lua_pop(L, 1);
-  if (std::ranges::none_of(layer.tiles, [](const uint32_t id) { return id != 0; }))
+  if (std::ranges::none_of(layer.tiles, std::identity{}))
     layer.tiles.clear();
 }
 
@@ -426,9 +426,9 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
     const auto global_column = local_column + box_x0;
     const auto global_row = local_row + box_y0;
     lua_createtable(state, 2, 0);
-    lua_pushnumber(state, static_cast<lua_Number>(static_cast<float>(global_column) * _size + half));
+    lua_pushnumber(state, static_cast<lua_Number>(global_column * _size + half));
     lua_rawseti(state, -2, 1);
-    lua_pushnumber(state, static_cast<lua_Number>(static_cast<float>(global_row) * _size + half));
+    lua_pushnumber(state, static_cast<lua_Number>(global_row * _size + half));
     lua_rawseti(state, -2, 2);
     lua_rawseti(state, -2, index++);
   }

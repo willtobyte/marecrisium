@@ -16,8 +16,8 @@ static bool on_event(void *userdata, SDL_Event *event) {
 
 static int overlay_label(lua_State *state) {
   auto *self = *static_cast<overlay **>(luaL_checkudata(state, 1, "Overlay"));
-  const auto font = std::string_view{luaL_checkstring(state, 2)};
-  const auto text = std::string_view{luaL_checkstring(state, 3)};
+  const std::string_view font = luaL_checkstring(state, 2);
+  const std::string_view text = luaL_checkstring(state, 3);
   const auto x = static_cast<float>(luaL_checknumber(state, 4));
   const auto y = static_cast<float>(luaL_checknumber(state, 5));
 
@@ -47,35 +47,43 @@ static int overlay_label(lua_State *state) {
     auto &effect = effects[index];
 
     lua_getfield(state, -1, "xoffset");
-    effect.xoffset = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.xoffset;
+    if (lua_isnumber(state, -1))
+      effect.xoffset = static_cast<float>(lua_tonumber(state, -1));
     lua_pop(state, 1);
 
     lua_getfield(state, -1, "yoffset");
-    effect.yoffset = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.yoffset;
+    if (lua_isnumber(state, -1))
+      effect.yoffset = static_cast<float>(lua_tonumber(state, -1));
     lua_pop(state, 1);
 
     lua_getfield(state, -1, "scale");
-    effect.scale = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.scale;
+    if (lua_isnumber(state, -1))
+      effect.scale = static_cast<float>(lua_tonumber(state, -1));
     lua_pop(state, 1);
 
     lua_getfield(state, -1, "angle");
-    effect.angle = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.angle;
+    if (lua_isnumber(state, -1))
+      effect.angle = static_cast<float>(lua_tonumber(state, -1));
     lua_pop(state, 1);
 
     lua_getfield(state, -1, "alpha");
-    effect.alpha = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.alpha;
+    if (lua_isnumber(state, -1))
+      effect.alpha = static_cast<float>(lua_tonumber(state, -1));
     lua_pop(state, 1);
 
     lua_getfield(state, -1, "r");
-    effect.r = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.r;
+    if (lua_isnumber(state, -1))
+      effect.r = static_cast<float>(lua_tonumber(state, -1));
     lua_pop(state, 1);
 
     lua_getfield(state, -1, "g");
-    effect.g = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.g;
+    if (lua_isnumber(state, -1))
+      effect.g = static_cast<float>(lua_tonumber(state, -1));
     lua_pop(state, 1);
 
     lua_getfield(state, -1, "b");
-    effect.b = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : effect.b;
+    if (lua_isnumber(state, -1))
+      effect.b = static_cast<float>(lua_tonumber(state, -1));
     lua_pop(state, 1);
 
     if (index >= length) length = index + 1;

@@ -28,7 +28,7 @@ static int cassette_clear(lua_State *state) {
 }
 
 static int cassette_index(lua_State *state) {
-  const auto key = std::string_view{luaL_checkstring(state, 2)};
+  const std::string_view key = luaL_checkstring(state, 2);
   const auto id = entt::hashed_string{key.data()};
 
   if (id == property::clear) [[unlikely]]
@@ -65,7 +65,7 @@ static int cassette_index(lua_State *state) {
 }
 
 static int cassette_newindex(lua_State *state) {
-  const auto key = std::string_view{luaL_checkstring(state, 2)};
+  const std::string_view key = luaL_checkstring(state, 2);
   const auto id = entt::hashed_string{key.data()};
 
   if (id == property::clear) [[unlikely]]

@@ -59,7 +59,7 @@ int subscription_unsubscribe(lua_State *state) {
 
 int subscription_index(lua_State *state) {
   luaL_checkudata(state, 1, "Subscription");
-  const auto key = std::string_view{luaL_checkstring(state, 2)};
+  const std::string_view key = luaL_checkstring(state, 2);
 
   if (key == "publish") {
     lua_pushcfunction(state, subscription_publish);
@@ -128,7 +128,7 @@ int websocket_subscribe(lua_State *state) {
 
 int websocket_index(lua_State *state) {
   luaL_checkudata(state, 1, "WebSocket");
-  const auto key = std::string_view{luaL_checkstring(state, 2)};
+  const std::string_view key = luaL_checkstring(state, 2);
 
   if (key == "subscribe") {
     lua_pushcfunction(state, websocket_subscribe);
@@ -157,7 +157,7 @@ int websocket_gc(lua_State *state) {
 }
 
 int websocket_call(lua_State *state) {
-  auto url = std::string{luaL_checkstring(state, 1)};
+  std::string url = luaL_checkstring(state, 1);
 
   connection = std::make_unique<channel>(std::move(url));
 

@@ -72,7 +72,7 @@ static bool on_event(void *, SDL_Event *event) {
 static int gamepad_rumble(lua_State *state) {
   const auto low = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
   const auto high = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
-  const auto duration = static_cast<uint32_t>(static_cast<int>(luaL_checkinteger(state, 4)));
+  const auto duration = static_cast<uint32_t>(luaL_checkinteger(state, 4));
 
   const auto low16 = static_cast<uint16_t>(low * 65535.f);
   const auto high16 = static_cast<uint16_t>(high * 65535.f);
@@ -102,7 +102,7 @@ static int gamepad_led(lua_State *state) {
 
 static int push_gamepad_axis(lua_State *state, SDL_GamepadAxis axis) {
   if (!ptr) [[unlikely]]
-    return lua_pushnumber(state, static_cast<lua_Number>(.0f)), 1;
+    return lua_pushnumber(state, .0), 1;
 
   lua_pushnumber(state, static_cast<lua_Number>(deadzone(SDL_GetGamepadAxis(ptr.get(), axis))));
   return 1;

@@ -1,21 +1,21 @@
 #include "director.hpp"
 
 static int navigate_callback(lua_State *state) {
-  auto name = std::string{luaL_checkstring(state, 1)};
+  std::string name = luaL_checkstring(state, 1);
   auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
   self->navigate(std::move(name));
   return 0;
 }
 
 static int destroy_callback(lua_State *state) {
-  const auto name = std::string_view{luaL_checkstring(state, 1)};
+  const std::string_view name = luaL_checkstring(state, 1);
   auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
   self->destroy(name);
   return 0;
 }
 
 static int enroll_callback(lua_State *state) {
-  auto name = std::string{luaL_checkstring(state, 1)};
+  std::string name = luaL_checkstring(state, 1);
   auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
   self->enroll(std::move(name));
   return 0;
@@ -94,11 +94,11 @@ void director::transition() {
   _current = it->second.get();
   _current->expose();
 
-  if (const auto& o = _current->overlay(); o.has_value()) {
-    set_overlay(o.value());
+  if (const auto& o = _current->overlay(); o) {
+    set_overlay(*o);
 
-    if (const auto& f = _current->foreground(); f.has_value())
-      _overlay->set_foreground(f.value());
+    if (const auto& f = _current->foreground(); f)
+      _overlay->set_foreground(*f);
   }
 
   _current->on_enter();

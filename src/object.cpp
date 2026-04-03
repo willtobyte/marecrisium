@@ -68,7 +68,7 @@ namespace {
           lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(bd->id).x));
           return 1;
         }
-        lua_pushnumber(state, static_cast<lua_Number>(.0f));
+        lua_pushnumber(state, .0);
         return 1;
       }
 
@@ -78,7 +78,7 @@ namespace {
           lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(bd->id).y));
           return 1;
         }
-        lua_pushnumber(state, static_cast<lua_Number>(.0f));
+        lua_pushnumber(state, .0);
         return 1;
       }
 
@@ -255,7 +255,7 @@ namespace {
       }
 
       case property::flip: {
-        const auto value = std::string_view{luaL_checkstring(state, 3)};
+        const std::string_view value = luaL_checkstring(state, 3);
         auto& tf = registry.get<transform>(entity);
         if (value == "horizontal") {
           tf.flip = flipmode::horizontal;
@@ -276,7 +276,7 @@ namespace {
         if (!registry.all_of<animation>(entity))
           return 0;
 
-        const auto value = std::string_view{luaL_checkstring(state, 3)};
+        const std::string_view value = luaL_checkstring(state, 3);
         const auto hash = entt::hashed_string{value.data()};
 
         auto& a = registry.get<animation>(entity);

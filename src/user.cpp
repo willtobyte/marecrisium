@@ -60,7 +60,7 @@ static int user_index(lua_State *state) {
         if (fid == 0) [[unlikely]]
           continue;
 
-        const auto name = std::string_view{GetFriendPersonaName(fid)};
+        const std::string_view name = GetFriendPersonaName(fid);
         if (name.empty()) [[unlikely]]
           continue;
 

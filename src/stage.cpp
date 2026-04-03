@@ -136,8 +136,8 @@ void overlap_aabb(b2WorldId world, b2AABB aabb, std::vector<stage::hit> &hits) n
 
 static int world_spawn(lua_State* state) {
   auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  const auto name = std::string_view{luaL_checkstring(state, 1)};
-  const auto kind = std::string_view{luaL_checkstring(state, 2)};
+  const std::string_view name = luaL_checkstring(state, 1);
+  const std::string_view kind = luaL_checkstring(state, 2);
   const auto x = static_cast<float>(luaL_checknumber(state, 3));
   const auto y = static_cast<float>(luaL_checknumber(state, 4));
   return self->spawn(state, name, kind, x, y);
@@ -265,13 +265,11 @@ stage::stage(std::string_view name)
       lua_rawgeti(L, -1, i);
 
       lua_getfield(L, -1, "name");
-      const auto *name_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
-      const auto label = std::string(name_raw);
+      const std::string label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "kind");
-      const auto *kind_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
-      const auto kind = std::string(kind_raw);
+      const std::string kind = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "x");
@@ -304,8 +302,7 @@ stage::stage(std::string_view name)
       }
 
       lua_getfield(L, -1, "name");
-      const auto *snd_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
-      const auto label = std::string(snd_raw);
+      const std::string label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "loop");
@@ -337,26 +334,21 @@ stage::stage(std::string_view name)
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "tilemap");
-  const auto *tilemap_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
+  if (lua_isstring(L, -1))
+    _tilemap = tilemap(lua_tostring(L, -1), _world);
   lua_pop(L, 1);
-  if (tilemap_raw)
-    _tilemap = tilemap(std::string_view{tilemap_raw}, _world);
 
   lua_getfield(L, -1, "overlay");
   if (lua_istable(L, -1)) {
     lua_getfield(L, -1, "widgets");
-    const auto *w_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
-    const auto widgets = w_raw ? std::string_view{w_raw} : std::string_view{};
+    if (lua_isstring(L, -1))
+      _overlay = lua_tostring(L, -1);
     lua_pop(L, 1);
-    if (!widgets.empty())
-      _overlay = std::string{widgets};
 
     lua_getfield(L, -1, "foreground");
-    const auto *fg_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
-    const auto fg = fg_raw ? std::string_view{fg_raw} : std::string_view{};
+    if (lua_isstring(L, -1))
+      _foreground = lua_tostring(L, -1);
     lua_pop(L, 1);
-    if (!fg.empty())
-      _foreground = std::string{fg};
   }
   lua_pop(L, 1);
 
@@ -368,13 +360,11 @@ stage::stage(std::string_view name)
       lua_rawgeti(L, -1, i);
 
       lua_getfield(L, -1, "name");
-      const auto *pn_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
-      const auto label = std::string(pn_raw);
+      const std::string label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "kind");
-      const auto *pk_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
-      const auto kind = std::string(pk_raw);
+      const std::string kind = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "x");
@@ -390,8 +380,7 @@ stage::stage(std::string_view name)
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "sound");
-      const auto *ps_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
-      const auto sound = ps_raw ? std::string_view{ps_raw} : std::string_view{};
+      const std::string_view sound = lua_isstring(L, -1) ? lua_tostring(L, -1) : std::string_view{};
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "distance");
@@ -940,7 +929,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       }
 
       lua_pushvalue(L, -2);
-      const auto label = std::string_view{lua_tostring(L, -1)};
+      const std::string_view label = lua_tostring(L, -1);
       lua_pop(L, 1);
       const auto cid = _stringpool.get(label);
 
@@ -1003,11 +992,9 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 
       {
         lua_getfield(L, -1, "sound");
-        const auto *snd_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
-        const auto sound = snd_raw ? std::string_view{snd_raw} : std::string_view{};
+        if (lua_isstring(L, -1))
+          c.fx = depot->sound.get(std::format("sounds/{}", lua_tostring(L, -1)));
         lua_pop(L, 1);
-        if (!sound.empty())
-          c.fx = depot->sound.get(std::format("sounds/{}", sound));
       }
 
       ++a.clip_count;
@@ -1018,11 +1005,10 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       a.playing = true;
 
       lua_getfield(L, -1, "default");
-      const auto *def_raw = lua_isstring(L, -1) ? lua_tostring(L, -1) : nullptr;
-      const auto default_clip = def_raw ? std::string_view{def_raw} : std::string_view{};
+      const std::string_view initial = lua_isstring(L, -1) ? lua_tostring(L, -1) : std::string_view{};
       lua_pop(L, 1);
-      if (!default_clip.empty()) {
-        const auto hash = entt::hashed_string{default_clip.data()};
+      if (!initial.empty()) {
+        const auto hash = entt::hashed_string{initial.data()};
         for (uint8_t i = 0; i < a.clip_count; ++i) {
           if (a.clips[i].name == hash) {
             a.active = i;

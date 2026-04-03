@@ -31,7 +31,7 @@ void json_to_lua(lua_State *state, yyjson_val *val) {
       break;
 
     case YYJSON_TYPE_BOOL:
-      lua_pushboolean(state, yyjson_get_bool(val) ? 1 : 0);
+      lua_pushboolean(state, yyjson_get_bool(val));
       break;
 
     case YYJSON_TYPE_NUM: {
@@ -104,7 +104,7 @@ void json_to_lua(lua_State *state, yyjson_val *val) {
       const auto as_int = static_cast<lua_Integer>(value);
       if (static_cast<lua_Number>(as_int) == value)
         return yyjson_mut_sint(document, as_int);
-      return yyjson_mut_real(document, static_cast<double>(value));
+      return yyjson_mut_real(document, value);
     }
 
     case LUA_TSTRING: {

@@ -43,7 +43,7 @@ namespace {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     const auto from = static_cast<float>(luaL_checknumber(state, 2));
     const auto to = static_cast<float>(luaL_checknumber(state, 3));
-    const auto ms = static_cast<uint64_t>(std::max(static_cast<int>(luaL_checkinteger(state, 4)), 0));
+    const auto ms = static_cast<uint64_t>(std::max(luaL_checkinteger(state, 4), lua_Integer{0}));
     instance->fade(from, to, ms);
     return 0;
   }
