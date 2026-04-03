@@ -54,8 +54,9 @@ Johnny 5 with a drill.
 
 ### Subsurface Fungal
 
-A subterranean biome where symbiotic fungi, associated with
-chemosynthetic microorganisms, thrive in hot caves
-and volcanic environments, forming vast networks of fluorescent mycelium.
+A subterranean biome where symbiotic fungi, associated
+with chemosynthetic microorganisms, thrive
+in hot caves and volcanic environments, forming
+vast networks of fluorescent mycelium.
 
 ### Glacial Cryo Plains
