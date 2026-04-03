@@ -47,3 +47,8 @@ of atoms, making it a perfect disintegration tool.
 Johnny 5 with a drill.
 
 ## Relationships
+
+## Biomes
+
+Subsurface Fungal
+Cryogenic Ice
