@@ -5,6 +5,7 @@ namespace {
     constexpr auto volume = "volume"_hs;
     constexpr auto pan = "pan"_hs;
     constexpr auto loop = "loop"_hs;
+    constexpr auto playing = "playing"_hs;
     constexpr auto play = "play"_hs;
     constexpr auto stop = "stop"_hs;
     constexpr auto fade = "fade"_hs;
@@ -72,6 +73,10 @@ namespace {
 
       case property::loop:
         lua_pushboolean(state, instance->loop() ? 1 : 0);
+        return 1;
+
+      case property::playing:
+        lua_pushboolean(state, instance->playing() ? 1 : 0);
         return 1;
 
       case property::play:
@@ -221,6 +226,10 @@ void sound::set_loop(bool loop) noexcept {
 
 bool sound::loop() const noexcept {
   return ma_sound_is_looping(&_sound) == MA_TRUE;
+}
+
+bool sound::playing() const noexcept {
+  return ma_sound_is_playing(&_sound) == MA_TRUE;
 }
 
 void sound::fade(float from, float to, uint64_t ms) noexcept {

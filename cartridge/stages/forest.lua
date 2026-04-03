@@ -11,7 +11,7 @@ return scheduler.wrap({
 	},
 
 	sounds = {
-		{ name = "fx", autoplay = true },
+		{ name = "theme1", autoplay = true, loop = true },
 	},
 
 	objects = {

@@ -496,6 +496,7 @@ function Object.on_animation_begin(self, clip_name) end
 ---@field volume number Current volume, 0.0 to 1.0.
 ---@field pan number Current stereo pan, -1.0 (left) to 1.0 (right).
 ---@field loop boolean Whether looping is enabled.
+---@field playing boolean Whether the sound is currently playing (read-only).
 local Sound = {}
 
 ---Start playback from the beginning.

@@ -20,6 +20,8 @@ public:
   void set_loop(bool loop) noexcept;
   [[nodiscard]] bool loop() const noexcept;
 
+  [[nodiscard]] bool playing() const noexcept;
+
   void fade(float from, float to, uint64_t ms) noexcept;
 
   void poll();
