@@ -62,23 +62,17 @@ jobs:
           cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release --verbose
 
-      - name: Build tools
-        run: |
-          conan install tools/ --output-folder=tools/build --build=missing --settings compiler.cppstd=23 --settings build_type=Release
-          cmake -Btools/build -Stools -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
-          cmake --build tools/build --config Release
-
       - name: Package cartridge
         run: |
-          ./tools/build/Release/pack.exe cartridge
+          ./build/tools/Release/pack.exe cartridge
 
       - name: Collect artifacts
         run: |
           mkdir -p artifact
           cp build/Release/carimbo.exe artifact/
           cp cartridge.rom artifact/
-          cp tools/build/Release/pack.exe artifact/
-          cp tools/build/Release/unpack.exe artifact/
+          cp build/tools/Release/pack.exe artifact/
+          cp build/tools/Release/unpack.exe artifact/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

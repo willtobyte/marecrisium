@@ -71,3 +71,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE ${HEADER_FILES})
+
+add_subdirectory(tools)
