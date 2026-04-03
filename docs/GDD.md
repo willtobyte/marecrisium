@@ -67,3 +67,7 @@ caves and volcanic systems, forming vast, glowing
 networks of fluorescent mycelium.
 
 ### Glacial Cryo Plains
+
+A vast, frozen expanse of crystalline ice and
+compacted regolith, where temperatures
+remain perpetually cryogenic.
