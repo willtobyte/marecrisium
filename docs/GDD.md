@@ -30,7 +30,17 @@ gases require a probe that collects them automatically.
 
 ## Tools & Weapons
 
-Quantum Bore
+Quantum Bore.
+
+This is a tool and defensive weapon specifically designed for
+microgravity environments, where the use of force, projectiles,
+lasers, or any other conventional method is inefficient.
+
+It can break rocks within seconds and inflict semi-lethal damage.
+
+Its operating mode is based on a fired quantum beam.
+Upon hitting the target, it deconstructs millions
+of atoms, making it a perfect disintegration tool.
 
 ## Enemies
 
