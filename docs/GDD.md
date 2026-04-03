@@ -25,12 +25,12 @@ Cerite — Low rarity
 Gases
 Argon-40
 
-Rare minerals can be mined using the Quantum Bore, while noble
+Rare minerals can be mined using the Quantum Shatterer, while noble
 gases require a probe that collects them automatically.
 
 ## Tools & Weapons
 
-Quantum Bore.
+Quantum Shatterer.
 
 This is a tool and defensive weapon specifically designed for
 microgravity environments, where the use of force, projectiles,
