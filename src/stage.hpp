@@ -27,23 +27,23 @@ public:
 
   void on_tick(uint64_t tick);
 
-  [[nodiscard]] auto overlay() const noexcept -> const std::optional<std::string>&;
+  std::optional<std::string> overlay() const noexcept;
 
-  [[nodiscard]] auto foreground() const noexcept -> const std::optional<std::string>&;
+  std::optional<std::string> foreground() const noexcept;
 
-  [[nodiscard]] int spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y);
+  int spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y);
 
   int destroy(lua_State* state);
 
-  [[nodiscard]] int count(lua_State* state);
+  int count(lua_State* state);
 
-  [[nodiscard]] int find(lua_State* state);
+  int find(lua_State* state);
 
-  [[nodiscard]] int radar(lua_State* state, entt::entity caller, float x, float y, float radius);
+  int radar(lua_State* state, entt::entity caller, float x, float y, float radius);
 
-  [[nodiscard]] int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
+  int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
 
-  [[nodiscard]] int pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept;
+  int pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept;
 
   void dispatch_collision(entt::entity entity, entt::entity other, std::string_view callback, const b2Vec2* normal = nullptr);
 

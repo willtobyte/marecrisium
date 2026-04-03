@@ -1,6 +1,6 @@
 #include "font.hpp"
 
-[[nodiscard]] static SDL_FPoint rotate(float px, float py, float midx, float midy, float cosine, float sine) noexcept {
+static SDL_FPoint rotate(float px, float py, float midx, float midy, float cosine, float sine) noexcept {
   const auto dx = px - midx;
   const auto dy = py - midy;
   return {midx + dx * cosine - dy * sine, midy + dx * sine + dy * cosine};

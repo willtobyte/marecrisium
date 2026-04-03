@@ -38,7 +38,7 @@ namespace {
 
 static constexpr float DEADZONE_THRESHOLD = .1f;
 
-[[nodiscard]] static float deadzone(Sint16 axis) noexcept {
+static float deadzone(Sint16 axis) noexcept {
   const auto normalized = static_cast<float>(axis) / 32768.f;
   const auto magnitude = std::abs(normalized);
   if (magnitude < DEADZONE_THRESHOLD) [[likely]]

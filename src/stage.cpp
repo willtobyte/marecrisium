@@ -282,7 +282,7 @@ stage::stage(std::string_view name)
 
       lua_pop(L, 1);
 
-      std::ignore = spawn(L, label, kind, ox, oy);
+      spawn(L, label, kind, ox, oy);
       lua_pop(L, 1);
     }
   }
@@ -888,11 +888,11 @@ void stage::on_tick(uint64_t tick) {
   pcall(L, 2, 0);
 }
 
-auto stage::overlay() const noexcept -> const std::optional<std::string>& {
+std::optional<std::string> stage::overlay() const noexcept {
   return _overlay;
 }
 
-auto stage::foreground() const noexcept -> const std::optional<std::string>& {
+std::optional<std::string> stage::foreground() const noexcept {
   return _foreground;
 }
 
@@ -906,8 +906,8 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   const auto prototype = proxy.prototype;
   const auto handle = proxy.handle;
 
-  std::ignore = _stringpool.get(name);
-  std::ignore = _stringpool.get(kind);
+  _stringpool.get(name);
+  _stringpool.get(kind);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
   lua_getfield(L, -1, "animation");

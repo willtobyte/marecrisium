@@ -5,7 +5,7 @@
 namespace {
 std::unique_ptr<channel> connection;
 
-[[nodiscard]] std::vector<uint8_t> envelope(yyjson_mut_doc *doc) {
+std::vector<uint8_t> envelope(yyjson_mut_doc *doc) {
   size_t len = 0;
   auto *json = yyjson_mut_write(doc, 0, &len);
   yyjson_mut_doc_free(doc);
@@ -17,7 +17,7 @@ std::unique_ptr<channel> connection;
   return result;
 }
 
-[[nodiscard]] std::vector<uint8_t> subscribe(uint16_t topic) {
+std::vector<uint8_t> subscribe(uint16_t topic) {
   auto *doc = yyjson_mut_doc_new(nullptr);
   auto *arr = yyjson_mut_arr(doc);
   yyjson_mut_arr_add_uint(doc, arr, std::to_underlying(opcode::subscribe));
@@ -26,7 +26,7 @@ std::unique_ptr<channel> connection;
   return envelope(doc);
 }
 
-[[nodiscard]] std::vector<uint8_t> unsubscribe(uint16_t topic) {
+std::vector<uint8_t> unsubscribe(uint16_t topic) {
   auto *doc = yyjson_mut_doc_new(nullptr);
   auto *arr = yyjson_mut_arr(doc);
   yyjson_mut_arr_add_uint(doc, arr, std::to_underlying(opcode::unsubscribe));
@@ -35,7 +35,7 @@ std::unique_ptr<channel> connection;
   return envelope(doc);
 }
 
-[[nodiscard]] std::vector<uint8_t> publish(uint16_t topic, yyjson_mut_val *data, yyjson_mut_doc *doc) {
+std::vector<uint8_t> publish(uint16_t topic, yyjson_mut_val *data, yyjson_mut_doc *doc) {
   auto *arr = yyjson_mut_arr(doc);
   yyjson_mut_arr_add_uint(doc, arr, std::to_underlying(opcode::publish));
   yyjson_mut_arr_add_uint(doc, arr, topic);

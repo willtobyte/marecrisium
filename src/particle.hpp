@@ -29,15 +29,15 @@ public:
   void update(float delta) noexcept;
   void draw() noexcept;
 
-  [[nodiscard]] float x() const noexcept;
+  float x() const noexcept;
   void set_x(float value) noexcept;
-  [[nodiscard]] float y() const noexcept;
+  float y() const noexcept;
   void set_y(float value) noexcept;
-  [[nodiscard]] bool active() const noexcept;
+  bool active() const noexcept;
   void set_active(bool value) noexcept;
 
   void set_sound(class sound* sound, float distance, float volume) noexcept;
-  [[nodiscard]] class sound* sound() const noexcept;
+  class sound* sound() const noexcept;
 
   static void wire();
 

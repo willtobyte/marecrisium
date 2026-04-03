@@ -33,13 +33,13 @@ struct handle final {
 };
 
 template <std::integral T>
-[[nodiscard]] static T read(const uint8_t *p) noexcept {
+static T read(const uint8_t *p) noexcept {
   T val;
   std::memcpy(&val, p, sizeof(T));
   return val;
 }
 
-[[nodiscard]] static bool drain(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
+static bool drain(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   auto *destination = static_cast<uint8_t *>(buffer);
   while (length > 0) {
     const auto got = io->read(io, destination, length);
@@ -53,7 +53,7 @@ template <std::integral T>
   return true;
 }
 
-[[nodiscard]] static std::string_view parent_dir(std::string_view path) noexcept {
+static std::string_view parent_dir(std::string_view path) noexcept {
   const auto position = path.rfind('/');
   if (position == std::string_view::npos)
     return {};
@@ -61,7 +61,7 @@ template <std::integral T>
   return path.substr(0, position);
 }
 
-[[nodiscard]] static std::string_view filename(std::string_view path) noexcept {
+static std::string_view filename(std::string_view path) noexcept {
   const auto position = path.rfind('/');
   if (position == std::string_view::npos)
     return path;

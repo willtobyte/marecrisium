@@ -27,7 +27,7 @@ public:
     _head.store(head + 1, std::memory_order_release);
   }
 
-  [[nodiscard]] bool try_pop(T& out) noexcept {
+  bool try_pop(T& out) noexcept {
     const auto tail = _tail.load(std::memory_order_relaxed);
     const auto head = _head.load(std::memory_order_acquire);
     if (tail == head) return false;
@@ -118,9 +118,9 @@ public:
   void publish(lua_State* state, int idx);
   void unsubscribe();
 
-  [[nodiscard]] uint16_t topic() const noexcept;
-  [[nodiscard]] int callback() const noexcept;
-  [[nodiscard]] bool active() const noexcept;
+  uint16_t topic() const noexcept;
+  int callback() const noexcept;
+  bool active() const noexcept;
 
 private:
   friend class channel;

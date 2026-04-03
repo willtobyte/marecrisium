@@ -5,9 +5,9 @@ public:
   io() = delete;
   ~io() = delete;
 
-  [[nodiscard]] static bool exists(std::string_view filename) noexcept;
+  static bool exists(std::string_view filename) noexcept;
 
-  [[nodiscard]] static std::vector<uint8_t> read(std::string_view filename);
+  static std::vector<uint8_t> read(std::string_view filename);
 
-  [[nodiscard]] static std::vector<std::string> enumerate(std::string_view directory);
+  static std::vector<std::string> enumerate(std::string_view directory);
 };
