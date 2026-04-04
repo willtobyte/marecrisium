@@ -1,6 +1,8 @@
 #include "cartridge.hpp"
 
 namespace {
+using namespace std::string_view_literals;
+
 constexpr uint32_t CROM_MAGIC = 0x43524F4D;
 constexpr uint32_t CROM_VERSION = 1;
 constexpr uint8_t FLAG_DIRECTORY = 1;
@@ -56,7 +58,7 @@ static bool drain(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
 static std::string_view parent_dir(std::string_view path) noexcept {
   const auto position = path.rfind('/');
   if (position == std::string_view::npos)
-    return {};
+    return ""sv;
 
   return path.substr(0, position);
 }
@@ -143,6 +145,7 @@ static void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *
 
   const auto version = read<uint32_t>(header + 4);
   if (version != CROM_VERSION) [[unlikely]] {
+    io->destroy(io);
     PHYSFS_setErrorCode(PHYSFS_ERR_UNSUPPORTED);
     return nullptr;
   }
@@ -158,15 +161,19 @@ static void *crom_open_archive(PHYSFS_Io *io, const char *, int for_write, int *
   std::vector<uint8_t> buffer;
   for (uint32_t i = 0; i < count; ++i) {
     uint8_t preamble[2];
-    if (!drain(io, preamble, 2)) [[unlikely]]
+    if (!drain(io, preamble, 2)) [[unlikely]] {
+      io->destroy(io);
       return nullptr;
+    }
 
     const auto length = read<uint16_t>(preamble);
     const auto size = static_cast<size_t>(length + 25);
 
     buffer.resize(size);
-    if (!drain(io, buffer.data(), size)) [[unlikely]]
+    if (!drain(io, buffer.data(), size)) [[unlikely]] {
+      io->destroy(io);
       return nullptr;
+    }
 
     const auto *metadata = buffer.data() + length;
 
