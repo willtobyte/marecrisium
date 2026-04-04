@@ -46,7 +46,10 @@ of atoms, making it a perfect disintegration tool.
 
 ### Upgrades
 
--- TODO --
+0x -
+1x -
+2x -
+3x -
 
 ## Enemies
 
