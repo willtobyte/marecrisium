@@ -597,6 +597,8 @@ void stage::update(float delta) {
         continue;
     }
 
+    auto &rd = _registry.ctx().get<reorder>();
+
     b2World_Step(_world, _timestep, _substeps);
 
     const auto events = b2World_GetBodyEvents(_world);
@@ -621,11 +623,13 @@ void stage::update(float delta) {
       tf.x = position.x - frame.cx - bd->cached_hx;
       tf.y = position.y - frame.cy - bd->cached_hy;
 
-      _registry.get<renderable>(entity).z = static_cast<int>(tf.y + frame.h * tf.scale);
+      auto &r = _registry.get<renderable>(entity);
+      const auto z = static_cast<int>(tf.y + frame.h * tf.scale);
+      if (r.z != z) [[unlikely]] {
+        r.z = z;
+        rd.dirty = true;
+      }
     }
-
-    if (events.moveCount > 0) [[likely]]
-      _registry.ctx().get<reorder>().dirty = true;
 
     _accumulator -= _timestep;
     ++steps;
