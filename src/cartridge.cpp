@@ -250,7 +250,7 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
   auto *reader = new handle{std::move(buffer), uncompressed, 0};
 
-  auto *io = new PHYSFS_Io{
+  return new PHYSFS_Io{
     .version = 0,
     .opaque = reader,
     .read = file_read,
@@ -262,8 +262,6 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     .flush = file_flush,
     .destroy = file_destroy,
   };
-
-  return io;
 }
 
 static PHYSFS_Io *crom_open_write(void *, const char *) {
