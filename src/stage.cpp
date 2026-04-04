@@ -597,8 +597,6 @@ void stage::update(float delta) {
         continue;
     }
 
-    auto &rd = _registry.ctx().get<reorder>();
-
     b2World_Step(_world, _timestep, _substeps);
 
     const auto events = b2World_GetBodyEvents(_world);
@@ -624,6 +622,7 @@ void stage::update(float delta) {
       tf.y = position.y - frame.cy - bd->cached_hy;
 
       auto &r = _registry.get<renderable>(entity);
+      auto &rd = _registry.ctx().get<reorder>();
       const auto z = static_cast<int>(tf.y + frame.h * tf.scale);
       if (r.z != z) [[unlikely]] {
         r.z = z;
