@@ -155,13 +155,13 @@ overlay::overlay(std::string_view name) {
   lua_setmetatable(L, -2);
   _userdata_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  SDL_AddEventWatch(on_event, this);
-  SDL_StartTextInput(SDL_GetRenderWindow(renderer));
+  // SDL_AddEventWatch(on_event, this);
+  // SDL_StartTextInput(SDL_GetRenderWindow(renderer));
 }
 
 overlay::~overlay() {
-  SDL_StopTextInput(SDL_GetRenderWindow(renderer));
-  SDL_RemoveEventWatch(on_event, this);
+  // SDL_StopTextInput(SDL_GetRenderWindow(renderer));
+  // SDL_RemoveEventWatch(on_event, this);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
   _on_paint = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
