@@ -11,7 +11,6 @@
 #include <zstd.h>
 
 namespace {
-
 constexpr uint32_t CROM_MAGIC = 0x43524F4D;
 constexpr uint32_t CROM_VERSION = 1;
 constexpr uint8_t FLAG_DIRECTORY = 1;

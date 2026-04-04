@@ -124,6 +124,7 @@ int main() {
     input.seekg(static_cast<std::streamoff>(entry.offset));
     input.read(reinterpret_cast<char *>(compressed.data()),
                static_cast<std::streamsize>(entry.compressed));
+
     if (!input) {
       std::cerr << "error: cannot read data for " << entry.path << "\n";
       return 1;
