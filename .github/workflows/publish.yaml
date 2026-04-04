@@ -52,24 +52,24 @@ jobs:
             -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -g3"
           cmake --build build --config Release --verbose
 
-      - name: Package cartridge
-        run: ./build/tools/pack cartridge
-
       - name: Generate dSYM
         run: dsymutil build/carimbo -o build/carimbo.dSYM
 
       - name: Strip binary
         run: strip build/carimbo
 
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifact
+          cp build/carimbo artifact/
+          cp -r build/carimbo.dSYM artifact/
+          cp build/LICENSES artifact/
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: macos-build
-          path: |
-            build/carimbo
-            build/carimbo.dSYM
-            build/LICENSES
-            cartridge.rom
+          path: artifact/
 
   windows:
     runs-on: windows-latest
@@ -124,19 +124,18 @@ jobs:
             -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG:FULL /OPT:REF /OPT:ICF"
           cmake --build build --config Release --verbose
 
-      - name: Collect artifact
+      - name: Collect artifacts
         run: |
-          cp build/Release/carimbo.exe build/carimbo.exe
-          cp build/Release/carimbo.pdb build/carimbo.pdb
+          mkdir -p artifact
+          cp build/Release/carimbo.exe artifact/
+          cp build/Release/carimbo.pdb artifact/
+          cp build/LICENSES artifact/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: windows-build
-          path: |
-            build/carimbo.exe
-            build/carimbo.pdb
-            build/LICENSES
+          path: artifact/
 
   publish:
     runs-on: ubuntu-latest
@@ -165,11 +164,34 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
+      - name: Setup Conan
+        run: |
+          pip install conan
+          conan profile detect --force
+
+      - name: Cache Conan packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.conan2/p
+          key: conan-${{ runner.os }}-tools-${{ hashFiles('tools/conanfile.py') }}
+          restore-keys: |
+            conan-${{ runner.os }}-tools-
+
+      - name: Build pack tool
+        working-directory: tools
+        run: |
+          conan install . --output-folder=build --build=missing --settings build_type=Release
+          cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+
+      - name: Package cartridge
+        run: ./tools/build/pack cartridge
+
       - name: Assemble output
         run: |
           mkdir -p output/{content,macos,windows}
 
-          cp macos-build/cartridge.rom output/content/
+          cp cartridge.rom output/content/
 
           cp macos-build/carimbo output/macos/
           cp macos-build/LICENSES output/macos/
