@@ -44,6 +44,10 @@ Its operating mode is based on a fired quantum beam.
 Upon hitting the target, it deconstructs millions
 of atoms, making it a perfect disintegration tool.
 
+### Upgrades
+
+-- TODO --
+
 ## Enemies
 
 Johnny 5 with a drill.
