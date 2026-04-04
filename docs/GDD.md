@@ -83,3 +83,7 @@ remain perpetually near absolute extremes.
 The ice forms complex geometric structures that
 refract light into shifting patterns, distorting
 depth and distance.
+
+## Bosses
+
+My name is Legion, for we are many.
