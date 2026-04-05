@@ -674,7 +674,7 @@ void stage::update(float delta) {
 
   _interpolation.alpha = _timestep > .0f ? _accumulator / _timestep : .0f;
 
-  static const int _direction_refs[] = {
+  static const int _bearings[] = {
     (lua_pushstring(L, "left"), luaL_ref(L, LUA_REGISTRYINDEX)),
     (lua_pushstring(L, "right"), luaL_ref(L, LUA_REGISTRYINDEX)),
     (lua_pushstring(L, "top"), luaL_ref(L, LUA_REGISTRYINDEX)),
@@ -708,14 +708,14 @@ void stage::update(float delta) {
       if ((exited & mask) && proxy.on_screen_exit != LUA_NOREF) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_screen_exit);
         lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-        lua_rawgeti(L, LUA_REGISTRYINDEX, _direction_refs[bit]);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, _bearings[bit]);
         pcall(L, 2, 0);
       }
 
       if ((entered & mask) && proxy.on_screen_enter != LUA_NOREF) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_screen_enter);
         lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-        lua_rawgeti(L, LUA_REGISTRYINDEX, _direction_refs[bit]);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, _bearings[bit]);
         pcall(L, 2, 0);
       }
     }
