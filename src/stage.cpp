@@ -578,14 +578,14 @@ void stage::update(float delta) {
         if (proxy.on_animation_end != LUA_NOREF) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_animation_end);
           lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-          lua_pushstring(L, _stringpool.get(c.name));
+          lua_rawgeti(L, LUA_REGISTRYINDEX, _stringpool.ref(c.name));
           pcall(L, 2, 0);
         }
 
         if (proxy.on_animation_begin != LUA_NOREF) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_animation_begin);
           lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-          lua_pushstring(L, _stringpool.get(c.name));
+          lua_rawgeti(L, LUA_REGISTRYINDEX, _stringpool.ref(c.name));
           pcall(L, 2, 0);
         }
       }
@@ -674,7 +674,12 @@ void stage::update(float delta) {
 
   _interpolation.alpha = _timestep > .0f ? _accumulator / _timestep : .0f;
 
-  static constexpr std::string_view directions[] = {"left", "right", "top", "bottom"};
+  static const int _direction_refs[] = {
+    (lua_pushstring(L, "left"), luaL_ref(L, LUA_REGISTRYINDEX)),
+    (lua_pushstring(L, "right"), luaL_ref(L, LUA_REGISTRYINDEX)),
+    (lua_pushstring(L, "top"), luaL_ref(L, LUA_REGISTRYINDEX)),
+    (lua_pushstring(L, "bottom"), luaL_ref(L, LUA_REGISTRYINDEX)),
+  };
 
   const auto viewport_right  = viewport.x + viewport.width;
   const auto viewport_bottom = viewport.y + viewport.height;
@@ -703,13 +708,14 @@ void stage::update(float delta) {
       if ((exited & mask) && proxy.on_screen_exit != LUA_NOREF) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_screen_exit);
         lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-        lua_pushlstring(L, directions[bit].data(), directions[bit].size());
+        lua_rawgeti(L, LUA_REGISTRYINDEX, _direction_refs[bit]);
         pcall(L, 2, 0);
       }
+
       if ((entered & mask) && proxy.on_screen_enter != LUA_NOREF) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_screen_enter);
         lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-        lua_pushlstring(L, directions[bit].data(), directions[bit].size());
+        lua_rawgeti(L, LUA_REGISTRYINDEX, _direction_refs[bit]);
         pcall(L, 2, 0);
       }
     }
