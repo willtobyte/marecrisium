@@ -100,6 +100,20 @@ static void on_objectproxy_destroy(entt::registry& registry, entt::entity entity
   lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
   auto* userdata = static_cast<objectproxy*>(lua_touserdata(L, -1));
   if (userdata) {
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_spawn);
+    userdata->on_spawn = LUA_NOREF;
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_screen_enter);
+    userdata->on_screen_enter = LUA_NOREF;
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_screen_exit);
+    userdata->on_screen_exit = LUA_NOREF;
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_sleep);
+    userdata->on_sleep = LUA_NOREF;
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_wake);
+    userdata->on_wake = LUA_NOREF;
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_collision_end);
+    userdata->on_collision_end = LUA_NOREF;
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_collision_begin);
+    userdata->on_collision_begin = LUA_NOREF;
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_begin);
     userdata->on_animation_begin = LUA_NOREF;
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_end);
@@ -200,7 +214,7 @@ stage::stage(std::string_view name)
   compile(L, buffer, chunk);
 
   lua_newtable(L);
-  _pool_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  _pool_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_newtable(L);
 
@@ -232,7 +246,7 @@ stage::stage(std::string_view name)
   lua_pushcclosure(L, world_pathfind, 1);
   lua_setfield(L, -2, "pathfind");
 
-  _world_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  _world_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   pcall(L, 0, 1);
 
@@ -316,7 +330,7 @@ stage::stage(std::string_view name)
       luaL_getmetatable(L, "Sound");
       lua_setmetatable(L, -2);
 
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
       lua_pushvalue(L, -2);
       lua_setfield(L, -2, label.data());
       lua_pop(L, 1);
@@ -407,7 +421,7 @@ stage::stage(std::string_view name)
       luaL_getmetatable(L, "Particle");
       lua_setmetatable(L, -2);
 
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
       lua_pushvalue(L, -2);
       lua_setfield(L, -2, label.data());
       lua_pop(L, 1);
@@ -417,9 +431,9 @@ stage::stage(std::string_view name)
   }
   lua_pop(L, 1);
 
-  _reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  _ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
 
   lua_getfield(L, -1, "on_loop");
   _on_loop = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
@@ -440,12 +454,12 @@ stage::~stage() {
   _on_camera = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   _on_loop = LUA_NOREF;
-  luaL_unref(L, LUA_REGISTRYINDEX, _world_reference);
-  _world_reference = LUA_NOREF;
-  luaL_unref(L, LUA_REGISTRYINDEX, _pool_reference);
-  _pool_reference = LUA_NOREF;
-  luaL_unref(L, LUA_REGISTRYINDEX, _reference);
-  _reference = LUA_NOREF;
+  luaL_unref(L, LUA_REGISTRYINDEX, _world_ref);
+  _world_ref = LUA_NOREF;
+  luaL_unref(L, LUA_REGISTRYINDEX, _pool_ref);
+  _pool_ref = LUA_NOREF;
+  luaL_unref(L, LUA_REGISTRYINDEX, _ref);
+  _ref = LUA_NOREF;
 
   b2DestroyWorld(_world);
 }
@@ -474,18 +488,11 @@ void stage::update(float delta) {
 
     _registry.remove<dormant>(entity);
 
-    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF) [[unlikely]]
-      continue;
-
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-    lua_getfield(L, -1, "on_wake");
-    if (lua_isfunction(L, -1)) {
+    if (proxy.on_wake != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_wake);
       lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
       pcall(L, 1, 0);
-    } else {
-      lua_pop(L, 1);
     }
-    lua_pop(L, 1);
   }
 
   for (auto&& [entity, proxy, tf, an] :
@@ -511,23 +518,16 @@ void stage::update(float delta) {
         bd && b2Body_IsValid(bd->id))
       b2Body_Disable(bd->id);
 
-    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF) [[unlikely]]
-      continue;
-
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-    lua_getfield(L, -1, "on_sleep");
-    if (lua_isfunction(L, -1)) {
+    if (proxy.on_sleep != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_sleep);
       lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
       pcall(L, 1, 0);
-    } else {
-      lua_pop(L, 1);
     }
-    lua_pop(L, 1);
   }
 
   if (_on_loop != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
     pcall(L, 2, 0);
   }
@@ -636,7 +636,7 @@ void stage::update(float delta) {
 
   if (_on_camera != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
 
     pcall(L, 1, 2);
 
@@ -684,36 +684,19 @@ void stage::update(float delta) {
     const auto exited  = static_cast<uint8_t>(current & ~sb.previous);
     const auto entered = static_cast<uint8_t>(sb.previous & ~current);
 
-    if (proxy.prototype == LUA_NOREF || proxy.handle == LUA_NOREF) [[unlikely]] {
-      sb.previous = current;
-      continue;
-    }
-
     for (uint8_t bit = 0; bit < 4; ++bit) {
       const auto mask = static_cast<uint8_t>(1u << bit);
-      if (exited & mask) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-        lua_getfield(L, -1, "on_screen_exit");
-        if (lua_isfunction(L, -1)) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-          lua_pushlstring(L, directions[bit].data(), directions[bit].size());
-          pcall(L, 2, 0);
-        } else {
-          lua_pop(L, 1);
-        }
-        lua_pop(L, 1);
+      if ((exited & mask) && proxy.on_screen_exit != LUA_NOREF) {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_screen_exit);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+        lua_pushlstring(L, directions[bit].data(), directions[bit].size());
+        pcall(L, 2, 0);
       }
-      if (entered & mask) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
-        lua_getfield(L, -1, "on_screen_enter");
-        if (lua_isfunction(L, -1)) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
-          lua_pushlstring(L, directions[bit].data(), directions[bit].size());
-          pcall(L, 2, 0);
-        } else {
-          lua_pop(L, 1);
-        }
-        lua_pop(L, 1);
+      if ((entered & mask) && proxy.on_screen_enter != LUA_NOREF) {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_screen_enter);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
+        lua_pushlstring(L, directions[bit].data(), directions[bit].size());
+        pcall(L, 2, 0);
       }
     }
 
@@ -726,11 +709,13 @@ void stage::update(float delta) {
 
     for (const auto& event : std::span(events.beginEvents, static_cast<size_t>(events.beginCount)))
       if (resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
-        dispatch_collision(ea, eb, "on_collision_begin");
+        dispatch_collision(ea, eb, _registry.all_of<objectproxy>(ea)
+          ? _registry.get<objectproxy>(ea).on_collision_begin : LUA_NOREF);
 
     for (const auto& event : std::span(events.endEvents, static_cast<size_t>(events.endCount)))
       if (resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
-        dispatch_collision(ea, eb, "on_collision_end");
+        dispatch_collision(ea, eb, _registry.all_of<objectproxy>(ea)
+          ? _registry.get<objectproxy>(ea).on_collision_end : LUA_NOREF);
 
     const auto contact_events = b2World_GetContactEvents(_world);
 
@@ -739,16 +724,20 @@ void stage::update(float delta) {
         continue;
 
       const auto flipped = b2Vec2{-event.manifold.normal.x, -event.manifold.normal.y};
-      dispatch_collision(ea, eb, "on_collision_begin", &event.manifold.normal);
-      dispatch_collision(eb, ea, "on_collision_begin", &flipped);
+      dispatch_collision(ea, eb, _registry.all_of<objectproxy>(ea)
+        ? _registry.get<objectproxy>(ea).on_collision_begin : LUA_NOREF, &event.manifold.normal);
+      dispatch_collision(eb, ea, _registry.all_of<objectproxy>(eb)
+        ? _registry.get<objectproxy>(eb).on_collision_begin : LUA_NOREF, &flipped);
     }
 
     for (const auto& event : std::span(contact_events.endEvents, static_cast<size_t>(contact_events.endCount))) {
       if (!resolve(event.shapeIdA, event.shapeIdB, ea, eb))
         continue;
 
-      dispatch_collision(ea, eb, "on_collision_end");
-      dispatch_collision(eb, ea, "on_collision_end");
+      dispatch_collision(ea, eb, _registry.all_of<objectproxy>(ea)
+        ? _registry.get<objectproxy>(ea).on_collision_end : LUA_NOREF);
+      dispatch_collision(eb, ea, _registry.all_of<objectproxy>(eb)
+        ? _registry.get<objectproxy>(eb).on_collision_end : LUA_NOREF);
     }
   }
 
@@ -841,23 +830,23 @@ void stage::draw() {
 }
 
 void stage::on_enter() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
   lua_getfield(L, -1, "on_enter");
   if (!lua_isfunction(L, -1)) {
     lua_pop(L, 2);
     return;
   }
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
   pcall(L, 1, 0);
   lua_pop(L, 1);
 }
 
 void stage::on_leave() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
   lua_getfield(L, -1, "on_leave");
   if (lua_isfunction(L, -1)) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
     pcall(L, 1, 0);
   } else {
     lua_pop(L, 1);
@@ -868,9 +857,9 @@ void stage::on_leave() {
 }
 
 void stage::expose() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
   lua_setglobal(L, "pool");
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _world_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _world_ref);
   lua_setglobal(L, "world");
 }
 
@@ -886,7 +875,7 @@ void stage::on_tick(uint64_t tick) {
     return;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _on_tick);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
   lua_pushinteger(L, static_cast<lua_Integer>(tick));
   pcall(L, 2, 0);
 }
@@ -1067,19 +1056,13 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       _registry.emplace<sleepable>(entity);
   }
 
-  if (prototype != LUA_NOREF && handle != LUA_NOREF) [[likely]] {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
-    lua_getfield(L, -1, "on_spawn");
-    if (lua_isfunction(L, -1)) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
-      pcall(L, 1, 0);
-    } else {
-      lua_pop(L, 1);
-    }
-    lua_pop(L, 1);
+  if (proxy.on_spawn != LUA_NOREF) [[unlikely]] {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_spawn);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
+    pcall(L, 1, 0);
   }
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
   lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
   lua_setfield(L, -2, name.data());
   lua_pop(L, 1);
@@ -1118,7 +1101,7 @@ int stage::destroy(lua_State* state) {
 
   const auto* label = _stringpool.get(proxy->name);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
   lua_pushnil(L);
   lua_setfield(L, -2, label);
   lua_pop(L, 1);
@@ -1290,7 +1273,10 @@ int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2, fl
   return _tilemap.pathfind(state, x1, y1, x2, y2, radius);
 }
 
-void stage::dispatch_collision(entt::entity entity, entt::entity other, std::string_view callback, const b2Vec2* normal) {
+void stage::dispatch_collision(entt::entity entity, entt::entity other, int callback_ref, const b2Vec2* normal) {
+  if (callback_ref == LUA_NOREF) [[likely]]
+    return;
+
   if (!_registry.valid(entity)
       || !_registry.valid(other)
       || !_registry.all_of<objectproxy>(entity)
@@ -1302,12 +1288,11 @@ void stage::dispatch_collision(entt::entity entity, entt::entity other, std::str
   const auto* name = _stringpool.get(target.name);
   const auto* kind = _stringpool.get(target.kind);
 
-  if (self.prototype == LUA_NOREF || self.handle == LUA_NOREF) [[unlikely]]
+  if (self.handle == LUA_NOREF) [[unlikely]]
     return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, self.prototype);
-  lua_getfield(L, -1, callback.data());
-  if (lua_isfunction(L, -1)) {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, callback_ref);
+  if (lua_isfunction(L, -1)) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, self.handle);
     lua_pushstring(L, name);
     lua_pushstring(L, kind);
@@ -1321,5 +1306,4 @@ void stage::dispatch_collision(entt::entity entity, entt::entity other, std::str
   } else {
     lua_pop(L, 1);
   }
-  lua_pop(L, 1);
 }

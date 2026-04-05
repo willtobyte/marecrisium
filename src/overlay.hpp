@@ -23,8 +23,8 @@ public:
 
 private:
   std::unique_ptr<foreground> _foreground;
-  int _userdata_reference{LUA_NOREF};
-  int _reference{LUA_NOREF};
+  int _userdata_ref{LUA_NOREF};
+  int _ref{LUA_NOREF};
   int _on_loop{LUA_NOREF};
   int _on_paint{LUA_NOREF};
 };

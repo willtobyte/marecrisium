@@ -45,7 +45,7 @@ public:
 
   int pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept;
 
-  void dispatch_collision(entt::entity entity, entt::entity other, std::string_view callback, const b2Vec2* normal = nullptr);
+  void dispatch_collision(entt::entity entity, entt::entity other, int callback_ref, const b2Vec2* normal = nullptr);
 
 private:
   entt::registry _registry{};
@@ -84,10 +84,12 @@ private:
   float _sleep_margin{};
   float _wake_margin{};
 
-  int _reference{LUA_NOREF};
-  int _pool_reference{LUA_NOREF};
-  int _world_reference{LUA_NOREF};
+  int _ref{LUA_NOREF};
+  int _pool_ref{LUA_NOREF};
+  int _world_ref{LUA_NOREF};
   int _on_loop{LUA_NOREF};
   int _on_camera{LUA_NOREF};
   int _on_tick{LUA_NOREF};
+  int _on_enter{LUA_NOREF};
+  int _on_leave{LUA_NOREF};
 };

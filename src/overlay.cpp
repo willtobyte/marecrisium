@@ -137,9 +137,9 @@ overlay::overlay(std::string_view name) {
   }
   lua_pop(L, 1);
 
-  _reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  _ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
 
   lua_getfield(L, -1, "on_loop");
   _on_loop = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
@@ -153,7 +153,7 @@ overlay::overlay(std::string_view name) {
   *m = this;
   luaL_getmetatable(L, "Overlay");
   lua_setmetatable(L, -2);
-  _userdata_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  _userdata_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   // SDL_AddEventWatch(on_event, this);
   // SDL_StartTextInput(SDL_GetRenderWindow(renderer));
@@ -166,10 +166,10 @@ overlay::~overlay() {
   _on_paint = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   _on_loop = LUA_NOREF;
-  luaL_unref(L, LUA_REGISTRYINDEX, _reference);
-  _reference = LUA_NOREF;
-  luaL_unref(L, LUA_REGISTRYINDEX, _userdata_reference);
-  _userdata_reference = LUA_NOREF;
+  luaL_unref(L, LUA_REGISTRYINDEX, _ref);
+  _ref = LUA_NOREF;
+  luaL_unref(L, LUA_REGISTRYINDEX, _userdata_ref);
+  _userdata_ref = LUA_NOREF;
 }
 
 void overlay::wire() {
@@ -191,7 +191,7 @@ void overlay::update(float delta) {
 
   if (_on_loop != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
     pcall(L, 2, 0);
   }
@@ -203,13 +203,13 @@ void overlay::draw() {
 
   if (_on_paint != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
     pcall(L, 1, 0);
   }
 }
 
 void overlay::expose() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_ref);
   lua_setglobal(L, "overlay");
 }
 
