@@ -23,13 +23,15 @@ Bitcoin?
 
 ## Resources
 
-Minerals
-Xenotime — High rarity
-Monazite — Medium rarity
-Cerite — Low rarity
+### Minerals
 
-Gases
-Argon-40
+* Xenotime — High rarity
+* Monazite — Medium rarity
+* Cerite — Low rarity
+
+### Gases
+
+* Argon-40
 
 Rare minerals can be mined using the Quantum Shatterer, while noble
 gases require a probe that collects them automatically.
