@@ -2,103 +2,114 @@
 
 constexpr int MAX_DEPTH = 6;
 constexpr int MAX_ENTRIES = 10;
+constexpr size_t INITIAL_RESERVE = 512;
 
-static void pretty(lua_State *state, luaL_Buffer *buffer, int index, int depth, std::vector<const void *> &visited) {
+static int _traceback_ref = LUA_NOREF;
+
+struct breadcrumbs final {
+  std::array<const void *, MAX_DEPTH> _data{};
+  int _size{0};
+
+  [[nodiscard]] bool contains(const void *ptr) const noexcept {
+    for (int i = 0; i < _size; ++i)
+      if (_data[static_cast<size_t>(i)] == ptr) [[unlikely]]
+        return true;
+    return false;
+  }
+
+  void push(const void *ptr) noexcept {
+    _data[static_cast<size_t>(_size++)] = ptr;
+  }
+
+  void pop() noexcept { --_size; }
+};
+
+static void pretty(lua_State *state, std::string &output, int index, int depth, breadcrumbs &visited) {
   const auto type = lua_type(state, index);
+  auto out = std::back_inserter(output);
 
   switch (type) {
   case LUA_TSTRING:
-    luaL_addstring(buffer, "\"");
-    luaL_addstring(buffer, lua_tostring(state, index));
-    luaL_addstring(buffer, "\"");
+    std::format_to(out, "\"{}\"", lua_tostring(state, index));
     break;
 
-  case LUA_TNUMBER: {
-    lua_pushvalue(state, index);
-    luaL_addvalue(buffer);
-  } break;
+  case LUA_TNUMBER:
+    std::format_to(out, "{:.14g}", lua_tonumber(state, index));
+    break;
 
   case LUA_TBOOLEAN:
-    luaL_addstring(buffer, lua_toboolean(state, index) ? "true" : "false");
+    std::format_to(out, "{}", lua_toboolean(state, index) ? "true" : "false");
     break;
 
   case LUA_TNIL:
-    luaL_addstring(buffer, "nil");
+    std::format_to(out, "nil");
     break;
 
   case LUA_TTABLE: {
     const auto *ptr = lua_topointer(state, index);
-    if (std::find(visited.begin(), visited.end(), ptr) != visited.end()) {
-      luaL_addstring(buffer, "(circular)");
+    if (visited.contains(ptr)) [[unlikely]] {
+      std::format_to(out, "(circular)");
       break;
     }
 
-    if (depth >= MAX_DEPTH) {
-      luaL_addstring(buffer, "{...}");
+    if (depth >= MAX_DEPTH) [[unlikely]] {
+      std::format_to(out, "{{...}}");
       break;
     }
 
-    visited.push_back(ptr);
+    visited.push(ptr);
 
-    luaL_addstring(buffer, "{ ");
+    std::format_to(out, "{{ ");
     const auto abs = index > 0 ? index : lua_gettop(state) + index + 1;
     lua_pushnil(state);
     auto count = 0;
     while (lua_next(state, abs) != 0) {
-      if (count >= MAX_ENTRIES) {
-        luaL_addstring(buffer, "... ");
+      if (count >= MAX_ENTRIES) [[unlikely]] {
+        std::format_to(out, "... ");
         lua_pop(state, 2);
         break;
       }
 
-      if (count > 0)
-        luaL_addstring(buffer, ", ");
+      if (count > 0) [[likely]]
+        std::format_to(out, ", ");
 
-      if (lua_type(state, -2) == LUA_TSTRING) {
-        luaL_addstring(buffer, lua_tostring(state, -2));
-        luaL_addstring(buffer, " = ");
+      if (lua_type(state, -2) == LUA_TSTRING) [[likely]] {
+        std::format_to(out, "{} = ", lua_tostring(state, -2));
       } else if (lua_type(state, -2) == LUA_TNUMBER) {
-        luaL_addstring(buffer, "[");
-        lua_pushvalue(state, -2);
-        luaL_addvalue(buffer);
-        luaL_addstring(buffer, "] = ");
+        std::format_to(out, "[{:.14g}] = ", lua_tonumber(state, -2));
       }
 
-      pretty(state, buffer, lua_gettop(state), depth + 1, visited);
+      pretty(state, output, lua_gettop(state), depth + 1, visited);
       lua_pop(state, 1);
       ++count;
     }
 
-    luaL_addstring(buffer, " }");
-    visited.pop_back();
+    std::format_to(out, " }}");
+    visited.pop();
   } break;
 
   case LUA_TUSERDATA: {
-    if (lua_getmetatable(state, index)) {
+    if (lua_getmetatable(state, index)) [[likely]] {
       lua_getfield(state, -1, "__name");
-      if (lua_isstring(state, -1)) {
-        luaL_addstring(buffer, "(");
-        luaL_addstring(buffer, lua_tostring(state, -1));
-        luaL_addstring(buffer, ")");
+      if (lua_isstring(state, -1)) [[likely]] {
+        std::format_to(out, "({})", lua_tostring(state, -1));
       } else {
-        luaL_addstring(buffer, "(userdata)");
+        std::format_to(out, "(userdata)");
       }
       lua_pop(state, 2);
     } else {
-      luaL_addstring(buffer, "(userdata)");
+      std::format_to(out, "(userdata)");
     }
   } break;
 
   case LUA_TLIGHTUSERDATA: {
-    std::array<char, 32> addr;
-    std::snprintf(addr.data(), addr.size(), "(lightuserdata: %p)", lua_topointer(state, index));
-    luaL_addstring(buffer, addr.data());
+    std::array<char, 32> addr{};
+    std::snprintf(addr.data(), addr.size(), "%p", lua_topointer(state, index));
+    std::format_to(out, "(lightuserdata: {})", static_cast<const char *>(addr.data()));
   } break;
 
   default:
-    luaL_addstring(buffer, "(");
-    luaL_addstring(buffer, lua_typename(state, type));
-    luaL_addstring(buffer, ")");
+    std::format_to(out, "({})", lua_typename(state, type));
     break;
   }
 }
@@ -106,18 +117,19 @@ static void pretty(lua_State *state, luaL_Buffer *buffer, int index, int depth, 
 static int traceback(lua_State *state) {
   luaL_traceback(state, state, lua_tostring(state, 1), 1);
 
-  luaL_Buffer buffer;
-  luaL_buffinit(state, &buffer);
-  luaL_addvalue(&buffer);
+  std::string result = lua_tostring(state, -1);
+  lua_pop(state, 1);
+  result.reserve(INITIAL_RESERVE);
 
-  std::vector<const void *> visited;
-  visited.reserve(MAX_DEPTH);
+  breadcrumbs visited;
+  auto out = std::back_inserter(result);
 
   lua_Debug debug;
   for (int level = 1; lua_getstack(state, level, &debug); ++level) {
     lua_getinfo(state, "Sl", &debug);
+    const auto *src = static_cast<const char *>(debug.short_src);
 
-    bool locals = false;
+    bool has_locals = false;
     for (int i = 1;; ++i) {
       const auto *name = lua_getlocal(state, &debug, i);
       if (!name)
@@ -128,30 +140,21 @@ static int traceback(lua_State *state) {
         continue;
       }
 
-      if (!locals) {
-        luaL_addstring(&buffer, "\n    locals at ");
-        luaL_addstring(&buffer, debug.short_src);
-        luaL_addstring(&buffer, ":");
-        lua_pushinteger(state, debug.currentline);
-        luaL_addvalue(&buffer);
-        luaL_addstring(&buffer, ":");
-        locals = true;
+      if (!has_locals) [[unlikely]] {
+        std::format_to(out, "\n    locals at {}:{}:", src, debug.currentline);
+        has_locals = true;
       }
 
-      luaL_addstring(&buffer, "\n      ");
-      luaL_addstring(&buffer, name);
-      luaL_addstring(&buffer, " = ");
+      std::format_to(out, "\n      {} = ", name);
 
-      pretty(state, &buffer, -1, 0, visited);
+      pretty(state, result, -1, 0, visited);
       lua_pop(state, 1);
     }
   }
 
-  luaL_pushresult(&buffer);
+  lua_pushlstring(state, result.data(), result.size());
   return 1;
 }
-
-static int _traceback_ref = LUA_NOREF;
 
 void binding::wire() {
   lua_pushcfunction(L, traceback);
