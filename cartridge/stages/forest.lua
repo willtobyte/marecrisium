@@ -40,7 +40,6 @@ return scheduler.wrap({
 	on_enter = function(self)
 		pool.theme1:fade(0, 1, 500)
 		pool.theme1:play()
-		error("ad")
 	end,
 
 	on_leave = function(self)
