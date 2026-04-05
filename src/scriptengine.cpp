@@ -29,6 +29,8 @@ void scriptengine::run() {
 
   lua_pop(L, 2);
 
+  binding::wire();
+
   achievement::wire();
   cassette::wire();
   foreground::wire();

@@ -184,7 +184,7 @@ void engine::loop() {
     tick = now;
   }
 
-  lua_gc(L, LUA_GCSTEP, 100);
+  lua_gc(L, LUA_GCSTEP, 128);
 
   // websocket::poll();
 

@@ -525,7 +525,7 @@ void stage::update(float delta) {
     }
   }
 
-  if (_on_loop != LUA_NOREF) {
+  if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
@@ -634,7 +634,7 @@ void stage::update(float delta) {
     ++steps;
   }
 
-  if (_on_camera != LUA_NOREF) {
+  if (_on_camera != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
 
@@ -707,15 +707,23 @@ void stage::update(float delta) {
     const auto events = b2World_GetSensorEvents(_world);
     entt::entity ea, eb;
 
-    for (const auto& event : std::span(events.beginEvents, static_cast<size_t>(events.beginCount)))
-      if (resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
-        dispatch_collision(ea, eb, _registry.all_of<objectproxy>(ea)
-          ? _registry.get<objectproxy>(ea).on_collision_begin : LUA_NOREF);
+    for (const auto& event : std::span(events.beginEvents, static_cast<size_t>(events.beginCount))) {
+      if (!resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
+        continue;
 
-    for (const auto& event : std::span(events.endEvents, static_cast<size_t>(events.endCount)))
-      if (resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
-        dispatch_collision(ea, eb, _registry.all_of<objectproxy>(ea)
-          ? _registry.get<objectproxy>(ea).on_collision_end : LUA_NOREF);
+      const auto *pa = _registry.try_get<objectproxy>(ea);
+      const auto *pb = _registry.try_get<objectproxy>(eb);
+      if (pa) dispatch_collision(*pa, pb, pa->on_collision_begin);
+    }
+
+    for (const auto& event : std::span(events.endEvents, static_cast<size_t>(events.endCount))) {
+      if (!resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
+        continue;
+
+      const auto *pa = _registry.try_get<objectproxy>(ea);
+      const auto *pb = _registry.try_get<objectproxy>(eb);
+      if (pa) dispatch_collision(*pa, pb, pa->on_collision_end);
+    }
 
     const auto contact_events = b2World_GetContactEvents(_world);
 
@@ -723,21 +731,21 @@ void stage::update(float delta) {
       if (!resolve(event.shapeIdA, event.shapeIdB, ea, eb))
         continue;
 
+      const auto *pa = _registry.try_get<objectproxy>(ea);
+      const auto *pb = _registry.try_get<objectproxy>(eb);
       const auto flipped = b2Vec2{-event.manifold.normal.x, -event.manifold.normal.y};
-      dispatch_collision(ea, eb, _registry.all_of<objectproxy>(ea)
-        ? _registry.get<objectproxy>(ea).on_collision_begin : LUA_NOREF, &event.manifold.normal);
-      dispatch_collision(eb, ea, _registry.all_of<objectproxy>(eb)
-        ? _registry.get<objectproxy>(eb).on_collision_begin : LUA_NOREF, &flipped);
+      if (pa) dispatch_collision(*pa, pb, pa->on_collision_begin, &event.manifold.normal);
+      if (pb) dispatch_collision(*pb, pa, pb->on_collision_begin, &flipped);
     }
 
     for (const auto& event : std::span(contact_events.endEvents, static_cast<size_t>(contact_events.endCount))) {
       if (!resolve(event.shapeIdA, event.shapeIdB, ea, eb))
         continue;
 
-      dispatch_collision(ea, eb, _registry.all_of<objectproxy>(ea)
-        ? _registry.get<objectproxy>(ea).on_collision_end : LUA_NOREF);
-      dispatch_collision(eb, ea, _registry.all_of<objectproxy>(eb)
-        ? _registry.get<objectproxy>(eb).on_collision_end : LUA_NOREF);
+      const auto *pa = _registry.try_get<objectproxy>(ea);
+      const auto *pb = _registry.try_get<objectproxy>(eb);
+      if (pa) dispatch_collision(*pa, pb, pa->on_collision_end);
+      if (pb) dispatch_collision(*pb, pa, pb->on_collision_end);
     }
   }
 
@@ -1273,37 +1281,22 @@ int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2, fl
   return _tilemap.pathfind(state, x1, y1, x2, y2, radius);
 }
 
-void stage::dispatch_collision(entt::entity entity, entt::entity other, int callback_ref, const b2Vec2* normal) {
+void stage::dispatch_collision(const objectproxy& self, const objectproxy* target, int callback_ref, const b2Vec2* normal) {
   if (callback_ref == LUA_NOREF) [[likely]]
     return;
 
-  if (!_registry.valid(entity)
-      || !_registry.valid(other)
-      || !_registry.all_of<objectproxy>(entity)
-      || !_registry.all_of<objectproxy>(other)) [[unlikely]]
-    return;
-
-  const auto& self = _registry.get<objectproxy>(entity);
-  const auto& target = _registry.get<objectproxy>(other);
-  const auto* name = _stringpool.get(target.name);
-  const auto* kind = _stringpool.get(target.kind);
-
-  if (self.handle == LUA_NOREF) [[unlikely]]
+  if (self.handle == LUA_NOREF || !target) [[unlikely]]
     return;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, callback_ref);
-  if (lua_isfunction(L, -1)) [[likely]] {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, self.handle);
-    lua_pushstring(L, name);
-    lua_pushstring(L, kind);
-    if (normal) {
-      lua_pushnumber(L, static_cast<lua_Number>(normal->x));
-      lua_pushnumber(L, static_cast<lua_Number>(normal->y));
-      pcall(L, 5, 0);
-    } else {
-      pcall(L, 3, 0);
-    }
+  lua_rawgeti(L, LUA_REGISTRYINDEX, self.handle);
+  lua_pushstring(L, _stringpool.get(target->name));
+  lua_pushstring(L, _stringpool.get(target->kind));
+  if (normal) {
+    lua_pushnumber(L, static_cast<lua_Number>(normal->x));
+    lua_pushnumber(L, static_cast<lua_Number>(normal->y));
+    pcall(L, 5, 0);
   } else {
-    lua_pop(L, 1);
+    pcall(L, 3, 0);
   }
 }

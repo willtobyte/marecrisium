@@ -189,7 +189,7 @@ void overlay::update(float delta) {
   if (_foreground)
     _foreground->update(delta);
 
-  if (_on_loop != LUA_NOREF) {
+  if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
@@ -201,7 +201,7 @@ void overlay::draw() {
   if (_foreground)
     _foreground->draw();
 
-  if (_on_paint != LUA_NOREF) {
+  if (_on_paint != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
     pcall(L, 1, 0);

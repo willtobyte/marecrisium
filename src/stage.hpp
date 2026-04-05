@@ -45,7 +45,7 @@ public:
 
   int pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept;
 
-  void dispatch_collision(entt::entity entity, entt::entity other, int callback_ref, const b2Vec2* normal = nullptr);
+  void dispatch_collision(const objectproxy& self, const objectproxy* target, int callback_ref, const b2Vec2* normal = nullptr);
 
 private:
   entt::registry _registry{};

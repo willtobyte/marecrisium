@@ -151,9 +151,16 @@ static int traceback(lua_State *state) {
   return 1;
 }
 
+static int _traceback_ref = LUA_NOREF;
+
+void binding::wire() {
+  lua_pushcfunction(L, traceback);
+  _traceback_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+}
+
 void pcall(lua_State *state, int nargs, int nresults) {
   const auto handler = lua_gettop(state) - nargs;
-  lua_pushcfunction(state, traceback);
+  lua_rawgeti(state, LUA_REGISTRYINDEX, _traceback_ref);
   lua_insert(state, handler);
 
   if (lua_pcall(state, nargs, nresults, handler) != 0) [[unlikely]] {

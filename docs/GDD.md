@@ -46,15 +46,15 @@ of atoms, making it a perfect disintegration tool.
 
 ### Upgrades
 
-0x00x -
-0x01x -
-0x02x -
-0x03x -
+* 0x00x -
+* 0x01x -
+* 0x02x -
+* 0x03x -
 
 ## Enemies
 
-- Johnny 5 with a drill.
-- Zombie snail (infected by a parasite)
+* Johnny 5 with a drill.
+* Zombie snail (infected by a parasite)
 
 ## Relationships
 
