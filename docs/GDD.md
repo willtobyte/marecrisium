@@ -33,6 +33,8 @@ Bitcoin?
 
 * Argon-40
 
+### Gathering resources
+
 Rare minerals can be mined using the Quantum Shatterer, while noble
 gases require a probe that collects them automatically.
 
