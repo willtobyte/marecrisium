@@ -2,29 +2,20 @@
 
 namespace {
 namespace property {
-  constexpr auto x = "x"_hs;
-  constexpr auto y = "y"_hs;
-  constexpr auto position = "position"_hs;
+  constexpr auto x      = "x"_hs;
+  constexpr auto y      = "y"_hs;
   constexpr auto button = "button"_hs;
-  constexpr auto shown = "shown"_hs;
+  constexpr auto shown  = "shown"_hs;
 }
 }
-
-static int mouse_position(lua_State *state) {
-  float x, y;
-  SDL_GetMouseState(&x, &y);
-  SDL_RenderCoordinatesFromWindow(renderer, x, y, &x, &y);
-  x += viewport.x;
-  y += viewport.y;
-  lua_pushnumber(state, static_cast<lua_Number>(x));
-  lua_pushnumber(state, static_cast<lua_Number>(y));
-  return 2;
-}
-
-static int _position_ref = LUA_NOREF;
 
 static int mouse_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
+
+  if (id == property::shown) {
+    lua_pushboolean(state, SDL_CursorVisible() ? 1 : 0);
+    return 1;
+  }
 
   float x, y;
   const auto button = SDL_GetMouseState(&x, &y);
@@ -39,10 +30,6 @@ static int mouse_index(lua_State *state) {
 
     case property::y:
       lua_pushnumber(state, static_cast<lua_Number>(y));
-      return 1;
-
-    case property::position:
-      lua_rawgeti(state, LUA_REGISTRYINDEX, _position_ref);
       return 1;
 
     case property::button:
@@ -64,10 +51,6 @@ static int mouse_index(lua_State *state) {
       lua_pushinteger(state, static_cast<lua_Integer>(0));
       return 1;
 
-    case property::shown:
-      lua_pushboolean(state, SDL_CursorVisible() ? 1 : 0);
-      return 1;
-
     default:
       return lua_pushnil(state), 1;
   }
@@ -87,9 +70,6 @@ static int mouse_newindex(lua_State *state) {
 }
 
 void mouse::wire() {
-  lua_pushcfunction(L, mouse_position);
-  _position_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-
   metatable(L, "Mouse", mouse_index, mouse_newindex);
 
   singleton(L, "Mouse", "mouse");

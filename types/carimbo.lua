@@ -81,11 +81,6 @@ keyboard = {}
 ---@field shown boolean Whether the mouse cursor is visible (read/write).
 local Mouse = {}
 
----Returns the mouse position as two values.
----@return number x Mouse X position in logical coordinates.
----@return number y Mouse Y position in logical coordinates.
-function Mouse:position() end
-
 ---Global mouse state.
 ---@type Mouse
 mouse = {}

@@ -9,6 +9,9 @@ public:
 
   const char* get(entt::id_type key) const noexcept;
 
+  int ref(entt::id_type key) const noexcept;
+
 private:
   ankerl::unordered_dense::map<entt::id_type, std::string> _pool;
+  ankerl::unordered_dense::map<entt::id_type, int> _references;
 };

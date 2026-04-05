@@ -9,6 +9,9 @@ namespace {
   }
 }
 
+static int _persona_ref = LUA_NOREF;
+static int _friends_ref = LUA_NOREF;
+
 static int friend_newindex(lua_State *state) {
   const auto *key = luaL_checkstring(state, 2);
   return luaL_error(state, "attempt to write read-only field '%s'", key);
@@ -45,40 +48,12 @@ static int user_index(lua_State *state) {
 
   switch (id) {
     case property::persona:
-      lua_pushstring(state, GetPersonaName());
+      lua_rawgeti(state, LUA_REGISTRYINDEX, _persona_ref);
       return 1;
 
-    case property::friends: {
-      const auto count = GetFriendCount();
-
-      lua_newtable(state);
-
-      auto index = 1;
-      for (auto i = 0; i < count; ++i) {
-        const auto fid = GetFriendByIndex(i);
-        if (fid == 0) [[unlikely]]
-          continue;
-
-        const std::string_view name = GetFriendPersonaName(fid);
-        if (name.empty()) [[unlikely]]
-          continue;
-
-        lua_newuserdata(state, 1);
-        luaL_getmetatable(state, "Friend");
-        lua_setmetatable(state, -2);
-
-        lua_newtable(state);
-        lua_pushinteger(state, static_cast<lua_Integer>(fid));
-        lua_setfield(state, -2, "id");
-        lua_pushlstring(state, name.data(), name.size());
-        lua_setfield(state, -2, "name");
-        lua_setfenv(state, -2);
-
-        lua_rawseti(state, -2, index++);
-      }
-
+    case property::friends:
+      lua_rawgeti(state, LUA_REGISTRYINDEX, _friends_ref);
       return 1;
-    }
 
     default:
       return lua_pushnil(state), 1;
@@ -87,6 +62,38 @@ static int user_index(lua_State *state) {
 
 void user::wire() {
   metatable(L, "Friend", friend_index, friend_newindex);
+
+  lua_pushstring(L, GetPersonaName());
+  _persona_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  const auto count = GetFriendCount();
+  lua_newtable(L);
+
+  auto index = 1;
+  for (auto i = 0; i < count; ++i) {
+    const auto fid = GetFriendByIndex(i);
+    if (fid == 0) [[unlikely]]
+      continue;
+
+    const std::string_view name = GetFriendPersonaName(fid);
+    if (name.empty()) [[unlikely]]
+      continue;
+
+    lua_newuserdata(L, 1);
+    luaL_getmetatable(L, "Friend");
+    lua_setmetatable(L, -2);
+
+    lua_newtable(L);
+    lua_pushinteger(L, static_cast<lua_Integer>(fid));
+    lua_setfield(L, -2, "id");
+    lua_pushlstring(L, name.data(), name.size());
+    lua_setfield(L, -2, "name");
+    lua_setfenv(L, -2);
+
+    lua_rawseti(L, -2, index++);
+  }
+
+  _friends_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "User", user_index, user_newindex);
 

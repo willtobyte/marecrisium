@@ -98,7 +98,7 @@ namespace {
           return lua_pushnil(state), 1;
 
         const auto* strings = registry.ctx().get<stringpool*>();
-        lua_pushstring(state, strings->get(a.clips[a.active].name));
+        lua_rawgeti(state, LUA_REGISTRYINDEX, strings->ref(a.clips[a.active].name));
         return 1;
       }
 
@@ -267,14 +267,14 @@ namespace {
               && proxy->on_animation_end != LUA_NOREF) [[unlikely]] {
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-            lua_pushstring(state, strings->get(previous));
+            lua_rawgeti(state, LUA_REGISTRYINDEX, strings->ref(previous));
             pcall(state, 2, 0);
           }
 
           if (proxy->on_animation_begin != LUA_NOREF) {
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-            lua_pushstring(state, strings->get(hash));
+            lua_rawgeti(state, LUA_REGISTRYINDEX, strings->ref(hash));
             pcall(state, 2, 0);
           }
 
