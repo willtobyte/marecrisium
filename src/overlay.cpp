@@ -99,6 +99,8 @@ namespace {
   namespace property {
     constexpr auto label = "label"_hs;
   }
+
+  int _label_ref = LUA_NOREF;
 }
 
 static int overlay_index(lua_State *state) {
@@ -106,7 +108,7 @@ static int overlay_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id == property::label) {
-    lua_pushcfunction(state, overlay_label);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, _label_ref);
     return 1;
   }
 
@@ -173,6 +175,9 @@ overlay::~overlay() {
 }
 
 void overlay::wire() {
+  lua_pushcfunction(L, overlay_label);
+  _label_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
   metatable(L, "Overlay", overlay_index);
 }
 

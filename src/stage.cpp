@@ -120,6 +120,10 @@ static void on_objectproxy_destroy(entt::registry& registry, entt::entity entity
     userdata->on_animation_end = LUA_NOREF;
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_loop);
     userdata->on_loop = LUA_NOREF;
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->kind_ref);
+    userdata->kind_ref = LUA_NOREF;
+    luaL_unref(L, LUA_REGISTRYINDEX, userdata->name_ref);
+    userdata->name_ref = LUA_NOREF;
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->prototype);
     userdata->prototype = LUA_NOREF;
   }
@@ -444,10 +448,20 @@ stage::stage(std::string_view name)
   lua_getfield(L, -1, "on_tick");
   _on_tick = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
+  lua_getfield(L, -1, "on_enter");
+  _on_enter = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+
+  lua_getfield(L, -1, "on_leave");
+  _on_leave = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+
   lua_pop(L, 1);
 }
 
 stage::~stage() {
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_leave);
+  _on_leave = LUA_NOREF;
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_enter);
+  _on_enter = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _on_tick);
   _on_tick = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _on_camera);
@@ -838,28 +852,20 @@ void stage::draw() {
 }
 
 void stage::on_enter() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
-  lua_getfield(L, -1, "on_enter");
-  if (!lua_isfunction(L, -1)) {
-    lua_pop(L, 2);
+  if (_on_enter == LUA_NOREF)
     return;
-  }
 
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _on_enter);
   lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
   pcall(L, 1, 0);
-  lua_pop(L, 1);
 }
 
 void stage::on_leave() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
-  lua_getfield(L, -1, "on_leave");
-  if (lua_isfunction(L, -1)) {
+  if (_on_leave != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_leave);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
     pcall(L, 1, 0);
-  } else {
-    lua_pop(L, 1);
   }
-  lua_pop(L, 1);
 
   conceal();
 }
@@ -1290,8 +1296,8 @@ void stage::dispatch_collision(const objectproxy& self, const objectproxy* targe
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, callback_ref);
   lua_rawgeti(L, LUA_REGISTRYINDEX, self.handle);
-  lua_pushstring(L, _stringpool.get(target->name));
-  lua_pushstring(L, _stringpool.get(target->kind));
+  lua_rawgeti(L, LUA_REGISTRYINDEX, target->name_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, target->kind_ref);
   if (normal) {
     lua_pushnumber(L, static_cast<lua_Number>(normal->x));
     lua_pushnumber(L, static_cast<lua_Number>(normal->y));

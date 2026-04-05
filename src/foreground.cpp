@@ -5,6 +5,8 @@ namespace property {
   constexpr auto draw = "draw"_hs;
 }
 
+int _draw_ref = LUA_NOREF;
+
 int foreground_draw(lua_State *state) {
   auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
   luaL_checktype(state, 2, LUA_TTABLE);
@@ -93,7 +95,7 @@ int foreground_index(lua_State *state) {
   const auto id = entt::hashed_string{key.data()};
 
   if (id == property::draw) {
-    lua_pushcfunction(state, foreground_draw);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, _draw_ref);
     return 1;
   }
 
@@ -188,6 +190,9 @@ foreground::~foreground() {
 }
 
 void foreground::wire() {
+  lua_pushcfunction(L, foreground_draw);
+  _draw_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
   metatable(L, "Foreground", foreground_index);
 }
 

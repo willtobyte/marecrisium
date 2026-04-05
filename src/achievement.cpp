@@ -26,16 +26,21 @@ static int achievement_unlock(lua_State *state) {
   return 1;
 }
 
+static int _unlock_ref = LUA_NOREF;
+
 static int achievement_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id == property::unlock)
-    return lua_pushcfunction(state, achievement_unlock), 1;
+    return lua_rawgeti(state, LUA_REGISTRYINDEX, _unlock_ref), 1;
 
   return lua_pushnil(state), 1;
 }
 
 void achievement::wire() {
+  lua_pushcfunction(L, achievement_unlock);
+  _unlock_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
   metatable(L, "Achievement", achievement_index);
 
   singleton(L, "Achievement", "achievement");

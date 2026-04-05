@@ -21,6 +21,8 @@ static int mouse_position(lua_State *state) {
   return 2;
 }
 
+static int _position_ref = LUA_NOREF;
+
 static int mouse_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
@@ -40,7 +42,7 @@ static int mouse_index(lua_State *state) {
       return 1;
 
     case property::position:
-      lua_pushcfunction(state, mouse_position);
+      lua_rawgeti(state, LUA_REGISTRYINDEX, _position_ref);
       return 1;
 
     case property::button:
@@ -85,6 +87,9 @@ static int mouse_newindex(lua_State *state) {
 }
 
 void mouse::wire() {
+  lua_pushcfunction(L, mouse_position);
+  _position_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
   metatable(L, "Mouse", mouse_index, mouse_newindex);
 
   singleton(L, "Mouse", "mouse");

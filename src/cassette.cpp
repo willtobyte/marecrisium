@@ -27,12 +27,14 @@ static int cassette_clear(lua_State *state) {
   return 0;
 }
 
+static int _clear_ref = LUA_NOREF;
+
 static int cassette_index(lua_State *state) {
   const std::string_view key = luaL_checkstring(state, 2);
   const auto id = entt::hashed_string{key.data()};
 
   if (id == property::clear) [[unlikely]]
-    return lua_pushcfunction(state, cassette_clear), 1;
+    return lua_rawgeti(state, LUA_REGISTRYINDEX, _clear_ref), 1;
 
   if (const auto it = cache.find(key); it != cache.end()) [[likely]] {
     lua_rawgeti(state, LUA_REGISTRYINDEX, it->second);
@@ -131,6 +133,9 @@ void cassette::wire() {
     sqlite3_finalize(stmt_clear);
     sqlite3_close(database);
   });
+
+  lua_pushcfunction(L, cassette_clear);
+  _clear_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Cassette", cassette_index, cassette_newindex);
 

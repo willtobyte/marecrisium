@@ -119,17 +119,13 @@ namespace {
         lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).alpha));
         return 1;
 
-      case property::name: {
-        const auto* strings = registry.ctx().get<stringpool*>();
-        lua_pushstring(state, strings->get(proxy->name));
+      case property::name:
+        lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->name_ref);
         return 1;
-      }
 
-      case property::kind: {
-        const auto* strings = registry.ctx().get<stringpool*>();
-        lua_pushstring(state, strings->get(proxy->kind));
+      case property::kind:
+        lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->kind_ref);
         return 1;
-      }
 
       case property::position: {
         const auto& tf = registry.get<transform>(entity);
@@ -356,6 +352,10 @@ namespace {
     proxy->on_animation_end = LUA_NOREF;
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_loop);
     proxy->on_loop = LUA_NOREF;
+    luaL_unref(state, LUA_REGISTRYINDEX, proxy->kind_ref);
+    proxy->kind_ref = LUA_NOREF;
+    luaL_unref(state, LUA_REGISTRYINDEX, proxy->name_ref);
+    proxy->name_ref = LUA_NOREF;
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->prototype);
     proxy->prototype = LUA_NOREF;
 
@@ -367,6 +367,12 @@ namespace {
 objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::string_view name, std::string_view kind)
     : registry(&registry), entity(entity), name(entt::hashed_string{name.data()}), kind(entt::hashed_string{kind.data()}) {
   depot->source.insert(kind);
+
+  lua_pushlstring(L, name.data(), name.size());
+  name_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  lua_pushlstring(L, kind.data(), kind.size());
+  kind_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   pcall(L, 0, 1);
 

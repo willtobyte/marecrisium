@@ -58,6 +58,12 @@ namespace {
     return 0;
   }
 
+  int _play_ref = LUA_NOREF;
+  int _stop_ref = LUA_NOREF;
+  int _fade_ref = LUA_NOREF;
+  int _on_begin_ref = LUA_NOREF;
+  int _on_end_ref = LUA_NOREF;
+
   int sound_index(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
@@ -80,23 +86,23 @@ namespace {
         return 1;
 
       case property::play:
-        lua_pushcfunction(state, sound_play);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, _play_ref);
         return 1;
 
       case property::stop:
-        lua_pushcfunction(state, sound_stop);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, _stop_ref);
         return 1;
 
       case property::fade:
-        lua_pushcfunction(state, sound_fade);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, _fade_ref);
         return 1;
 
       case property::on_begin:
-        lua_pushcfunction(state, sound_on_begin);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, _on_begin_ref);
         return 1;
 
       case property::on_end:
-        lua_pushcfunction(state, sound_on_end);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, _on_end_ref);
         return 1;
 
       default:
@@ -248,5 +254,16 @@ void sound::poll() {
 }
 
 void sound::wire() {
+  lua_pushcfunction(L, sound_play);
+  _play_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  lua_pushcfunction(L, sound_stop);
+  _stop_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  lua_pushcfunction(L, sound_fade);
+  _fade_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  lua_pushcfunction(L, sound_on_begin);
+  _on_begin_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  lua_pushcfunction(L, sound_on_end);
+  _on_end_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
   metatable(L, "Sound", sound_index, sound_newindex);
 }

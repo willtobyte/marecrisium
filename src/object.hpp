@@ -7,6 +7,8 @@ struct objectproxy final {
   entt::id_type kind{};
   int prototype{LUA_NOREF};
   int handle{LUA_NOREF};
+  int name_ref{LUA_NOREF};
+  int kind_ref{LUA_NOREF};
   int on_loop{LUA_NOREF};
   int on_animation_end{LUA_NOREF};
   int on_animation_begin{LUA_NOREF};
