@@ -44,9 +44,9 @@ return {
 		end
 
 		if velocity_x < 0 then
-			self.flip = "horizontal"
+			self.flip = flip.horizontal
 		elseif velocity_x > 0 then
-			self.flip = "none"
+			self.flip = flip.none
 		end
 
 		self.velocity_x = velocity_x

@@ -3,7 +3,7 @@
 class pixmap;
 class sound;
 
-enum class flipmode : uint8_t {
+enum class mirror : uint8_t {
   none = SDL_FLIP_NONE,
   horizontal = SDL_FLIP_HORIZONTAL,
   vertical = SDL_FLIP_VERTICAL,
@@ -19,7 +19,7 @@ struct transform final {
   float angle{};
   float alpha{255.f};
   bool shown{true};
-  flipmode flip{flipmode::none};
+  mirror flip{mirror::none};
 };
 
 static_assert(std::is_trivially_copyable_v<transform>);

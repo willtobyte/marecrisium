@@ -212,7 +212,7 @@ function agent:chase(object, target, world)
 	local velocity_x = cos(angle) * self.speed
 	local velocity_y = sin(angle) * self.speed
 
-	object.flip = velocity_x < 0 and "horizontal" or velocity_x > 0 and "none" or object.flip
+	object.flip = velocity_x < 0 and flip.horizontal or velocity_x > 0 and flip.none or object.flip
 	object.velocity_x = velocity_x
 	object.velocity_y = velocity_y
 end

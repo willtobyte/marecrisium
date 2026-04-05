@@ -83,20 +83,8 @@ namespace {
       }
 
       case property::flip:
-        switch (registry.get<transform>(entity).flip) {
-          case flipmode::horizontal:
-            lua_pushstring(state, "horizontal");
-            return 1;
-          case flipmode::vertical:
-            lua_pushstring(state, "vertical");
-            return 1;
-          case flipmode::both:
-            lua_pushstring(state, "both");
-            return 1;
-          default:
-            lua_pushstring(state, "none");
-            return 1;
-        }
+        lua_pushinteger(state, static_cast<lua_Integer>(registry.get<transform>(entity).flip));
+        return 1;
 
       case property::dormant:
         lua_pushboolean(state, registry.all_of<dormant>(entity) ? 1 : 0);
@@ -255,20 +243,10 @@ namespace {
       }
 
       case property::flip: {
-        const std::string_view value = luaL_checkstring(state, 3);
-        auto& tf = registry.get<transform>(entity);
-        if (value == "horizontal") {
-          tf.flip = flipmode::horizontal;
-        } else if (value == "vertical") {
-          tf.flip = flipmode::vertical;
-        } else if (value == "both") {
-          tf.flip = flipmode::both;
-        } else if (value == "none") {
-          tf.flip = flipmode::none;
-        } else {
-          return luaL_error(state, "invalid flip value: %s", value.data());
-        }
-
+        const auto value = static_cast<uint8_t>(luaL_checkinteger(state, 3));
+        if (value > 3) [[unlikely]]
+          return luaL_error(state, "invalid flip value: %d", value);
+        registry.get<transform>(entity).flip = static_cast<mirror>(value);
         return 0;
       }
 
@@ -418,4 +396,15 @@ objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::str
 
 void object::wire() {
   metatable(L, "Object", object_index, object_newindex, object_gc);
+
+  lua_createtable(L, 0, 4);
+  lua_pushinteger(L, static_cast<lua_Integer>(mirror::none));
+  lua_setfield(L, -2, "none");
+  lua_pushinteger(L, static_cast<lua_Integer>(mirror::horizontal));
+  lua_setfield(L, -2, "horizontal");
+  lua_pushinteger(L, static_cast<lua_Integer>(mirror::vertical));
+  lua_setfield(L, -2, "vertical");
+  lua_pushinteger(L, static_cast<lua_Integer>(mirror::both));
+  lua_setfield(L, -2, "both");
+  lua_setglobal(L, "flip");
 }

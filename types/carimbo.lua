@@ -439,7 +439,7 @@ viewport = {}
 ---@field angle number Rotation angle in degrees.
 ---@field alpha number Opacity (0-255).
 ---@field shown boolean Whether the object is visible.
----@field flip "none"|"horizontal"|"vertical"|"both" Flip mode for rendering.
+---@field flip integer Flip mode for rendering. Use `flip.none`, `flip.horizontal`, `flip.vertical`, or `flip.both`.
 ---@field name string The object's name (read-only).
 ---@field kind string The kind/type string of this object (read-only).
 ---@field alive boolean Whether the object is still alive (read-only).
@@ -604,6 +604,20 @@ function World.find(x, y, w, h, kind) end
 ---Physics world (available inside stage scripts).
 ---@type World
 world = {}
+
+--------------------------------------------------------------------------------
+-- Flip (rendering mirror constants)
+--------------------------------------------------------------------------------
+
+---@class Flip
+---@field none integer No flip (0).
+---@field horizontal integer Flip horizontally (1).
+---@field vertical integer Flip vertically (2).
+---@field both integer Flip both axes (3).
+
+---Global flip mode constants.
+---@type Flip
+flip = {}
 
 --------------------------------------------------------------------------------
 -- Pool (named collection of objects and sounds, available per-stage)

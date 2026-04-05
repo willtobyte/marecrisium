@@ -34,7 +34,7 @@ void pixmap::draw(
     const float dx, const float dy, const float dw, const float dh,
     const double angle,
     const uint8_t alpha,
-    const flipmode flip
+    const mirror flip
 ) const noexcept {
   const SDL_FRect source{sx, sy, sw, sh};
   const SDL_FRect destination{dx, dy, dw, dh};

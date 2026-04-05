@@ -44,7 +44,7 @@ return enemy({
 			self.velocity_y = 0
 
 			local angle = atan2(delta_y, delta_x)
-			self.flip = delta_x < 0 and "horizontal" or delta_x > 0 and "none" or self.flip
+			self.flip = delta_x < 0 and flip.horizontal or delta_x > 0 and flip.none or self.flip
 
 			if self._cooldown <= 0 then
 				self._cooldown = ATTACK_COOLDOWN
