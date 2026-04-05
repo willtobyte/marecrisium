@@ -53,7 +53,8 @@ of atoms, making it a perfect disintegration tool.
 
 ## Enemies
 
-Johnny 5 with a drill.
+- Johnny 5 with a drill.
+- Zombie snail (infected by a parasite)
 
 ## Relationships
 
