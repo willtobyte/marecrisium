@@ -17,6 +17,10 @@ gloomy, and solitary, yet rich in precious metals.
 
 ## Gameplay
 
+## Economy
+
+Bitcoin?
+
 ## Resources
 
 Minerals
@@ -29,6 +33,12 @@ Argon-40
 
 Rare minerals can be mined using the Quantum Shatterer, while noble
 gases require a probe that collects them automatically.
+
+## Energy
+
+Obtained from solar panels, they work well during the long
+lunar daylight period. During the long lunar night, batteries
+are required to keep everything running.
 
 ## Tools & Weapons
 
@@ -43,6 +53,9 @@ It can break rocks within seconds and inflict semi-lethal damage.
 Its operating mode is based on a fired quantum beam.
 Upon hitting the target, it deconstructs millions
 of atoms, making it a perfect disintegration tool.
+
+This tool consumes electrical energy; the
+higher the tier, the lower the consumption.
 
 ### Upgrades
 

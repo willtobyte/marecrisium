@@ -254,7 +254,7 @@ void sound::poll() {
 }
 
 void sound::wire() {
-  lua_pushcfunction(L, sound_play);
+  lua_pushcfunction(L, guard<sound_play>);
   _play_ref = luaL_ref(L, LUA_REGISTRYINDEX);
   lua_pushcfunction(L, sound_stop);
   _stop_ref = luaL_ref(L, LUA_REGISTRYINDEX);

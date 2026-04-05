@@ -175,7 +175,7 @@ overlay::~overlay() {
 }
 
 void overlay::wire() {
-  lua_pushcfunction(L, overlay_label);
+  lua_pushcfunction(L, guard<overlay_label>);
   _label_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Overlay", overlay_index);

@@ -223,31 +223,31 @@ stage::stage(std::string_view name)
   lua_newtable(L);
 
   lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, world_spawn, 1);
+  lua_pushcclosure(L, guard<world_spawn>, 1);
   lua_setfield(L, -2, "spawn");
 
   lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, world_destroy, 1);
+  lua_pushcclosure(L, guard<world_destroy>, 1);
   lua_setfield(L, -2, "destroy");
 
   lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, world_count, 1);
+  lua_pushcclosure(L, guard<world_count>, 1);
   lua_setfield(L, -2, "count");
 
   lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, world_find, 1);
+  lua_pushcclosure(L, guard<world_find>, 1);
   lua_setfield(L, -2, "find");
 
   lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, world_radar, 1);
+  lua_pushcclosure(L, guard<world_radar>, 1);
   lua_setfield(L, -2, "radar");
 
   lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, world_raycast, 1);
+  lua_pushcclosure(L, guard<world_raycast>, 1);
   lua_setfield(L, -2, "raycast");
 
   lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, world_pathfind, 1);
+  lua_pushcclosure(L, guard<world_pathfind>, 1);
   lua_setfield(L, -2, "pathfind");
 
   _world_ref = luaL_ref(L, LUA_REGISTRYINDEX);
