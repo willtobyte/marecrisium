@@ -20,7 +20,6 @@ static int user_newindex(lua_State *state) {
 }
 
 static int friend_index(lua_State *state) {
-  luaL_checkudata(state, 1, "Friend");
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {

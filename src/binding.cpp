@@ -176,6 +176,10 @@ void pcall(lua_State *state, int nargs, int nresults) {
   lua_remove(state, handler);
 }
 
+void fcall(lua_State *state, int nargs, int nresults) noexcept {
+  lua_call(state, nargs, nresults);
+}
+
 void compile(lua_State *state, const std::vector<uint8_t> &buffer, std::string_view chunk) {
   const auto *data = reinterpret_cast<const char *>(buffer.data());
   const auto size = buffer.size();

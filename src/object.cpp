@@ -18,7 +18,6 @@ namespace {
     constexpr auto alpha = "alpha"_hs;
     constexpr auto name = "name"_hs;
     constexpr auto kind = "kind"_hs;
-    constexpr auto position = "position"_hs;
   }
 
   static void sync_body_position(body& bd, const transform& tf, const animation* an) noexcept {
@@ -34,7 +33,7 @@ namespace {
   }
 
   int object_index(lua_State* state) {
-    const auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
+    const auto* proxy = static_cast<objectproxy*>(lua_touserdata(state, 1));
     const auto* key = luaL_checkstring(state, 2);
     const auto id = entt::hashed_string{key};
 
@@ -127,16 +126,6 @@ namespace {
         lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->kind_ref);
         return 1;
 
-      case property::position: {
-        const auto& tf = registry.get<transform>(entity);
-        lua_createtable(state, 2, 0);
-        lua_pushnumber(state, static_cast<lua_Number>(tf.x));
-        lua_rawseti(state, -2, 1);
-        lua_pushnumber(state, static_cast<lua_Number>(tf.y));
-        lua_rawseti(state, -2, 2);
-        return 1;
-      }
-
       default: {
         assert(proxy->prototype != LUA_NOREF && "object must have an object reference");
 
@@ -168,7 +157,7 @@ namespace {
   }
 
   int object_newindex(lua_State* state) {
-    auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
+    auto* proxy = static_cast<objectproxy*>(lua_touserdata(state, 1));
     const auto* key = luaL_checkstring(state, 2);
     const auto id = entt::hashed_string{key};
 
@@ -312,27 +301,6 @@ namespace {
         registry.get<transform>(entity).shown = lua_toboolean(state, 3) != 0;
         return 0;
 
-      case property::position: {
-        luaL_checktype(state, 3, LUA_TTABLE);
-        lua_rawgeti(state, 3, 1);
-        lua_rawgeti(state, 3, 2);
-        const auto px = static_cast<float>(lua_tonumber(state, -2));
-        const auto py = static_cast<float>(lua_tonumber(state, -1));
-        lua_pop(state, 2);
-
-        auto& tf = registry.get<transform>(entity);
-        tf.previous_x = tf.x = px;
-        tf.previous_y = tf.y = py;
-
-        auto* bd = registry.try_get<body>(entity);
-        if (bd
-            && bd->type != body_type::kinematic
-            && b2Body_IsValid(bd->id)) [[likely]]
-          sync_body_position(*bd, tf, registry.try_get<animation>(entity));
-
-        return 0;
-      }
-
       default:
         assert(proxy->prototype != LUA_NOREF && "object must have an object reference");
 
@@ -345,7 +313,7 @@ namespace {
   }
 
   int object_gc(lua_State* state) {
-    auto* proxy = static_cast<objectproxy*>(luaL_checkudata(state, 1, "Object"));
+    auto* proxy = static_cast<objectproxy*>(lua_touserdata(state, 1));
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
     proxy->on_animation_begin = LUA_NOREF;
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_end);

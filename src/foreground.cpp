@@ -90,7 +90,7 @@ int foreground_draw(lua_State *state) {
 }
 
 int foreground_index(lua_State *state) {
-  auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
+  auto *self = *static_cast<foreground **>(lua_touserdata(state, 1));
   const std::string_view key = luaL_checkstring(state, 2);
   const auto id = entt::hashed_string{key.data()};
 

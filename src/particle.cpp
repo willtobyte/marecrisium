@@ -8,12 +8,10 @@ namespace property {
   constexpr auto active = "active"_hs;
   constexpr auto x = "x"_hs;
   constexpr auto y = "y"_hs;
-  constexpr auto position = "position"_hs;
-  constexpr auto sound = "sound"_hs;
 }
 
 int particle_index(lua_State* state) {
-  const auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
+  const auto* self = *static_cast<particle**>(lua_touserdata(state, 1));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {
@@ -29,34 +27,13 @@ int particle_index(lua_State* state) {
       lua_pushnumber(state, static_cast<lua_Number>(self->y()));
       return 1;
 
-    case property::position:
-      lua_createtable(state, 2, 0);
-      lua_pushnumber(state, static_cast<lua_Number>(self->x()));
-      lua_rawseti(state, -2, 1);
-      lua_pushnumber(state, static_cast<lua_Number>(self->y()));
-      lua_rawseti(state, -2, 2);
-      return 1;
-
-    case property::sound: {
-      auto* fx = self->sound();
-      if (!fx)
-        return lua_pushnil(state), 1;
-
-      auto **m = static_cast<class sound**>(lua_newuserdata(state, sizeof(class sound*)));
-      *m = fx;
-      luaL_getmetatable(state, "Sound");
-      lua_setmetatable(state, -2);
-
-      return 1;
-    }
-
     default:
       return lua_pushnil(state), 1;
   }
 }
 
 int particle_newindex(lua_State* state) {
-  auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
+  auto* self = *static_cast<particle**>(lua_touserdata(state, 1));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {
@@ -71,18 +48,6 @@ int particle_newindex(lua_State* state) {
     case property::y:
       self->set_y(static_cast<float>(luaL_checknumber(state, 3)));
       return 0;
-
-    case property::position: {
-      luaL_checktype(state, 3, LUA_TTABLE);
-      lua_rawgeti(state, 3, 1);
-      lua_rawgeti(state, 3, 2);
-      const auto px = static_cast<float>(lua_tonumber(state, -2));
-      const auto py = static_cast<float>(lua_tonumber(state, -1));
-      lua_pop(state, 2);
-      self->set_x(px);
-      self->set_y(py);
-      return 0;
-    }
 
     default:
       return 0;

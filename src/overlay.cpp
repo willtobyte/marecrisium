@@ -104,7 +104,6 @@ namespace {
 }
 
 static int overlay_index(lua_State *state) {
-  luaL_checkudata(state, 1, "Overlay");
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id == property::label) {
