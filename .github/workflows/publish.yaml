@@ -184,6 +184,12 @@ jobs:
           cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
 
+      - name: Install LuaJIT
+        run: sudo apt-get update && sudo apt-get install -y luajit
+
+      - name: Compile Lua to bytecode
+        run: find cartridge -name '*.lua' -exec sh -c 'luajit -b "$1" "$1"' _ {} \;
+
       - name: Package cartridge
         run: ./tools/build/pack cartridge
 
