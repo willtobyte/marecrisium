@@ -69,75 +69,75 @@ void SteamAPI_RunCallbacks() noexcept {
 }
 
 void* SteamUserStats() noexcept {
-  if (pSteamUserStats) {
+  if (pSteamUserStats) [[likely]]
     return pSteamUserStats();
-  }
 
   return nullptr;
 }
 
 void* SteamFriends() noexcept {
-  if (pSteamFriends) {
+  if (pSteamFriends) [[likely]]
     return pSteamFriends();
-  }
 
   return nullptr;
 }
 
 bool GetAchievement(const char* name) noexcept {
-  if (pGetAchievement) {
-    bool achieved = false;
-    return pGetAchievement(SteamUserStats(), name, &achieved) && achieved;
+  if (pGetAchievement) [[likely]] {
+    if (auto stats = SteamUserStats()) [[likely]] {
+      bool achieved = false;
+      return pGetAchievement(stats, name, &achieved) && achieved;
+    }
   }
 
   return false;
 }
 
 bool SetAchievement(const char* name) noexcept {
-  if (pSetAchievement) {
-    return pSetAchievement(SteamUserStats(), name);
-  }
+  if (pSetAchievement) [[likely]]
+    if (auto stats = SteamUserStats()) [[likely]]
+      return pSetAchievement(stats, name);
 
   return false;
 }
 
 bool StoreStats() noexcept {
-  if (pStoreStats) {
-    return pStoreStats(SteamUserStats());
-  }
+  if (pStoreStats) [[likely]]
+    if (auto stats = SteamUserStats()) [[likely]]
+      return pStoreStats(stats);
 
   return false;
 }
 
 const char* GetPersonaName() noexcept {
-  if (pGetPersonaName) {
-    return pGetPersonaName(SteamFriends());
-  }
+  if (pGetPersonaName) [[likely]]
+    if (auto friends = SteamFriends()) [[likely]]
+      return pGetPersonaName(friends);
 
   return "";
 }
 
 int GetFriendCount() noexcept {
-  if (pGetFriendCount) {
-    // k_EFriendFlagImmediate = 0x04
-    return pGetFriendCount(SteamFriends(), 0x04);
-  }
+  if (pGetFriendCount) [[likely]]
+    if (auto friends = SteamFriends()) [[likely]]
+      // k_EFriendFlagImmediate = 0x04
+      return pGetFriendCount(friends, 0x04);
 
   return 0;
 }
 
 uint64_t GetFriendByIndex(int index) noexcept {
-  if (pGetFriendByIndex) {
-    return pGetFriendByIndex(SteamFriends(), index, 0x04);
-  }
+  if (pGetFriendByIndex) [[likely]]
+    if (auto friends = SteamFriends()) [[likely]]
+      return pGetFriendByIndex(friends, index, 0x04);
 
   return 0;
 }
 
 const char* GetFriendPersonaName(uint64_t id) noexcept {
-  if (pGetFriendPersonaName) {
-    return pGetFriendPersonaName(SteamFriends(), id);
-  }
+  if (pGetFriendPersonaName) [[likely]]
+    if (auto friends = SteamFriends()) [[likely]]
+      return pGetFriendPersonaName(friends, id);
 
   return "";
 }
