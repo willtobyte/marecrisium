@@ -543,7 +543,7 @@ void stage::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
-    fcall(L, 2, 0);
+    pcall(L, 2, 0);
   }
 
   for (auto&& [entity, proxy] : _registry.view<objectproxy>(entt::exclude<dormant>).each()) {
@@ -554,7 +554,7 @@ void stage::update(float delta) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.on_loop);
       lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.handle);
       lua_pushnumber(L, static_cast<lua_Number>(delta));
-      fcall(L, 2, 0);
+      pcall(L, 2, 0);
     }
 
     auto* a = _registry.try_get<animation>(entity);
@@ -652,7 +652,7 @@ void stage::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
 
-    fcall(L, 1, 2);
+    pcall(L, 1, 2);
 
     if (lua_isnumber(L, -2))
       _interpolation.current.x = static_cast<float>(lua_tonumber(L, -2));
@@ -897,7 +897,7 @@ void stage::on_tick(uint64_t tick) {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _on_tick);
   lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
   lua_pushinteger(L, static_cast<lua_Integer>(tick));
-  fcall(L, 2, 0);
+  pcall(L, 2, 0);
 }
 
 std::optional<std::string> stage::overlay() const noexcept {
