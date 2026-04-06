@@ -24,7 +24,7 @@ struct entry {
 };
 
 template <typename T>
-void write_le(std::ostream &output, T value) {
+void write(std::ostream &output, T value) {
   uint8_t buffer[sizeof(T)];
   for (size_t i = 0; i < sizeof(T); ++i)
     buffer[i] = static_cast<uint8_t>((value >> (i * 8)) & 0xFF);
@@ -116,16 +116,16 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  write_le(output, CROM_MAGIC);
-  write_le(output, CROM_VERSION);
-  write_le(output, static_cast<uint32_t>(entries.size()));
+  write(output, CROM_MAGIC);
+  write(output, CROM_VERSION);
+  write(output, static_cast<uint32_t>(entries.size()));
 
   for (const auto &e : entries) {
-    write_le(output, static_cast<uint16_t>(e.path.size()));
+    write(output, static_cast<uint16_t>(e.path.size()));
     output.write(e.path.data(), static_cast<std::streamsize>(e.path.size()));
-    write_le(output, e.offset);
-    write_le(output, e.compressed);
-    write_le(output, e.uncompressed);
+    write(output, e.offset);
+    write(output, e.compressed);
+    write(output, e.uncompressed);
     output.put(static_cast<char>(e.flags));
   }
 

@@ -22,7 +22,7 @@ struct entry {
 };
 
 template <typename T>
-T read_le(const uint8_t *p) noexcept {
+T read(const uint8_t *p) noexcept {
   T v = 0;
   for (size_t i = 0; i < sizeof(T); ++i)
     v |= static_cast<T>(p[i]) << (i * 8);
@@ -44,18 +44,18 @@ int main() {
     return 1;
   }
 
-  if (read_le<uint32_t>(header) != CROM_MAGIC) {
+  if (read<uint32_t>(header) != CROM_MAGIC) {
     std::cerr << "error: invalid magic\n";
     return 1;
   }
 
-  const auto version = read_le<uint32_t>(header + 4);
+  const auto version = read<uint32_t>(header + 4);
   if (version != CROM_VERSION) {
     std::cerr << "error: unsupported version " << version << "\n";
     return 1;
   }
 
-  const auto count = read_le<uint32_t>(header + 8);
+  const auto count = read<uint32_t>(header + 8);
   std::vector<entry> entries;
   entries.reserve(count);
 
@@ -67,7 +67,7 @@ int main() {
       return 1;
     }
 
-    std::string path(read_le<uint16_t>(length), '\0');
+    std::string path(read<uint16_t>(length), '\0');
     input.read(path.data(), static_cast<std::streamsize>(path.size()));
     if (!input) {
       std::cerr << "error: cannot read path\n";
@@ -83,9 +83,9 @@ int main() {
 
     entries.push_back({
       std::move(path),
-      read_le<uint64_t>(metadata),
-      read_le<uint64_t>(metadata + 8),
-      read_le<uint64_t>(metadata + 16),
+      read<uint64_t>(metadata),
+      read<uint64_t>(metadata + 8),
+      read<uint64_t>(metadata + 16),
       metadata[24],
     });
   }
