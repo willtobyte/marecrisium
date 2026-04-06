@@ -6,6 +6,7 @@ class CarimboTools(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
 
     def requirements(self):
+        self.requires("luajit/2.1.0-beta3")
         self.requires("zstd/1.5.7")
 
     def generate(self):

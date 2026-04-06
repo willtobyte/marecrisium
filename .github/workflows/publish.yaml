@@ -180,9 +180,12 @@ jobs:
       - name: Build pack tool
         working-directory: tools
         run: |
-          conan install . --output-folder=build --build=missing --settings build_type=Release
+          conan install . --output-folder=build --build=missing --settings build_type=Release --deployer=direct_deploy --deployer-folder=build
           cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
+
+      - name: Compile Lua to bytecode
+        run: find cartridge -name '*.lua' -exec sh -c 'tools/build/direct_deploy/luajit/bin/luajit-2.1.0-beta3 -bg "$1" "$1"' _ {} \;
 
       - name: Package cartridge
         run: ./tools/build/pack cartridge
