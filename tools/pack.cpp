@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
-#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -17,38 +16,19 @@ constexpr uint8_t FLAG_DIRECTORY = 1;
 
 struct entry {
   std::string path;
-  uint64_t offset;
-  uint64_t compressed;
-  uint64_t uncompressed;
-  uint8_t flags;
+  uint64_t offset{};
+  uint64_t compressed{};
+  uint64_t uncompressed{};
+  uint8_t flags{};
   std::vector<uint8_t> data;
 };
 
-void write_u16(std::ostream &output, uint16_t value) {
-  uint8_t buffer[2] = {
-    static_cast<uint8_t>(value & 0xFF),
-    static_cast<uint8_t>((value >> 8) & 0xFF),
-  };
-
-  output.write(reinterpret_cast<const char *>(buffer), 2);
-}
-
-void write_u32(std::ostream &output, uint32_t value) {
-  uint8_t buffer[4] = {
-    static_cast<uint8_t>(value & 0xFF),
-    static_cast<uint8_t>((value >> 8) & 0xFF),
-    static_cast<uint8_t>((value >> 16) & 0xFF),
-    static_cast<uint8_t>((value >> 24) & 0xFF),
-  };
-
-  output.write(reinterpret_cast<const char *>(buffer), 4);
-}
-
-void write_u64(std::ostream &output, uint64_t value) {
-  uint8_t buffer[8];
-  for (int i = 0; i < 8; ++i)
+template <typename T>
+void write_le(std::ostream &output, T value) {
+  uint8_t buffer[sizeof(T)];
+  for (size_t i = 0; i < sizeof(T); ++i)
     buffer[i] = static_cast<uint8_t>((value >> (i * 8)) & 0xFF);
-  output.write(reinterpret_cast<const char *>(buffer), 8);
+  output.write(reinterpret_cast<const char *>(buffer), sizeof(T));
 }
 }
 
@@ -69,7 +49,7 @@ int main(int argc, char **argv) {
   std::vector<std::filesystem::path> paths;
   for (const auto &it : std::filesystem::recursive_directory_iterator(root))
     paths.push_back(it.path());
-  std::sort(paths.begin(), paths.end());
+  std::ranges::sort(paths);
 
   for (const auto &path : paths) {
     auto relative = std::filesystem::relative(path, root).generic_string();
@@ -78,10 +58,6 @@ int main(int argc, char **argv) {
 
     entry e;
     e.path = std::move(relative);
-    e.offset = 0;
-    e.compressed = 0;
-    e.uncompressed = 0;
-    e.flags = 0;
 
     if (std::filesystem::is_directory(path)) {
       e.flags = FLAG_DIRECTORY;
@@ -140,16 +116,16 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  write_u32(output, CROM_MAGIC);
-  write_u32(output, CROM_VERSION);
-  write_u32(output, static_cast<uint32_t>(entries.size()));
+  write_le(output, CROM_MAGIC);
+  write_le(output, CROM_VERSION);
+  write_le(output, static_cast<uint32_t>(entries.size()));
 
   for (const auto &e : entries) {
-    write_u16(output, static_cast<uint16_t>(e.path.size()));
+    write_le(output, static_cast<uint16_t>(e.path.size()));
     output.write(e.path.data(), static_cast<std::streamsize>(e.path.size()));
-    write_u64(output, e.offset);
-    write_u64(output, e.compressed);
-    write_u64(output, e.uncompressed);
+    write_le(output, e.offset);
+    write_le(output, e.compressed);
+    write_le(output, e.uncompressed);
     output.put(static_cast<char>(e.flags));
   }
 
