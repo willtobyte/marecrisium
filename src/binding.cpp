@@ -2,7 +2,6 @@
 
 constexpr int MAX_DEPTH = 6;
 constexpr int MAX_ENTRIES = 10;
-constexpr size_t INITIAL_RESERVE = 512;
 
 static int _traceback_ref = LUA_NOREF;
 
@@ -119,7 +118,7 @@ static int traceback(lua_State *state) {
 
   std::string result = lua_tostring(state, -1);
   lua_pop(state, 1);
-  result.reserve(INITIAL_RESERVE);
+  result.reserve(256);
 
   breadcrumbs visited;
   auto out = std::back_inserter(result);
