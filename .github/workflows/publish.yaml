@@ -185,7 +185,7 @@ jobs:
           cmake --build build --config Release
 
       - name: Compile Lua to bytecode
-        run: find cartridge -name '*.lua' -exec sh -c 'tools/build/direct_deploy/luajit/bin/luajit-2.1.0-beta3 -bg "$1" "$1"' _ {} \;
+        run: find cartridge -name '*.lua' -exec tools/build/direct_deploy/luajit/bin/luajit-2.1.0-beta3 tools/compile.lua {} +
 
       - name: Package cartridge
         run: ./tools/build/pack cartridge
