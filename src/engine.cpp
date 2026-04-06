@@ -54,6 +54,7 @@ engine::engine() {
   SDL_SetStringProperty(properties, SDL_PROP_RENDERER_CREATE_NAME_STRING, nullptr);
 
   renderer = SDL_CreateRendererWithProperties(properties);
+  SDL_DestroyProperties(properties);
 
   SDL_SetRenderLogicalPresentation(renderer, width, height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
   SDL_SetRenderScale(renderer, scale, scale);
