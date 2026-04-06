@@ -34,6 +34,7 @@ return scheduler.wrap({
 		if player then
 			camera.update(player)
 		end
+
 		return camera.position()
 	end,
 
