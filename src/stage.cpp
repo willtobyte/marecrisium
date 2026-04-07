@@ -927,10 +927,13 @@ void stage::on_tick(uint64_t tick) {
 
 int stage::spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y) {
   const auto entity = _registry.create();
+
   _registry.emplace<renderable>(entity);
+
   auto& tf = _registry.emplace<transform>(entity);
   tf.previous_x = tf.x = x;
   tf.previous_y = tf.y = y;
+
   const auto& op = _registry.emplace<objectproxy>(entity, _registry, entity, name, kind);
   const auto prototype = op.prototype;
   const auto handle = op.handle;
