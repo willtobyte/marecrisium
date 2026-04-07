@@ -7,6 +7,6 @@
 		"library": ["types"]
 	},
 	"diagnostics": {
-		"disable": ["lowercase-global"]
+		"disable": ["lowercase-global", "unused-local"]
 	}
 }
