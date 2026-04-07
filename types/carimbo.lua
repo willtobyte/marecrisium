@@ -211,6 +211,14 @@ cassette = {}
 ---@field widgets string Overlay name (matches `overlays/<name>.lua`).
 ---@field foreground? string Foreground name (matches `foregrounds/<name>.lua`). Loads a foreground layer drawn before overlay labels.
 
+---@class StageMinimap
+---Minimap color configuration. Each field is an RGB triplet `{r, g, b}` (0-255).
+---@field solid number[] Color for solid (collision) tiles.
+---@field passable number[] Color for passable (free) tiles.
+---@field void number[] Color for out-of-map areas.
+---@field player number[] Color for the player marker.
+---@field entity number[] Color for entity markers.
+
 ---@class Stage
 ---A stage script (`stages/<name>.lua`) returns a table that may contain
 ---these fields, lifecycle callbacks, and entity/sound declarations.
@@ -220,6 +228,7 @@ cassette = {}
 ---@field particles StageParticle[]|nil Particle emitters to create. Each entry spawns a particle system accessible as `pool.<name>`.
 ---@field overlay StageOverlay|nil Overlay configuration table with widgets and optional foreground.
 ---@field tilemap string|nil Tilemap name. Loads `tilemaps/<name>.lua` and exposes a `tilemap` global in the stage environment.
+---@field minimap StageMinimap|nil Minimap color palette. Only used when `tilemap` is also set.
 local Stage = {}
 
 ---Called when the director navigates to this stage.
@@ -612,11 +621,22 @@ world = {}
 flip = {}
 
 --------------------------------------------------------------------------------
+-- Minimap (toggle-able tile overview, available in `pool`)
+--------------------------------------------------------------------------------
+
+---@class Minimap
+---A 33x33 pixel minimap centered on the player, showing nearby tiles and entities.
+---Toggle visibility with M key or gamepad back button.
+---@field visible boolean Whether the minimap is currently shown (read/write).
+local Minimap = {}
+
+--------------------------------------------------------------------------------
 -- Pool (named collection of objects and sounds, available per-stage)
 --------------------------------------------------------------------------------
 
 ---@class Pool
----Access objects, sounds, and particle emitters by name.
+---Access objects, sounds, particle emitters, and minimap by name.
+---@field minimap Minimap|nil The stage minimap (present when the stage has a tilemap and minimap config).
 ---@field [string] Object|Sound|Particle
 
 ---Resource pool (available inside stage scripts).
@@ -820,6 +840,7 @@ function Ticker.wrap(stage) end
 ---@field right boolean Arrow right, d-pad right, or left stick right.
 ---@field up boolean Arrow up, d-pad up, or left stick up.
 ---@field down boolean Arrow down, d-pad down, or left stick down.
+---@field minimap boolean Gamepad back or M key.
 local Controls = {}
 
 --------------------------------------------------------------------------------

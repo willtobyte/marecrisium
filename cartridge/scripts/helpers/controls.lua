@@ -12,6 +12,8 @@ setmetatable(controls, {
 			return gamepad.left_y < -threshold or gamepad.up or keyboard.up
 		elseif key == "down" then
 			return gamepad.left_y > threshold or gamepad.down or keyboard.down
+		elseif key == "minimap" then
+			return gamepad.back or keyboard.m
 		end
 	end,
 })

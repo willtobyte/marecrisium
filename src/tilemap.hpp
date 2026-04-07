@@ -27,6 +27,8 @@ public:
   int pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept;
 
 private:
+  friend class minimap;
+
   struct node final {
     float f;
     int32_t index;

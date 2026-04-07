@@ -17,6 +17,19 @@ static entt::entity to_entity(const void* p) noexcept {
 
 static const auto filter = b2DefaultQueryFilter();
 
+static color unpack(lua_State *state, int index) noexcept {
+  lua_rawgeti(state, index, 1);
+  const auto r = static_cast<uint8_t>(lua_tonumber(state, -1));
+  lua_pop(state, 1);
+  lua_rawgeti(state, index, 2);
+  const auto g = static_cast<uint8_t>(lua_tonumber(state, -1));
+  lua_pop(state, 1);
+  lua_rawgeti(state, index, 3);
+  const auto b = static_cast<uint8_t>(lua_tonumber(state, -1));
+  lua_pop(state, 1);
+  return {r, g, b};
+}
+
 static b2Vec2 body_center(const transform& tf, const frame& fr, const body& bd) noexcept {
   return {tf.x + fr.cx + bd.cached_hx,
           tf.y + fr.cy + bd.cached_hy};
@@ -354,6 +367,45 @@ stage::stage(std::string_view name)
   lua_getfield(L, -1, "tilemap");
   if (lua_isstring(L, -1))
     _tilemap = tilemap(lua_tostring(L, -1), _world);
+  lua_pop(L, 1);
+
+  lua_getfield(L, -1, "minimap");
+
+  if (lua_objlen(L, -1) > 0) [[unlikely]] {
+    lua_getfield(L, -1, "solid");
+    const auto solid = unpack(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "passable");
+    const auto passable = unpack(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "void");
+    const auto empty = unpack(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "player");
+    const auto player = unpack(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "entity");
+    const auto entity = unpack(L, -1);
+    lua_pop(L, 1);
+
+    _minimap.emplace(_tilemap, _registry, solid, passable, empty, player, entity);
+
+    auto **ud = static_cast<minimap **>(lua_newuserdata(L, sizeof(minimap *)));
+    *ud = &*_minimap;
+    luaL_getmetatable(L, "Minimap");
+    lua_setmetatable(L, -2);
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
+    lua_pushvalue(L, -2);
+    lua_setfield(L, -2, "minimap");
+    lua_pop(L, 1);
+
+    lua_pop(L, 1);
+  }
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "overlay");
@@ -830,6 +882,9 @@ void stage::draw() {
   _particlesystem.draw();
 
   _tilemap.draw_foreground();
+
+  if (_minimap)
+    _minimap->draw();
 
 #ifdef DEBUG
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);

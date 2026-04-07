@@ -1,5 +1,6 @@
 #pragma once
 
+#include "minimap.hpp"
 #include "particlesystem.hpp"
 #include "stringpool.hpp"
 #include "tilemap.hpp"
@@ -56,6 +57,7 @@ private:
   stringpool _stringpool{};
   particlesystem _particlesystem{};
   tilemap _tilemap{};
+  std::optional<minimap> _minimap{};
   std::vector<sound*> _sounds{};
 
   b2WorldId _world{};

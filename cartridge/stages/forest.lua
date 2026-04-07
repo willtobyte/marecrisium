@@ -1,8 +1,19 @@
 local scheduler = require("helpers/scheduler")
 local camera = require("helpers/camera")
+local controls = require("helpers/controls")
+
+local pressed = false
 
 return scheduler.wrap({
 	tilemap = "forest",
+
+	minimap = {
+		solid = { 90, 85, 95 },
+		passable = { 195, 190, 185 },
+		void = { 10, 10, 25 },
+		player = { 140, 200, 255 },
+		entity = { 255, 220, 130 },
+	},
 
 	overlay = { widgets = "hud" }, --, foreground = "mist" },
 
@@ -28,6 +39,14 @@ return scheduler.wrap({
 		{ name = "tree7", kind = "tree", x = 220, y = 50 },
 		{ name = "tree8", kind = "tree", x = 450, y = 320 },
 	},
+
+	on_loop = function(self, delta)
+		local down = controls.minimap
+		if down and not pressed then
+			pool.minimap.visible = not pool.minimap.visible
+		end
+		pressed = down
+	end,
 
 	on_camera = function(self)
 		local player = pool.player
