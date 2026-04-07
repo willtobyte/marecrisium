@@ -94,10 +94,10 @@ void director::transition() {
   _current = it->second.get();
   _current->expose();
 
-  if (const auto& o = _current->overlay(); o) {
+  if (const auto& o = _current->_overlay; o) {
     set_overlay(*o);
 
-    if (const auto& f = _current->foreground(); f)
+    if (const auto& f = _current->_foreground; f)
       _overlay->set_foreground(*f);
   }
 

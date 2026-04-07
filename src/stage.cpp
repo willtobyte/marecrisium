@@ -955,14 +955,6 @@ void stage::on_tick(uint64_t tick) {
   pcall(L, 2, 0);
 }
 
-std::optional<std::string> stage::overlay() const noexcept {
-  return _overlay;
-}
-
-std::optional<std::string> stage::foreground() const noexcept {
-  return _foreground;
-}
-
 int stage::spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y) {
   const auto entity = _registry.create();
   _registry.emplace<renderable>(entity);

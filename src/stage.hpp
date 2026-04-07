@@ -28,10 +28,6 @@ public:
 
   void on_tick(uint64_t tick);
 
-  std::optional<std::string> overlay() const noexcept;
-
-  std::optional<std::string> foreground() const noexcept;
-
   int spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y);
 
   int destroy(lua_State* state);
@@ -81,6 +77,7 @@ private:
 
   std::vector<hit> _hits{};
 
+  friend class director;
   friend void overlap_aabb(b2WorldId, b2AABB, std::vector<hit>&) noexcept;
 
   float _sleep_margin{};
