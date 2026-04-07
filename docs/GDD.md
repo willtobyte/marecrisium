@@ -105,3 +105,7 @@ depth and distance.
 ## Bosses
 
 My name is Legion, for we are many.
+
+## Minimap
+
+Simple, generated from the tilemap.
