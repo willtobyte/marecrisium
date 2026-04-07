@@ -7,7 +7,7 @@
 
 class pixmap;
 
-void sincos(float x, float& osin, float& ocos) noexcept;
+void sincos(float x, float& sine, float& cosine) noexcept;
 
 class stage final {
 public:

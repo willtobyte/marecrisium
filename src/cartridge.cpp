@@ -36,9 +36,9 @@ struct handle final {
 
 template <std::integral T>
 static T read(const uint8_t *p) noexcept {
-  T val;
-  std::memcpy(&val, p, sizeof(T));
-  return val;
+  T value;
+  std::memcpy(&value, p, sizeof(T));
+  return value;
 }
 
 static bool drain(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
@@ -302,14 +302,14 @@ static int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
   }
 
   const auto &e = arc->entries[it->second];
-  const auto is_dir = (e.flags & FLAG_DIRECTORY) != 0;
-  stat->filesize = is_dir
+  const auto directory = (e.flags & FLAG_DIRECTORY) != 0;
+  stat->filesize = directory
     ? -1
     : static_cast<PHYSFS_sint64>(e.uncompressed);
   stat->modtime = -1;
   stat->createtime = -1;
   stat->accesstime = -1;
-  stat->filetype = is_dir
+  stat->filetype = directory
     ? PHYSFS_FILETYPE_DIRECTORY
     : PHYSFS_FILETYPE_REGULAR;
   stat->readonly = 1;

@@ -3,7 +3,7 @@
 constexpr int MAX_DEPTH = 6;
 constexpr int MAX_ENTRIES = 10;
 
-static int _traceback_ref = LUA_NOREF;
+static int _traceback = LUA_NOREF;
 
 struct breadcrumbs final {
   std::array<const void *, MAX_DEPTH> _data{};
@@ -102,9 +102,9 @@ static void pretty(lua_State *state, std::string &output, int index, int depth, 
   } break;
 
   case LUA_TLIGHTUSERDATA: {
-    std::array<char, 32> addr{};
-    std::snprintf(addr.data(), addr.size(), "%p", lua_topointer(state, index));
-    std::format_to(out, "(lightuserdata: {})", static_cast<const char *>(addr.data()));
+    std::array<char, 32> address{};
+    std::snprintf(address.data(), address.size(), "%p", lua_topointer(state, index));
+    std::format_to(out, "(lightuserdata: {})", static_cast<const char *>(address.data()));
   } break;
 
   default:
@@ -126,7 +126,7 @@ static int traceback(lua_State *state) {
   lua_Debug debug;
   for (int level = 1; lua_getstack(state, level, &debug); ++level) {
     lua_getinfo(state, "Sl", &debug);
-    const auto *src = static_cast<const char *>(debug.short_src);
+    const auto *source = static_cast<const char *>(debug.short_src);
 
     bool has_locals = false;
     for (int i = 1;; ++i) {
@@ -140,7 +140,7 @@ static int traceback(lua_State *state) {
       }
 
       if (!has_locals) [[unlikely]] {
-        std::format_to(out, "\n    locals at {}:{}:", src, debug.currentline);
+        std::format_to(out, "\n    locals at {}:{}:", source, debug.currentline);
         has_locals = true;
       }
 
@@ -157,12 +157,12 @@ static int traceback(lua_State *state) {
 
 void binding::wire() {
   lua_pushcfunction(L, traceback);
-  _traceback_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _traceback = luaL_ref(L, LUA_REGISTRYINDEX);
 }
 
 void pcall(lua_State *state, int nargs, int nresults) {
   const auto handler = lua_gettop(state) - nargs;
-  lua_rawgeti(state, LUA_REGISTRYINDEX, _traceback_ref);
+  lua_rawgeti(state, LUA_REGISTRYINDEX, _traceback);
   lua_insert(state, handler);
 
   if (lua_pcall(state, nargs, nresults, handler) != 0) [[unlikely]] {

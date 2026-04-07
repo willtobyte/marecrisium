@@ -120,12 +120,12 @@ engine::engine() {
   _director.wire();
 
   lua_getfield(L, -1, "on_begin");
-  auto on_begin = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  auto callback = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
-  if (on_begin != LUA_NOREF) [[likely]] {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, on_begin);
+  if (callback != LUA_NOREF) [[likely]] {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
     pcall(L, 0, 0);
-    luaL_unref(L, LUA_REGISTRYINDEX, on_begin);
+    luaL_unref(L, LUA_REGISTRYINDEX, callback);
   }
 
   lua_pop(L, 1);

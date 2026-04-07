@@ -41,7 +41,7 @@ return {
 			local effect = effects[i]
 
 			effect.r, effect.g, effect.b = hue2rgb((offset / length + elapsed * 0.1) % 1)
-			effect.yoffset = sin(elapsed * 3 + offset * 0.7) * 2
+			effect.y_offset = sin(elapsed * 3 + offset * 0.7) * 2
 			effect.angle = sin(elapsed * 2 + offset * 0.5) * 20
 		end
 	end,

@@ -115,7 +115,7 @@ public:
   subscription(subscription&&) = delete;
   subscription& operator=(subscription&&) = delete;
 
-  void publish(lua_State* state, int idx);
+  void publish(lua_State* state, int index);
   void unsubscribe();
 
   uint16_t topic() const noexcept;

@@ -348,13 +348,13 @@ foreground = nil
 ---```lua
 ---overlay:label("pixel", "hello", 10, 20, {
 ---  [1] = { r = 1, g = 0, b = 0 },           -- 'h' in red
----  [3] = { yoffset = -2, scale = 1.5 },      -- first 'l' raised and scaled
+---  [3] = { y_offset = -2, scale = 1.5 },      -- first 'l' raised and scaled
 ---  [5] = { alpha = 0.5 },                     -- 'o' semi-transparent
 ---})
 ---```
 ---@class GlyphEffect
----@field xoffset? number Horizontal pixel offset for this glyph. Default 0.
----@field yoffset? number Vertical pixel offset for this glyph. Default 0.
+---@field x_offset? number Horizontal pixel offset for this glyph. Default 0.
+---@field y_offset? number Vertical pixel offset for this glyph. Default 0.
 ---@field scale? number Scale factor for this glyph. Default 1.
 ---@field angle? number Rotation angle in degrees for this glyph, around its center. Default 0.
 ---@field r? number Red channel for this glyph (0.0-1.0). Default 1.

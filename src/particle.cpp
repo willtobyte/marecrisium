@@ -63,36 +63,36 @@ std::mt19937& particle::rng() noexcept {
 particle::particle(const config& config, const pixmap& texture, float x, float y, bool active)
     : _x(x)
     , _y(y)
-    , _hw(static_cast<float>(texture.width()) * .5f)
-    , _hh(static_cast<float>(texture.height()) * .5f)
+    , _half_width(static_cast<float>(texture.width()) * .5f)
+    , _half_height(static_cast<float>(texture.height()) * .5f)
     , _active(active)
     , _count(config.count)
     , _texture(&texture)
-    , _xspawnd(std::min(config.xspawn.first, config.xspawn.second), std::max(config.xspawn.first, config.xspawn.second))
-    , _yspawnd(std::min(config.yspawn.first, config.yspawn.second), std::max(config.yspawn.first, config.yspawn.second))
-    , _radiusd(std::min(config.radius.first, config.radius.second), std::max(config.radius.first, config.radius.second))
-    , _angled(std::min(config.angle.first, config.angle.second), std::max(config.angle.first, config.angle.second))
-    , _xveld(std::min(config.xvel.first, config.xvel.second), std::max(config.xvel.first, config.xvel.second))
-    , _yveld(std::min(config.yvel.first, config.yvel.second), std::max(config.yvel.first, config.yvel.second))
-    , _gxd(std::min(config.gx.first, config.gx.second), std::max(config.gx.first, config.gx.second))
-    , _gyd(std::min(config.gy.first, config.gy.second), std::max(config.gy.first, config.gy.second))
-    , _scaled(std::min(config.scale.first, config.scale.second), std::max(config.scale.first, config.scale.second))
-    , _lifed(std::min(config.life.first, config.life.second), std::max(config.life.first, config.life.second))
-    , _rotforced(std::min(config.rforce.first, config.rforce.second), std::max(config.rforce.first, config.rforce.second))
-    , _rotveld(std::min(config.rvel.first, config.rvel.second), std::max(config.rvel.first, config.rvel.second)) {
+    , _spawn_x_distribution(std::min(config.spawn_x.first, config.spawn_x.second), std::max(config.spawn_x.first, config.spawn_x.second))
+    , _spawn_y_distribution(std::min(config.spawn_y.first, config.spawn_y.second), std::max(config.spawn_y.first, config.spawn_y.second))
+    , _radius_distribution(std::min(config.radius.first, config.radius.second), std::max(config.radius.first, config.radius.second))
+    , _angle_distribution(std::min(config.angle.first, config.angle.second), std::max(config.angle.first, config.angle.second))
+    , _velocity_x_distribution(std::min(config.velocity_x.first, config.velocity_x.second), std::max(config.velocity_x.first, config.velocity_x.second))
+    , _velocity_y_distribution(std::min(config.velocity_y.first, config.velocity_y.second), std::max(config.velocity_y.first, config.velocity_y.second))
+    , _gravity_x_distribution(std::min(config.gravity_x.first, config.gravity_x.second), std::max(config.gravity_x.first, config.gravity_x.second))
+    , _gravity_y_distribution(std::min(config.gravity_y.first, config.gravity_y.second), std::max(config.gravity_y.first, config.gravity_y.second))
+    , _scale_distribution(std::min(config.scale.first, config.scale.second), std::max(config.scale.first, config.scale.second))
+    , _life_distribution(std::min(config.life.first, config.life.second), std::max(config.life.first, config.life.second))
+    , _rotation_force_distribution(std::min(config.rotation_force.first, config.rotation_force.second), std::max(config.rotation_force.first, config.rotation_force.second))
+    , _rotation_velocity_distribution(std::min(config.rotation_velocity.first, config.rotation_velocity.second), std::max(config.rotation_velocity.first, config.rotation_velocity.second)) {
   const auto n = _count;
 
-  _px.resize(n);
-  _py.resize(n);
-  _vx.resize(n);
-  _vy.resize(n);
-  _gx.resize(n);
-  _gy.resize(n);
+  _position_x.resize(n);
+  _position_y.resize(n);
+  _velocity_x.resize(n);
+  _velocity_y.resize(n);
+  _gravity_x.resize(n);
+  _gravity_y.resize(n);
   _life.resize(n);
   _scale.resize(n);
   _angle.resize(n);
-  _av.resize(n);
-  _af.resize(n);
+  _angular_velocity.resize(n);
+  _angular_force.resize(n);
   _respawn.resize(n);
 
   _vertices.resize(n * 4);
@@ -132,17 +132,17 @@ void particle::update(float delta) noexcept {
   const auto n = _count;
   auto& eng = rng();
 
-  auto* noalias xs = _px.data();
-  auto* noalias ys = _py.data();
-  auto* noalias vxs = _vx.data();
-  auto* noalias vys = _vy.data();
-  auto* noalias gxs = _gx.data();
-  auto* noalias gys = _gy.data();
+  auto* noalias xs = _position_x.data();
+  auto* noalias ys = _position_y.data();
+  auto* noalias vxs = _velocity_x.data();
+  auto* noalias vys = _velocity_y.data();
+  auto* noalias gxs = _gravity_x.data();
+  auto* noalias gys = _gravity_y.data();
   auto* noalias lifes = _life.data();
   auto* noalias scales = _scale.data();
   auto* noalias angles = _angle.data();
-  auto* noalias avs = _av.data();
-  auto* noalias afs = _af.data();
+  auto* noalias avs = _angular_velocity.data();
+  auto* noalias afs = _angular_force.data();
 
   for (auto i = 0uz; i < n; ++i) {
     lifes[i] -= delta;
@@ -169,22 +169,22 @@ void particle::update(float delta) noexcept {
 
     for (auto j = 0uz; j < count; ++j) {
       const auto i = respawn[j];
-      const auto r = _radiusd(eng);
-      const auto a = _angled(eng);
+      const auto r = _radius_distribution(eng);
+      const auto a = _angle_distribution(eng);
 
       float sa, ca;
       sincos(a, sa, ca);
 
-      xs[i] = px + _xspawnd(eng) + r * ca;
-      ys[i] = py + _yspawnd(eng) + r * sa;
-      vxs[i] = _xveld(eng);
-      vys[i] = _yveld(eng);
-      gxs[i] = _gxd(eng);
-      gys[i] = _gyd(eng);
-      avs[i] = _rotveld(eng);
-      afs[i] = _rotforced(eng);
-      lifes[i] = _lifed(eng);
-      scales[i] = _scaled(eng);
+      xs[i] = px + _spawn_x_distribution(eng) + r * ca;
+      ys[i] = py + _spawn_y_distribution(eng) + r * sa;
+      vxs[i] = _velocity_x_distribution(eng);
+      vys[i] = _velocity_y_distribution(eng);
+      gxs[i] = _gravity_x_distribution(eng);
+      gys[i] = _gravity_y_distribution(eng);
+      avs[i] = _rotation_velocity_distribution(eng);
+      afs[i] = _rotation_force_distribution(eng);
+      lifes[i] = _life_distribution(eng);
+      scales[i] = _scale_distribution(eng);
       angles[i] = a;
     }
   }
@@ -192,16 +192,16 @@ void particle::update(float delta) noexcept {
 
 void particle::draw() noexcept {
   const auto n = _count;
-  const auto hw = _hw;
-  const auto hh = _hh;
+  const auto hw = _half_width;
+  const auto hh = _half_height;
   const auto vw = viewport.width;
   const auto vh = viewport.height;
   const auto extent = std::max(hw, hh);
   auto* verts = _vertices.data();
-  auto* idxs = _indices.data();
+  auto* indices = _indices.data();
 
-  const auto* noalias xs = _px.data();
-  const auto* noalias ys = _py.data();
+  const auto* noalias xs = _position_x.data();
+  const auto* noalias ys = _position_y.data();
   const auto* noalias lifes = _life.data();
   const auto* noalias scales = _scale.data();
   const auto* noalias angles = _angle.data();
@@ -241,7 +241,7 @@ void particle::draw() noexcept {
 
     const auto base = static_cast<int>(visible * 4);
     auto* vx = verts + visible * 4;
-    auto* ix = idxs + visible * 6;
+    auto* ix = indices + visible * 6;
 
     vx[0] = {{px + dx0, py + dy0}, color, {.0f, .0f}};
     vx[1] = {{px + dx1, py + dy1}, color, {1.f, .0f}};
@@ -264,7 +264,7 @@ void particle::draw() noexcept {
       static_cast<SDL_Texture*>(*_texture),
       verts,
       static_cast<int>(visible * 4),
-      idxs,
+      indices,
       static_cast<int>(visible * 6)
     );
   }

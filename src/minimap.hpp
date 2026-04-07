@@ -37,8 +37,8 @@ private:
 
   std::unique_ptr<SDL_Texture, SDL_Deleter> _texture;
   std::vector<uint32_t> _pixels;
-  float _px{};
-  float _py{};
+  float _position_x{};
+  float _position_y{};
 
   void rebuild() noexcept;
 };

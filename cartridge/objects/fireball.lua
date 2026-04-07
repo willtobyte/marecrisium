@@ -14,7 +14,7 @@ return {
 	},
 
 	on_spawn = function(self)
-		self._ttl = TTL
+		self._lifetime = TTL
 		self._alive = true
 	end,
 
@@ -23,8 +23,8 @@ return {
 			return
 		end
 
-		self._ttl = self._ttl - delta
-		if self._ttl <= 0 then
+		self._lifetime = self._lifetime - delta
+		if self._lifetime <= 0 then
 			self._alive = false
 			world.destroy(self)
 			return

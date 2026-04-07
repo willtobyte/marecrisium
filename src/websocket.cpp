@@ -6,13 +6,13 @@ namespace {
 std::unique_ptr<channel> connection;
 
 std::vector<uint8_t> envelope(yyjson_mut_doc *doc) {
-  size_t len = 0;
-  auto *json = yyjson_mut_write(doc, 0, &len);
+  size_t length = 0;
+  auto *json = yyjson_mut_write(doc, 0, &length);
   yyjson_mut_doc_free(doc);
   if (!json) [[unlikely]]
     return {};
 
-  std::vector<uint8_t> result(json, json + len);
+  std::vector<uint8_t> result(json, json + length);
   free(json);
   return result;
 }

@@ -1,10 +1,10 @@
 #pragma once
 
-void sincos(float x, float& osin, float& ocos) noexcept;
+void sincos(float x, float& sine, float& cosine) noexcept;
 
 struct alignas(32) glypheffect final {
-  float xoffset{.0f};
-  float yoffset{.0f};
+  float x_offset{.0f};
+  float y_offset{.0f};
   float scale{1.f};
   float angle{.0f};
   float r{1.f};
@@ -15,7 +15,7 @@ struct alignas(32) glypheffect final {
 
 struct alignas(32) glyphprops final {
   float u0, v0, u1, v1;
-  float sw, sh;
+  float width, height;
 };
 
 class font final {

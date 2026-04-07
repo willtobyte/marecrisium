@@ -51,7 +51,7 @@ private:
   layer _foreground;
 
   float _size{};
-  float _inverse_size{};
+  float _inverse{};
   float _viewport_x{};
   float _viewport_y{};
   float _viewport_width{};

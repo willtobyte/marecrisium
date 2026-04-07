@@ -46,14 +46,14 @@ static int overlay_label(lua_State *state) {
 
     auto &effect = effects[index];
 
-    lua_getfield(state, -1, "xoffset");
+    lua_getfield(state, -1, "x_offset");
     if (lua_isnumber(state, -1))
-      effect.xoffset = static_cast<float>(lua_tonumber(state, -1));
+      effect.x_offset = static_cast<float>(lua_tonumber(state, -1));
     lua_pop(state, 1);
 
-    lua_getfield(state, -1, "yoffset");
+    lua_getfield(state, -1, "y_offset");
     if (lua_isnumber(state, -1))
-      effect.yoffset = static_cast<float>(lua_tonumber(state, -1));
+      effect.y_offset = static_cast<float>(lua_tonumber(state, -1));
     lua_pop(state, 1);
 
     lua_getfield(state, -1, "scale");

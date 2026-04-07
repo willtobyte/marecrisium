@@ -68,10 +68,10 @@ function ticker.wrap(stage)
 		end
 	end)
 
-	local original_on_leave = stage.on_leave
+	local previous = stage.on_leave
 	stage.on_leave = function(self, ...)
-		if original_on_leave then
-			original_on_leave(self, ...)
+		if previous then
+			previous(self, ...)
 		end
 		ticker.clear()
 	end

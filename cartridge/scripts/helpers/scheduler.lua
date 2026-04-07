@@ -10,20 +10,20 @@ local tick = 0
 
 function scheduler.spawn(fn)
 	n = n + 1
-	list[n] = { co = create(fn), resume_at = tick }
+	list[n] = { routine = create(fn), resume_at = tick }
 end
 
 scheduler.wait = yield
 
-function scheduler.advance(current_tick)
-	tick = current_tick
+function scheduler.advance(current)
+	tick = current
 	local i = 1
 	while i <= n do
 		local entry = list[i]
-		if current_tick >= entry.resume_at then
-			local success, result = resume(entry.co)
+		if current >= entry.resume_at then
+			local success, result = resume(entry.routine)
 			if success and result then
-				entry.resume_at = current_tick + result
+				entry.resume_at = current + result
 				i = i + 1
 			else
 				if not success then
@@ -62,10 +62,10 @@ function scheduler.wrap(stage)
 	stage.on_tick = chain(stage.on_tick, function(_, tick)
 		scheduler.advance(tick)
 	end)
-	local original_on_leave = stage.on_leave
+	local previous = stage.on_leave
 	stage.on_leave = function(self, ...)
-		if original_on_leave then
-			original_on_leave(self, ...)
+		if previous then
+			previous(self, ...)
 		end
 		scheduler.clear()
 	end

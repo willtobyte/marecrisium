@@ -24,12 +24,12 @@ namespace {
     auto ox = .0f;
     auto oy = .0f;
     if (an && an->playing && an->clip_count > 0) [[likely]] {
-      const auto& fr = an->clips[an->active].frames[an->current];
-      ox = fr.cx;
-      oy = fr.cy;
+      const auto& frame = an->clips[an->active].frames[an->current];
+      ox = frame.bound_x;
+      oy = frame.bound_y;
     }
 
-    b2Body_SetTransform(bd.id, {tf.x + ox + bd.cached_hx, tf.y + oy + bd.cached_hy}, b2Rot_identity);
+    b2Body_SetTransform(bd.id, {tf.x + ox + bd.extent_x, tf.y + oy + bd.extent_y}, b2Rot_identity);
   }
 
   int object_index(lua_State* state) {
@@ -62,9 +62,9 @@ namespace {
         return 1;
 
       case property::velocity_x: {
-        const auto* bd = registry.try_get<body>(entity);
-        if (bd && b2Body_IsValid(bd->id)) [[likely]] {
-          lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(bd->id).x));
+        const auto* b = registry.try_get<body>(entity);
+        if (b && b2Body_IsValid(b->id)) [[likely]] {
+          lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(b->id).x));
           return 1;
         }
         lua_pushnumber(state, .0);
@@ -72,9 +72,9 @@ namespace {
       }
 
       case property::velocity_y: {
-        const auto* bd = registry.try_get<body>(entity);
-        if (bd && b2Body_IsValid(bd->id)) [[likely]] {
-          lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(bd->id).y));
+        const auto* b = registry.try_get<body>(entity);
+        if (b && b2Body_IsValid(b->id)) [[likely]] {
+          lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(b->id).y));
           return 1;
         }
         lua_pushnumber(state, .0);
@@ -97,8 +97,8 @@ namespace {
         if (!a.playing || a.clip_count == 0) [[unlikely]]
           return lua_pushnil(state), 1;
 
-        const auto* strings = registry.ctx().get<stringpool*>();
-        lua_rawgeti(state, LUA_REGISTRYINDEX, strings->ref(a.clips[a.active].name));
+        const auto* sp = registry.ctx().get<stringpool*>();
+        lua_rawgeti(state, LUA_REGISTRYINDEX, sp->ref(a.clips[a.active].name));
         return 1;
       }
 
@@ -172,11 +172,11 @@ namespace {
         auto& tf = registry.get<transform>(entity);
         tf.previous_x = tf.x = static_cast<float>(luaL_checknumber(state, 3));
 
-        auto* bd = registry.try_get<body>(entity);
-        if (bd
-            && bd->type != body_type::kinematic
-            && b2Body_IsValid(bd->id)) [[likely]]
-          sync_body_position(*bd, tf, registry.try_get<animation>(entity));
+        auto* b = registry.try_get<body>(entity);
+        if (b
+            && b->type != body_type::kinematic
+            && b2Body_IsValid(b->id)) [[likely]]
+          sync_body_position(*b, tf, registry.try_get<animation>(entity));
 
         return 0;
       }
@@ -185,11 +185,11 @@ namespace {
         auto& tf = registry.get<transform>(entity);
         tf.previous_y = tf.y = static_cast<float>(luaL_checknumber(state, 3));
 
-        auto* bd = registry.try_get<body>(entity);
-        if (bd
-            && bd->type != body_type::kinematic
-            && b2Body_IsValid(bd->id)) [[likely]]
-          sync_body_position(*bd, tf, registry.try_get<animation>(entity));
+        auto* b = registry.try_get<body>(entity);
+        if (b
+            && b->type != body_type::kinematic
+            && b2Body_IsValid(b->id)) [[likely]]
+          sync_body_position(*b, tf, registry.try_get<animation>(entity));
 
         return 0;
       }
@@ -204,24 +204,24 @@ namespace {
       }
 
       case property::velocity_x: {
-        auto* bd = registry.try_get<body>(entity);
-        if (bd
-            && bd->type == body_type::dynamic
-            && b2Body_IsValid(bd->id)) [[likely]] {
-          const auto current = b2Body_GetLinearVelocity(bd->id);
-          b2Body_SetLinearVelocity(bd->id, {static_cast<float>(luaL_checknumber(state, 3)), current.y});
+        auto* b = registry.try_get<body>(entity);
+        if (b
+            && b->type == body_type::dynamic
+            && b2Body_IsValid(b->id)) [[likely]] {
+          const auto current = b2Body_GetLinearVelocity(b->id);
+          b2Body_SetLinearVelocity(b->id, {static_cast<float>(luaL_checknumber(state, 3)), current.y});
         }
 
         return 0;
       }
 
       case property::velocity_y: {
-        auto* bd = registry.try_get<body>(entity);
-        if (bd
-            && bd->type == body_type::dynamic
-            && b2Body_IsValid(bd->id)) [[likely]] {
-          const auto current = b2Body_GetLinearVelocity(bd->id);
-          b2Body_SetLinearVelocity(bd->id, {current.x, static_cast<float>(luaL_checknumber(state, 3))});
+        auto* b = registry.try_get<body>(entity);
+        if (b
+            && b->type == body_type::dynamic
+            && b2Body_IsValid(b->id)) [[likely]] {
+          const auto current = b2Body_GetLinearVelocity(b->id);
+          b2Body_SetLinearVelocity(b->id, {current.x, static_cast<float>(luaL_checknumber(state, 3))});
         }
 
         return 0;
@@ -254,27 +254,27 @@ namespace {
           a.elapsed = .0f;
           a.playing = true;
 
-          if (a.clips[i].fx)
-            a.clips[i].fx->play();
+          if (a.clips[i].effect)
+            a.clips[i].effect->play();
 
           if (proxy->handle == LUA_NOREF)
             return 0;
 
-          const auto* strings = registry.ctx().get<stringpool*>();
+          const auto* sp = registry.ctx().get<stringpool*>();
 
           if (previous != 0
               && previous != hash
               && proxy->on_animation_end != LUA_NOREF) [[unlikely]] {
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, strings->ref(previous));
+            lua_rawgeti(state, LUA_REGISTRYINDEX, sp->ref(previous));
             pcall(state, 2, 0);
           }
 
           if (proxy->on_animation_begin != LUA_NOREF) {
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, strings->ref(hash));
+            lua_rawgeti(state, LUA_REGISTRYINDEX, sp->ref(hash));
             pcall(state, 2, 0);
           }
 

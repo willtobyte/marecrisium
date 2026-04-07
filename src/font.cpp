@@ -1,9 +1,9 @@
 #include "font.hpp"
 
-static SDL_FPoint rotate(float px, float py, float midx, float midy, float cosine, float sine) noexcept {
-  const auto dx = px - midx;
-  const auto dy = py - midy;
-  return {midx + dx * cosine - dy * sine, midy + dx * sine + dy * cosine};
+static SDL_FPoint rotate(float x, float y, float middle_x, float middle_y, float cosine, float sine) noexcept {
+  const auto dx = x - middle_x;
+  const auto dy = y - middle_y;
+  return {middle_x + dx * cosine - dy * sine, middle_y + dx * sine + dy * cosine};
 }
 
 font::font(std::string_view family) {
@@ -137,8 +137,8 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
 
     auto gx = cx;
     auto gy = cy;
-    auto sw = glyph.sw;
-    auto sh = glyph.sh;
+    auto sw = glyph.width;
+    auto sh = glyph.height;
     auto color = SDL_FColor{1.f, 1.f, 1.f, 1.f};
 
     auto angle = .0f;
@@ -146,8 +146,8 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
     if (ei < effects.size()) {
       const auto& effect = effects[ei];
 
-      gx += effect.xoffset;
-      gy += effect.yoffset;
+      gx += effect.x_offset;
+      gy += effect.y_offset;
       sw *= effect.scale;
       sh *= effect.scale;
       angle = effect.angle;

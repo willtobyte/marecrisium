@@ -140,8 +140,8 @@ sound::sound(std::string_view filename) {
     op_open_memory(buffer.data(), buffer.size(), nullptr)};
 
   const auto channels = op_channel_count(codec.get(), -1);
-  const auto nsamples = op_pcm_total(codec.get(), -1);
-  const auto total = static_cast<size_t>(nsamples) * static_cast<size_t>(channels);
+  const auto samples = op_pcm_total(codec.get(), -1);
+  const auto total = static_cast<size_t>(samples) * static_cast<size_t>(channels);
 
   _samples = std::make_unique_for_overwrite<float[]>(total);
 

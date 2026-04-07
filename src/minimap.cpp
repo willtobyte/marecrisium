@@ -54,8 +54,8 @@ void minimap::rebuild() noexcept {
   const auto ts = _tilemap->_size;
   const auto &collision = _tilemap->_collision;
 
-  const auto cx = static_cast<int32_t>(_px / ts);
-  const auto cy = static_cast<int32_t>(_py / ts);
+  const auto cx = static_cast<int32_t>(_position_x / ts);
+  const auto cy = static_cast<int32_t>(_position_y / ts);
 
   auto *noalias pixels = _pixels.data();
 
@@ -75,14 +75,14 @@ void minimap::rebuild() noexcept {
     }
   }
 
-  for (auto &&[en, proxy, tf] :
+  for (auto &&[en, op, tf] :
        _registry->view<const objectproxy, const transform>(entt::exclude<dormant>).each()) {
-    if (proxy.handle == LUA_NOREF) [[unlikely]]
+    if (op.handle == LUA_NOREF) [[unlikely]]
       continue;
 
-    if (proxy.kind == "player"_hs) [[unlikely]] {
-      _px = tf.x;
-      _py = tf.y;
+    if (op.kind == "player"_hs) [[unlikely]] {
+      _position_x = tf.x;
+      _position_y = tf.y;
       continue;
     }
 

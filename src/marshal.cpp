@@ -21,62 +21,62 @@ bool lua_table_is_array(lua_State *state, int index) {
 }
 }
 
-void json_to_lua(lua_State *state, yyjson_val *val) {
-  if (!val) [[unlikely]]
+void json_to_lua(lua_State *state, yyjson_val *value) {
+  if (!value) [[unlikely]]
     return lua_pushnil(state);
 
-  switch (yyjson_get_type(val)) {
+  switch (yyjson_get_type(value)) {
     case YYJSON_TYPE_NULL:
       lua_pushnil(state);
       break;
 
     case YYJSON_TYPE_BOOL:
-      lua_pushboolean(state, yyjson_get_bool(val));
+      lua_pushboolean(state, yyjson_get_bool(value));
       break;
 
     case YYJSON_TYPE_NUM: {
-      const auto subtype = yyjson_get_subtype(val);
+      const auto subtype = yyjson_get_subtype(value);
       switch (subtype) {
         case YYJSON_SUBTYPE_UINT:
-          lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_uint(val)));
+          lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_uint(value)));
           break;
         case YYJSON_SUBTYPE_SINT:
-          lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_sint(val)));
+          lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_sint(value)));
           break;
         case YYJSON_SUBTYPE_REAL:
-          lua_pushnumber(state, static_cast<lua_Number>(yyjson_get_real(val)));
+          lua_pushnumber(state, static_cast<lua_Number>(yyjson_get_real(value)));
           break;
         default: [[unlikely]]
-          lua_pushnumber(state, static_cast<lua_Number>(yyjson_get_real(val)));
+          lua_pushnumber(state, static_cast<lua_Number>(yyjson_get_real(value)));
           break;
       }
     } break;
 
     case YYJSON_TYPE_STR:
-      lua_pushlstring(state, yyjson_get_str(val), yyjson_get_len(val));
+      lua_pushlstring(state, yyjson_get_str(value), yyjson_get_len(value));
       break;
 
     case YYJSON_TYPE_ARR: {
-      const auto size = yyjson_arr_size(val);
+      const auto size = yyjson_arr_size(value);
       lua_createtable(state, static_cast<int>(size), 0);
-      yyjson_arr_iter iter;
-      yyjson_arr_iter_init(val, &iter);
-      yyjson_val *elem;
+      yyjson_arr_iter iterator;
+      yyjson_arr_iter_init(value, &iterator);
+      yyjson_val *element;
       auto i = 1;
-      while ((elem = yyjson_arr_iter_next(&iter))) {
-        json_to_lua(state, elem);
+      while ((element = yyjson_arr_iter_next(&iterator))) {
+        json_to_lua(state, element);
         lua_rawseti(state, -2, i);
         ++i;
       }
     } break;
 
     case YYJSON_TYPE_OBJ: {
-      const auto size = yyjson_obj_size(val);
+      const auto size = yyjson_obj_size(value);
       lua_createtable(state, 0, static_cast<int>(size));
-      yyjson_obj_iter iter;
-      yyjson_obj_iter_init(val, &iter);
+      yyjson_obj_iter iterator;
+      yyjson_obj_iter_init(value, &iterator);
       yyjson_val *key;
-      while ((key = yyjson_obj_iter_next(&iter))) {
+      while ((key = yyjson_obj_iter_next(&iterator))) {
         lua_pushlstring(state, yyjson_get_str(key), yyjson_get_len(key));
         json_to_lua(state, yyjson_obj_iter_get_val(key));
         lua_rawset(state, -3);
@@ -101,9 +101,9 @@ yyjson_mut_val *lua_to_json(lua_State *state, int index, yyjson_mut_doc *documen
 
     case LUA_TNUMBER: {
       const auto value = lua_tonumber(state, absolute);
-      const auto as_int = static_cast<lua_Integer>(value);
-      if (static_cast<lua_Number>(as_int) == value)
-        return yyjson_mut_sint(document, as_int);
+      const auto integer = static_cast<lua_Integer>(value);
+      if (static_cast<lua_Number>(integer) == value)
+        return yyjson_mut_sint(document, integer);
       return yyjson_mut_real(document, value);
     }
 
@@ -125,7 +125,7 @@ yyjson_mut_val *lua_to_json(lua_State *state, int index, yyjson_mut_doc *documen
         return arr;
       }
 
-      auto *obj = yyjson_mut_obj(document);
+      auto *object = yyjson_mut_obj(document);
       lua_pushnil(state);
       while (lua_next(state, absolute) != 0) {
         size_t length = 0;
@@ -134,10 +134,10 @@ yyjson_mut_val *lua_to_json(lua_State *state, int index, yyjson_mut_doc *documen
         auto *key = yyjson_mut_strncpy(document, name, length);
         lua_pop(state, 1);
         auto *value = lua_to_json(state, -1, document);
-        yyjson_mut_obj_add(obj, key, value);
+        yyjson_mut_obj_add(object, key, value);
         lua_pop(state, 1);
       }
-      return obj;
+      return object;
     }
 
     default: [[unlikely]]

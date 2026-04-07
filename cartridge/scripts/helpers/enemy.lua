@@ -3,8 +3,8 @@ local agent = require("helpers/agent")
 local function enemy(config)
 	local chaser = agent.new(config)
 
-	local custom_on_spawn = config.on_spawn
-	local custom_on_loop = config.on_loop
+	local spawner = config.on_spawn
+	local loop = config.on_loop
 
 	return {
 		body = "dynamic",
@@ -13,10 +13,10 @@ local function enemy(config)
 		animation = config.animation,
 
 		on_spawn = function(self)
-			self._touching_player = false
+			self._touching = false
 			chaser:init(self)
-			if custom_on_spawn then
-				custom_on_spawn(self, chaser)
+			if spawner then
+				spawner(self, chaser)
 			end
 		end,
 
@@ -26,14 +26,14 @@ local function enemy(config)
 				return
 			end
 
-			if self._touching_player then
+			if self._touching then
 				self.velocity_x = 0
 				self.velocity_y = 0
 				return
 			end
 
-			if custom_on_loop then
-				custom_on_loop(self, delta, player, chaser)
+			if loop then
+				loop(self, delta, player, chaser)
 			else
 				chaser:chase(self, player, world)
 			end
@@ -41,7 +41,7 @@ local function enemy(config)
 
 		on_collision_begin = function(self, name, kind)
 			if kind == "player" then
-				self._touching_player = true
+				self._touching = true
 				if config.on_collision_begin then
 					config.on_collision_begin(self, chaser)
 				end
@@ -51,7 +51,7 @@ local function enemy(config)
 
 		on_collision_end = function(self, name, kind)
 			if kind == "player" then
-				self._touching_player = false
+				self._touching = false
 				chaser:reset(self)
 			end
 		end,

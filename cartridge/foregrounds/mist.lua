@@ -13,7 +13,7 @@ for i = 1, MAX_QUADS * STRIDE do
 	drawings[i] = 0
 end
 
-local sprite_width, sprite_height, viewport_width, viewport_height
+local sw, sh, vw, vh
 
 return {
 	on_bump = function(self)
@@ -22,10 +22,10 @@ return {
 
 	on_appear = function(self)
 		local pixmap = self.pixmap
-		sprite_width = pixmap.width
-		sprite_height = pixmap.height
-		viewport_width = viewport.width
-		viewport_height = viewport.height
+		sw = pixmap.width
+		sh = pixmap.height
+		vw = viewport.width
+		vh = viewport.height
 	end,
 
 	on_loop = function(self, delta)
@@ -40,12 +40,12 @@ return {
 		for i = 1, #layers do
 			local scale = layers[i].scale
 			local alpha = layers[i].alpha
-			local dw = sprite_width * scale
-			local dh = sprite_height * scale
+			local dw = sw * scale
+			local dh = sh * scale
 			local ox = fmod(offsets[i], dw)
 
-			for y = -dh, viewport_height - 1, dh do
-				for x = -dw + ox, viewport_width - 1, dw do
+			for y = -dh, vh - 1, dh do
+				for x = -dw + ox, vw - 1, dw do
 					drawings[n + 1] = x
 					drawings[n + 2] = y
 					drawings[n + 3] = dw

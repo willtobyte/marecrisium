@@ -8,14 +8,14 @@ local ATTACK_COOLDOWN = 1.2
 local KEEP_DISTANCE_SQUARED = 80 * 80
 
 return enemy({
-	detect_radius = 250,
+	radius = 250,
 	speed = 60,
-	waypoint_reach = 10,
-	path_interval = 25,
-	probe_distance = 32,
+	reach = 10,
+	interval = 25,
+	probe = 32,
 	body_radius = 6,
-	stall_threshold = 10,
-	steer_blend = 0.3,
+	threshold = 10,
+	blend = 0.3,
 
 	animation = {
 		idle = {
@@ -35,33 +35,33 @@ return enemy({
 	on_loop = function(self, delta, player, chaser)
 		self._cooldown = self._cooldown - delta
 
-		local delta_x = player.x - self.x
-		local delta_y = player.y - self.y
-		local distance_squared = delta_x * delta_x + delta_y * delta_y
+		local dx = player.x - self.x
+		local dy = player.y - self.y
+		local dsq = dx * dx + dy * dy
 
-		if distance_squared <= ATTACK_RANGE_SQUARED and distance_squared > 0 then
+		if dsq <= ATTACK_RANGE_SQUARED and dsq > 0 then
 			self.velocity_x = 0
 			self.velocity_y = 0
 
-			local angle = atan2(delta_y, delta_x)
-			self.flip = delta_x < 0 and flip.horizontal or delta_x > 0 and flip.none or self.flip
+			local angle = atan2(dy, dx)
+			self.flip = dx < 0 and flip.horizontal or dx > 0 and flip.none or self.flip
 
 			if self._cooldown <= 0 then
 				self._cooldown = ATTACK_COOLDOWN
 				self._fireball_id = self._fireball_id + 1
 				local name = self.name .. "_fireball_" .. self._fireball_id
-				local fireball_x = self.x + cos(angle) * 12
-				local fireball_y = self.y + sin(angle) * 12
-				world.spawn(name, "fireball", fireball_x, fireball_y)
+				local fx = self.x + cos(angle) * 12
+				local fy = self.y + sin(angle) * 12
+				world.spawn(name, "fireball", fx, fy)
 				if pool[name] then
 					pool[name]._angle = angle
 				end
 			end
 
-			if distance_squared < KEEP_DISTANCE_SQUARED then
-				local retreat_angle = atan2(-delta_y, -delta_x)
-				self.velocity_x = cos(retreat_angle) * chaser.speed
-				self.velocity_y = sin(retreat_angle) * chaser.speed
+			if dsq < KEEP_DISTANCE_SQUARED then
+				local retreat = atan2(-dy, -dx)
+				self.velocity_x = cos(retreat) * chaser.speed
+				self.velocity_y = sin(retreat) * chaser.speed
 			end
 
 			return

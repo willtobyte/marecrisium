@@ -79,10 +79,10 @@ struct SDL_Deleter final {
 };
 
 struct SPNG_Deleter final {
-  void operator()(spng_ctx* ctx) const noexcept {
-    if (!ctx) [[unlikely]] return;
+  void operator()(spng_ctx* context) const noexcept {
+    if (!context) [[unlikely]] return;
 
-    spng_ctx_free(ctx);
+    spng_ctx_free(context);
   }
 };
 

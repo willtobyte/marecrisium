@@ -71,11 +71,11 @@ void user::wire() {
 
   auto index = 1;
   for (auto i = 0; i < count; ++i) {
-    const auto fid = GetFriendByIndex(i);
-    if (fid == 0) [[unlikely]]
+    const auto fi = GetFriendByIndex(i);
+    if (fi == 0) [[unlikely]]
       continue;
 
-    const std::string_view name = GetFriendPersonaName(fid);
+    const std::string_view name = GetFriendPersonaName(fi);
     if (name.empty()) [[unlikely]]
       continue;
 
@@ -84,7 +84,7 @@ void user::wire() {
     lua_setmetatable(L, -2);
 
     lua_newtable(L);
-    lua_pushinteger(L, static_cast<lua_Integer>(fid));
+    lua_pushinteger(L, static_cast<lua_Integer>(fi));
     lua_setfield(L, -2, "id");
     lua_pushlstring(L, name.data(), name.size());
     lua_setfield(L, -2, "name");

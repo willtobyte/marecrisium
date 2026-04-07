@@ -1,14 +1,14 @@
 local enemy = require("helpers/enemy")
 
 return enemy({
-	detect_radius = 250,
+	radius = 250,
 	speed = 108,
-	waypoint_reach = 12,
-	path_interval = 12,
-	probe_distance = 40,
+	reach = 12,
+	interval = 12,
+	probe = 40,
 	body_radius = 5,
-	stall_threshold = 8,
-	steer_blend = 0.5,
+	threshold = 8,
+	blend = 0.5,
 
 	animation = {
 		idle = {

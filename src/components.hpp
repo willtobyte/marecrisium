@@ -27,13 +27,13 @@ static_assert(std::is_trivially_copyable_v<transform>);
 struct frame final {
   float x{};
   float y{};
-  float w{};
-  float h{};
+  float width{};
+  float height{};
   float duration{};
-  float cx{};
-  float cy{};
-  float cw{};
-  float ch{};
+  float bound_x{};
+  float bound_y{};
+  float bound_width{};
+  float bound_height{};
   bool collidable{};
 };
 
@@ -43,7 +43,7 @@ struct clip final {
   entt::id_type name{};
   std::array<frame, 16> frames{};
   uint8_t count{};
-  sound* fx{};
+  sound* effect{};
 };
 
 static_assert(std::is_trivially_copyable_v<clip>);
@@ -69,8 +69,8 @@ enum class body_type : uint8_t {
 struct body final {
   b2BodyId id{b2_nullBodyId};
   b2ShapeId shape{b2_nullShapeId};
-  float cached_hx{};
-  float cached_hy{};
+  float extent_x{};
+  float extent_y{};
   body_type type{body_type::kinematic};
 };
 
