@@ -536,14 +536,14 @@ void stage::update(float delta) {
     const auto& frame = an.clips[an.active].frames[an.current];
     const auto width  = frame.width * tf.scale;
     const auto height = frame.height * tf.scale;
-    const auto sx = tf.x - viewport.x;
-    const auto sy = tf.y - viewport.y;
+    const auto screen_x = tf.x - viewport.x;
+    const auto screen_y = tf.y - viewport.y;
 
     const auto offscreen =
-      sx + width  < -_sleep_margin ||
-      sx          >  viewport.width  + _sleep_margin ||
-      sy + height < -_sleep_margin ||
-      sy          >  viewport.height + _sleep_margin;
+      screen_x + width  < -_sleep_margin ||
+      screen_x          >  viewport.width  + _sleep_margin ||
+      screen_y + height < -_sleep_margin ||
+      screen_y          >  viewport.height + _sleep_margin;
 
     if (!offscreen)
       continue;
@@ -1112,14 +1112,14 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
     const auto& fr = an.clips[an.active].frames[an.current];
     const auto  w  = fr.width * tf.scale;
     const auto  h  = fr.height * tf.scale;
-    const auto  sx = tf.x - viewport.x;
-    const auto  sy = tf.y - viewport.y;
+    const auto  screen_x = tf.x - viewport.x;
+    const auto  screen_y = tf.y - viewport.y;
 
     const auto offscreen =
-      sx + w < -_sleep_margin ||
-      sx     >  viewport.width  + _sleep_margin ||
-      sy + h < -_sleep_margin ||
-      sy     >  viewport.height + _sleep_margin;
+      screen_x + w < -_sleep_margin ||
+      screen_x     >  viewport.width  + _sleep_margin ||
+      screen_y + h < -_sleep_margin ||
+      screen_y     >  viewport.height + _sleep_margin;
 
     if (offscreen) {
       _registry.emplace<dormant>(entity);
