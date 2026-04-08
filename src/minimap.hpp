@@ -40,5 +40,4 @@ private:
   float _position_x{};
   float _position_y{};
 
-  void rebuild() noexcept;
 };

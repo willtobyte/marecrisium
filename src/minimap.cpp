@@ -48,11 +48,26 @@ minimap::minimap(const tilemap &tilemap, entt::registry &registry,
   SDL_SetTextureScaleMode(_texture.get(), SDL_SCALEMODE_NEAREST);
 }
 
-void minimap::rebuild() noexcept {
+void minimap::draw() noexcept {
+  if (!_visible)
+    return;
+
   const auto tw = _tilemap->_width;
   const auto th = _tilemap->_height;
   const auto ts = _tilemap->_size;
   const auto &collision = _tilemap->_collision;
+
+  for (auto &&[en, op, tf] :
+       _registry->view<const objectproxy, const transform>(entt::exclude<dormant>).each()) {
+    if (op.handle == LUA_NOREF) [[unlikely]]
+      continue;
+
+    if (op.kind == "player"_hs) [[unlikely]] {
+      _position_x = tf.x;
+      _position_y = tf.y;
+      break;
+    }
+  }
 
   const auto cx = static_cast<int32_t>(_position_x / ts);
   const auto cy = static_cast<int32_t>(_position_y / ts);
@@ -80,11 +95,8 @@ void minimap::rebuild() noexcept {
     if (op.handle == LUA_NOREF) [[unlikely]]
       continue;
 
-    if (op.kind == "player"_hs) [[unlikely]] {
-      _position_x = tf.x;
-      _position_y = tf.y;
+    if (op.kind == "player"_hs) [[unlikely]]
       continue;
-    }
 
     const auto ex = static_cast<int32_t>(tf.x / ts) - cx + RADIUS;
     const auto ey = static_cast<int32_t>(tf.y / ts) - cy + RADIUS;
@@ -96,13 +108,6 @@ void minimap::rebuild() noexcept {
   }
 
   pixels[static_cast<size_t>(RADIUS * SIDE + RADIUS)] = static_cast<uint32_t>(_player);
-}
-
-void minimap::draw() noexcept {
-  if (!_visible)
-    return;
-
-  rebuild();
 
   void *raw = nullptr;
   int pitch;

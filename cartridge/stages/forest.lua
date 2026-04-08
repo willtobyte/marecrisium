@@ -2,7 +2,7 @@ local scheduler = require("helpers/scheduler")
 local camera = require("helpers/camera")
 local controls = require("helpers/controls")
 
-local pressed = false
+local pressed = true
 
 return scheduler.wrap({
 	tilemap = "forest",
