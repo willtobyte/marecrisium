@@ -21,7 +21,9 @@ target_link_libraries(fuzzer PRIVATE
   unordered_dense::unordered_dense
 )
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if(MSVC)
+  target_compile_definitions(fuzzer PRIVATE FUZZ_CORPUS_RUNNER)
+else()
   target_compile_options(fuzzer PRIVATE
     -fsanitize=fuzzer,address,undefined
     -fno-omit-frame-pointer -g -O1
@@ -29,6 +31,4 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_link_options(fuzzer PRIVATE
     -fsanitize=fuzzer,address,undefined
   )
-elseif(MSVC)
-  target_compile_definitions(fuzzer PRIVATE FUZZ_CORPUS_RUNNER)
 endif()
