@@ -8,12 +8,14 @@ on:
     paths:
       - "src/**"
       - "tools/**"
+      - "fuzz/**"
   pull_request:
     branches:
       - main
     paths:
       - "src/**"
       - "tools/**"
+      - "fuzz/**"
 
 jobs:
   build:
@@ -57,20 +59,47 @@ jobs:
           cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release --verbose
 
-      - name: Package cartridge
+      - name: Build tools
+        working-directory: tools
         run: |
-          ./build/tools/pack cartridge
+          cmake -Bbuild \
+            -DCMAKE_TOOLCHAIN_FILE=../build/conan_toolchain.cmake \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+
+      - name: Package cartridge
+        run: ./tools/build/pack cartridge
 
       - name: Collect artifacts
         run: |
           mkdir -p artifact
           cp build/carimbo artifact/
           cp cartridge.rom artifact/
-          cp build/tools/pack artifact/
-          cp build/tools/unpack artifact/
+          cp tools/build/pack artifact/
+          cp tools/build/unpack artifact/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: build
           path: artifact/
+
+      - name: Build fuzzer
+        working-directory: fuzz
+        run: |
+          cmake -Bbuild \
+            -DCMAKE_TOOLCHAIN_FILE=../build/conan_toolchain.cmake \
+            -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build
+
+      - name: Generate corpus
+        run: |
+          pip3 install zstandard
+          python3 fuzz/corpus.py fuzz/seed
+
+      - name: Run fuzzer
+        run: |
+          ./fuzz/build/fuzzer fuzz/seed \
+            -max_total_time=60 \
+            -max_len=65536 \
+            -rss_limit_mb=1024

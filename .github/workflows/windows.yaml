@@ -8,12 +8,14 @@ on:
     paths:
       - "src/**"
       - "tools/**"
+      - "fuzz/**"
   pull_request:
     branches:
       - main
     paths:
       - "src/**"
       - "tools/**"
+      - "fuzz/**"
 
 jobs:
   build:
@@ -62,20 +64,43 @@ jobs:
           cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release --verbose
 
-      - name: Package cartridge
+      - name: Build tools
+        working-directory: tools
         run: |
-          ./build/tools/Release/pack.exe cartridge
+          cmake -Bbuild \
+            -DCMAKE_TOOLCHAIN_FILE=../build/conan_toolchain.cmake \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+
+      - name: Package cartridge
+        run: ./tools/build/Release/pack.exe cartridge
 
       - name: Collect artifacts
         run: |
           mkdir -p artifact
           cp build/Release/carimbo.exe artifact/
           cp cartridge.rom artifact/
-          cp build/tools/Release/pack.exe artifact/
-          cp build/tools/Release/unpack.exe artifact/
+          cp tools/build/Release/pack.exe artifact/
+          cp tools/build/Release/unpack.exe artifact/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: build
           path: artifact/
+
+      - name: Build fuzzer
+        working-directory: fuzz
+        run: |
+          cmake -Bbuild \
+            -DCMAKE_TOOLCHAIN_FILE=../build/conan_toolchain.cmake \
+            -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --config Debug
+
+      - name: Generate corpus
+        run: |
+          pip install zstandard
+          python3 fuzz/corpus.py fuzz/seed
+
+      - name: Run corpus test
+        run: ./fuzz/build/Debug/fuzzer.exe fuzz/seed

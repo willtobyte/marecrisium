@@ -227,9 +227,15 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     return nullptr;
   }
 
-  const auto size = static_cast<size_t>(found.compressed);
+  const auto length = arc->io->length(arc->io);
+  if (length < 0 ||
+      found.offset > static_cast<PHYSFS_uint64>(length) ||
+      found.compressed > static_cast<PHYSFS_uint64>(length) - found.offset) [[unlikely]] {
+    PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
+    return nullptr;
+  }
 
-  const auto uncompressed = static_cast<size_t>(found.uncompressed);
+  const auto size = static_cast<size_t>(found.compressed);
 
   auto compressed = std::make_unique_for_overwrite<uint8_t[]>(size);
 
@@ -238,6 +244,16 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     PHYSFS_setErrorCode(PHYSFS_ERR_IO);
     return nullptr;
   }
+
+  const auto expected = ZSTD_getFrameContentSize(compressed.get(), size);
+  if (expected == ZSTD_CONTENTSIZE_ERROR ||
+      expected == ZSTD_CONTENTSIZE_UNKNOWN ||
+      expected != found.uncompressed) [[unlikely]] {
+    PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
+    return nullptr;
+  }
+
+  const auto uncompressed = static_cast<size_t>(found.uncompressed);
 
   auto buffer = std::make_shared_for_overwrite<uint8_t[]>(uncompressed);
 
