@@ -91,9 +91,12 @@ jobs:
       - name: Build fuzzer
         working-directory: fuzz
         run: |
+          LLVM_PREFIX=$(brew --prefix llvm@18)
           cmake -Bbuild \
             -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake \
-            -DCMAKE_BUILD_TYPE=Debug
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=$LLVM_PREFIX/bin/clang \
+            -DCMAKE_CXX_COMPILER=$LLVM_PREFIX/bin/clang++
           cmake --build build
 
       - name: Generate corpus
