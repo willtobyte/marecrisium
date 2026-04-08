@@ -84,11 +84,15 @@ jobs:
           name: build
           path: artifact/
 
+      - name: Install fuzzer dependencies
+        working-directory: fuzz
+        run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Debug
+
       - name: Build fuzzer
         working-directory: fuzz
         run: |
           cmake -Bbuild \
-            -DCMAKE_TOOLCHAIN_FILE=../build/conan_toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=Debug
           cmake --build build
 
