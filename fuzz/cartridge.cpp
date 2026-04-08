@@ -76,6 +76,7 @@ void mock_destroy(PHYSFS_Io *io) {
 
 PHYSFS_Io *make_io(const uint8_t *data, size_t size) {
   auto *reader = new state{data, size, 0};
+
   return new PHYSFS_Io{
     .version = 0,
     .opaque = reader,
