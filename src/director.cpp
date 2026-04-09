@@ -72,7 +72,7 @@ void director::enroll(std::string name) {
   const auto key = entt::hashed_string{name.data()};
   const auto [it, inserted] = _stages.try_emplace(key);
   if (inserted)
-    it->second = std::make_unique<stage>(name);
+    it->second = std::make_unique<stage>(std::move(name));
 }
 
 void director::transition() {
@@ -88,7 +88,7 @@ void director::transition() {
   const auto key = entt::hashed_string{_pending->data()};
   auto [it, inserted] = _stages.try_emplace(key);
   if (inserted)
-    it->second = std::make_unique<stage>(*_pending);
+    it->second = std::make_unique<stage>(std::move(*_pending));
 
   _pending.reset();
   _current = it->second.get();

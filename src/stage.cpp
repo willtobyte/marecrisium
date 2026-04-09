@@ -218,14 +218,13 @@ static int world_pathfind(lua_State* state) {
   return self->pathfind(state, x1, y1, x2, y2, r);
 }
 
-stage::stage(std::string_view name)
-    : _name(name) {
+stage::stage(std::string name)
+    : _name(std::move(name)) {
   _registry.on_destroy<objectproxy>().connect<&on_objectproxy_destroy>();
   _registry.on_destroy<body>().connect<&on_object_destroy>();
-  _registry.ctx().emplace<stringpool*>(&_stringpool);
   _registry.ctx().emplace<reorder>();
 
-  const auto filename = std::format("stages/{}.lua", name);
+  const auto filename = std::format("stages/{}.lua", _name);
   const auto buffer = io::read(filename);
   const auto chunk = std::format("@{}", filename);
   compile(L, buffer, chunk);
@@ -450,7 +449,7 @@ stage::stage(std::string_view name)
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "sound");
-      const std::string_view sound = lua_isstring(L, -1) ? lua_tostring(L, -1) : std::string_view{};
+      const std::string sound = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "distance");
@@ -533,7 +532,7 @@ stage::~stage() {
 void stage::update(float delta) {
   for (auto&& [e, op, tf, an] :
        _registry.view<sleepable, objectproxy, transform, animation>(entt::exclude<dormant>).each()) {
-    const auto& frame = an.clips[an.active].frames[an.current];
+    const auto& frame = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
     const auto width  = frame.width * tf.scale;
     const auto height = frame.height * tf.scale;
     const auto screen_x = tf.x - viewport.x;
@@ -563,7 +562,7 @@ void stage::update(float delta) {
 
   for (auto&& [e, op, tf, an] :
        _registry.view<sleepable, dormant, objectproxy, transform, animation>().each()) {
-    const auto& frame = an.clips[an.active].frames[an.current];
+    const auto& frame = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
     const auto width  = frame.width * tf.scale;
     const auto height = frame.height * tf.scale;
     const auto screen_x = tf.x - viewport.x;
@@ -610,11 +609,11 @@ void stage::update(float delta) {
     }
 
     auto* a = _registry.try_get<animation>(e);
-    if (!a || !a->playing || a->clip_count == 0) [[unlikely]]
+    if (!a || !a->playing || a->sheet->count == 0) [[unlikely]]
       continue;
 
-    const auto& c = a->clips[a->active];
-    const auto& fr = c.frames[a->current];
+    const auto& c = a->sheet->clips[a->active];
+    const auto& fr = a->sheet->frames[c.offset + a->current];
     if (c.count == 0 || fr.duration < .0f) [[unlikely]]
       continue;
 
@@ -630,14 +629,14 @@ void stage::update(float delta) {
         if (op.on_animation_end != LUA_NOREF) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_animation_end);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-          lua_rawgeti(L, LUA_REGISTRYINDEX, _stringpool.ref(c.name));
+          lua_rawgeti(L, LUA_REGISTRYINDEX, depot->string.ref(c.name));
           pcall(L, 2, 0);
         }
 
         if (op.on_animation_begin != LUA_NOREF) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_animation_begin);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-          lua_rawgeti(L, LUA_REGISTRYINDEX, _stringpool.ref(c.name));
+          lua_rawgeti(L, LUA_REGISTRYINDEX, depot->string.ref(c.name));
           pcall(L, 2, 0);
         }
       }
@@ -657,7 +656,7 @@ void stage::update(float delta) {
         tf.previous_y = tf.y;
       }
 
-      const auto& frame = an.clips[an.active].frames[an.current];
+      const auto& frame = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
 
       if (ensure_shape(b, frame, en, tf, _timestep))
         continue;
@@ -678,11 +677,11 @@ void stage::update(float delta) {
         continue;
 
       const auto* an = _registry.try_get<animation>(entity);
-      if (!an || !an->playing || an->clip_count == 0) [[unlikely]]
+      if (!an || !an->playing || an->sheet->count == 0) [[unlikely]]
         continue;
 
       auto& tf = _registry.get<transform>(entity);
-      const auto& frame = an->clips[an->active].frames[an->current];
+      const auto& frame = an->sheet->frames[an->sheet->clips[an->active].offset + an->current];
       const auto position = event.transform.p;
       tf.x = position.x - frame.bound_x - b->extent_x;
       tf.y = position.y - frame.bound_y - b->extent_y;
@@ -847,14 +846,14 @@ void stage::draw() {
   view.use<renderable>();
 
   for (auto&& [e, r, a, tf] : view.each()) {
-    if (!tf.shown || !a.playing || !a.pixmap || a.clip_count == 0) [[unlikely]]
+    if (!tf.shown || !a.playing || !a.sheet || a.sheet->count == 0) [[unlikely]]
       continue;
 
-    const auto& c = a.clips[a.active];
+    const auto& c = a.sheet->clips[a.active];
     if (c.count == 0)
       continue;
 
-    const auto& fr = c.frames[a.current];
+    const auto& fr = a.sheet->frames[c.offset + a.current];
 
     const auto* b = _registry.try_get<body>(e);
     const auto dynamic = b && b->type == body_type::dynamic;
@@ -870,7 +869,7 @@ void stage::draw() {
         sy + dh < .0f || sy > viewport.height)
       continue;
 
-    a.pixmap->draw(
+    a.sheet->pixmap->draw(
       fr.x, fr.y, fr.width, fr.height,
       sx, sy, dw, dh,
       static_cast<double>(tf.angle),
@@ -968,135 +967,33 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   const auto prototype = op.prototype;
   const auto handle = op.handle;
 
-  _stringpool.get(name);
-  _stringpool.get(kind);
+  depot->string.get(name);
+  depot->string.get(kind);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
   lua_getfield(L, -1, "animation");
 
   if (lua_istable(L, -1)) {
+    const auto* sheet = depot->spritesheet.get(kind, L, -1);
+
     auto& a = _registry.emplace<animation>(entity);
-    a.pixmap = depot->pixmap.get(std::format("objects/{}", kind));
+    a.sheet = sheet;
+    a.active = sheet->initial;
+    a.playing = sheet->count > 0;
 
-    lua_pushnil(L);
-    while (lua_next(L, -2) != 0) {
-      if (!lua_istable(L, -1)) {
-        lua_pop(L, 1);
-        continue;
-      }
-
-      if (a.clip_count >= a.clips.size()) {
-        lua_pop(L, 2);
-        break;
-      }
-
-      lua_pushvalue(L, -2);
-      const std::string_view label = lua_tostring(L, -1);
-      lua_pop(L, 1);
-      const auto cid = _stringpool.get(label);
-
-      auto& c = a.clips[a.clip_count];
-      c.name = cid;
-      c.count = 0;
-
-      {
-        const auto fc = static_cast<int>(lua_objlen(L, -1));
-
-        for (int f = 1; f <= fc && c.count < c.frames.size(); ++f) {
-          lua_rawgeti(L, -1, f);
-
-          if (!lua_istable(L, -1)) {
-            lua_pop(L, 1);
-            continue;
-          }
-
-          auto& fr = c.frames[c.count];
-
-          lua_rawgeti(L, -1, 1);
-          fr.x = static_cast<float>(lua_tonumber(L, -1));
-          lua_pop(L, 1);
-          lua_rawgeti(L, -1, 2);
-          fr.y = static_cast<float>(lua_tonumber(L, -1));
-          lua_pop(L, 1);
-          lua_rawgeti(L, -1, 3);
-          fr.width = static_cast<float>(lua_tonumber(L, -1));
-          lua_pop(L, 1);
-          lua_rawgeti(L, -1, 4);
-          fr.height = static_cast<float>(lua_tonumber(L, -1));
-          lua_pop(L, 1);
-          lua_rawgeti(L, -1, 5);
-          fr.duration = static_cast<float>(lua_tonumber(L, -1)) / 1000.f;
-          lua_pop(L, 1);
-
-          lua_rawgeti(L, -1, 6);
-          if (!lua_isnil(L, -1)) {
-            fr.bound_x = static_cast<float>(lua_tonumber(L, -1));
-            lua_pop(L, 1);
-            lua_rawgeti(L, -1, 7);
-            fr.bound_y = static_cast<float>(lua_tonumber(L, -1));
-            lua_pop(L, 1);
-            lua_rawgeti(L, -1, 8);
-            fr.bound_width = static_cast<float>(lua_tonumber(L, -1));
-            lua_pop(L, 1);
-            lua_rawgeti(L, -1, 9);
-            fr.bound_height = static_cast<float>(lua_tonumber(L, -1));
-            lua_pop(L, 1);
-            fr.collidable = true;
-          } else {
-            lua_pop(L, 1);
-          }
-
-          ++c.count;
-
-          lua_pop(L, 1);
-        }
-      }
-
-      {
-        lua_getfield(L, -1, "sound");
-        if (lua_isstring(L, -1))
-          c.effect = depot->sound.get(std::format("sounds/{}", lua_tostring(L, -1)));
-        lua_pop(L, 1);
-      }
-
-      ++a.clip_count;
-      lua_pop(L, 1);
+    if (a.playing) {
+      const auto& fr = sheet->frames[sheet->clips[a.active].offset];
+      _registry.get<renderable>(entity).z = static_cast<int>(tf.y + fr.height * tf.scale);
+      _registry.ctx().get<reorder>().dirty = true;
     }
 
-    if (a.clip_count > 0) {
-      a.playing = true;
-
-      lua_getfield(L, -1, "default");
-      const std::string_view initial = lua_isstring(L, -1) ? lua_tostring(L, -1) : std::string_view{};
-      lua_pop(L, 1);
-      if (!initial.empty()) {
-        const auto hash = entt::hashed_string{initial.data()};
-        for (uint8_t i = 0; i < a.clip_count; ++i) {
-          if (a.clips[i].name == hash) {
-            a.active = i;
-            break;
-          }
-        }
-      }
-    }
-
-    const auto& fr = a.clips[a.active].frames[0];
-    _registry.get<renderable>(entity).z = static_cast<int>(tf.y + fr.height * tf.scale);
-    _registry.ctx().get<reorder>().dirty = true;
-
-    bool collidable = false;
-    for (uint8_t ci = 0; ci < a.clip_count && !collidable; ++ci)
-      for (uint8_t fi = 0; fi < a.clips[ci].count && !collidable; ++fi)
-        collidable = a.clips[ci].frames[fi].collidable;
-
-    if (collidable) {
+    if (sheet->collidable) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
       lua_getfield(L, -1, "body");
-      const auto *behavior = lua_isstring(L, -1) ? lua_tostring(L, -1) : "kinematic";
-      lua_pop(L, 1);
-      lua_pop(L, 1);
+      const std::string_view behavior = lua_isstring(L, -1) ? lua_tostring(L, -1) : "kinematic";
+      lua_pop(L, 2);
 
-      const auto [type, b2type] = mapping(behavior);
+      const auto [type, b2type] = mapping(behavior.data());
 
       b2BodyDef bdef = b2DefaultBodyDef();
       bdef.userData = to_userdata(entity);
@@ -1139,7 +1036,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 
   if (_registry.all_of<sleepable, animation>(entity)) {
     const auto& an = _registry.get<animation>(entity);
-    const auto& fr = an.clips[an.active].frames[an.current];
+    const auto& fr = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
     const auto  w  = fr.width * tf.scale;
     const auto  h  = fr.height * tf.scale;
     const auto  screen_x = tf.x - viewport.x;
@@ -1169,7 +1066,7 @@ int stage::destroy(lua_State* state) {
   if (!_registry.valid(proxy->entity))
     return 0;
 
-  const auto* label = _stringpool.get(proxy->name);
+  const auto* label = depot->string.get(proxy->name);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
   lua_pushnil(L);

@@ -2,11 +2,12 @@
 
 entt::id_type stringpool::get(std::string_view value) {
   const auto key = entt::hashed_string{value.data()};
-  auto [it, inserted] = _pool.try_emplace(key, value);
-  if (inserted) {
+  const auto [it, inserted] = _pool.try_emplace(key, value);
+  if (inserted) [[unlikely]] {
     lua_pushlstring(L, value.data(), value.size());
     _references.emplace(key, luaL_ref(L, LUA_REGISTRYINDEX));
   }
+
   return key;
 }
 

@@ -2,7 +2,6 @@
 
 #include "minimap.hpp"
 #include "particlesystem.hpp"
-#include "stringpool.hpp"
 #include "tilemap.hpp"
 
 class pixmap;
@@ -11,7 +10,7 @@ void sincos(float x, float& sine, float& cosine) noexcept;
 
 class stage final {
 public:
-  explicit stage(std::string_view name);
+  explicit stage(std::string name);
   ~stage();
 
   void update(float delta);
@@ -50,7 +49,6 @@ private:
   std::optional<std::string> _overlay{};
   std::optional<std::string> _foreground{};
 
-  stringpool _stringpool{};
   particlesystem _particlesystem{};
   tilemap _tilemap{};
   std::optional<minimap> _minimap{};

@@ -2,6 +2,7 @@
 
 class pixmap;
 class sound;
+struct spritesheet;
 
 enum class mirror : uint8_t {
   none = SDL_FLIP_NONE,
@@ -41,7 +42,7 @@ static_assert(std::is_trivially_copyable_v<frame>);
 
 struct clip final {
   entt::id_type name{};
-  std::array<frame, 16> frames{};
+  uint16_t offset{};
   uint8_t count{};
   sound* effect{};
 };
@@ -49,10 +50,8 @@ struct clip final {
 static_assert(std::is_trivially_copyable_v<clip>);
 
 struct animation final {
-  const pixmap* pixmap{};
-  std::array<clip, 8> clips{};
+  const spritesheet* sheet{};
   float elapsed{};
-  uint8_t clip_count{};
   uint8_t active{};
   uint8_t current{};
   bool playing{};

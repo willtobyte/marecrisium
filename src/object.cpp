@@ -23,8 +23,8 @@ namespace {
   static void sync_body_position(body& bd, const transform& tf, const animation* an) noexcept {
     auto ox = .0f;
     auto oy = .0f;
-    if (an && an->playing && an->clip_count > 0) [[likely]] {
-      const auto& frame = an->clips[an->active].frames[an->current];
+    if (an && an->playing && an->sheet->count > 0) [[likely]] {
+      const auto& frame = an->sheet->frames[an->sheet->clips[an->active].offset + an->current];
       ox = frame.bound_x;
       oy = frame.bound_y;
     }
@@ -94,11 +94,10 @@ namespace {
           return lua_pushnil(state), 1;
 
         const auto& a = registry.get<animation>(entity);
-        if (!a.playing || a.clip_count == 0) [[unlikely]]
+        if (!a.playing || a.sheet->count == 0) [[unlikely]]
           return lua_pushnil(state), 1;
 
-        const auto* sp = registry.ctx().get<stringpool*>();
-        lua_rawgeti(state, LUA_REGISTRYINDEX, sp->ref(a.clips[a.active].name));
+        lua_rawgeti(state, LUA_REGISTRYINDEX, depot->string.ref(a.sheet->clips[a.active].name));
         return 1;
       }
 
@@ -244,37 +243,35 @@ namespace {
 
         auto& a = registry.get<animation>(entity);
 
-        for (uint8_t i = 0; i < a.clip_count; ++i) {
-          if (a.clips[i].name != hash)
+        for (uint8_t i = 0; i < a.sheet->count; ++i) {
+          if (a.sheet->clips[i].name != hash)
             continue;
 
-          const auto previous = a.playing ? a.clips[a.active].name : entt::id_type{};
+          const auto previous = a.playing ? a.sheet->clips[a.active].name : entt::id_type{};
           a.active = i;
           a.current = 0;
           a.elapsed = .0f;
           a.playing = true;
 
-          if (a.clips[i].effect)
-            a.clips[i].effect->play();
+          if (a.sheet->clips[i].effect)
+            a.sheet->clips[i].effect->play();
 
           if (proxy->handle == LUA_NOREF)
             return 0;
-
-          const auto* sp = registry.ctx().get<stringpool*>();
 
           if (previous != 0
               && previous != hash
               && proxy->on_animation_end != LUA_NOREF) [[unlikely]] {
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, sp->ref(previous));
+            lua_rawgeti(state, LUA_REGISTRYINDEX, depot->string.ref(previous));
             pcall(state, 2, 0);
           }
 
           if (proxy->on_animation_begin != LUA_NOREF) {
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, sp->ref(hash));
+            lua_rawgeti(state, LUA_REGISTRYINDEX, depot->string.ref(hash));
             pcall(state, 2, 0);
           }
 

@@ -9,6 +9,8 @@
 #include "pixmappool.hpp"
 #include "soundpool.hpp"
 #include "sourcepool.hpp"
+#include "spritesheetpool.hpp"
+#include "stringpool.hpp"
 
 struct resources final {
   fontpool font;
@@ -16,4 +18,6 @@ struct resources final {
   pixmappool pixmap;
   soundpool sound;
   sourcepool source;
+  spritesheetpool spritesheet;
+  stringpool string;
 };
