@@ -8,9 +8,9 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     lua_pushvalue(state, index);
     const auto table = lua_gettop(state);
 
-    auto r = std::make_unique<storage>();
-    r->clips.reserve(8);
-    r->frames.reserve(128);
+    auto s = std::make_unique<storage>();
+    s->clips.reserve(8);
+    s->frames.reserve(128);
 
     entt::id_type dh = 0;
     lua_getfield(state, table, "default");
@@ -39,13 +39,13 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
 
       const auto cid = depot->string.get(label);
 
-      auto& c = r->clips.emplace_back();
+      auto& c = s->clips.emplace_back();
       c.name = cid;
-      c.offset = static_cast<uint16_t>(r->frames.size());
+      c.offset = static_cast<uint16_t>(s->frames.size());
       c.count = 0;
 
       if (cid == dh)
-        initial = static_cast<uint8_t>(r->clips.size() - 1);
+        initial = static_cast<uint8_t>(s->clips.size() - 1);
 
       const auto count = static_cast<int>(lua_objlen(state, -1));
       for (int i = 1; i <= count; ++i) {
@@ -56,7 +56,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
           continue;
         }
 
-        auto& fr = r->frames.emplace_back();
+        auto& fr = s->frames.emplace_back();
 
         lua_rawgeti(state, -1, 1);
         fr.x = static_cast<float>(lua_tonumber(state, -1));
@@ -105,12 +105,12 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       lua_pop(state, 1);
     }
 
-    r->sheet.pixmap = depot->pixmap.get(std::format("objects/{}", kind));
-    r->sheet.clips = r->clips.data();
-    r->sheet.frames = r->frames.data();
-    r->sheet.count = static_cast<uint8_t>(r->clips.size());
-    r->sheet.initial = initial;
-    r->sheet.collidable = collidable;
+    s->sheet.pixmap = depot->pixmap.get(std::format("objects/{}", kind));
+    s->sheet.clips = s->clips.data();
+    s->sheet.frames = s->frames.data();
+    s->sheet.count = static_cast<uint8_t>(s->clips.size());
+    s->sheet.initial = initial;
+    s->sheet.collidable = collidable;
 
     it->second = std::move(r);
     lua_pop(state, 1);
