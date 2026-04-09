@@ -41,6 +41,18 @@ static b2Vec2 body_center(const transform& tf, const frame& fr, const body& b) n
           tf.y + fr.bound_y + b.extent_y};
 }
 
+static bool culled(const transform &tf, const animation &an, float margin) noexcept {
+  const auto &fr = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
+  const auto width  = fr.width * tf.scale;
+  const auto height = fr.height * tf.scale;
+  const auto screen_x = tf.x - viewport.x;
+  const auto screen_y = tf.y - viewport.y;
+  return screen_x + width  < -margin ||
+    screen_x >  viewport.width  + margin ||
+    screen_y + height < -margin ||
+    screen_y >  viewport.height + margin;
+}
+
 static constexpr auto mapping(const char *s) noexcept -> std::pair<body_type, b2BodyType> {
   const auto id = entt::hashed_string{s};
   switch (id) {
@@ -540,19 +552,7 @@ stage::~stage() {
 void stage::update(float delta) {
   for (auto&& [e, op, tf, an] :
        _registry.view<sleepable, objectproxy, transform, animation>(entt::exclude<dormant>).each()) {
-    const auto& frame = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
-    const auto width  = frame.width * tf.scale;
-    const auto height = frame.height * tf.scale;
-    const auto screen_x = tf.x - viewport.x;
-    const auto screen_y = tf.y - viewport.y;
-
-    const auto offscreen =
-      screen_x + width  < -_sleep_margin ||
-      screen_x          >  viewport.width  + _sleep_margin ||
-      screen_y + height < -_sleep_margin ||
-      screen_y          >  viewport.height + _sleep_margin;
-
-    if (!offscreen)
+    if (!culled(tf, an, _sleep_margin))
       continue;
 
     _registry.emplace<dormant>(e);
@@ -570,19 +570,7 @@ void stage::update(float delta) {
 
   for (auto&& [e, op, tf, an] :
        _registry.view<sleepable, dormant, objectproxy, transform, animation>().each()) {
-    const auto& frame = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
-    const auto width  = frame.width * tf.scale;
-    const auto height = frame.height * tf.scale;
-    const auto screen_x = tf.x - viewport.x;
-    const auto screen_y = tf.y - viewport.y;
-
-    const auto offscreen =
-      screen_x + width  < -_sleep_margin ||
-      screen_x          >  viewport.width  + _sleep_margin ||
-      screen_y + height < -_sleep_margin ||
-      screen_y          >  viewport.height + _sleep_margin;
-
-    if (offscreen)
+    if (culled(tf, an, _sleep_margin))
       continue;
 
     _registry.remove<dormant>(e);
@@ -1081,19 +1069,8 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 
   if (_registry.all_of<sleepable, animation>(entity)) {
     const auto& an = _registry.get<animation>(entity);
-    const auto& fr = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
-    const auto  w  = fr.width * tf.scale;
-    const auto  h  = fr.height * tf.scale;
-    const auto  screen_x = tf.x - viewport.x;
-    const auto  screen_y = tf.y - viewport.y;
 
-    const auto offscreen =
-      screen_x + w < -_sleep_margin ||
-      screen_x     >  viewport.width  + _sleep_margin ||
-      screen_y + h < -_sleep_margin ||
-      screen_y     >  viewport.height + _sleep_margin;
-
-    if (offscreen) {
+    if (culled(tf, an, _sleep_margin)) {
       _registry.emplace<dormant>(entity);
 
       if (auto* b = _registry.try_get<body>(entity);
