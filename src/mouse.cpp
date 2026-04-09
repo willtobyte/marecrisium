@@ -2,10 +2,10 @@
 
 namespace {
 namespace property {
-  constexpr auto x      = "x"_hs;
-  constexpr auto y      = "y"_hs;
+  constexpr auto x = "x"_hs;
+  constexpr auto y = "y"_hs;
   constexpr auto button = "button"_hs;
-  constexpr auto shown  = "shown"_hs;
+  constexpr auto shown = "shown"_hs;
 }
 }
 
