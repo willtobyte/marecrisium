@@ -532,7 +532,7 @@ stage::~stage() {
 
 void stage::update(float delta) {
   for (auto&& [e, op, tf, an] :
-       _registry.view<sleepable, dormant, objectproxy, transform, animation>().each()) {
+       _registry.view<sleepable, objectproxy, transform, animation>(entt::exclude<dormant>).each()) {
     const auto& frame = an.clips[an.active].frames[an.current];
     const auto width  = frame.width * tf.scale;
     const auto height = frame.height * tf.scale;
@@ -556,6 +556,36 @@ void stage::update(float delta) {
 
     if (op.on_sleep != LUA_NOREF) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_sleep);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+      pcall(L, 1, 0);
+    }
+  }
+
+  for (auto&& [e, op, tf, an] :
+       _registry.view<sleepable, dormant, objectproxy, transform, animation>().each()) {
+    const auto& frame = an.clips[an.active].frames[an.current];
+    const auto width  = frame.width * tf.scale;
+    const auto height = frame.height * tf.scale;
+    const auto screen_x = tf.x - viewport.x;
+    const auto screen_y = tf.y - viewport.y;
+
+    const auto offscreen =
+      screen_x + width  < -_sleep_margin ||
+      screen_x          >  viewport.width  + _sleep_margin ||
+      screen_y + height < -_sleep_margin ||
+      screen_y          >  viewport.height + _sleep_margin;
+
+    if (offscreen)
+      continue;
+
+    _registry.remove<dormant>(e);
+
+    if (auto* b = _registry.try_get<body>(e);
+        b && b2Body_IsValid(b->id))
+      b2Body_Enable(b->id);
+
+    if (op.on_wake != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_wake);
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
       pcall(L, 1, 0);
     }
