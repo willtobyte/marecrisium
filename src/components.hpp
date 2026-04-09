@@ -78,9 +78,9 @@ static_assert(std::is_trivially_copyable_v<body>);
 struct boundary final {
   uint8_t previous{};
 
-  static constexpr uint8_t left   = 1 << 0;
-  static constexpr uint8_t right  = 1 << 1;
-  static constexpr uint8_t top    = 1 << 2;
+  static constexpr uint8_t left = 1 << 0;
+  static constexpr uint8_t right = 1 << 1;
+  static constexpr uint8_t top = 1 << 2;
   static constexpr uint8_t bottom = 1 << 3;
 };
 
