@@ -29,11 +29,11 @@ private:
   const tilemap* _tilemap;
   entt::registry* _registry;
 
-  color _solid;
-  color _passable;
-  color _empty;
-  color _player;
-  color _entity;
+  uint32_t _solid;
+  uint32_t _passable;
+  uint32_t _empty;
+  uint32_t _player;
+  uint32_t _entity;
 
   std::unique_ptr<SDL_Texture, SDL_Deleter> _texture;
   std::vector<uint32_t> _pixels;

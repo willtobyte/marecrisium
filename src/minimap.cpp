@@ -33,11 +33,11 @@ minimap::minimap(const tilemap &tilemap, entt::registry &registry,
                  color player, color entity)
     : _tilemap(&tilemap)
     , _registry(&registry)
-    , _solid(solid)
-    , _passable(passable)
-    , _empty(empty)
-    , _player(player)
-    , _entity(entity)
+    , _solid(static_cast<uint32_t>(solid))
+    , _passable(static_cast<uint32_t>(passable))
+    , _empty(static_cast<uint32_t>(empty))
+    , _player(static_cast<uint32_t>(player))
+    , _entity(static_cast<uint32_t>(entity))
     , _pixels(static_cast<size_t>(SIDE * SIDE)) {
   _texture.reset(SDL_CreateTexture(
     renderer,
@@ -57,8 +57,9 @@ void minimap::draw() noexcept {
   const auto ts = _tilemap->_size;
   const auto &collision = _tilemap->_collision;
 
-  for (auto &&[en, op, tf] :
-       _registry->view<const objectproxy, const transform>(entt::exclude<dormant>).each()) {
+  auto view = _registry->view<const objectproxy, const transform>(entt::exclude<dormant>);
+
+  for (auto &&[en, op, tf] : view.each()) {
     if (op.handle == LUA_NOREF) [[unlikely]]
       continue;
 
@@ -76,22 +77,29 @@ void minimap::draw() noexcept {
 
   for (int32_t dy = -RADIUS; dy <= RADIUS; ++dy) {
     const auto ty = cy + dy;
+    const auto row = static_cast<size_t>((dy + RADIUS) * SIDE);
+
+    if (ty < 0 || ty >= th) [[unlikely]] {
+      std::fill_n(pixels + row, SIDE, _empty);
+      continue;
+    }
+
+    const auto base = static_cast<size_t>(ty * tw);
+
     for (int32_t dx = -RADIUS; dx <= RADIUS; ++dx) {
       const auto tx = cx + dx;
-      const auto index = static_cast<size_t>((dy + RADIUS) * SIDE + (dx + RADIUS));
+      const auto index = row + static_cast<size_t>(dx + RADIUS);
 
-      if (tx < 0 || tx >= tw || ty < 0 || ty >= th) [[unlikely]] {
-        pixels[index] = static_cast<uint32_t>(_empty);
+      if (tx < 0 || tx >= tw) [[unlikely]] {
+        pixels[index] = _empty;
         continue;
       }
 
-      const auto tile = collision[static_cast<size_t>(ty * tw + tx)];
-      pixels[index] = tile != 0 ? static_cast<uint32_t>(_solid) : static_cast<uint32_t>(_passable);
+      pixels[index] = collision[base + static_cast<size_t>(tx)] != 0 ? _solid : _passable;
     }
   }
 
-  for (auto &&[en, op, tf] :
-       _registry->view<const objectproxy, const transform>(entt::exclude<dormant>).each()) {
+  for (auto &&[en, op, tf] : view.each()) {
     if (op.handle == LUA_NOREF) [[unlikely]]
       continue;
 
@@ -104,17 +112,17 @@ void minimap::draw() noexcept {
     if (ex < 0 || ex >= SIDE || ey < 0 || ey >= SIDE) [[likely]]
       continue;
 
-    pixels[static_cast<size_t>(ey * SIDE + ex)] = static_cast<uint32_t>(_entity);
+    pixels[static_cast<size_t>(ey * SIDE + ex)] = _entity;
   }
 
-  pixels[static_cast<size_t>(RADIUS * SIDE + RADIUS)] = static_cast<uint32_t>(_player);
+  pixels[static_cast<size_t>(RADIUS * SIDE + RADIUS)] = _player;
 
   void *raw = nullptr;
   int pitch;
   if (!SDL_LockTexture(_texture.get(), nullptr, &raw, &pitch)) [[unlikely]]
     return;
 
-  std::memcpy(raw, _pixels.data(), static_cast<size_t>(pitch) * SIDE);
+  std::memcpy(raw, pixels, static_cast<size_t>(pitch) * SIDE);
 
   SDL_UnlockTexture(_texture.get());
 
