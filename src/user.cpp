@@ -12,16 +12,6 @@ namespace {
 static int _persona_ref = LUA_NOREF;
 static int _friends_ref = LUA_NOREF;
 
-static int friend_newindex(lua_State *state) {
-  const auto *key = luaL_checkstring(state, 2);
-  return luaL_error(state, "attempt to write read-only field '%s'", key);
-}
-
-static int user_newindex(lua_State *state) {
-  const auto *key = luaL_checkstring(state, 2);
-  return luaL_error(state, "attempt to write read-only field '%s'", key);
-}
-
 static int friend_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
@@ -61,7 +51,7 @@ static int user_index(lua_State *state) {
 }
 
 void user::wire() {
-  metatable(L, "Friend", friend_index, friend_newindex);
+  metatable(L, "Friend", friend_index);
 
   lua_pushstring(L, GetPersonaName());
   _persona_ref = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -95,7 +85,7 @@ void user::wire() {
 
   _friends_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  metatable(L, "User", user_index, user_newindex);
+  metatable(L, "User", user_index);
 
   singleton(L, "User", "user");
 }
