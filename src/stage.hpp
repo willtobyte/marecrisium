@@ -1,12 +1,11 @@
 #pragma once
 
+#include "math.h"
 #include "minimap.hpp"
 #include "particlesystem.hpp"
 #include "tilemap.hpp"
 
 class pixmap;
-
-void sincos(float x, float& sine, float& cosine) noexcept;
 
 class stage final {
 public:
@@ -74,6 +73,9 @@ private:
   };
 
   std::vector<hit> _hits{};
+
+  std::vector<SDL_Vertex> _vertices{};
+  std::vector<int> _indices{};
 
   friend class director;
   friend void overlap_aabb(b2WorldId, b2AABB, std::vector<hit>&) noexcept;

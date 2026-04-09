@@ -183,8 +183,6 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
     ++ei;
   }
 
-  if (_vertex_count == 0) [[unlikely]] return;
-
   SDL_RenderGeometry(
     renderer,
     _texture.get(),

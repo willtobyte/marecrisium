@@ -74,9 +74,6 @@ int foreground_draw(lua_State *state) {
     indices.emplace_back(base + 3);
   }
 
-  if (vertices.empty()) [[unlikely]]
-    return 0;
-
   SDL_RenderGeometry(
     renderer,
     static_cast<SDL_Texture *>(*self->_texture),

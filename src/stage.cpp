@@ -15,6 +15,12 @@ static entt::entity to_entity(const void* p) noexcept {
   return static_cast<entt::entity>(reinterpret_cast<uintptr_t>(p) - 1);
 }
 
+static void flush(SDL_Texture *texture, std::vector<SDL_Vertex> &vertices, std::vector<int> &indices) noexcept {
+  SDL_RenderGeometry(renderer, texture, vertices.data(), static_cast<int>(vertices.size()), indices.data(), static_cast<int>(indices.size()));
+  vertices.clear();
+  indices.clear();
+}
+
 static const auto filter = b2DefaultQueryFilter();
 
 static color unpack(lua_State *state, int index) noexcept {
@@ -286,6 +292,8 @@ stage::stage(std::string name)
   _sleep_margin = largest;
   _wake_margin = largest * .5f;
   _hits.reserve(64);
+  _vertices.reserve(2048);
+  _indices.reserve(3072);
 
   lua_getfield(L, -1, "objects");
   if (lua_istable(L, -1)) {
@@ -830,7 +838,7 @@ void stage::update(float delta) {
       return lhs.z < rhs.z;
     }, entt::insertion_sort{});
 
-    rd.dirty = false;
+     rd.dirty = false;
   }
 }
 
@@ -844,6 +852,8 @@ void stage::draw() {
 
   auto view = _registry.view<const renderable, const animation, const transform>(entt::exclude<dormant>);
   view.use<renderable>();
+
+  SDL_Texture *current = nullptr;
 
   for (auto&& [e, r, a, tf] : view.each()) {
     if (!tf.shown || !a.playing || !a.sheet || a.sheet->count == 0) [[unlikely]]
@@ -862,21 +872,56 @@ void stage::draw() {
 
     const auto dw = fr.width * tf.scale;
     const auto dh = fr.height * tf.scale;
-    const auto sx = std::floor((rx - viewport.x) * viewport.scale) / viewport.scale;
-    const auto sy = std::floor((ry - viewport.y) * viewport.scale) / viewport.scale;
+    const auto px = std::floor((rx - viewport.x) * viewport.scale) / viewport.scale;
+    const auto py = std::floor((ry - viewport.y) * viewport.scale) / viewport.scale;
 
-    if (sx + dw < .0f || sx > viewport.width ||
-        sy + dh < .0f || sy > viewport.height)
+    if (px + dw < .0f || px > viewport.width ||
+        py + dh < .0f || py > viewport.height)
       continue;
 
-    a.sheet->pixmap->draw(
-      fr.x, fr.y, fr.width, fr.height,
-      sx, sy, dw, dh,
-      static_cast<double>(tf.angle),
-      static_cast<uint8_t>(std::clamp(tf.alpha, .0f, 255.f)),
-      tf.flip
-    );
+    auto *texture = static_cast<SDL_Texture *>(*a.sheet->pixmap);
+
+    if (texture != current) [[unlikely]]
+      flush(std::exchange(current, texture), _vertices, _indices);
+
+    const auto tw = static_cast<float>(a.sheet->pixmap->width());
+    const auto th = static_cast<float>(a.sheet->pixmap->height());
+
+    auto u0 = fr.x / tw;
+    auto v0 = fr.y / th;
+    auto u1 = (fr.x + fr.width) / tw;
+    auto v1 = (fr.y + fr.height) / th;
+
+    if (std::to_underlying(tf.flip) & SDL_FLIP_HORIZONTAL) std::swap(u0, u1);
+    if (std::to_underlying(tf.flip) & SDL_FLIP_VERTICAL) std::swap(v0, v1);
+
+    const SDL_FColor color{1.f, 1.f, 1.f, std::clamp(tf.alpha, .0f, 255.f) / 255.f};
+
+    const auto hw = dw * .5f;
+    const auto hh = dh * .5f;
+    const auto mx = px + hw;
+    const auto my = py + hh;
+
+    auto sa = .0f, ca = 1.f;
+    if (tf.angle != .0f) [[unlikely]]
+      sincos(to_radians(tf.angle), sa, ca);
+
+    const auto dx0 = -hw * ca + hh * sa;
+    const auto dy0 = -hw * sa - hh * ca;
+    const auto dx1 =  hw * ca + hh * sa;
+    const auto dy1 =  hw * sa - hh * ca;
+
+    const auto base = static_cast<int>(_vertices.size());
+
+    _vertices.push_back({{mx + dx0, my + dy0}, color, {u0, v0}});
+    _vertices.push_back({{mx + dx1, my + dy1}, color, {u1, v0}});
+    _vertices.push_back({{mx - dx0, my - dy0}, color, {u1, v1}});
+    _vertices.push_back({{mx - dx1, my - dy1}, color, {u0, v1}});
+
+    _indices.insert(_indices.end(), {base, base + 1, base + 2, base, base + 2, base + 3});
   }
+
+  flush(current, _vertices, _indices);
 
   _particlesystem.draw();
 

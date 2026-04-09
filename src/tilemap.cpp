@@ -189,9 +189,6 @@ void tilemap::draw_background() noexcept {
   if (_dirty)
     build_layer(_background);
 
-  if (_background.vertices.empty()) [[unlikely]]
-    return;
-
   SDL_RenderGeometry(
     renderer,
     static_cast<SDL_Texture*>(*_background.atlas),
@@ -222,9 +219,6 @@ void tilemap::draw_foreground() noexcept {
   _viewport_width = viewport.width;
   _viewport_height = viewport.height;
   _dirty = false;
-
-  if (_foreground.vertices.empty()) [[unlikely]]
-    return;
 
   SDL_RenderGeometry(
     renderer,

@@ -258,16 +258,14 @@ void particle::draw() noexcept {
     ++visible;
   }
 
-  if (visible > 0uz) [[likely]] {
-    SDL_RenderGeometry(
-      renderer,
-      static_cast<SDL_Texture*>(*_texture),
-      verts,
-      static_cast<int>(visible * 4),
-      indices,
-      static_cast<int>(visible * 6)
-    );
-  }
+  SDL_RenderGeometry(
+    renderer,
+    static_cast<SDL_Texture*>(*_texture),
+    verts,
+    static_cast<int>(visible * 4),
+    indices,
+    static_cast<int>(visible * 6)
+  );
 
   if (_sound) [[likely]] {
     const auto cx = viewport.x + viewport.width  * .5f;
