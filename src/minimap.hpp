@@ -39,5 +39,4 @@ private:
   std::vector<uint32_t> _pixels;
   float _position_x{};
   float _position_y{};
-
 };
