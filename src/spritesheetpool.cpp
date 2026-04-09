@@ -112,7 +112,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     s->sheet.initial = initial;
     s->sheet.collidable = collidable;
 
-    it->second = std::move(r);
+    it->second = std::move(s);
     lua_pop(state, 1);
   }
 
