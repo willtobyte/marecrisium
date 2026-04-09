@@ -1,0 +1,124 @@
+#include "spritesheetpool.hpp"
+
+const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state, int index) {
+  const auto key = entt::hashed_string{kind.data()};
+  const auto [it, inserted] = _pool.try_emplace(key, nullptr);
+
+  if (inserted) [[unlikely]] {
+    lua_pushvalue(state, index);
+    const auto table = lua_gettop(state);
+
+    auto r = std::make_unique<storage>();
+    r->clips.reserve(8);
+    r->frames.reserve(128);
+
+    entt::id_type dh = 0;
+    lua_getfield(state, table, "default");
+    if (lua_isstring(state, -1))
+      dh = entt::hashed_string{lua_tostring(state, -1)};
+    lua_pop(state, 1);
+
+    uint8_t initial = 0;
+    bool collidable = false;
+
+    lua_pushnil(state);
+    while (lua_next(state, table)) {
+      if (!lua_istable(state, -1)) [[unlikely]] {
+        lua_pop(state, 1);
+        continue;
+      }
+
+      lua_pushvalue(state, -2);
+      const std::string label = lua_tostring(state, -1);
+      lua_pop(state, 1);
+
+      if (label == "default" || label == "sound") [[unlikely]] {
+        lua_pop(state, 1);
+        continue;
+      }
+
+      const auto cid = depot->string.get(label);
+
+      auto& c = r->clips.emplace_back();
+      c.name = cid;
+      c.offset = static_cast<uint16_t>(r->frames.size());
+      c.count = 0;
+
+      if (cid == dh)
+        initial = static_cast<uint8_t>(r->clips.size() - 1);
+
+      const auto count = static_cast<int>(lua_objlen(state, -1));
+      for (int i = 1; i <= count; ++i) {
+        lua_rawgeti(state, -1, i);
+
+        if (!lua_istable(state, -1)) [[unlikely]] {
+          lua_pop(state, 1);
+          continue;
+        }
+
+        auto& fr = r->frames.emplace_back();
+
+        lua_rawgeti(state, -1, 1);
+        fr.x = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+        lua_rawgeti(state, -1, 2);
+        fr.y = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+        lua_rawgeti(state, -1, 3);
+        fr.width = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+        lua_rawgeti(state, -1, 4);
+        fr.height = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+        lua_rawgeti(state, -1, 5);
+        fr.duration = static_cast<float>(lua_tonumber(state, -1)) / 1000.f;
+        lua_pop(state, 1);
+
+        lua_rawgeti(state, -1, 6);
+        if (!lua_isnil(state, -1)) {
+          fr.bound_x = static_cast<float>(lua_tonumber(state, -1));
+          lua_pop(state, 1);
+          lua_rawgeti(state, -1, 7);
+          fr.bound_y = static_cast<float>(lua_tonumber(state, -1));
+          lua_pop(state, 1);
+          lua_rawgeti(state, -1, 8);
+          fr.bound_width = static_cast<float>(lua_tonumber(state, -1));
+          lua_pop(state, 1);
+          lua_rawgeti(state, -1, 9);
+          fr.bound_height = static_cast<float>(lua_tonumber(state, -1));
+          lua_pop(state, 1);
+          fr.collidable = true;
+          collidable = true;
+        } else {
+          lua_pop(state, 1);
+        }
+
+        ++c.count;
+        lua_pop(state, 1);
+      }
+
+      lua_getfield(state, -1, "sound");
+      if (lua_isstring(state, -1))
+        c.effect = depot->sound.get(std::format("sounds/{}", lua_tostring(state, -1)));
+      lua_pop(state, 1);
+
+      lua_pop(state, 1);
+    }
+
+    r->sheet.pixmap = depot->pixmap.get(std::format("objects/{}", kind));
+    r->sheet.clips = r->clips.data();
+    r->sheet.frames = r->frames.data();
+    r->sheet.count = static_cast<uint8_t>(r->clips.size());
+    r->sheet.initial = initial;
+    r->sheet.collidable = collidable;
+
+    it->second = std::move(r);
+    lua_pop(state, 1);
+  }
+
+  return &it->second->sheet;
+}
+
+void spritesheetpool::clear() {
+  _pool.clear();
+}
