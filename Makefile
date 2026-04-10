@@ -10,7 +10,7 @@ NCPUS     := $(shell sysctl -n hw.ncpu 2>/dev/null | awk '{print $$1 - 1}')
 
 DEBUG_CFLAGS := \
 	-g3 -O0 \
-	-Wpedantic -Werror -Wextra -Wno-unused-parameter \
+	-Wpedantic -Werror -Wextra -Wno-unused-parameter -Wno-c23-extensions \
 	-Wshadow -Wconversion -Wsign-conversion \
 	-Wimplicit-fallthrough -Wdouble-promotion \
 	-Wformat=2 -Wnull-dereference -Wnon-virtual-dtor \

@@ -5,7 +5,7 @@ int main(int argc, char **argv) {
     const unsigned char data[] = {
 #embed "hello.txt"
     };
-    static_assert(sizeof(data) == 14);
+    static_assert(sizeof(data) == 15);
   }
 #ifndef DEBUG
   if (auto* out = std::freopen("stdout.txt", "w", stdout)) {
