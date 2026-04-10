@@ -1,10 +1,12 @@
 local agent = require("helpers/agent")
+local scheduler = require("helpers/scheduler")
 
 local function enemy(config)
 	local chaser = agent.new(config)
 
 	local spawner = config.on_spawn
 	local loop = config.on_loop
+	local patrol = config.on_patrol
 
 	return {
 		body = "dynamic",
@@ -14,7 +16,13 @@ local function enemy(config)
 
 		on_spawn = function(self)
 			self._touching = false
+			self._chasing = false
 			chaser:init(self)
+			if patrol then
+				scheduler.spawn(function()
+					patrol(self, chaser, scheduler)
+				end)
+			end
 			if spawner then
 				spawner(self, chaser)
 			end
@@ -23,19 +31,32 @@ local function enemy(config)
 		on_loop = function(self, delta)
 			local player = pool.player
 			if not player or not player.alive then
+				self._chasing = false
 				return
 			end
 
 			if self._touching then
 				self.velocity_x = 0
 				self.velocity_y = 0
+				self._chasing = false
 				return
 			end
 
-			if loop then
-				loop(self, delta, player, chaser)
+			local inrange = chaser:in_range(self, player)
+
+			if inrange then
+				self._chasing = true
+				if loop then
+					loop(self, delta, player, chaser)
+				else
+					chaser:chase(self, player, world)
+				end
 			else
-				chaser:chase(self, player, world)
+				self._chasing = false
+				if not patrol then
+					self.velocity_x = 0
+					self.velocity_y = 0
+				end
 			end
 		end,
 
