@@ -522,6 +522,15 @@ void websocket::wire() {
   lua_pushcfunction(L, websocket_call);
   lua_setfield(L, -2, "new");
   lua_setglobal(L, "WebSocket");
+
+  lua_createtable(L, 0, 3);
+  lua_pushinteger(L, static_cast<lua_Integer>(opcode::subscribe));
+  lua_setfield(L, -2, "subscribe");
+  lua_pushinteger(L, static_cast<lua_Integer>(opcode::unsubscribe));
+  lua_setfield(L, -2, "unsubscribe");
+  lua_pushinteger(L, static_cast<lua_Integer>(opcode::publish));
+  lua_setfield(L, -2, "publish");
+  lua_setglobal(L, "opcode");
 }
 
 void websocket::poll() {

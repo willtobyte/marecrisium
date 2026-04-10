@@ -708,6 +708,19 @@ platform = {}
 function openurl(url) end
 
 --------------------------------------------------------------------------------
+-- Opcode (WebSocket message type constants)
+--------------------------------------------------------------------------------
+
+---@class Opcode
+---@field subscribe integer Subscribe to a topic (1).
+---@field unsubscribe integer Unsubscribe from a topic (2).
+---@field publish integer Publish to a topic (4).
+
+---Global WebSocket opcode constants.
+---@type Opcode
+opcode = {}
+
+--------------------------------------------------------------------------------
 -- WebSocket (WebSocket connection)
 --------------------------------------------------------------------------------
 
