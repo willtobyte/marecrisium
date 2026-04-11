@@ -57,7 +57,10 @@ void minimap::draw() noexcept {
   const auto ts = _tilemap->_size;
   const auto &collision = _tilemap->_collision;
 
-  auto view = _registry->view<const objectproxy, const transform>(entt::exclude<dormant>);
+  _positions.clear();
+
+  const auto view = _registry->view<const objectproxy, const transform>(entt::exclude<dormant>);
+  _positions.reserve(view.size_hint());
 
   for (auto &&[en, op, tf] : view.each()) {
     if (op.handle == LUA_NOREF) [[unlikely]]
@@ -66,8 +69,10 @@ void minimap::draw() noexcept {
     if (op.kind == "player"_hs) [[unlikely]] {
       _position_x = tf.x;
       _position_y = tf.y;
-      break;
+      continue;
     }
+
+    _positions.emplace_back(tf.x, tf.y);
   }
 
   const auto cx = static_cast<int32_t>(_position_x / ts);
@@ -99,15 +104,9 @@ void minimap::draw() noexcept {
     }
   }
 
-  for (auto &&[en, op, tf] : view.each()) {
-    if (op.handle == LUA_NOREF) [[unlikely]]
-      continue;
-
-    if (op.kind == "player"_hs) [[unlikely]]
-      continue;
-
-    const auto ex = static_cast<int32_t>(tf.x / ts) - cx + RADIUS;
-    const auto ey = static_cast<int32_t>(tf.y / ts) - cy + RADIUS;
+  for (const auto &[x, y] : _positions) {
+    const auto ex = static_cast<int32_t>(x / ts) - cx + RADIUS;
+    const auto ey = static_cast<int32_t>(y / ts) - cy + RADIUS;
 
     if (ex < 0 || ex >= SIDE || ey < 0 || ey >= SIDE) [[likely]]
       continue;

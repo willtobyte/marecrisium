@@ -37,6 +37,7 @@ private:
 
   std::unique_ptr<SDL_Texture, SDL_Deleter> _texture;
   std::vector<uint32_t> _pixels;
+  std::vector<std::pair<float, float>> _positions;
   float _position_x{};
   float _position_y{};
 };
