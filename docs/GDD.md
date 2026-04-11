@@ -17,7 +17,7 @@ gloomy, and solitary, yet rich in precious metals.
 
 ## Gameplay
 
-It’s a game about exploring and gathering resources.
+It is a game about exploring and gathering resources.
 
 There are minerals on the moon that merchants are willing to pay relatively
 high prices for. With that money, you can buy better equipment, improve
