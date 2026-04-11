@@ -42,7 +42,7 @@ minimap::minimap(const tilemap &tilemap, entt::registry &registry,
   _texture.reset(SDL_CreateTexture(
     renderer,
     SDL_PIXELFORMAT_RGBA32,
-    SDL_TEXTUREACCESS_STREAMING,
+    SDL_TEXTUREACCESS_STATIC,
     SIDE, SIDE));
 
   SDL_SetTextureScaleMode(_texture.get(), SDL_SCALEMODE_NEAREST);
@@ -116,14 +116,7 @@ void minimap::draw() noexcept {
 
   pixels[static_cast<size_t>(RADIUS * SIDE + RADIUS)] = _player;
 
-  void *raw = nullptr;
-  int pitch;
-  if (!SDL_LockTexture(_texture.get(), nullptr, &raw, &pitch)) [[unlikely]]
-    return;
-
-  std::memcpy(raw, pixels, static_cast<size_t>(pitch) * SIDE);
-
-  SDL_UnlockTexture(_texture.get());
+  SDL_UpdateTexture(_texture.get(), nullptr, pixels, SIDE * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32));
 
   static const SDL_FRect target{
     (viewport.width - SIZE) * .5f,
