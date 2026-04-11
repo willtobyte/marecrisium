@@ -16,8 +16,12 @@ struct breadcrumbs final {
     return false;
   }
 
-  void push(const void *ptr) noexcept {
+  [[nodiscard]] bool push(const void *ptr) noexcept {
+    if (_size >= MAX_DEPTH) [[unlikely]]
+      return false;
+
     _data[static_cast<size_t>(_size++)] = ptr;
+    return true;
   }
 
   void pop() noexcept { --_size; }
@@ -51,12 +55,10 @@ static void pretty(lua_State *state, std::string &output, int index, int depth, 
       break;
     }
 
-    if (depth >= MAX_DEPTH) [[unlikely]] {
+    if (!visited.push(ptr)) [[unlikely]] {
       std::format_to(out, "{{...}}");
       break;
     }
-
-    visited.push(ptr);
 
     std::format_to(out, "{{ ");
     const auto abs = index > 0 ? index : lua_gettop(state) + index + 1;
