@@ -570,7 +570,7 @@ void stage::update(float delta) {
 
   for (auto&& [e, op, tf, an] :
        _registry.view<sleepable, dormant, objectproxy, transform, animation>().each()) {
-    if (culled(tf, an, _sleep_margin))
+    if (culled(tf, an, _wake_margin))
       continue;
 
     _registry.remove<dormant>(e);
