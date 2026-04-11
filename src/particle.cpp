@@ -116,7 +116,7 @@ void particle::set_active(bool value) noexcept {
 void particle::set_sound(class sound* sound, float distance, float volume) noexcept {
   _sound = sound;
   _distance = distance;
-  _inverse_distance = 1.f / distance;
+  _inverse_distance = 1.f / std::max(distance, 1.f);
   _volume = volume;
 
   if (_active) {
