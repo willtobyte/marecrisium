@@ -138,6 +138,8 @@ sound::sound(std::string_view filename) {
 
   const std::unique_ptr<OggOpusFile, OggOpusFile_Deleter> codec{
     op_open_memory(buffer.data(), buffer.size(), nullptr)};
+  if (!codec) [[unlikely]]
+    throw std::runtime_error{std::format("[op_open_memory] failed to decode: {}", filename)};
 
   const auto channels = op_channel_count(codec.get(), -1);
   const auto samples = op_pcm_total(codec.get(), -1);

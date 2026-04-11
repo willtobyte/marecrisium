@@ -9,7 +9,10 @@ std::vector<uint8_t> io::read(std::string_view filename) {
   if (!ptr) [[unlikely]]
     throw std::runtime_error{std::format("[PHYSFS_openRead] error while opening file: {}", filename)};
 
-  const auto length = static_cast<std::size_t>(PHYSFS_fileLength(ptr.get()));
+  const auto bytes = PHYSFS_fileLength(ptr.get());
+  if (bytes < 0) [[unlikely]]
+    throw std::runtime_error{std::format("[PHYSFS_fileLength] unknown length for: {}", filename)};
+  const auto length = static_cast<std::size_t>(bytes);
   std::vector<uint8_t> buffer(length);
   [[maybe_unused]] const auto result = PHYSFS_readBytes(ptr.get(), buffer.data(), length);
   assert(result == static_cast<PHYSFS_sint64>(length) && "[PHYSFS_readBytes] failed to read expected number of bytes");
