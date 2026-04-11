@@ -798,10 +798,13 @@ void stage::update(float delta) {
       if (!resolve(event.shapeIdA, event.shapeIdB, ea, eb))
         continue;
 
-      const auto *pa = _registry.try_get<objectproxy>(ea);
-      const auto *pb = _registry.try_get<objectproxy>(eb);
-      const auto flipped = b2Vec2{-event.manifold.normal.x, -event.manifold.normal.y};
+      auto *pa = _registry.try_get<objectproxy>(ea);
+      auto *pb = _registry.try_get<objectproxy>(eb);
       if (pa) dispatch_collision(*pa, pb, pa->on_collision_begin, &event.manifold.normal);
+
+      pb = _registry.try_get<objectproxy>(eb);
+      pa = _registry.try_get<objectproxy>(ea);
+      const auto flipped = b2Vec2{-event.manifold.normal.x, -event.manifold.normal.y};
       if (pb) dispatch_collision(*pb, pa, pb->on_collision_begin, &flipped);
     }
 
@@ -809,9 +812,11 @@ void stage::update(float delta) {
       if (!resolve(event.shapeIdA, event.shapeIdB, ea, eb))
         continue;
 
-      const auto *pa = _registry.try_get<objectproxy>(ea);
-      const auto *pb = _registry.try_get<objectproxy>(eb);
+      auto *pa = _registry.try_get<objectproxy>(ea);
+      auto *pb = _registry.try_get<objectproxy>(eb);
       if (pa) dispatch_collision(*pa, pb, pa->on_collision_end);
+      pb = _registry.try_get<objectproxy>(eb);
+      pa = _registry.try_get<objectproxy>(ea);
       if (pb) dispatch_collision(*pb, pa, pb->on_collision_end);
     }
   }
