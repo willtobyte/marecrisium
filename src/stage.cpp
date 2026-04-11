@@ -550,39 +550,51 @@ stage::~stage() {
 }
 
 void stage::update(float delta) {
-  for (auto&& [e, op, tf, an] :
-       _registry.view<sleepable, objectproxy, transform, animation>(entt::exclude<dormant>).each()) {
-    if (!culled(tf, an, _sleep_margin))
-      continue;
+  {
+    auto pending = std::vector<entt::entity>{};
+    for (auto&& [e, tf, an] :
+         _registry.view<sleepable, transform, animation>(entt::exclude<dormant>).each()) {
+      if (culled(tf, an, _sleep_margin))
+        pending.emplace_back(e);
+    }
 
-    _registry.emplace<dormant>(e);
+    for (auto e : pending) {
+      _registry.emplace<dormant>(e);
 
-    if (auto* b = _registry.try_get<body>(e);
-        b && b2Body_IsValid(b->id))
-      b2Body_Disable(b->id);
+      if (auto* b = _registry.try_get<body>(e);
+          b && b2Body_IsValid(b->id))
+        b2Body_Disable(b->id);
 
-    if (op.on_sleep != LUA_NOREF) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_sleep);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-      pcall(L, 1, 0);
+      const auto& op = _registry.get<objectproxy>(e);
+      if (op.on_sleep != LUA_NOREF) {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_sleep);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+        pcall(L, 1, 0);
+      }
     }
   }
 
-  for (auto&& [e, op, tf, an] :
-       _registry.view<sleepable, dormant, objectproxy, transform, animation>().each()) {
-    if (culled(tf, an, _wake_margin))
-      continue;
+  {
+    auto pending = std::vector<entt::entity>{};
+    for (auto&& [e, tf, an] :
+         _registry.view<sleepable, dormant, transform, animation>().each()) {
+      if (!culled(tf, an, _wake_margin))
+        pending.emplace_back(e);
+    }
 
-    _registry.remove<dormant>(e);
+    for (auto e : pending) {
+      _registry.remove<dormant>(e);
 
-    if (auto* b = _registry.try_get<body>(e);
-        b && b2Body_IsValid(b->id))
-      b2Body_Enable(b->id);
+      if (auto* b = _registry.try_get<body>(e);
+          b && b2Body_IsValid(b->id))
+        b2Body_Enable(b->id);
 
-    if (op.on_wake != LUA_NOREF) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_wake);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-      pcall(L, 1, 0);
+      const auto& op = _registry.get<objectproxy>(e);
+      if (op.on_wake != LUA_NOREF) {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_wake);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+        pcall(L, 1, 0);
+      }
     }
   }
 
@@ -603,6 +615,8 @@ void stage::update(float delta) {
       lua_pushnumber(L, static_cast<lua_Number>(delta));
       pcall(L, 2, 0);
     }
+
+    if (!_registry.valid(e)) continue;
 
     auto* a = _registry.try_get<animation>(e);
     if (!a || !a->playing || a->sheet->count == 0) [[unlikely]]
@@ -759,6 +773,8 @@ void stage::update(float delta) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
         lua_rawgeti(L, LUA_REGISTRYINDEX, _bearings[bit]);
         pcall(L, 2, 0);
+
+        if (!_registry.valid(e)) break;
       }
 
       if ((entered & mask) && op.on_screen_enter != LUA_NOREF) {
@@ -766,8 +782,12 @@ void stage::update(float delta) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
         lua_rawgeti(L, LUA_REGISTRYINDEX, _bearings[bit]);
         pcall(L, 2, 0);
+
+        if (!_registry.valid(e)) break;
       }
     }
+
+    if (!_registry.valid(e)) continue;
 
     bd.previous = current;
   }
@@ -1006,6 +1026,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   const auto& op = _registry.emplace<objectproxy>(entity, _registry, entity, name, kind);
   const auto prototype = op.prototype;
   const auto handle = op.handle;
+  const auto on_spawn = op.on_spawn;
 
   depot->string.get(name);
   depot->string.get(kind);
@@ -1023,7 +1044,8 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 
     if (a.playing) {
       const auto& fr = sheet->frames[sheet->clips[a.active].offset];
-      _registry.get<renderable>(entity).z = static_cast<int>(tf.y + fr.height * tf.scale);
+      const auto& tf2 = _registry.get<transform>(entity);
+      _registry.get<renderable>(entity).z = static_cast<int>(tf2.y + fr.height * tf2.scale);
       _registry.ctx().get<reorder>().dirty = true;
     }
 
@@ -1063,8 +1085,8 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       _registry.emplace<sleepable>(entity);
   }
 
-  if (op.on_spawn != LUA_NOREF) [[unlikely]] {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_spawn);
+  if (on_spawn != LUA_NOREF) [[unlikely]] {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, on_spawn);
     lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
     pcall(L, 1, 0);
   }
@@ -1076,8 +1098,9 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 
   if (_registry.all_of<sleepable, animation>(entity)) {
     const auto& an = _registry.get<animation>(entity);
+    const auto& tf2 = _registry.get<transform>(entity);
 
-    if (culled(tf, an, _sleep_margin)) {
+    if (culled(tf2, an, _sleep_margin)) {
       _registry.emplace<dormant>(entity);
 
       if (auto* b = _registry.try_get<body>(entity);

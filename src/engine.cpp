@@ -46,6 +46,8 @@ engine::engine() {
     height,
     fullscreen ? SDL_WINDOW_FULLSCREEN : 0
   );
+  if (!window)
+    throw std::runtime_error("SDL_CreateWindow failed");
 
   const auto vsync = std::getenv("NOVSYNC") == nullptr;
   const auto properties = SDL_CreateProperties();
@@ -55,6 +57,8 @@ engine::engine() {
 
   renderer = SDL_CreateRendererWithProperties(properties);
   SDL_DestroyProperties(properties);
+  if (!renderer)
+    throw std::runtime_error("SDL_CreateRendererWithProperties failed");
 
   SDL_SetRenderLogicalPresentation(renderer, width, height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
   SDL_SetRenderScale(renderer, scale, scale);

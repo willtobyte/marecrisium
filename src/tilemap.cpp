@@ -76,6 +76,7 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   _height = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 0;
   lua_pop(L, 1);
 
+  assert(_size > 0.f && "tilemap: invalid tile size");
   _inverse = 1.f / _size;
 
   const auto total = static_cast<size_t>(_width) * static_cast<size_t>(_height);
@@ -456,6 +457,7 @@ void tilemap::build_layer(layer& layer) noexcept {
       if (ti == 0) [[likely]]
         continue;
 
+      assert(static_cast<size_t>(ti - 1) < layer.uvs.size() && "tile index out of bounds");
       const auto& entry = layer.uvs[ti - 1];
       const auto dx = static_cast<float>(column) * _size - viewport.x;
       const auto x0 = dx;
