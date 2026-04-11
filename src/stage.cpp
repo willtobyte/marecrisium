@@ -629,6 +629,8 @@ void stage::update(float delta) {
           pcall(L, 2, 0);
         }
 
+        if (!_registry.valid(e)) continue;
+
         if (op.on_animation_begin != LUA_NOREF) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_animation_begin);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
