@@ -80,6 +80,8 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
     , _life_distribution(std::min(config.life.first, config.life.second), std::max(config.life.first, config.life.second))
     , _rotation_force_distribution(std::min(config.rotation_force.first, config.rotation_force.second), std::max(config.rotation_force.first, config.rotation_force.second))
     , _rotation_velocity_distribution(std::min(config.rotation_velocity.first, config.rotation_velocity.second), std::max(config.rotation_velocity.first, config.rotation_velocity.second)) {
+  assert(config.count % 4 == 0 && "particle count must be a multiple of 4 for SIMD");
+
   const auto n = _count;
 
   _position_x.resize(n);
@@ -144,16 +146,35 @@ void particle::update(float delta) noexcept {
   auto* noalias avs = _angular_velocity.data();
   auto* noalias afs = _angular_force.data();
 
-  for (auto i = 0uz; i < n; ++i) {
-    lifes[i] -= delta;
-    avs[i] += afs[i] * delta;
-    angles[i] += avs[i] * delta;
-    angles[i] -= TWO_PI * static_cast<float>(angles[i] >= TWO_PI);
-    angles[i] += TWO_PI * static_cast<float>(angles[i] < .0f);
-    vxs[i] += gxs[i] * delta;
-    vys[i] += gys[i] * delta;
-    xs[i] += vxs[i] * delta;
-    ys[i] += vys[i] * delta;
+  const auto vdelta = simde_mm_set1_ps(delta);
+  const auto vtwopi = simde_mm_set1_ps(TWO_PI);
+  const auto vzero  = simde_mm_setzero_ps();
+
+  for (auto i = 0uz; i < n; i += 4) {
+    auto vlife = simde_mm_loadu_ps(lifes + i);
+    vlife = simde_mm_sub_ps(vlife, vdelta);
+    simde_mm_storeu_ps(lifes + i, vlife);
+
+    auto vav = simde_mm_loadu_ps(avs + i);
+    vav = simde_mm_add_ps(vav, simde_mm_mul_ps(simde_mm_loadu_ps(afs + i), vdelta));
+    simde_mm_storeu_ps(avs + i, vav);
+
+    auto vang = simde_mm_loadu_ps(angles + i);
+    vang = simde_mm_add_ps(vang, simde_mm_mul_ps(vav, vdelta));
+    vang = simde_mm_sub_ps(vang, simde_mm_and_ps(vtwopi, simde_mm_cmpge_ps(vang, vtwopi)));
+    vang = simde_mm_add_ps(vang, simde_mm_and_ps(vtwopi, simde_mm_cmplt_ps(vang, vzero)));
+    simde_mm_storeu_ps(angles + i, vang);
+
+    auto vvx = simde_mm_loadu_ps(vxs + i);
+    vvx = simde_mm_add_ps(vvx, simde_mm_mul_ps(simde_mm_loadu_ps(gxs + i), vdelta));
+    simde_mm_storeu_ps(vxs + i, vvx);
+
+    auto vvy = simde_mm_loadu_ps(vys + i);
+    vvy = simde_mm_add_ps(vvy, simde_mm_mul_ps(simde_mm_loadu_ps(gys + i), vdelta));
+    simde_mm_storeu_ps(vys + i, vvy);
+
+    simde_mm_storeu_ps(xs + i, simde_mm_add_ps(simde_mm_loadu_ps(xs + i), simde_mm_mul_ps(vvx, vdelta)));
+    simde_mm_storeu_ps(ys + i, simde_mm_add_ps(simde_mm_loadu_ps(ys + i), simde_mm_mul_ps(vvy, vdelta)));
   }
 
   if (_active) {
