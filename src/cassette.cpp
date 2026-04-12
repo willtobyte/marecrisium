@@ -2,10 +2,10 @@
 
 namespace {
 namespace property {
-  constexpr auto clear = "clear"_hs;
+  constexpr auto purge = "purge"_hs;
 }
 
-constexpr const char *filename = "cassette.tape";
+constexpr const char *FILENAME = "cassette.tape";
 
 sqlite3 *database;
 sqlite3_stmt *stmt_select;
@@ -13,28 +13,33 @@ sqlite3_stmt *stmt_upsert;
 sqlite3_stmt *stmt_delete;
 sqlite3_stmt *stmt_clear;
 
+int purge_ref = LUA_NOREF;
+
 ankerl::unordered_dense::map<std::string, int, transparent_hash, std::equal_to<>> cache;
+
+void execute(sqlite3_stmt *statement) {
+  [[maybe_unused]] const auto result = sqlite3_step(statement);
+  assert(result == SQLITE_DONE && "sqlite3_step failed");
+  sqlite3_reset(statement);
+  sqlite3_clear_bindings(statement);
+}
 }
 
 static int cassette_clear(lua_State *state) {
-  for (auto &[_, ref] : cache)
+  for (const auto &[_, ref] : cache)
     luaL_unref(state, LUA_REGISTRYINDEX, ref);
 
   cache.clear();
-
-  sqlite3_step(stmt_clear);
-  sqlite3_reset(stmt_clear);
+  execute(stmt_clear);
   return 0;
 }
 
-static int _clear_ref = LUA_NOREF;
-
 static int cassette_index(lua_State *state) {
-  const std::string_view key = luaL_checkstring(state, 2);
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
   const auto id = entt::hashed_string{key.data()};
 
-  if (id == property::clear) [[unlikely]]
-    return lua_rawgeti(state, LUA_REGISTRYINDEX, _clear_ref), 1;
+  if (id == property::purge) [[unlikely]]
+    return lua_rawgeti(state, LUA_REGISTRYINDEX, purge_ref), 1;
 
   if (const auto it = cache.find(key); it != cache.end()) [[likely]] {
     if (it->second == LUA_NOREF) [[unlikely]]
@@ -45,72 +50,75 @@ static int cassette_index(lua_State *state) {
   }
 
   sqlite3_bind_text(stmt_select, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
-  if (sqlite3_step(stmt_select) == SQLITE_ROW) [[likely]] {
-    const auto *json = reinterpret_cast<const char *>(sqlite3_column_text(stmt_select, 0));
-    const auto length = static_cast<size_t>(sqlite3_column_bytes(stmt_select, 0));
 
-    auto *document = yyjson_read(json, length, 0);
-    if (!document) [[unlikely]] {
-      lua_pushnil(state);
-    } else {
-      json_to_lua(state, yyjson_doc_get_root(document));
-      yyjson_doc_free(document);
-
-      lua_pushvalue(state, -1);
-      cache.emplace(key, luaL_ref(state, LUA_REGISTRYINDEX));
-    }
-  } else {
-    cache.emplace(key, LUA_NOREF);
-    lua_pushnil(state);
-  }
+  const auto found = sqlite3_step(stmt_select) == SQLITE_ROW;
+  auto *document = found
+    ? yyjson_read(
+        reinterpret_cast<const char *>(sqlite3_column_text(stmt_select, 0)),
+        static_cast<size_t>(sqlite3_column_bytes(stmt_select, 0)),
+        0)
+    : nullptr;
 
   sqlite3_reset(stmt_select);
   sqlite3_clear_bindings(stmt_select);
+
+  if (!document) [[unlikely]] {
+    if (!found)
+      cache.emplace(key, LUA_NOREF);
+
+    return lua_pushnil(state), 1;
+  }
+
+  json_to_lua(state, yyjson_doc_get_root(document));
+  yyjson_doc_free(document);
+
+  lua_pushvalue(state, -1);
+  cache.emplace(key, luaL_ref(state, LUA_REGISTRYINDEX));
 
   return 1;
 }
 
 static int cassette_newindex(lua_State *state) {
-  const std::string_view key = luaL_checkstring(state, 2);
+  const auto key = std::string_view{luaL_checkstring(state, 2)};
   const auto id = entt::hashed_string{key.data()};
 
-  if (id == property::clear) [[unlikely]]
+  if (id == property::purge) [[unlikely]]
     return 0;
 
-  const auto reference = lua_isnil(state, 3)
-    ? LUA_NOREF
-    : (lua_pushvalue(state, 3), luaL_ref(state, LUA_REGISTRYINDEX));
+  if (lua_isnil(state, 3)) [[unlikely]] {
+    if (const auto it = cache.find(key); it != cache.end()) [[likely]] {
+      luaL_unref(state, LUA_REGISTRYINDEX, it->second);
+      cache.erase(it);
+    }
 
-  auto [it, inserted] = cache.try_emplace(key, reference);
-  if (!inserted) [[likely]]
-    luaL_unref(state, LUA_REGISTRYINDEX, std::exchange(it->second, reference));
-
-  if (reference == LUA_NOREF) [[unlikely]] {
     sqlite3_bind_text(stmt_delete, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
-    sqlite3_step(stmt_delete);
-    sqlite3_reset(stmt_delete);
-    sqlite3_clear_bindings(stmt_delete);
+    execute(stmt_delete);
     return 0;
   }
+
+  lua_pushvalue(state, 3);
+  const auto ref = luaL_ref(state, LUA_REGISTRYINDEX);
+
+  auto [it, inserted] = cache.try_emplace(key, ref);
+  if (!inserted) [[likely]]
+    luaL_unref(state, LUA_REGISTRYINDEX, std::exchange(it->second, ref));
 
   auto *document = yyjson_mut_doc_new(nullptr);
   auto *root = lua_to_json(state, 3, document);
   yyjson_mut_doc_set_root(document, root);
 
-  size_t length = 0;
+  auto length = 0uz;
   auto *json = yyjson_mut_write(document, 0, &length);
   yyjson_mut_doc_free(document);
 
   sqlite3_bind_text(stmt_upsert, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
   sqlite3_bind_text(stmt_upsert, 2, json, static_cast<int>(length), free);
-  sqlite3_step(stmt_upsert);
-  sqlite3_reset(stmt_upsert);
-  sqlite3_clear_bindings(stmt_upsert);
+  execute(stmt_upsert);
   return 0;
 }
 
 void cassette::wire() {
-  sqlite3_open(filename, &database);
+  sqlite3_open(FILENAME, &database);
   sqlite3_exec(database,
     "PRAGMA journal_mode=WAL;"
     "PRAGMA synchronous=FULL;"
@@ -133,12 +141,11 @@ void cassette::wire() {
     sqlite3_close(database);
   });
 
+  cache.reserve(1024);
+
   lua_pushcfunction(L, cassette_clear);
-  _clear_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  purge_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Cassette", guard<cassette_index>, guard<cassette_newindex>);
-
   singleton(L, "Cassette", "cassette");
-
-  cache.reserve(1024);
 }

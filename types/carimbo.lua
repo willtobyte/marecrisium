@@ -155,13 +155,13 @@ gamepad = {}
 ---cassette.inventory = { "sword", "shield" }
 ---cassette.progress = { level = 3, stars = 2 }
 ---cassette.score = nil -- delete
----cassette:clear()     -- delete all
+---cassette:purge()     -- delete all
 ---```
 ---@field [string] boolean|number|string|table|nil
 local Cassette = {}
 
----Clear all saved data.
-function Cassette:clear() end
+---Delete all saved data and clear the in-memory cache.
+function Cassette:purge() end
 
 ---Global persistent storage.
 ---@type Cassette
