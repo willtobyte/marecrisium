@@ -13,7 +13,7 @@ sqlite3_stmt *stmt_upsert;
 sqlite3_stmt *stmt_delete;
 sqlite3_stmt *stmt_clear;
 
-int purge_ref = LUA_NOREF;
+int _purge_ref = LUA_NOREF;
 
 ankerl::unordered_dense::map<std::string, int, transparent_hash, std::equal_to<>> cache;
 
@@ -39,7 +39,7 @@ static int cassette_index(lua_State *state) {
   const auto id = entt::hashed_string{key.data()};
 
   if (id == property::purge) [[unlikely]]
-    return lua_rawgeti(state, LUA_REGISTRYINDEX, purge_ref), 1;
+    return lua_rawgeti(state, LUA_REGISTRYINDEX, _purge_ref), 1;
 
   if (const auto it = cache.find(key); it != cache.end()) [[likely]] {
     if (it->second == LUA_NOREF) [[unlikely]]
@@ -144,7 +144,7 @@ void cassette::wire() {
   cache.reserve(1024);
 
   lua_pushcfunction(L, cassette_clear);
-  purge_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _purge_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Cassette", guard<cassette_index>, guard<cassette_newindex>);
   singleton(L, "Cassette", "cassette");
