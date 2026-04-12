@@ -63,9 +63,7 @@ private:
   std::vector<SDL_Vertex> _vertices;
   std::vector<int> _indices;
 
-  std::uniform_real_distribution<float> _spawn_x_distribution, _spawn_y_distribution, _radius_distribution, _angle_distribution;
-  std::uniform_real_distribution<float> _velocity_x_distribution, _velocity_y_distribution, _gravity_x_distribution, _gravity_y_distribution;
-  std::uniform_real_distribution<float> _scale_distribution, _life_distribution, _rotation_force_distribution, _rotation_velocity_distribution;
-
-  static std::mt19937& rng() noexcept;
+  std::pair<float, float> _spawn_x_range, _spawn_y_range, _radius_range, _angle_range;
+  std::pair<float, float> _velocity_x_range, _velocity_y_range, _gravity_x_range, _gravity_y_range;
+  std::pair<float, float> _scale_range, _life_range, _rotation_force_range, _rotation_velocity_range;
 };

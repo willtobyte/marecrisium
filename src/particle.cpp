@@ -55,11 +55,6 @@ int particle_newindex(lua_State* state) {
 }
 }
 
-std::mt19937& particle::rng() noexcept {
-  static std::mt19937 engine{std::random_device{}()};
-  return engine;
-}
-
 particle::particle(const config& config, const pixmap& texture, float x, float y, bool active)
     : _x(x)
     , _y(y)
@@ -68,18 +63,18 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
     , _active(active)
     , _count(config.count)
     , _texture(&texture)
-    , _spawn_x_distribution(std::min(config.spawn_x.first, config.spawn_x.second), std::max(config.spawn_x.first, config.spawn_x.second))
-    , _spawn_y_distribution(std::min(config.spawn_y.first, config.spawn_y.second), std::max(config.spawn_y.first, config.spawn_y.second))
-    , _radius_distribution(std::min(config.radius.first, config.radius.second), std::max(config.radius.first, config.radius.second))
-    , _angle_distribution(std::min(config.angle.first, config.angle.second), std::max(config.angle.first, config.angle.second))
-    , _velocity_x_distribution(std::min(config.velocity_x.first, config.velocity_x.second), std::max(config.velocity_x.first, config.velocity_x.second))
-    , _velocity_y_distribution(std::min(config.velocity_y.first, config.velocity_y.second), std::max(config.velocity_y.first, config.velocity_y.second))
-    , _gravity_x_distribution(std::min(config.gravity_x.first, config.gravity_x.second), std::max(config.gravity_x.first, config.gravity_x.second))
-    , _gravity_y_distribution(std::min(config.gravity_y.first, config.gravity_y.second), std::max(config.gravity_y.first, config.gravity_y.second))
-    , _scale_distribution(std::min(config.scale.first, config.scale.second), std::max(config.scale.first, config.scale.second))
-    , _life_distribution(std::min(config.life.first, config.life.second), std::max(config.life.first, config.life.second))
-    , _rotation_force_distribution(std::min(config.rotation_force.first, config.rotation_force.second), std::max(config.rotation_force.first, config.rotation_force.second))
-    , _rotation_velocity_distribution(std::min(config.rotation_velocity.first, config.rotation_velocity.second), std::max(config.rotation_velocity.first, config.rotation_velocity.second)) {
+    , _spawn_x_range(std::minmax(config.spawn_x.first, config.spawn_x.second))
+    , _spawn_y_range(std::minmax(config.spawn_y.first, config.spawn_y.second))
+    , _radius_range(std::minmax(config.radius.first, config.radius.second))
+    , _angle_range(std::minmax(config.angle.first, config.angle.second))
+    , _velocity_x_range(std::minmax(config.velocity_x.first, config.velocity_x.second))
+    , _velocity_y_range(std::minmax(config.velocity_y.first, config.velocity_y.second))
+    , _gravity_x_range(std::minmax(config.gravity_x.first, config.gravity_x.second))
+    , _gravity_y_range(std::minmax(config.gravity_y.first, config.gravity_y.second))
+    , _scale_range(std::minmax(config.scale.first, config.scale.second))
+    , _life_range(std::minmax(config.life.first, config.life.second))
+    , _rotation_force_range(std::minmax(config.rotation_force.first, config.rotation_force.second))
+    , _rotation_velocity_range(std::minmax(config.rotation_velocity.first, config.rotation_velocity.second)) {
   assert(config.count % 4 == 0 && "particle count must be a multiple of 4 for SIMD");
 
   const auto n = _count;
@@ -132,7 +127,6 @@ class sound* particle::sound() const noexcept {
 
 void particle::update(float delta) noexcept {
   const auto n = _count;
-  auto& eng = rng();
 
   auto* noalias xs = _position_x.data();
   auto* noalias ys = _position_y.data();
@@ -190,22 +184,22 @@ void particle::update(float delta) noexcept {
 
     for (auto j = 0uz; j < count; ++j) {
       const auto i = respawn[j];
-      const auto r = _radius_distribution(eng);
-      const auto a = _angle_distribution(eng);
+      const auto r = rng(_radius_range);
+      const auto a = rng(_angle_range);
 
       float sa, ca;
       sincos(a, sa, ca);
 
-      xs[i] = px + _spawn_x_distribution(eng) + r * ca;
-      ys[i] = py + _spawn_y_distribution(eng) + r * sa;
-      vxs[i] = _velocity_x_distribution(eng);
-      vys[i] = _velocity_y_distribution(eng);
-      gxs[i] = _gravity_x_distribution(eng);
-      gys[i] = _gravity_y_distribution(eng);
-      avs[i] = _rotation_velocity_distribution(eng);
-      afs[i] = _rotation_force_distribution(eng);
-      lifes[i] = _life_distribution(eng);
-      scales[i] = _scale_distribution(eng);
+      xs[i] = px + rng(_spawn_x_range) + r * ca;
+      ys[i] = py + rng(_spawn_y_range) + r * sa;
+      vxs[i] = rng(_velocity_x_range);
+      vys[i] = rng(_velocity_y_range);
+      gxs[i] = rng(_gravity_x_range);
+      gys[i] = rng(_gravity_y_range);
+      avs[i] = rng(_rotation_velocity_range);
+      afs[i] = rng(_rotation_force_range);
+      lifes[i] = rng(_life_range);
+      scales[i] = rng(_scale_range);
       angles[i] = a;
     }
   }

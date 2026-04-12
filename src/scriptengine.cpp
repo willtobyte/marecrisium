@@ -46,6 +46,7 @@ void scriptengine::run() {
   runtime::wire();
   sound::wire();
   user::wire();
+  xorshift128::wire();
   // websocket::wire();
 
   engine e;
