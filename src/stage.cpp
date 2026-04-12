@@ -882,10 +882,8 @@ void stage::draw() {
 
     const auto& fr = a.sheet->frames[c.offset + a.current];
 
-    const auto* b = _registry.try_get<body>(e);
-    const auto dynamic = b && b->type == body_type::dynamic;
-    const auto rx = dynamic ? tf.previous_x + _interpolation.alpha * (tf.x - tf.previous_x) : tf.x;
-    const auto ry = dynamic ? tf.previous_y + _interpolation.alpha * (tf.y - tf.previous_y) : tf.y;
+    const auto rx = tf.previous_x + _interpolation.alpha * (tf.x - tf.previous_x);
+    const auto ry = tf.previous_y + _interpolation.alpha * (tf.y - tf.previous_y);
 
     const auto dw = fr.width * tf.scale;
     const auto dh = fr.height * tf.scale;
