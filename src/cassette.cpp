@@ -37,6 +37,9 @@ static int cassette_index(lua_State *state) {
     return lua_rawgeti(state, LUA_REGISTRYINDEX, _clear_ref), 1;
 
   if (const auto it = cache.find(key); it != cache.end()) [[likely]] {
+    if (it->second == LUA_NOREF) [[unlikely]]
+      return lua_pushnil(state), 1;
+
     lua_rawgeti(state, LUA_REGISTRYINDEX, it->second);
     return 1;
   }
@@ -57,6 +60,7 @@ static int cassette_index(lua_State *state) {
       cache.emplace(key, luaL_ref(state, LUA_REGISTRYINDEX));
     }
   } else {
+    cache.emplace(key, LUA_NOREF);
     lua_pushnil(state);
   }
 
@@ -73,25 +77,20 @@ static int cassette_newindex(lua_State *state) {
   if (id == property::clear) [[unlikely]]
     return 0;
 
-  if (lua_isnil(state, 3)) [[unlikely]] {
-    if (const auto it = cache.find(key); it != cache.end()) [[unlikely]] {
-      luaL_unref(state, LUA_REGISTRYINDEX, it->second);
-      cache.erase(it);
-    }
+  const auto reference = lua_isnil(state, 3)
+    ? LUA_NOREF
+    : (lua_pushvalue(state, 3), luaL_ref(state, LUA_REGISTRYINDEX));
 
+  auto [it, inserted] = cache.try_emplace(key, reference);
+  if (!inserted) [[likely]]
+    luaL_unref(state, LUA_REGISTRYINDEX, std::exchange(it->second, reference));
+
+  if (reference == LUA_NOREF) [[unlikely]] {
     sqlite3_bind_text(stmt_delete, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
     sqlite3_step(stmt_delete);
     sqlite3_reset(stmt_delete);
     sqlite3_clear_bindings(stmt_delete);
     return 0;
-  }
-
-  lua_pushvalue(state, 3);
-  const auto reference = luaL_ref(state, LUA_REGISTRYINDEX);
-
-  auto [it, inserted] = cache.try_emplace(key, reference);
-  if (!inserted) [[likely]] {
-    luaL_unref(state, LUA_REGISTRYINDEX, std::exchange(it->second, reference));
   }
 
   auto *document = yyjson_mut_doc_new(nullptr);
