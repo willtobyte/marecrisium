@@ -857,6 +857,43 @@ function Ticker.wrap(stage) end
 local Controls = {}
 
 --------------------------------------------------------------------------------
+-- Random (xorshift128 replacement for math.random / math.randomseed)
+--------------------------------------------------------------------------------
+
+---The engine replaces Lua's built-in `math.random` and `math.randomseed` with
+---a fast xorshift128 PRNG. The RNG state is **not** automatically seeded at
+---startup, so `math.randomseed` **must** be called before the first use of
+---`math.random`; otherwise the sequence is deterministic (all-zero state).
+---Calling `math.randomseed` again at any point fully replaces the internal
+---state, and all subsequent `math.random` calls use the new seed.
+---
+---Usage:
+---```lua
+---math.randomseed(moment())      -- seed once at startup
+---local f = math.random()         -- float in [0, 1)
+---local n = math.random(6)        -- integer in [1, 6]
+---local m = math.random(10, 20)   -- integer in [10, 20]
+---```
+
+---Seed the xorshift128 PRNG. Must be called before any `math.random` call.
+---Each call fully replaces the internal state; subsequent `math.random` calls
+---produce a new sequence determined entirely by this seed.
+---@param seed integer Seed value (truncated to 32 bits internally).
+function math.randomseed(seed) end
+
+---Generate a pseudo-random number using the xorshift128 PRNG.
+---
+---With no arguments, returns a float in [0, 1).
+---With one argument `n`, returns an integer in [1, n].
+---With two arguments, returns an integer in [minimum, maximum].
+---@overload fun(): number
+---@overload fun(n: integer): integer
+---@param minimum integer Lower bound (inclusive).
+---@param maximum integer Upper bound (inclusive).
+---@return integer
+function math.random(minimum, maximum) end
+
+--------------------------------------------------------------------------------
 -- Scheduler (coroutine-based task scheduler)
 --------------------------------------------------------------------------------
 

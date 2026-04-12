@@ -86,8 +86,6 @@ int xorshift128::operator()(int minimum, int maximum) noexcept {
 }
 
 void xorshift128::wire() {
-  rng.seed(static_cast<uint32_t>(SDL_GetPerformanceCounter()));
-
   lua_getglobal(L, "math");
   lua_pushcfunction(L, math_random);
   lua_setfield(L, -2, "random");
