@@ -3,7 +3,7 @@
 struct xorshift128 final {
   uint32_t state[4];
 
-  explicit xorshift128(uint32_t value) noexcept;
+  xorshift128() noexcept = default;
 
   void seed(uint32_t value) noexcept;
 
