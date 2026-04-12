@@ -78,6 +78,19 @@ void minimap::draw() noexcept {
   const auto cx = static_cast<int32_t>(_position_x / ts);
   const auto cy = static_cast<int32_t>(_position_y / ts);
 
+  static const SDL_FRect target{
+    (viewport.width - SIZE) * .5f,
+    (viewport.height - SIZE) * .5f,
+    SIZE, SIZE
+  };
+
+  const snapshot current{cx, cy, _positions.size()};
+
+  if (current == std::exchange(_previous, current)) [[likely]] {
+    SDL_RenderTexture(renderer, _texture.get(), nullptr, &target);
+    return;
+  }
+
   auto *noalias pixels = _pixels.data();
 
   for (int32_t dy = -RADIUS; dy <= RADIUS; ++dy) {
@@ -117,12 +130,6 @@ void minimap::draw() noexcept {
   pixels[static_cast<size_t>(RADIUS * SIDE + RADIUS)] = _player;
 
   SDL_UpdateTexture(_texture.get(), nullptr, pixels, SIDE * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32));
-
-  static const SDL_FRect target{
-    (viewport.width - SIZE) * .5f,
-    (viewport.height - SIZE) * .5f,
-    SIZE, SIZE
-  };
 
   SDL_RenderTexture(renderer, _texture.get(), nullptr, &target);
 }

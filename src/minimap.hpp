@@ -35,6 +35,16 @@ private:
   uint32_t _player;
   uint32_t _entity;
 
+  struct snapshot final {
+    int32_t cx{std::numeric_limits<int32_t>::min()};
+    int32_t cy{std::numeric_limits<int32_t>::min()};
+    size_t count{};
+
+    constexpr auto operator<=>(const snapshot&) const noexcept = default;
+  };
+
+  snapshot _previous{};
+
   std::unique_ptr<SDL_Texture, SDL_Deleter> _texture;
   std::vector<uint32_t> _pixels;
   std::vector<std::pair<float, float>> _positions;
