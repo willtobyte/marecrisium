@@ -74,6 +74,9 @@ private:
 
   std::vector<hit> _hits{};
 
+  std::vector<entt::entity> _sleep{};
+  std::vector<entt::entity> _wake{};
+
   std::vector<SDL_Vertex> _vertices{};
   std::vector<int> _indices{};
 
