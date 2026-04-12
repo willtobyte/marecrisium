@@ -38,14 +38,20 @@ int math_randomseed(lua_State *state) {
 }
 }
 
-xorshift128::xorshift128(uint32_t seed) noexcept
-    : state{seed, seed ^ 0x6C078965u, seed ^ 0x714ACBFBu, seed ^ 0x48077044u} {}
+xorshift128::xorshift128(uint32_t value) noexcept : state{} {
+  seed(value);
+}
 
 void xorshift128::seed(uint32_t value) noexcept {
-  state[0] = value;
-  state[1] = value ^ 0x6C078965u;
-  state[2] = value ^ 0x714ACBFBu;
-  state[3] = value ^ 0x48077044u;
+  auto s = static_cast<uint64_t>(value);
+  for (auto &word : state) {
+    s += 0x9E3779B97F4A7C15ull;
+    auto z = s;
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+    z = z ^ (z >> 31);
+    word = static_cast<uint32_t>(z);
+  }
 }
 
 uint32_t xorshift128::operator()() noexcept {
@@ -68,8 +74,19 @@ float xorshift128::operator()(std::pair<float, float> range) noexcept {
 }
 
 int xorshift128::operator()(int minimum, int maximum) noexcept {
-  const auto range = static_cast<uint64_t>(maximum) - static_cast<uint64_t>(minimum) + 1;
-  return minimum + static_cast<int>(static_cast<uint64_t>((*this)()) % range);
+  const auto range = static_cast<uint32_t>(maximum - minimum + 1);
+  auto raw = (*this)();
+  auto product = static_cast<uint64_t>(raw) * static_cast<uint64_t>(range);
+  auto low = static_cast<uint32_t>(product);
+  if (low < range) [[unlikely]] {
+    const auto threshold = (-range) % range;
+    while (low < threshold) [[unlikely]] {
+      raw = (*this)();
+      product = static_cast<uint64_t>(raw) * static_cast<uint64_t>(range);
+      low = static_cast<uint32_t>(product);
+    }
+  }
+  return minimum + static_cast<int>(product >> 32);
 }
 
 void xorshift128::wire() {
