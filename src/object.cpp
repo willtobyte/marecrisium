@@ -97,7 +97,7 @@ namespace {
         if (!a.playing || a.sheet->count == 0) [[unlikely]]
           return lua_pushnil(state), 1;
 
-        lua_rawgeti(state, LUA_REGISTRYINDEX, depot->string.ref(a.sheet->clips[a.active].name));
+        lua_rawgeti(state, LUA_REGISTRYINDEX, a.sheet->clips[a.active].label);
         return 1;
       }
 
@@ -247,7 +247,8 @@ namespace {
           if (a.sheet->clips[i].name != hash)
             continue;
 
-          const auto previous = a.playing ? a.sheet->clips[a.active].name : entt::id_type{};
+          const auto& pc = a.sheet->clips[a.active];
+          const auto previous = a.playing ? pc.label : LUA_NOREF;
           a.active = i;
           a.current = 0;
           a.elapsed = .0f;
@@ -259,19 +260,19 @@ namespace {
           if (proxy->handle == LUA_NOREF)
             return 0;
 
-          if (previous != 0
-              && previous != hash
+          if (previous != LUA_NOREF
+              && pc.name != hash
               && proxy->on_animation_end != LUA_NOREF) [[unlikely]] {
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, depot->string.ref(previous));
+            lua_rawgeti(state, LUA_REGISTRYINDEX, previous);
             pcall(state, 2, 0);
           }
 
           if (proxy->on_animation_begin != LUA_NOREF) {
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, depot->string.ref(hash));
+            lua_rawgeti(state, LUA_REGISTRYINDEX, a.sheet->clips[i].label);
             pcall(state, 2, 0);
           }
 

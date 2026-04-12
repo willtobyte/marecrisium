@@ -35,6 +35,10 @@ struct frame final {
   float bound_y{};
   float bound_width{};
   float bound_height{};
+  float u0{};
+  float v0{};
+  float u1{};
+  float v1{};
   bool collidable{};
 };
 
@@ -42,6 +46,7 @@ static_assert(std::is_trivially_copyable_v<frame>);
 
 struct clip final {
   entt::id_type name{};
+  int label{LUA_NOREF};
   uint16_t offset{};
   uint8_t count{};
   sound* effect{};

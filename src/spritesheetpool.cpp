@@ -41,6 +41,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
 
       auto& c = s->clips.emplace_back();
       c.name = cid;
+      c.label = depot->string.ref(cid);
       c.offset = static_cast<uint16_t>(s->frames.size());
       c.count = 0;
 
@@ -106,6 +107,16 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     }
 
     s->sheet.pixmap = depot->pixmap.get(std::format("objects/{}", kind));
+
+    const auto iw = 1.f / static_cast<float>(s->sheet.pixmap->width());
+    const auto ih = 1.f / static_cast<float>(s->sheet.pixmap->height());
+    for (auto& f : s->frames) {
+      f.u0 = f.x * iw;
+      f.v0 = f.y * ih;
+      f.u1 = (f.x + f.width) * iw;
+      f.v1 = (f.y + f.height) * ih;
+    }
+
     s->sheet.clips = s->clips.data();
     s->sheet.frames = s->frames.data();
     s->sheet.count = static_cast<uint8_t>(s->clips.size());

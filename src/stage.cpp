@@ -641,7 +641,7 @@ void stage::update(float delta) {
         if (op.on_animation_end != LUA_NOREF) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_animation_end);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-          lua_rawgeti(L, LUA_REGISTRYINDEX, depot->string.ref(c.name));
+          lua_rawgeti(L, LUA_REGISTRYINDEX, c.label);
           pcall(L, 2, 0);
         }
 
@@ -650,7 +650,7 @@ void stage::update(float delta) {
         if (op.on_animation_begin != LUA_NOREF) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_animation_begin);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-          lua_rawgeti(L, LUA_REGISTRYINDEX, depot->string.ref(c.name));
+          lua_rawgeti(L, LUA_REGISTRYINDEX, c.label);
           pcall(L, 2, 0);
         }
       }
@@ -679,6 +679,7 @@ void stage::update(float delta) {
     b2World_Step(_world, _timestep, _substeps);
 
     const auto events = b2World_GetBodyEvents(_world);
+    auto &rd = _registry.ctx().get<reorder>();
 
     for (const auto& event : std::span(events.moveEvents, static_cast<size_t>(events.moveCount))) {
       const auto entity = to_entity(event.userData);
@@ -701,7 +702,6 @@ void stage::update(float delta) {
       tf.y = position.y - frame.bound_y - b->extent_y;
 
       auto &r = _registry.get<renderable>(entity);
-      auto &rd = _registry.ctx().get<reorder>();
       const auto z = static_cast<int>(tf.y + frame.height * tf.scale);
       if (r.z != z) [[unlikely]] {
         r.z = z;
@@ -899,13 +899,10 @@ void stage::draw() {
     if (texture != current) [[unlikely]]
       flush(std::exchange(current, texture), _vertices, _indices);
 
-    const auto tw = static_cast<float>(a.sheet->pixmap->width());
-    const auto th = static_cast<float>(a.sheet->pixmap->height());
-
-    auto u0 = fr.x / tw;
-    auto v0 = fr.y / th;
-    auto u1 = (fr.x + fr.width) / tw;
-    auto v1 = (fr.y + fr.height) / th;
+    auto u0 = fr.u0;
+    auto v0 = fr.v0;
+    auto u1 = fr.u1;
+    auto v1 = fr.v1;
 
     if (std::to_underlying(tf.flip) & SDL_FLIP_HORIZONTAL) std::swap(u0, u1);
     if (std::to_underlying(tf.flip) & SDL_FLIP_VERTICAL) std::swap(v0, v1);
