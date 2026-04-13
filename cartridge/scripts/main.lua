@@ -25,6 +25,7 @@ return {
 
 		local before = clock()
 		director.enroll("forest")
+		-- director.enroll...
 		local elapsed = (clock() - before) * 1000
 
 		print(format("[director] enrolled all scenes in %.2f ms", elapsed))
