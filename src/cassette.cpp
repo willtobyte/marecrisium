@@ -7,6 +7,30 @@ namespace property {
 
 constexpr const char *FILENAME = "cassette.tape";
 
+constexpr std::string_view PROXY_SOURCE = R"lua(
+local cassette = ...
+
+local function wrap(data, root, origin)
+  if type(data) ~= "table" then
+    return data
+  end
+
+  origin = origin or data
+
+  return setmetatable({}, {
+    __index = function(_, k)
+      return wrap(rawget(data, k), root, origin)
+    end,
+    __newindex = function(_, k, v)
+      rawset(data, k, v)
+      cassette[root] = origin
+    end,
+  })
+end
+
+return wrap
+)lua";
+
 sqlite3 *database;
 sqlite3_stmt *stmt_select;
 sqlite3_stmt *stmt_upsert;
@@ -14,6 +38,7 @@ sqlite3_stmt *stmt_delete;
 sqlite3_stmt *stmt_clear;
 
 int _purge_ref = LUA_NOREF;
+int _wrap_ref = LUA_NOREF;
 
 ankerl::unordered_dense::map<std::string, int, transparent_hash, std::equal_to<>> cache;
 
@@ -22,6 +47,17 @@ void execute(sqlite3_stmt *statement) {
   assert(result == SQLITE_DONE && "sqlite3_step failed");
   sqlite3_reset(statement);
   sqlite3_clear_bindings(statement);
+}
+
+void proxify(lua_State *state, std::string_view key) {
+  if (lua_type(state, -1) != LUA_TTABLE) [[likely]]
+    return;
+
+  lua_rawgeti(state, LUA_REGISTRYINDEX, _wrap_ref);
+  lua_pushvalue(state, -2);
+  lua_pushlstring(state, key.data(), key.size());
+  lua_call(state, 2, 1);
+  lua_replace(state, -2);
 }
 }
 
@@ -46,6 +82,7 @@ static int cassette_index(lua_State *state) {
       return lua_pushnil(state), 1;
 
     lua_rawgeti(state, LUA_REGISTRYINDEX, it->second);
+    proxify(state, key);
     return 1;
   }
 
@@ -75,6 +112,7 @@ static int cassette_index(lua_State *state) {
   lua_pushvalue(state, -1);
   cache.emplace(key, luaL_ref(state, LUA_REGISTRYINDEX));
 
+  proxify(state, key);
   return 1;
 }
 
@@ -148,4 +186,9 @@ void cassette::wire() {
 
   metatable(L, "Cassette", guard<cassette_index>, guard<cassette_newindex>);
   singleton(L, "Cassette", "cassette");
+
+  luaL_loadbuffer(L, PROXY_SOURCE.data(), PROXY_SOURCE.size(), "cassette_proxy");
+  lua_getglobal(L, "cassette");
+  lua_call(L, 1, 1);
+  _wrap_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 }

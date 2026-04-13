@@ -145,8 +145,12 @@ gamepad = {}
 ---Supported value types: `boolean`, `number`, `string`, `table`.
 ---Assign `nil` to delete a key. All writes persist immediately.
 ---Tables are serialized as JSON and stored as JSONB in SQLite.
----Reads return cached values. Mutating a returned table in-place does not
----persist the change; assign the table back to persist it.
+---Reads are cached. Tables are returned as reactive proxies:
+---mutating any nested field automatically re-persists the root key.
+---
+---**Proxy limitation (LuaJIT 5.1):** `#`, `pairs()`, and `ipairs()`
+---do not work on proxied tables. Use indexed access (`proxy[1]`,
+---`proxy.key`) for reads and writes instead.
 ---
 ---Usage:
 ---```lua
@@ -154,8 +158,9 @@ gamepad = {}
 ---local s = cassette.score
 ---cassette.inventory = { "sword", "shield" }
 ---cassette.progress = { level = 3, stars = 2 }
----cassette.score = nil -- delete
----cassette:purge()     -- delete all
+---cassette.progress.stars = 5       -- persists automatically
+---cassette.score = nil              -- delete
+---cassette:purge()                  -- delete all
 ---```
 ---@field [string] boolean|number|string|table|nil
 local Cassette = {}
