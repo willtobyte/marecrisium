@@ -104,9 +104,7 @@ static void pretty(lua_State *state, std::string &output, int index, int depth, 
   } break;
 
   case LUA_TLIGHTUSERDATA: {
-    std::array<char, 32> address{};
-    std::snprintf(address.data(), address.size(), "%p", lua_topointer(state, index));
-    std::format_to(out, "(lightuserdata: {})", static_cast<const char *>(address.data()));
+    std::format_to(out, "(lightuserdata: {})", lua_topointer(state, index));
   } break;
 
   default:
@@ -120,7 +118,7 @@ static int traceback(lua_State *state) {
 
   std::string result = lua_tostring(state, -1);
   lua_pop(state, 1);
-  result.reserve(256);
+  result.reserve(result.size() + 256);
 
   breadcrumbs visited;
   auto out = std::back_inserter(result);

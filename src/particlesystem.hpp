@@ -7,7 +7,7 @@ public:
   particlesystem() = default;
   ~particlesystem() = default;
 
-  particle* add(std::string_view name, std::string_view kind, float x, float y, bool active);
+  [[nodiscard]] particle* add(std::string_view name, std::string_view kind, float x, float y, bool active);
 
   void update(float delta) noexcept;
   void draw() noexcept;

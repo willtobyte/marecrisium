@@ -53,7 +53,7 @@ void director::destroy(std::string_view name) {
   _stages.erase(it);
 }
 
-void director::set_overlay(std::string name) {
+void director::set_overlay(std::string_view name) {
   const auto key = entt::hashed_string{name.data()};
   const auto [it, inserted] = _overlays.try_emplace(key, nullptr);
 

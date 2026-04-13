@@ -5,5 +5,5 @@ public:
   application() = default;
   ~application() = default;
 
-  int run();
+  [[nodiscard]] int run();
 };

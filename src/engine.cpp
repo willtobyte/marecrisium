@@ -37,7 +37,7 @@ engine::engine() {
     _tick_interval = 1.f / static_cast<float>(ticks);
 
   lua_getfield(L, -1, "title");
-  const std::string title = lua_isstring(L, -1) ? lua_tostring(L, -1) : "Untitled";
+  const std::string_view title = lua_isstring(L, -1) ? lua_tostring(L, -1) : "Untitled";
   lua_pop(L, 1);
 
   static const auto window = SDL_CreateWindow(

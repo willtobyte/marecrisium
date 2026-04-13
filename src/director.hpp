@@ -16,7 +16,7 @@ public:
 
   void enroll(std::string name);
 
-  void set_overlay(std::string name);
+  void set_overlay(std::string_view name);
 
   void clear_overlay();
 

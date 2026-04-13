@@ -5,7 +5,7 @@ struct color final {
   uint8_t g{};
   uint8_t b{};
 
-  explicit operator uint32_t() const noexcept {
+  [[nodiscard]] explicit operator uint32_t() const noexcept {
     return (255u << 24) | (static_cast<uint32_t>(b) << 16)
          | (static_cast<uint32_t>(g) << 8) | static_cast<uint32_t>(r);
   }

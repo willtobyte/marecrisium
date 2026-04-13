@@ -5,7 +5,7 @@ public:
   pixmappool() = default;
   ~pixmappool() = default;
 
-  pixmap* get(std::string_view name);
+  [[nodiscard]] pixmap* get(std::string_view name);
 
   void clear();
 

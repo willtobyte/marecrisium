@@ -315,11 +315,11 @@ stage::stage(std::string name)
       lua_rawgeti(L, -1, i);
 
       lua_getfield(L, -1, "name");
-      const std::string label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      const std::string_view label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "kind");
-      const std::string kind = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      const std::string_view kind = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "x");
@@ -352,7 +352,7 @@ stage::stage(std::string name)
       }
 
       lua_getfield(L, -1, "name");
-      const std::string label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      const std::string_view label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "loop");
@@ -449,11 +449,11 @@ stage::stage(std::string name)
       lua_rawgeti(L, -1, i);
 
       lua_getfield(L, -1, "name");
-      const std::string label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      const std::string_view label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "kind");
-      const std::string kind = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      const std::string_view kind = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "x");
@@ -469,7 +469,7 @@ stage::stage(std::string name)
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "sound");
-      const std::string sound = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      const std::string_view sound = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "distance");
@@ -925,10 +925,10 @@ void stage::draw() {
 
     const auto base = static_cast<int>(_vertices.size());
 
-    _vertices.push_back({{mx + dx0, my + dy0}, color, {u0, v0}});
-    _vertices.push_back({{mx + dx1, my + dy1}, color, {u1, v0}});
-    _vertices.push_back({{mx - dx0, my - dy0}, color, {u1, v1}});
-    _vertices.push_back({{mx - dx1, my - dy1}, color, {u0, v1}});
+    _vertices.emplace_back(SDL_Vertex{{mx + dx0, my + dy0}, color, {u0, v0}});
+    _vertices.emplace_back(SDL_Vertex{{mx + dx1, my + dy1}, color, {u1, v0}});
+    _vertices.emplace_back(SDL_Vertex{{mx - dx0, my - dy0}, color, {u1, v1}});
+    _vertices.emplace_back(SDL_Vertex{{mx - dx1, my - dy1}, color, {u0, v1}});
 
     _indices.insert(_indices.end(), {base, base + 1, base + 2, base, base + 2, base + 3});
   }
@@ -1025,8 +1025,8 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   const auto handle = op.handle;
   const auto on_spawn = op.on_spawn;
 
-  depot->string.get(name);
-  depot->string.get(kind);
+  std::ignore = depot->string.get(name);
+  std::ignore = depot->string.get(kind);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
   lua_getfield(L, -1, "animation");

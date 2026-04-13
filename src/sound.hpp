@@ -10,17 +10,17 @@ public:
   void stop() noexcept;
 
   void set_volume(float gain) noexcept;
-  float volume() const noexcept;
+  [[nodiscard]] float volume() const noexcept;
 
   void set_pan(float pan) noexcept;
-  float pan() const noexcept;
+  [[nodiscard]] float pan() const noexcept;
 
   static void wire();
 
   void set_loop(bool loop) noexcept;
-  bool loop() const noexcept;
+  [[nodiscard]] bool loop() const noexcept;
 
-  bool playing() const noexcept;
+  [[nodiscard]] bool playing() const noexcept;
 
   void fade(float from, float to, uint64_t ms) noexcept;
 

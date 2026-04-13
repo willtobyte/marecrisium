@@ -350,7 +350,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
       : dr + SQRT2_MINUS_1 * dc;
   };
 
-  _pathfinder.heap.push_back({octile(lsc, lsr), start});
+  _pathfinder.heap.emplace_back(octile(lsc, lsr), start);
 
   const auto compare = [](const node& a, const node& b) noexcept { return a.f > b.f; };
 
@@ -400,7 +400,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
       generations[ni] = generation;
       parents[ni] = current;
 
-      _pathfinder.heap.push_back({ng + octile(nc, nr), static_cast<int32_t>(ni)});
+      _pathfinder.heap.emplace_back(ng + octile(nc, nr), static_cast<int32_t>(ni));
       std::push_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), compare);
     }
   }
