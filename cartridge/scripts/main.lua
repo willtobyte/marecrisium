@@ -5,7 +5,7 @@ local randomseed = math.randomseed
 local time = os.time
 
 return {
-	title = "My Game",
+	title = "Mare Crisium",
 	splash = "loading",
 	width = 1920,
 	height = 1080,
