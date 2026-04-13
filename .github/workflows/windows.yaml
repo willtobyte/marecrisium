@@ -35,7 +35,6 @@ jobs:
         run: |
           pip install conan
           conan profile detect --force
-          conan config install https://github.com/willtobyte/conan-configs.git --type git
 
       - name: Configure tools & CMake
         run: |
