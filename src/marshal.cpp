@@ -101,9 +101,14 @@ yyjson_mut_val *lua_to_json(lua_State *state, int index, yyjson_mut_doc *documen
 
     case LUA_TNUMBER: {
       const auto value = lua_tonumber(state, absolute);
-      const auto integer = static_cast<lua_Integer>(value);
-      if (static_cast<lua_Number>(integer) == value)
-        return yyjson_mut_sint(document, integer);
+      constexpr auto maximum = static_cast<lua_Number>(std::numeric_limits<lua_Integer>::max());
+      constexpr auto minimum = static_cast<lua_Number>(std::numeric_limits<lua_Integer>::min());
+      if (value >= minimum && value < maximum) {
+        const auto integer = static_cast<lua_Integer>(value);
+        if (static_cast<lua_Number>(integer) == value)
+          return yyjson_mut_sint(document, integer);
+      }
+
       return yyjson_mut_real(document, value);
     }
 

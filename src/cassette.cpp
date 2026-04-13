@@ -134,12 +134,10 @@ static int cassette_newindex(lua_State *state) {
     return 0;
   }
 
-  lua_pushvalue(state, 3);
-  const auto ref = luaL_ref(state, LUA_REGISTRYINDEX);
-
-  auto [it, inserted] = cache.try_emplace(key, ref);
-  if (!inserted) [[likely]]
-    luaL_unref(state, LUA_REGISTRYINDEX, std::exchange(it->second, ref));
+  if (const auto it = cache.find(key); it != cache.end()) {
+    luaL_unref(state, LUA_REGISTRYINDEX, it->second);
+    cache.erase(it);
+  }
 
   auto *document = yyjson_mut_doc_new(nullptr);
   auto *root = lua_to_json(state, 3, document);
