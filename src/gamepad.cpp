@@ -159,9 +159,9 @@ void gamepad::wire() {
   SDL_AddEventWatch(on_event, nullptr);
 
   auto count = 0;
-  const auto ids = std::unique_ptr<SDL_JoystickID[], SDL_Deleter>{SDL_GetGamepads(&count)};
-  if (ids && count > 0) [[likely]] {
-    ptr.store(SDL_OpenGamepad(ids[0]));
+  const auto gamepads = std::unique_ptr<SDL_JoystickID[], SDL_Deleter>{SDL_GetGamepads(&count)};
+  if (gamepads && count > 0) [[likely]] {
+    ptr.store(SDL_OpenGamepad(gamepads[0]));
   }
 
   lua_pushcfunction(L, gamepad_rumble);
