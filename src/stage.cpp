@@ -1175,7 +1175,7 @@ int stage::find(lua_State *state) {
   _hits.clear();
   b2World_OverlapAABB(_world, aabb, filter, +gather, &_hits);
 
-  lua_newtable(state);
+  lua_createtable(state, static_cast<int>(_hits.size()), 0);
   int index = 1;
 
   for (const auto& [entity, fraction] : _hits) {
@@ -1203,7 +1203,7 @@ int stage::radar(lua_State *state, entt::entity caller, float x, float y, float 
     &_hits
   );
 
-  lua_newtable(state);
+  lua_createtable(state, static_cast<int>(_hits.size()), 0);
   int index = 1;
 
   for (const auto& [entity, fraction] : _hits) {
@@ -1248,7 +1248,7 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
 
   std::ranges::sort(_hits, {}, &hit::fraction);
 
-  lua_newtable(state);
+  lua_createtable(state, static_cast<int>(_hits.size()), 0);
   int index = 1;
 
   for (const auto& [entity, fraction] : _hits) {
