@@ -312,30 +312,43 @@ namespace {
 
   int object_gc(lua_State* state) {
     auto* proxy = static_cast<scriptable*>(lua_touserdata(state, 1));
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
     proxy->on_animation_begin = LUA_NOREF;
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
     proxy->on_animation_end = LUA_NOREF;
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_loop);
     proxy->on_loop = LUA_NOREF;
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_collision_begin);
     proxy->on_collision_begin = LUA_NOREF;
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_collision_end);
     proxy->on_collision_end = LUA_NOREF;
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_wake);
     proxy->on_wake = LUA_NOREF;
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_sleep);
     proxy->on_sleep = LUA_NOREF;
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_screen_exit);
     proxy->on_screen_exit = LUA_NOREF;
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_screen_enter);
     proxy->on_screen_enter = LUA_NOREF;
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_spawn);
     proxy->on_spawn = LUA_NOREF;
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->kind_ref);
     proxy->kind_ref = LUA_NOREF;
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->name_ref);
     proxy->name_ref = LUA_NOREF;
+
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->prototype);
     proxy->prototype = LUA_NOREF;
 
