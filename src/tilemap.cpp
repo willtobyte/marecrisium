@@ -188,7 +188,7 @@ void tilemap::draw_background() noexcept {
     _dirty = true;
 
   if (_dirty)
-    build_layer(_background);
+    tessellate(_background);
 
   SDL_RenderGeometry(
     renderer,
@@ -213,7 +213,7 @@ void tilemap::draw_foreground() noexcept {
     return;
 
   if (_dirty)
-    build_layer(_foreground);
+    tessellate(_foreground);
 
   _viewport_x = viewport.x;
   _viewport_y = viewport.y;
@@ -319,7 +319,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
 
   ++_pathfinder.current_generation;
   if (_pathfinder.current_generation == 0) [[unlikely]] {
-    std::fill(_pathfinder.generation.begin(), _pathfinder.generation.end(), 0u);
+    std::ranges::fill(_pathfinder.generation, 0u);
     _pathfinder.current_generation = 1;
   }
 
@@ -357,7 +357,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   auto iterations = lt;
   while (!_pathfinder.heap.empty() && iterations > 0) {
     --iterations;
-    std::pop_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), compare);
+    std::ranges::pop_heap(_pathfinder.heap, compare);
     const auto [priority, current] = _pathfinder.heap.back();
     _pathfinder.heap.pop_back();
 
@@ -401,7 +401,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
       parents[ni] = current;
 
       _pathfinder.heap.emplace_back(ng + octile(nc, nr), static_cast<int32_t>(ni));
-      std::push_heap(_pathfinder.heap.begin(), _pathfinder.heap.end(), compare);
+      std::ranges::push_heap(_pathfinder.heap, compare);
     }
   }
 
@@ -409,7 +409,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
       && parents[static_cast<size_t>(goal)] != -1) [[likely]] {
     for (auto current = goal; current != -1; current = parents[static_cast<size_t>(current)])
       _pathfinder.path.emplace_back(current);
-    std::reverse(_pathfinder.path.begin(), _pathfinder.path.end());
+    std::ranges::reverse(_pathfinder.path);
   }
 
   lua_newtable(state);
@@ -431,20 +431,28 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   return 1;
 }
 
-void tilemap::build_layer(layer& layer) noexcept {
-  layer.vertices.clear();
-  layer.indices.clear();
-
+void tilemap::tessellate(layer& layer) noexcept {
   const auto sc = std::max(0, static_cast<int32_t>(viewport.x * _inverse));
   const auto sr = std::max(0, static_cast<int32_t>(viewport.y * _inverse));
   const auto ec = std::min(_width - 1, static_cast<int32_t>((viewport.x + viewport.width) * _inverse) + 1);
   const auto er = std::min(_height - 1, static_cast<int32_t>((viewport.y + viewport.height) * _inverse) + 1);
 
-  if (sc > ec || sr > er) [[unlikely]]
+  if (sc > ec || sr > er) [[unlikely]] {
+    layer.vertices.clear();
+    layer.indices.clear();
     return;
+  }
+
+  const auto capacity = static_cast<size_t>((ec - sc + 1) * (er - sr + 1));
+  layer.vertices.resize(capacity * 4);
+  layer.indices.resize(capacity * 6);
+
+  auto* noalias vertices = layer.vertices.data();
+  auto* noalias indices = layer.indices.data();
 
   constexpr SDL_FColor white{1.f, 1.f, 1.f, 1.f};
 
+  auto visible = 0uz;
   auto ro = sr * _width;
   auto dy = static_cast<float>(sr) * _size - viewport.y;
 
@@ -462,19 +470,26 @@ void tilemap::build_layer(layer& layer) noexcept {
       const auto dx = static_cast<float>(column) * _size - viewport.x;
       const auto x0 = dx;
       const auto x1 = dx + _size;
-      const auto base = static_cast<int32_t>(layer.vertices.size());
+      const auto base = static_cast<int32_t>(visible * 4);
 
-      layer.vertices.emplace_back(SDL_Vertex{{x0, y0}, white, {entry.u0, entry.v0}});
-      layer.vertices.emplace_back(SDL_Vertex{{x1, y0}, white, {entry.u1, entry.v0}});
-      layer.vertices.emplace_back(SDL_Vertex{{x1, y1}, white, {entry.u1, entry.v1}});
-      layer.vertices.emplace_back(SDL_Vertex{{x0, y1}, white, {entry.u0, entry.v1}});
+      auto* vertex = vertices + visible * 4;
+      vertex[0] = {{x0, y0}, white, {entry.u0, entry.v0}};
+      vertex[1] = {{x1, y0}, white, {entry.u1, entry.v0}};
+      vertex[2] = {{x1, y1}, white, {entry.u1, entry.v1}};
+      vertex[3] = {{x0, y1}, white, {entry.u0, entry.v1}};
 
-      layer.indices.emplace_back(base);
-      layer.indices.emplace_back(base + 1);
-      layer.indices.emplace_back(base + 2);
-      layer.indices.emplace_back(base);
-      layer.indices.emplace_back(base + 2);
-      layer.indices.emplace_back(base + 3);
+      auto* index = indices + visible * 6;
+      index[0] = base;
+      index[1] = base + 1;
+      index[2] = base + 2;
+      index[3] = base;
+      index[4] = base + 2;
+      index[5] = base + 3;
+
+      ++visible;
     }
   }
+
+  layer.vertices.resize(visible * 4);
+  layer.indices.resize(visible * 6);
 }

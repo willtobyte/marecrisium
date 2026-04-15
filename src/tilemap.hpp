@@ -62,5 +62,5 @@ private:
 
   bool _dirty{true};
 
-  void build_layer(layer& layer) noexcept;
+  void tessellate(layer& layer) noexcept;
 };
