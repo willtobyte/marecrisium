@@ -343,9 +343,9 @@ void particle::draw() noexcept {
         const auto high3 = simde_mm_set_ps(1.f, .0f, alpha[j], 1.f);
 
         auto* noalias target = reinterpret_cast<float*>(vertices + visible * 4);
-        simde_mm_storeu_ps(target,      low0);
-        simde_mm_storeu_ps(target + 4,  high0);
-        simde_mm_storeu_ps(target + 8,  low1);
+        simde_mm_storeu_ps(target, low0);
+        simde_mm_storeu_ps(target + 4, high0);
+        simde_mm_storeu_ps(target + 8, low1);
         simde_mm_storeu_ps(target + 12, high1);
         simde_mm_storeu_ps(target + 16, low2);
         simde_mm_storeu_ps(target + 20, high2);
@@ -363,9 +363,9 @@ void particle::draw() noexcept {
     } else [[unlikely]] {
       if (mask & 1) {
         auto* noalias target = reinterpret_cast<float*>(vertices + visible * 4);
-        simde_mm_storeu_ps(target,      simde_mm_set_ps(1.f, 1.f, py[0] + dy0[0], px[0] + dx0[0]));
-        simde_mm_storeu_ps(target + 4,  simde_mm_set_ps(.0f, .0f, alpha[0], 1.f));
-        simde_mm_storeu_ps(target + 8,  simde_mm_set_ps(1.f, 1.f, py[0] + dy1[0], px[0] + dx1[0]));
+        simde_mm_storeu_ps(target, simde_mm_set_ps(1.f, 1.f, py[0] + dy0[0], px[0] + dx0[0]));
+        simde_mm_storeu_ps(target + 4, simde_mm_set_ps(.0f, .0f, alpha[0], 1.f));
+        simde_mm_storeu_ps(target + 8, simde_mm_set_ps(1.f, 1.f, py[0] + dy1[0], px[0] + dx1[0]));
         simde_mm_storeu_ps(target + 12, simde_mm_set_ps(.0f, 1.f, alpha[0], 1.f));
         simde_mm_storeu_ps(target + 16, simde_mm_set_ps(1.f, 1.f, py[0] - dy0[0], px[0] - dx0[0]));
         simde_mm_storeu_ps(target + 20, simde_mm_set_ps(1.f, 1.f, alpha[0], 1.f));
