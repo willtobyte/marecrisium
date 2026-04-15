@@ -4,7 +4,6 @@ void sincos(float x, float& sine, float& cosine) noexcept;
 void sincos4(simde__m128 x, simde__m128& sine, simde__m128& cosine) noexcept;
 
 class pixmap;
-class sound;
 
 struct config final {
   size_t count{};
@@ -37,24 +36,17 @@ public:
   [[nodiscard]] bool active() const noexcept;
   void set_active(bool value) noexcept;
 
-  void set_sound(class sound* sound, float distance, float volume) noexcept;
-  [[nodiscard]] class sound* sound() const noexcept;
-
   static void wire();
 
 private:
   size_t _count;
 
   const pixmap* _texture;
-  class sound* _sound{nullptr};
 
   float _x;
   float _y;
   float _half_width;
   float _half_height;
-  float _distance{300.f};
-  float _inverse_distance{1.f / 300.f};
-  float _volume{1.f};
   bool _active;
 
   std::vector<float> _position_x, _position_y, _velocity_x, _velocity_y, _gravity_x, _gravity_y;

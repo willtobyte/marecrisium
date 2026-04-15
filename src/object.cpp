@@ -387,12 +387,11 @@ void object::bind(scriptable& proxy, std::string_view name, std::string_view kin
   lua_pop(L, 1);
 
   auto* memory = static_cast<scriptable*>(lua_newuserdata(L, sizeof(scriptable)));
-  std::memcpy(memory, &proxy, sizeof(scriptable));
   luaL_getmetatable(L, "Object");
   lua_setmetatable(L, -2);
 
   proxy.handle = luaL_ref(L, LUA_REGISTRYINDEX);
-  memory->handle = proxy.handle;
+  std::memcpy(memory, &proxy, sizeof(scriptable));
 }
 
 void object::wire() {

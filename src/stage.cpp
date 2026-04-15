@@ -494,31 +494,12 @@ stage::stage(std::string name)
       const auto active = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : true;
       lua_pop(L, 1);
 
-      lua_getfield(L, -1, "sound");
-      const std::string_view sound = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
-      lua_getfield(L, -1, "distance");
-      const auto distance = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 300.f;
-      lua_pop(L, 1);
-
-      lua_getfield(L, -1, "volume");
-      const auto volume = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 1.f;
-      lua_pop(L, 1);
-
-      lua_pop(L, 1);
-
-      auto *particle = _particlesystem.add(label, kind, px, py, active);
-
-      if (!sound.empty()) {
-        auto *fx = depot->sound.get(std::format("sounds/{}", sound));
-        fx->set_loop(true);
-
-        particle->set_sound(fx, distance, volume);
-      }
+      auto *p = _particlesystem.add(label, kind, px, py, active);
 
       auto **userdata = static_cast<class particle **>(lua_newuserdata(L, sizeof(class particle *)));
-      *userdata = particle;
+      *userdata = p;
       luaL_getmetatable(L, "Particle");
       lua_setmetatable(L, -2);
 

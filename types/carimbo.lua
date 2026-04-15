@@ -208,9 +208,6 @@ cassette = {}
 ---@field x? number Initial X position. Default 0.
 ---@field y? number Initial Y position. Default 0.
 ---@field active? boolean Whether particles spawn immediately. Default true.
----@field sound? string Sound name. Loads `sounds/<name>`, plays in loop with spatial attenuation.
----@field distance? number Distance in pixels at which volume reaches zero. Default 300.
----@field volume? number Volume at distance zero (0.0 to 1.0). Default 1.0.
 
 ---@class StageOverlay
 ---@field widgets string Overlay name (matches `overlays/<name>.lua`).

@@ -102,26 +102,9 @@ bool particle::active() const noexcept { return _active; }
 
 void particle::set_active(bool value) noexcept {
   _active = value;
-
-  if (_sound) {
-    value ? _sound->play() : _sound->fade(-1.f, .0f, 300);
-  }
 }
 
-void particle::set_sound(class sound* sound, float distance, float volume) noexcept {
-  _sound = sound;
-  _distance = distance;
-  _inverse_distance = 1.f / std::max(distance, 1.f);
-  _volume = volume;
 
-  if (_active) {
-    _sound->play();
-  }
-}
-
-class sound* particle::sound() const noexcept {
-  return _sound;
-}
 
 void particle::update(float delta) noexcept {
   const auto n = _count;
@@ -467,18 +450,6 @@ void particle::draw() noexcept {
     static_cast<int>(visible * 4),
     indices,
     static_cast<int>(visible * 6));
-
-  if (_sound) [[likely]] {
-    const auto cx = viewport.x + viewport.width  * .5f;
-    const auto cy = viewport.y + viewport.height * .5f;
-    const auto dx = _x - cx;
-    const auto dy = _y - cy;
-    const auto d = std::sqrt(dx * dx + dy * dy);
-    const auto t = std::clamp(d * _inverse_distance, .0f, 1.f);
-    const auto u = 1.f - t;
-    _sound->set_volume(_volume * u * u);
-    _sound->set_pan(std::clamp(dx * _inverse_distance, -1.f, 1.f) * .3f);
-  }
 }
 
 void particle::wire() {
