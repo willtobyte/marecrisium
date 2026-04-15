@@ -4,7 +4,7 @@ struct scriptable final {
   static constexpr auto in_place_delete = true;
 
   entt::registry* registry;
-  entt::entity entity;
+  entt::entity entity{entt::null};
   entt::id_type name{};
   entt::id_type kind{};
 

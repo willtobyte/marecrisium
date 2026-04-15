@@ -84,6 +84,24 @@ struct body final {
 
 static_assert(std::is_trivially_copyable_v<body>);
 
+inline bool alive(const body& b) noexcept {
+  return b2Body_IsValid(b.id);
+}
+
+inline bool propelled(const body& b) noexcept {
+  return b.type == body_type::dynamic && b2Body_IsValid(b.id);
+}
+
+inline bool anchored(const body& b) noexcept {
+  return b.type != body_type::kinematic && b2Body_IsValid(b.id);
+}
+
+inline b2Vec2 center_of(const body& b, const transform& tf, const frame* fr = nullptr) noexcept {
+  const auto ox = fr ? fr->bound_x : .0f;
+  const auto oy = fr ? fr->bound_y : .0f;
+  return {tf.x + ox + b.extent_x, tf.y + oy + b.extent_y};
+}
+
 struct boundary final {
   static constexpr auto in_place_delete = true;
 

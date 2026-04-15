@@ -68,7 +68,7 @@ private:
   } _interpolation;
 
   struct hit {
-    entt::entity entity;
+    entt::entity entity{entt::null};
     float fraction{};
   };
 
@@ -78,7 +78,7 @@ private:
   std::vector<int> _indices{};
 
   friend class director;
-  friend void overlap_aabb(b2WorldId, b2AABB, std::vector<hit>&) noexcept;
+  friend bool gather(b2ShapeId, void*) noexcept;
 
   float _sleep_margin{};
   float _wake_margin{};

@@ -36,10 +36,7 @@ static color unpack(lua_State *state, int index) noexcept {
   return {r, g, b};
 }
 
-static b2Vec2 body_center(const transform& tf, const frame& fr, const body& b) noexcept {
-  return {tf.x + fr.bound_x + b.extent_x,
-          tf.y + fr.bound_y + b.extent_y};
-}
+
 
 static bool culled(const transform &tf, const animation &an, float margin) noexcept {
   const auto &fr = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
@@ -83,7 +80,7 @@ static bool ensure_shape(body &b, const frame &fr, entt::entity entity, const tr
     b.extent_x = hx;
     b.extent_y = hy;
 
-    const auto center = body_center(tf, fr, b);
+    const auto center = center_of(b, tf, &fr);
 
     if (b.type == body_type::kinematic)
       b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
@@ -101,7 +98,7 @@ static bool ensure_shape(body &b, const frame &fr, entt::entity entity, const tr
   }
 
   if (b.type == body_type::kinematic) {
-    const auto center = body_center(tf, fr, b);
+    const auto center = center_of(b, tf, &fr);
     b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
   }
 
@@ -133,28 +130,40 @@ static void on_scriptable_destroy(entt::registry& registry, entt::entity entity)
   if (userdata) {
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_spawn);
     userdata->on_spawn = LUA_NOREF;
+
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_screen_enter);
     userdata->on_screen_enter = LUA_NOREF;
+
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_screen_exit);
     userdata->on_screen_exit = LUA_NOREF;
+
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_sleep);
     userdata->on_sleep = LUA_NOREF;
+
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_wake);
     userdata->on_wake = LUA_NOREF;
+
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_collision_end);
     userdata->on_collision_end = LUA_NOREF;
+
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_collision_begin);
     userdata->on_collision_begin = LUA_NOREF;
+
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_begin);
     userdata->on_animation_begin = LUA_NOREF;
+
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_end);
     userdata->on_animation_end = LUA_NOREF;
+
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_loop);
     userdata->on_loop = LUA_NOREF;
+
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->kind_ref);
     userdata->kind_ref = LUA_NOREF;
+
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->name_ref);
     userdata->name_ref = LUA_NOREF;
+
     luaL_unref(L, LUA_REGISTRYINDEX, userdata->prototype);
     userdata->prototype = LUA_NOREF;
   }
@@ -166,21 +175,29 @@ static void on_scriptable_destroy(entt::registry& registry, entt::entity entity)
 
 static void on_object_destroy(entt::registry& registry, entt::entity entity) {
   auto& b = registry.get<body>(entity);
-  if (b2Body_IsValid(b.id))
+  if (alive(b))
     b2DestroyBody(b.id);
 }
 
-void overlap_aabb(b2WorldId world, b2AABB aabb, std::vector<stage::hit> &hits) noexcept {
-  b2World_OverlapAABB(
-    world,
-    aabb,
-    filter,
-    +[](b2ShapeId shape, void *userdata) -> bool {
-      auto *hits = static_cast<std::vector<stage::hit> *>(userdata);
-      hits->emplace_back(to_entity(b2Shape_GetUserData(shape)));
-      return true;
-    },
-    &hits);
+bool gather(b2ShapeId shape, void *userdata) noexcept {
+  const auto *ud = b2Shape_GetUserData(shape);
+  if (!ud) [[unlikely]]
+    return true;
+
+  auto *hits = static_cast<std::vector<stage::hit> *>(userdata);
+  hits->emplace_back(to_entity(ud));
+  return true;
+}
+
+static const scriptable* scriptable_of(entt::registry& registry, entt::entity entity) noexcept {
+  if (!registry.valid(entity)) [[unlikely]]
+    return nullptr;
+
+  const auto* op = registry.try_get<scriptable>(entity);
+  if (!op || op->handle == LUA_NOREF) [[unlikely]]
+    return nullptr;
+
+  return op;
 }
 
 static int world_spawn(lua_State* state) {
@@ -546,6 +563,7 @@ stage::~stage() {
   luaL_unref(L, LUA_REGISTRYINDEX, _ref);
   _ref = LUA_NOREF;
 
+  _registry.on_destroy<body>().disconnect<&on_object_destroy>();
   _registry.clear();
   b2DestroyWorld(_world);
 }
@@ -559,7 +577,7 @@ void stage::update(float delta) {
       _registry.emplace<dormant>(e);
 
       if (auto* b = _registry.try_get<body>(e);
-          b && b2Body_IsValid(b->id))
+          b && alive(*b))
         b2Body_Disable(b->id);
 
       const auto& op = _registry.get<scriptable>(e);
@@ -579,7 +597,7 @@ void stage::update(float delta) {
       _registry.remove<dormant>(e);
 
       if (auto* b = _registry.try_get<body>(e);
-          b && b2Body_IsValid(b->id))
+          b && alive(*b))
         b2Body_Enable(b->id);
 
       const auto& op = _registry.get<scriptable>(e);
@@ -678,7 +696,7 @@ void stage::update(float delta) {
       if (!_registry.valid(entity)) [[unlikely]]
         continue;
 
-    const auto* b = _registry.try_get<body>(entity);
+      const auto* b = _registry.try_get<body>(entity);
       if (!b || b->type != body_type::dynamic) [[unlikely]]
         continue;
 
@@ -789,26 +807,22 @@ void stage::update(float delta) {
     const auto events = b2World_GetSensorEvents(_world);
     entt::entity ea, eb;
 
-    for (const auto& event : std::span(events.beginEvents, static_cast<size_t>(events.beginCount))) {
-      if (!resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
-        continue;
+    auto dispatch_sensor = [&](auto *events, size_t count, int scriptable::*callback) {
+      for (const auto& event : std::span(events, count)) {
+        if (!resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
+          continue;
 
-      const auto *pa = _registry.try_get<scriptable>(ea);
-      const auto *pb = _registry.try_get<scriptable>(eb);
-      if (pa) dispatch_collision(*pa, pb, pa->on_collision_begin);
-    }
+        const auto *pa = _registry.try_get<scriptable>(ea);
+        const auto *pb = _registry.try_get<scriptable>(eb);
+        if (pa && pa->*callback != LUA_NOREF)
+          dispatch_collision(*pa, pb, pa->*callback);
+      }
+    };
 
-    for (const auto& event : std::span(events.endEvents, static_cast<size_t>(events.endCount))) {
-      if (!resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
-        continue;
-
-      const auto *pa = _registry.try_get<scriptable>(ea);
-      const auto *pb = _registry.try_get<scriptable>(eb);
-      if (pa) dispatch_collision(*pa, pb, pa->on_collision_end);
-    }
+    dispatch_sensor(events.beginEvents, static_cast<size_t>(events.beginCount), &scriptable::on_collision_begin);
+    dispatch_sensor(events.endEvents, static_cast<size_t>(events.endCount), &scriptable::on_collision_end);
 
     const auto contacts = b2World_GetContactEvents(_world);
-
     for (const auto& event : std::span(contacts.beginEvents, static_cast<size_t>(contacts.beginCount))) {
       if (!resolve(event.shapeIdA, event.shapeIdB, ea, eb))
         continue;
@@ -1089,15 +1103,13 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   lua_setfield(L, -2, name.data());
   lua_pop(L, 1);
 
-  if (_registry.all_of<sleepable, animation>(entity)) {
-    const auto& an = _registry.get<animation>(entity);
-    const auto& tf2 = _registry.get<transform>(entity);
-
-    if (culled(tf2, an, _sleep_margin)) {
+  if (auto [a, t] = _registry.try_get<animation, transform>(entity);
+      a && t && _registry.all_of<sleepable>(entity)) {
+    if (culled(*t, *a, _sleep_margin)) {
       _registry.emplace<dormant>(entity);
 
       if (auto* b = _registry.try_get<body>(entity);
-          b && b2Body_IsValid(b->id))
+          b && alive(*b))
         b2Body_Disable(b->id);
     }
   }
@@ -1131,36 +1143,17 @@ int stage::count(lua_State *state) {
 
   const auto aabb = b2AABB{{x, y}, {x + w, y + h}};
 
-  struct counter {
-    entt::registry *registry;
-    entt::id_type kind;
-    int total;
-  } c{&_registry, kind, 0};
+  _hits.clear();
+  b2World_OverlapAABB(_world, aabb, filter, +gather, &_hits);
 
-  b2World_OverlapAABB(
-    _world,
-    aabb,
-    filter,
-    +[](b2ShapeId shape, void *userdata) -> bool {
-      auto *c = static_cast<counter *>(userdata);
-      const auto e = to_entity(b2Shape_GetUserData(shape));
+  int total = 0;
+  for (const auto& [entity, fraction] : _hits) {
+    const auto* op = scriptable_of(_registry, entity);
+    if (op && op->kind == kind)
+      ++total;
+  }
 
-      if (!c->registry->valid(e)
-          || !c->registry->all_of<scriptable>(e)) [[unlikely]]
-        return true;
-      const auto& op = c->registry->get<scriptable>(e);
-      if (op.handle == LUA_NOREF)
-        return true;
-      if (op.kind != c->kind)
-        return true;
-
-      ++c->total;
-      return true;
-    },
-    &c
-  );
-
-  lua_pushinteger(state, static_cast<lua_Integer>(c.total));
+  lua_pushinteger(state, static_cast<lua_Integer>(total));
   return 1;
 }
 
@@ -1174,22 +1167,17 @@ int stage::find(lua_State *state) {
   const b2AABB aabb = {{x, y}, {x + w, y + h}};
 
   _hits.clear();
-  overlap_aabb(_world, aabb, _hits);
+  b2World_OverlapAABB(_world, aabb, filter, +gather, &_hits);
 
   lua_newtable(state);
   int index = 1;
 
   for (const auto& [entity, fraction] : _hits) {
-    if (!_registry.valid(entity)
-        || !_registry.all_of<scriptable>(entity)) [[unlikely]]
-      continue;
-    const auto& op = _registry.get<scriptable>(entity);
-    if (op.handle == LUA_NOREF)
-      continue;
-    if (op.kind != kind)
+    const auto* op = scriptable_of(_registry, entity);
+    if (!op || op->kind != kind)
       continue;
 
-    lua_rawgeti(state, LUA_REGISTRYINDEX, op.handle);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, op->handle);
     lua_rawseti(state, -2, index++);
   }
 
@@ -1205,11 +1193,7 @@ int stage::radar(lua_State *state, entt::entity caller, float x, float y, float 
     _world,
     &proxy,
     filter,
-    +[](b2ShapeId shape, void *userdata) -> bool {
-      auto *hits = static_cast<std::vector<hit> *>(userdata);
-      hits->emplace_back(to_entity(b2Shape_GetUserData(shape)));
-      return true;
-    },
+    +gather,
     &_hits
   );
 
@@ -1219,14 +1203,12 @@ int stage::radar(lua_State *state, entt::entity caller, float x, float y, float 
   for (const auto& [entity, fraction] : _hits) {
     if (entity == caller)
       continue;
-    if (!_registry.valid(entity)
-        || !_registry.all_of<scriptable>(entity)) [[unlikely]]
-      continue;
-    const auto& op = _registry.get<scriptable>(entity);
-    if (op.handle == LUA_NOREF)
+
+    const auto* op = scriptable_of(_registry, entity);
+    if (!op)
       continue;
 
-    lua_rawgeti(state, LUA_REGISTRYINDEX, op.handle);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, op->handle);
     lua_rawseti(state, -2, index++);
   }
 
@@ -1247,8 +1229,12 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     translation,
     filter,
     +[](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void *userdata) -> float {
+      const auto *ud = b2Shape_GetUserData(shape);
+      if (!ud) [[unlikely]]
+        return 1.f;
+
       auto *hits = static_cast<std::vector<hit> *>(userdata);
-      hits->emplace_back(to_entity(b2Shape_GetUserData(shape)), fraction);
+      hits->emplace_back(to_entity(ud), fraction);
       return 1.f;
     },
     &_hits
@@ -1260,21 +1246,14 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
   int index = 1;
 
   for (const auto& [entity, fraction] : _hits) {
-    if (entity == entt::null)
-      continue;
-
     if (entity == caller)
       continue;
 
-    if (!_registry.valid(entity)
-        || !_registry.all_of<scriptable>(entity)) [[unlikely]]
+    const auto* op = scriptable_of(_registry, entity);
+    if (!op)
       continue;
 
-    const auto& op = _registry.get<scriptable>(entity);
-    if (op.handle == LUA_NOREF)
-      continue;
-
-    lua_rawgeti(state, LUA_REGISTRYINDEX, op.handle);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, op->handle);
     lua_rawseti(state, -2, index++);
   }
 

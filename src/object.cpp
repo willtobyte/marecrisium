@@ -21,15 +21,11 @@ namespace {
   }
 
   static void sync_body_position(body& bd, const transform& tf, const animation* an) noexcept {
-    auto ox = .0f;
-    auto oy = .0f;
-    if (an && an->playing && an->sheet->count > 0) [[likely]] {
-      const auto& frame = an->sheet->frames[an->sheet->clips[an->active].offset + an->current];
-      ox = frame.bound_x;
-      oy = frame.bound_y;
-    }
+    const frame* fr = nullptr;
+    if (an && an->playing && an->sheet->count > 0) [[likely]]
+      fr = &an->sheet->frames[an->sheet->clips[an->active].offset + an->current];
 
-    b2Body_SetTransform(bd.id, {tf.x + ox + bd.extent_x, tf.y + oy + bd.extent_y}, b2Rot_identity);
+    b2Body_SetTransform(bd.id, center_of(bd, tf, fr), b2Rot_identity);
   }
 
   int object_index(lua_State* state) {
@@ -63,7 +59,7 @@ namespace {
 
       case property::velocity_x: {
         const auto* b = registry.try_get<body>(entity);
-        if (b && b2Body_IsValid(b->id)) [[likely]] {
+        if (b && alive(*b)) [[likely]] {
           lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(b->id).x));
           return 1;
         }
@@ -73,7 +69,7 @@ namespace {
 
       case property::velocity_y: {
         const auto* b = registry.try_get<body>(entity);
-        if (b && b2Body_IsValid(b->id)) [[likely]] {
+        if (b && alive(*b)) [[likely]] {
           lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(b->id).y));
           return 1;
         }
@@ -90,14 +86,11 @@ namespace {
         return 1;
 
       case property::animation: {
-        if (!registry.all_of<animation>(entity))
+        const auto* a = registry.try_get<animation>(entity);
+        if (!a || !a->playing || a->sheet->count == 0) [[unlikely]]
           return lua_pushnil(state), 1;
 
-        const auto& a = registry.get<animation>(entity);
-        if (!a.playing || a.sheet->count == 0) [[unlikely]]
-          return lua_pushnil(state), 1;
-
-        lua_rawgeti(state, LUA_REGISTRYINDEX, a.sheet->clips[a.active].identity.reference);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, a->sheet->clips[a->active].identity.reference);
         return 1;
       }
 
@@ -172,9 +165,7 @@ namespace {
         tf.previous_x = tf.x = static_cast<float>(luaL_checknumber(state, 3));
 
         auto* b = registry.try_get<body>(entity);
-        if (b
-            && b->type != body_type::kinematic
-            && b2Body_IsValid(b->id)) [[likely]]
+        if (b && anchored(*b)) [[likely]]
           sync_body_position(*b, tf, registry.try_get<animation>(entity));
 
         return 0;
@@ -185,9 +176,7 @@ namespace {
         tf.previous_y = tf.y = static_cast<float>(luaL_checknumber(state, 3));
 
         auto* b = registry.try_get<body>(entity);
-        if (b
-            && b->type != body_type::kinematic
-            && b2Body_IsValid(b->id)) [[likely]]
+        if (b && anchored(*b)) [[likely]]
           sync_body_position(*b, tf, registry.try_get<animation>(entity));
 
         return 0;
@@ -204,9 +193,7 @@ namespace {
 
       case property::velocity_x: {
         auto* b = registry.try_get<body>(entity);
-        if (b
-            && b->type == body_type::dynamic
-            && b2Body_IsValid(b->id)) [[likely]] {
+        if (b && propelled(*b)) [[likely]] {
           const auto current = b2Body_GetLinearVelocity(b->id);
           b2Body_SetLinearVelocity(b->id, {static_cast<float>(luaL_checknumber(state, 3)), current.y});
         }
@@ -216,9 +203,7 @@ namespace {
 
       case property::velocity_y: {
         auto* b = registry.try_get<body>(entity);
-        if (b
-            && b->type == body_type::dynamic
-            && b2Body_IsValid(b->id)) [[likely]] {
+        if (b && propelled(*b)) [[likely]] {
           const auto current = b2Body_GetLinearVelocity(b->id);
           b2Body_SetLinearVelocity(b->id, {current.x, static_cast<float>(luaL_checknumber(state, 3))});
         }
@@ -235,27 +220,24 @@ namespace {
       }
 
       case property::animation: {
-        if (!registry.all_of<animation>(entity))
+        auto* a = registry.try_get<animation>(entity);
+        if (!a) [[unlikely]]
           return 0;
 
-        const std::string_view value = luaL_checkstring(state, 3);
-        const auto hash = entt::hashed_string{value.data()};
-
-        auto& a = registry.get<animation>(entity);
-
-        for (uint8_t i = 0; i < a.sheet->count; ++i) {
-          if (a.sheet->clips[i].identity.hash != hash)
+        const auto hash = entt::hashed_string{luaL_checkstring(state, 3)};
+        for (uint8_t i = 0; i < a->sheet->count; ++i) {
+          if (a->sheet->clips[i].identity.hash != hash)
             continue;
 
-          const auto& pc = a.sheet->clips[a.active];
-          const auto previous = a.playing ? pc.identity.reference : LUA_NOREF;
-          a.active = i;
-          a.current = 0;
-          a.elapsed = .0f;
-          a.playing = true;
+          const auto& pc = a->sheet->clips[a->active];
+          const auto previous = a->playing ? pc.identity.reference : LUA_NOREF;
+          a->active = i;
+          a->current = 0;
+          a->elapsed = .0f;
+          a->playing = true;
 
-          if (a.sheet->clips[i].effect)
-            a.sheet->clips[i].effect->play();
+          if (a->sheet->clips[i].effect)
+            a->sheet->clips[i].effect->play();
 
           if (proxy->handle == LUA_NOREF)
             return 0;
@@ -272,7 +254,7 @@ namespace {
           if (proxy->on_animation_begin != LUA_NOREF) {
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
             lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, a.sheet->clips[i].identity.reference);
+            lua_rawgeti(state, LUA_REGISTRYINDEX, a->sheet->clips[i].identity.reference);
             pcall(state, 2, 0);
           }
 
