@@ -309,6 +309,7 @@ stage::stage(std::string name)
   pcall(L, 0, 1);
 
   b2Vec2 gravity{.0f, .0f};
+
   lua_getfield(L, -1, "gravity");
   if (lua_istable(L, -1)) {
     lua_rawgeti(L, -1, 1);
@@ -318,6 +319,7 @@ stage::stage(std::string name)
     gravity.y = static_cast<float>(lua_tonumber(L, -1));
     lua_pop(L, 1);
   }
+
   lua_pop(L, 1);
 
   b2WorldDef def = b2DefaultWorldDef();
