@@ -29,7 +29,7 @@ namespace {
   }
 
   int object_index(lua_State* state) {
-    const auto* proxy = static_cast<scriptable*>(lua_touserdata(state, 1));
+    const auto* proxy = static_cast<scriptable*>(luaL_checkudata(state, 1, "Object"));
     const auto* key = luaL_checkstring(state, 2);
     const auto id = entt::hashed_string{key};
 
@@ -149,7 +149,7 @@ namespace {
   }
 
   int object_newindex(lua_State* state) {
-    auto* proxy = static_cast<scriptable*>(lua_touserdata(state, 1));
+    auto* proxy = static_cast<scriptable*>(luaL_checkudata(state, 1, "Object"));
     const auto* key = luaL_checkstring(state, 2);
     const auto id = entt::hashed_string{key};
 
@@ -293,7 +293,7 @@ namespace {
   }
 
   int object_gc(lua_State* state) {
-    auto* proxy = static_cast<scriptable*>(lua_touserdata(state, 1));
+    auto* proxy = static_cast<scriptable*>(luaL_checkudata(state, 1, "Object"));
 
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
     proxy->on_animation_begin = LUA_NOREF;

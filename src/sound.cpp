@@ -65,7 +65,7 @@ namespace {
   int _on_end_ref = LUA_NOREF;
 
   int sound_index(lua_State* state) {
-    auto* instance = *static_cast<sound**>(lua_touserdata(state, 1));
+    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
     switch (id) {
@@ -111,7 +111,7 @@ namespace {
   }
 
   int sound_newindex(lua_State* state) {
-    auto* instance = *static_cast<sound**>(lua_touserdata(state, 1));
+    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
     switch (id) {

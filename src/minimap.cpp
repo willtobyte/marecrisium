@@ -7,7 +7,7 @@ namespace property {
 }
 
 static int minimap_index(lua_State *state) {
-  auto *self = *static_cast<minimap **>(lua_touserdata(state, 1));
+  auto *self = *static_cast<minimap **>(luaL_checkudata(state, 1, "Minimap"));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id == property::visible) {
@@ -19,7 +19,7 @@ static int minimap_index(lua_State *state) {
 }
 
 static int minimap_newindex(lua_State *state) {
-  auto *self = *static_cast<minimap **>(lua_touserdata(state, 1));
+  auto *self = *static_cast<minimap **>(luaL_checkudata(state, 1, "Minimap"));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id == property::visible)
