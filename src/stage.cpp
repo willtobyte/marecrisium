@@ -552,15 +552,10 @@ stage::~stage() {
 
 void stage::update(float delta) {
   {
-    _sleep.clear();
-    auto sv = _registry.view<sleepable, transform, animation>(entt::exclude<dormant>);
-    _sleep.reserve(sv.size_hint());
-    for (auto&& [e, tf, an] : sv.each()) {
-      if (culled(tf, an, _sleep_margin))
-        _sleep.emplace_back(e);
-    }
+    for (auto&& [e, tf, an] : _registry.view<sleepable, transform, animation>(entt::exclude<dormant>).each()) {
+      if (!culled(tf, an, _sleep_margin))
+        continue;
 
-    for (auto e : _sleep) {
       _registry.emplace<dormant>(e);
 
       if (auto* b = _registry.try_get<body>(e);
@@ -577,15 +572,10 @@ void stage::update(float delta) {
   }
 
   {
-    _wake.clear();
-    auto dv = _registry.view<sleepable, dormant, transform, animation>();
-    _wake.reserve(dv.size_hint());
-    for (auto&& [e, tf, an] : dv.each()) {
-      if (!culled(tf, an, _wake_margin))
-        _wake.emplace_back(e);
-    }
+    for (auto&& [e, tf, an] : _registry.view<sleepable, dormant, transform, animation>().each()) {
+      if (culled(tf, an, _wake_margin))
+        continue;
 
-    for (auto e : _wake) {
       _registry.remove<dormant>(e);
 
       if (auto* b = _registry.try_get<body>(e);

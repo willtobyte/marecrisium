@@ -73,6 +73,8 @@ enum class body_type : uint8_t {
 };
 
 struct body final {
+  static constexpr auto in_place_delete = true;
+
   b2BodyId id{b2_nullBodyId};
   b2ShapeId shape{b2_nullShapeId};
   float extent_x{};
@@ -83,6 +85,8 @@ struct body final {
 static_assert(std::is_trivially_copyable_v<body>);
 
 struct boundary final {
+  static constexpr auto in_place_delete = true;
+
   uint8_t previous{};
 
   static constexpr uint8_t left = 1 << 0;
@@ -93,11 +97,15 @@ struct boundary final {
 
 static_assert(std::is_trivially_copyable_v<boundary>);
 
-struct sleepable final {};
+struct sleepable final {
+  static constexpr auto in_place_delete = true;
+};
 
 static_assert(std::is_trivially_copyable_v<sleepable>);
 
-struct dormant final {};
+struct dormant final {
+  static constexpr auto in_place_delete = true;
+};
 
 static_assert(std::is_trivially_copyable_v<dormant>);
 
