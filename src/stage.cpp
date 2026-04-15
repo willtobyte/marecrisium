@@ -546,6 +546,7 @@ stage::~stage() {
   luaL_unref(L, LUA_REGISTRYINDEX, _ref);
   _ref = LUA_NOREF;
 
+  _registry.clear();
   b2DestroyWorld(_world);
 }
 
