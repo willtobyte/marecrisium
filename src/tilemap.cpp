@@ -28,7 +28,7 @@ static void load_tiles(tilemap::layer& layer, const char* field, size_t total) {
     layer.tiles.clear();
 }
 
-static void load_atlas(tilemap::layer& layer, std::string_view name, std::string_view path, float size, float inverse) {
+static void prepare(tilemap::layer& layer, std::string_view name, std::string_view path, float size, float inverse) {
   if (layer.tiles.empty())
     return;
 
@@ -159,8 +159,8 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
   lua_pop(L, 1);
 
-  load_atlas(_background, name, "background", _size, _inverse);
-  load_atlas(_foreground, name, "foreground", _size, _inverse);
+  prepare(_background, name, "background", _size, _inverse);
+  prepare(_foreground, name, "foreground", _size, _inverse);
 
   {
     const auto tx = static_cast<size_t>(viewport.width * _inverse) + 2;
