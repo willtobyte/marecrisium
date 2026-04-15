@@ -330,8 +330,6 @@ stage::stage(std::string name)
   _sleep_margin = largest;
   _wake_margin = largest * .5f;
   _hits.reserve(64);
-  _vertices.reserve(2048);
-  _indices.reserve(3072);
 
   lua_getfield(L, -1, "objects");
   if (lua_istable(L, -1)) {
@@ -871,6 +869,12 @@ void stage::draw() {
 
   auto view = _registry.view<const renderable, const animation, const transform>(entt::exclude<dormant>);
   view.use<renderable>();
+
+  const auto capacity = view.size_hint();
+  _vertices.clear();
+  _indices.clear();
+  _vertices.reserve(capacity * 4);
+  _indices.reserve(capacity * 6);
 
   SDL_Texture *current = nullptr;
 
