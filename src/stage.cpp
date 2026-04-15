@@ -15,7 +15,7 @@ static entt::entity to_entity(const void* p) noexcept {
   return static_cast<entt::entity>(reinterpret_cast<uintptr_t>(p) - 1);
 }
 
-static void flush(SDL_Texture *texture, std::vector<SDL_Vertex> &vertices, std::vector<int> &indices) noexcept {
+static void submit(SDL_Texture *texture, std::vector<SDL_Vertex> &vertices, std::vector<int> &indices) noexcept {
   SDL_RenderGeometry(
     renderer,
     texture,
@@ -916,7 +916,7 @@ void stage::draw() {
     auto *texture = static_cast<SDL_Texture *>(*a.sheet->pixmap);
 
     if (texture != current) [[unlikely]]
-      flush(std::exchange(current, texture), _vertices, _indices);
+      submit(std::exchange(current, texture), _vertices, _indices);
 
     auto u0 = fr.u0;
     auto v0 = fr.v0;
@@ -957,7 +957,7 @@ void stage::draw() {
     _indices.emplace_back(base + 3);
   }
 
-  flush(current, _vertices, _indices);
+  submit(current, _vertices, _indices);
 
   _particlesystem.draw();
 
