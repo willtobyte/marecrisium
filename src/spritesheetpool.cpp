@@ -37,15 +37,15 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
         continue;
       }
 
-      const auto cid = depot->string.get(label);
+      const auto id = depot->string.get(label);
 
       auto& c = s->clips.emplace_back();
-      c.name = cid;
-      c.label = depot->string.ref(cid);
+      c.identity.hash = id;
+      c.identity.reference = depot->string.ref(id);
       c.offset = static_cast<uint16_t>(s->frames.size());
       c.count = 0;
 
-      if (cid == dh)
+      if (id == dh)
         initial = static_cast<uint8_t>(s->clips.size() - 1);
 
       const auto count = static_cast<int>(lua_objlen(state, -1));

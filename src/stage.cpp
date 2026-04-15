@@ -642,7 +642,7 @@ void stage::update(float delta) {
         if (op.on_animation_end != LUA_NOREF) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_animation_end);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-          lua_rawgeti(L, LUA_REGISTRYINDEX, c.label);
+          lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
           pcall(L, 2, 0);
         }
 
@@ -651,7 +651,7 @@ void stage::update(float delta) {
         if (op.on_animation_begin != LUA_NOREF) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_animation_begin);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-          lua_rawgeti(L, LUA_REGISTRYINDEX, c.label);
+          lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
           pcall(L, 2, 0);
         }
       }

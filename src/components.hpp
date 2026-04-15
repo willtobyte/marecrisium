@@ -45,8 +45,10 @@ struct frame final {
 static_assert(std::is_trivially_copyable_v<frame>);
 
 struct clip final {
-  entt::id_type name{};
-  int label{LUA_NOREF};
+  struct {
+    entt::id_type hash{};
+    int reference{LUA_NOREF};
+  } identity;
   uint16_t offset{};
   uint8_t count{};
   sound* effect{};
