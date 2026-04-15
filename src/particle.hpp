@@ -1,6 +1,7 @@
 #pragma once
 
 void sincos(float x, float& sine, float& cosine) noexcept;
+void sincos4(simde__m128 x, simde__m128& sine, simde__m128& cosine) noexcept;
 
 class pixmap;
 class sound;
@@ -58,6 +59,7 @@ private:
 
   std::vector<float> _position_x, _position_y, _velocity_x, _velocity_y, _gravity_x, _gravity_y;
   std::vector<float> _life, _scale, _angle, _angular_velocity, _angular_force;
+  std::vector<float> _random;
   std::vector<size_t> _respawn;
 
   std::vector<SDL_Vertex> _vertices;
