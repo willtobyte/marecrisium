@@ -1,9 +1,6 @@
 #include "particle.hpp"
 
 namespace {
-
-constexpr float TWO_PI = 6.28318530718f;
-
 namespace property {
   constexpr auto active = "active"_hs;
   constexpr auto x = "x"_hs;
@@ -141,7 +138,7 @@ void particle::update(float delta) noexcept {
   auto* noalias afs = _angular_force.data();
 
   const auto vdelta = simde_mm_set1_ps(delta);
-  const auto vtwopi = simde_mm_set1_ps(TWO_PI);
+  const auto vtwopi = simde_mm_set1_ps(2.f * std::numbers::pi_v<float>);
   const auto vzero  = simde_mm_setzero_ps();
 
   for (auto i = 0uz; i < n; i += 4) {

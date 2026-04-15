@@ -116,6 +116,6 @@ struct transparent_hash final {
 };
 
 template <typename T>
-constexpr T to_radians(T degrees) noexcept {
+[[nodiscard]] constexpr T to_radians(T degrees) noexcept {
   return degrees * (std::numbers::pi_v<T> / T{180});
 }

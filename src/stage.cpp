@@ -16,7 +16,14 @@ static entt::entity to_entity(const void* p) noexcept {
 }
 
 static void flush(SDL_Texture *texture, std::vector<SDL_Vertex> &vertices, std::vector<int> &indices) noexcept {
-  SDL_RenderGeometry(renderer, texture, vertices.data(), static_cast<int>(vertices.size()), indices.data(), static_cast<int>(indices.size()));
+  SDL_RenderGeometry(
+    renderer,
+    texture,
+    vertices.data(),
+    static_cast<int>(vertices.size()),
+    indices.data(),
+    static_cast<int>(indices.size()));
+
   vertices.clear();
   indices.clear();
 }
@@ -548,18 +555,25 @@ stage::stage(std::string name)
 stage::~stage() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_leave);
   _on_leave = LUA_NOREF;
+
   luaL_unref(L, LUA_REGISTRYINDEX, _on_enter);
   _on_enter = LUA_NOREF;
+
   luaL_unref(L, LUA_REGISTRYINDEX, _on_tick);
   _on_tick = LUA_NOREF;
+
   luaL_unref(L, LUA_REGISTRYINDEX, _on_camera);
   _on_camera = LUA_NOREF;
+
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   _on_loop = LUA_NOREF;
+
   luaL_unref(L, LUA_REGISTRYINDEX, _world_ref);
   _world_ref = LUA_NOREF;
+
   luaL_unref(L, LUA_REGISTRYINDEX, _pool_ref);
   _pool_ref = LUA_NOREF;
+
   luaL_unref(L, LUA_REGISTRYINDEX, _ref);
   _ref = LUA_NOREF;
 
@@ -935,7 +949,12 @@ void stage::draw() {
     _vertices.emplace_back(SDL_Vertex{{mx - dx0, my - dy0}, color, {u1, v1}});
     _vertices.emplace_back(SDL_Vertex{{mx - dx1, my - dy1}, color, {u0, v1}});
 
-    _indices.insert(_indices.end(), {base, base + 1, base + 2, base, base + 2, base + 3});
+    _indices.emplace_back(base);
+    _indices.emplace_back(base + 1);
+    _indices.emplace_back(base + 2);
+    _indices.emplace_back(base);
+    _indices.emplace_back(base + 2);
+    _indices.emplace_back(base + 3);
   }
 
   flush(current, _vertices, _indices);
