@@ -203,9 +203,9 @@ void foreground::appear() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_appear);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
     pcall(L, 1, 0);
+    luaL_unref(L, LUA_REGISTRYINDEX, _on_appear);
+    _on_appear = LUA_NOREF;
   }
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_appear);
-  _on_appear = LUA_NOREF;
 }
 
 void foreground::disappear() {
