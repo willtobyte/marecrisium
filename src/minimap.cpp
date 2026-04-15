@@ -59,7 +59,7 @@ void minimap::draw() noexcept {
 
   _positions.clear();
 
-  const auto view = _registry->view<const objectproxy, const transform>(entt::exclude<dormant>);
+  const auto view = _registry->view<const scriptable, const transform>(entt::exclude<dormant>);
   _positions.reserve(view.size_hint());
 
   for (auto &&[en, op, tf] : view.each()) {

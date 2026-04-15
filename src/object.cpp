@@ -33,7 +33,7 @@ namespace {
   }
 
   int object_index(lua_State* state) {
-    const auto* proxy = static_cast<objectproxy*>(lua_touserdata(state, 1));
+    const auto* proxy = static_cast<scriptable*>(lua_touserdata(state, 1));
     const auto* key = luaL_checkstring(state, 2);
     const auto id = entt::hashed_string{key};
 
@@ -156,7 +156,7 @@ namespace {
   }
 
   int object_newindex(lua_State* state) {
-    auto* proxy = static_cast<objectproxy*>(lua_touserdata(state, 1));
+    auto* proxy = static_cast<scriptable*>(lua_touserdata(state, 1));
     const auto* key = luaL_checkstring(state, 2);
     const auto id = entt::hashed_string{key};
 
@@ -311,7 +311,7 @@ namespace {
   }
 
   int object_gc(lua_State* state) {
-    auto* proxy = static_cast<objectproxy*>(lua_touserdata(state, 1));
+    auto* proxy = static_cast<scriptable*>(lua_touserdata(state, 1));
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
     proxy->on_animation_begin = LUA_NOREF;
     luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
@@ -344,61 +344,60 @@ namespace {
 }
 
 
-objectproxy::objectproxy(entt::registry& registry, entt::entity entity, std::string_view name, std::string_view kind)
-    : registry(&registry), entity(entity), name(entt::hashed_string{name.data()}), kind(entt::hashed_string{kind.data()}) {
+void object::bind(scriptable& proxy, std::string_view name, std::string_view kind) {
   depot->source.insert(kind);
 
   lua_pushlstring(L, name.data(), name.size());
-  name_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  proxy.name_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_pushlstring(L, kind.data(), kind.size());
-  kind_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  proxy.kind_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   pcall(L, 0, 1);
 
-  prototype = luaL_ref(L, LUA_REGISTRYINDEX);
+  proxy.prototype = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
 
   lua_getfield(L, -1, "on_loop");
-  on_loop = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  proxy.on_loop = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_animation_end");
-  on_animation_end = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  proxy.on_animation_end = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_animation_begin");
-  on_animation_begin = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  proxy.on_animation_begin = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_collision_begin");
-  on_collision_begin = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  proxy.on_collision_begin = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_collision_end");
-  on_collision_end = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  proxy.on_collision_end = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_wake");
-  on_wake = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  proxy.on_wake = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_sleep");
-  on_sleep = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  proxy.on_sleep = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_screen_exit");
-  on_screen_exit = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  proxy.on_screen_exit = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_screen_enter");
-  on_screen_enter = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  proxy.on_screen_enter = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_spawn");
-  on_spawn = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  proxy.on_spawn = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_pop(L, 1);
 
-  auto* memory = static_cast<objectproxy*>(lua_newuserdata(L, sizeof(objectproxy)));
-  std::memcpy(memory, this, sizeof(objectproxy));
+  auto* memory = static_cast<scriptable*>(lua_newuserdata(L, sizeof(scriptable)));
+  std::memcpy(memory, &proxy, sizeof(scriptable));
   luaL_getmetatable(L, "Object");
   lua_setmetatable(L, -2);
 
-  handle = luaL_ref(L, LUA_REGISTRYINDEX);
-  memory->handle = handle;
+  proxy.handle = luaL_ref(L, LUA_REGISTRYINDEX);
+  memory->handle = proxy.handle;
 }
 
 void object::wire() {
