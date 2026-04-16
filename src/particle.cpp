@@ -7,7 +7,7 @@ namespace property {
   constexpr auto y = "y"_hs;
 }
 
-int particle_index(lua_State* state) {
+static int particle_index(lua_State* state) {
   const auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
@@ -29,7 +29,7 @@ int particle_index(lua_State* state) {
   }
 }
 
-int particle_newindex(lua_State* state) {
+static int particle_newindex(lua_State* state) {
   auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 

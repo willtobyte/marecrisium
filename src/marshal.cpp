@@ -1,13 +1,13 @@
 #include "marshal.hpp"
 
 namespace {
-int absolute_index(lua_State *state, int index) noexcept {
+static int absolute_index(lua_State *state, int index) noexcept {
   return (index > 0 || index <= LUA_REGISTRYINDEX)
     ? index
     : lua_gettop(state) + index + 1;
 }
 
-bool lua_table_is_array(lua_State *state, int index) {
+static bool lua_table_is_array(lua_State *state, int index) {
   const auto absolute = absolute_index(state, index);
   auto count = 0;
   lua_pushnil(state);

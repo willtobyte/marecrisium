@@ -7,7 +7,7 @@ namespace property {
 
 int _draw_ref = LUA_NOREF;
 
-int foreground_draw(lua_State *state) {
+static int foreground_draw(lua_State *state) {
   auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
   luaL_checktype(state, 2, LUA_TTABLE);
   const auto count = static_cast<int>(luaL_checkinteger(state, 3));
@@ -86,7 +86,7 @@ int foreground_draw(lua_State *state) {
   return 0;
 }
 
-int foreground_index(lua_State *state) {
+static int foreground_index(lua_State *state) {
   auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
   const std::string_view key = luaL_checkstring(state, 2);
   const auto id = entt::hashed_string{key.data()};

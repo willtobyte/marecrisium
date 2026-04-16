@@ -13,7 +13,7 @@ namespace {
     constexpr auto on_end = "on_end"_hs;
   }
 
-  int sound_play(lua_State* state) {
+  static int sound_play(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     instance->play();
     if (instance->on_begin != LUA_NOREF) {
@@ -24,12 +24,12 @@ namespace {
     return 0;
   }
 
-  int sound_stop(lua_State* state) {
+  static int sound_stop(lua_State* state) {
     (*static_cast<sound**>(luaL_checkudata(state, 1, "Sound")))->stop();
     return 0;
   }
 
-  int sound_on_begin(lua_State* state) {
+  static int sound_on_begin(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     luaL_checktype(state, 2, LUA_TFUNCTION);
     luaL_unref(state, LUA_REGISTRYINDEX, instance->on_begin);
@@ -39,7 +39,7 @@ namespace {
     return 0;
   }
 
-  int sound_fade(lua_State* state) {
+  static int sound_fade(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     const auto from = static_cast<float>(luaL_checknumber(state, 2));
     const auto to = static_cast<float>(luaL_checknumber(state, 3));
@@ -48,7 +48,7 @@ namespace {
     return 0;
   }
 
-  int sound_on_end(lua_State* state) {
+  static int sound_on_end(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     luaL_checktype(state, 2, LUA_TFUNCTION);
     luaL_unref(state, LUA_REGISTRYINDEX, instance->on_end);
@@ -64,7 +64,7 @@ namespace {
   int _on_begin_ref = LUA_NOREF;
   int _on_end_ref = LUA_NOREF;
 
-  int sound_index(lua_State* state) {
+  static int sound_index(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
@@ -110,7 +110,7 @@ namespace {
     }
   }
 
-  int sound_newindex(lua_State* state) {
+  static int sound_newindex(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 

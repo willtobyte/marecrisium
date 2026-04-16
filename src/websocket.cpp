@@ -5,7 +5,7 @@
 namespace {
 std::unique_ptr<channel> connection;
 
-std::vector<uint8_t> envelope(yyjson_mut_doc *doc) {
+static std::vector<uint8_t> envelope(yyjson_mut_doc *doc) {
   size_t length = 0;
   auto *json = yyjson_mut_write(doc, 0, &length);
   yyjson_mut_doc_free(doc);
@@ -17,7 +17,7 @@ std::vector<uint8_t> envelope(yyjson_mut_doc *doc) {
   return result;
 }
 
-std::vector<uint8_t> subscribe(uint16_t topic) {
+static std::vector<uint8_t> subscribe(uint16_t topic) {
   auto *doc = yyjson_mut_doc_new(nullptr);
   auto *arr = yyjson_mut_arr(doc);
   yyjson_mut_arr_add_uint(doc, arr, std::to_underlying(opcode::subscribe));
@@ -26,7 +26,7 @@ std::vector<uint8_t> subscribe(uint16_t topic) {
   return envelope(doc);
 }
 
-std::vector<uint8_t> unsubscribe(uint16_t topic) {
+static std::vector<uint8_t> unsubscribe(uint16_t topic) {
   auto *doc = yyjson_mut_doc_new(nullptr);
   auto *arr = yyjson_mut_arr(doc);
   yyjson_mut_arr_add_uint(doc, arr, std::to_underlying(opcode::unsubscribe));
@@ -35,7 +35,7 @@ std::vector<uint8_t> unsubscribe(uint16_t topic) {
   return envelope(doc);
 }
 
-std::vector<uint8_t> publish(uint16_t topic, yyjson_mut_val *data, yyjson_mut_doc *doc) {
+static std::vector<uint8_t> publish(uint16_t topic, yyjson_mut_val *data, yyjson_mut_doc *doc) {
   auto *arr = yyjson_mut_arr(doc);
   yyjson_mut_arr_add_uint(doc, arr, std::to_underlying(opcode::publish));
   yyjson_mut_arr_add_uint(doc, arr, topic);
@@ -44,20 +44,20 @@ std::vector<uint8_t> publish(uint16_t topic, yyjson_mut_val *data, yyjson_mut_do
   return envelope(doc);
 }
 
-int subscription_publish(lua_State *state) {
+static int subscription_publish(lua_State *state) {
   auto *self = *static_cast<subscription **>(luaL_checkudata(state, 1, "Subscription"));
   luaL_checkany(state, 2);
   self->publish(state, 2);
   return 0;
 }
 
-int subscription_unsubscribe(lua_State *state) {
+static int subscription_unsubscribe(lua_State *state) {
   auto *self = *static_cast<subscription **>(luaL_checkudata(state, 1, "Subscription"));
   self->unsubscribe();
   return 0;
 }
 
-int subscription_index(lua_State *state) {
+static int subscription_index(lua_State *state) {
   luaL_checkudata(state, 1, "Subscription");
   const std::string_view key = luaL_checkstring(state, 2);
 
@@ -80,12 +80,12 @@ int subscription_index(lua_State *state) {
   return lua_pushnil(state), 1;
 }
 
-int subscription_gc(lua_State *state) {
+static int subscription_gc(lua_State *state) {
   delete *static_cast<subscription **>(luaL_checkudata(state, 1, "Subscription"));
   return 0;
 }
 
-int websocket_on_connect(lua_State *state) {
+static int websocket_on_connect(lua_State *state) {
   auto *instance = *static_cast<channel **>(luaL_checkudata(state, 1, "WebSocket"));
   luaL_checktype(state, 2, LUA_TFUNCTION);
   lua_pushvalue(state, 2);
@@ -93,7 +93,7 @@ int websocket_on_connect(lua_State *state) {
   return 0;
 }
 
-int websocket_on_disconnect(lua_State *state) {
+static int websocket_on_disconnect(lua_State *state) {
   auto *instance = *static_cast<channel **>(luaL_checkudata(state, 1, "WebSocket"));
   luaL_checktype(state, 2, LUA_TFUNCTION);
   lua_pushvalue(state, 2);
@@ -101,7 +101,7 @@ int websocket_on_disconnect(lua_State *state) {
   return 0;
 }
 
-int websocket_subscribe(lua_State *state) {
+static int websocket_subscribe(lua_State *state) {
   auto *instance = *static_cast<channel **>(luaL_checkudata(state, 1, "WebSocket"));
   const auto raw = static_cast<int>(luaL_checkinteger(state, 2));
   luaL_argcheck(state, raw >= 0 && raw <= std::numeric_limits<uint16_t>::max(), 2, "topic must be 0..65535");
@@ -126,7 +126,7 @@ int websocket_subscribe(lua_State *state) {
   return 1;
 }
 
-int websocket_index(lua_State *state) {
+static int websocket_index(lua_State *state) {
   luaL_checkudata(state, 1, "WebSocket");
   const std::string_view key = luaL_checkstring(state, 2);
 
@@ -148,7 +148,7 @@ int websocket_index(lua_State *state) {
   return lua_pushnil(state), 1;
 }
 
-int websocket_gc(lua_State *state) {
+static int websocket_gc(lua_State *state) {
   auto **pointer = static_cast<channel **>(luaL_checkudata(state, 1, "WebSocket"));
   if (*pointer == connection.get())
     connection.reset();
@@ -156,7 +156,7 @@ int websocket_gc(lua_State *state) {
   return 0;
 }
 
-int websocket_call(lua_State *state) {
+static int websocket_call(lua_State *state) {
   std::string url = luaL_checkstring(state, 1);
 
   connection = std::make_unique<channel>(std::move(url));

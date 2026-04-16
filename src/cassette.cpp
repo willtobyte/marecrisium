@@ -42,14 +42,14 @@ int _wrap_ref = LUA_NOREF;
 
 ankerl::unordered_dense::map<std::string, int, transparent_hash, std::equal_to<>> cache;
 
-void execute(sqlite3_stmt *statement) {
+static void execute(sqlite3_stmt *statement) {
   [[maybe_unused]] const auto result = sqlite3_step(statement);
   assert(result == SQLITE_DONE && "sqlite3_step failed");
   sqlite3_reset(statement);
   sqlite3_clear_bindings(statement);
 }
 
-void proxify(lua_State *state, std::string_view key) {
+static void proxify(lua_State *state, std::string_view key) {
   if (lua_type(state, -1) != LUA_TTABLE) [[likely]]
     return;
 

@@ -4,7 +4,7 @@ xorshift128 rng{};
 
 namespace {
 
-int math_random(lua_State *state) {
+static int math_random(lua_State *state) {
   const auto argc = lua_gettop(state);
 
   switch (argc) {
@@ -31,7 +31,7 @@ int math_random(lua_State *state) {
   }
 }
 
-int math_randomseed(lua_State *state) {
+static int math_randomseed(lua_State *state) {
   const auto seed = static_cast<uint32_t>(luaL_checkinteger(state, 1));
   rng.seed(seed);
   return 0;
