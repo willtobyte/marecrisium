@@ -1,7 +1,7 @@
 #include "sourcepool.hpp"
 
 namespace {
-  int bytecode_writer(lua_State*, const void* data, size_t size, void* userdata) {
+  static int writer(lua_State*, const void* data, size_t size, void* userdata) {
     auto* buffer = static_cast<std::vector<uint8_t>*>(userdata);
     const auto* bytes = static_cast<const uint8_t*>(data);
     buffer->insert(buffer->end(), bytes, bytes + size);
@@ -25,7 +25,7 @@ void sourcepool::insert(std::string_view name) {
 
   std::vector<uint8_t> bytecode;
   bytecode.reserve(8192);
-  lua_dump(L, bytecode_writer, &bytecode);
+  lua_dump(L, writer, &bytecode);
 
   lua_pushvalue(L, -1);
   const auto reference = luaL_ref(L, LUA_REGISTRYINDEX);
