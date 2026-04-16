@@ -13,9 +13,7 @@ void sourcepool::insert(std::string_view name) {
   const auto key = entt::hashed_string{name.data()};
 
   if (const auto it = _pool.find(key); it != _pool.end()) [[likely]] {
-    const auto& [chunk, bytecode] = it->second;
-    compile(L, bytecode, chunk);
-
+    lua_rawgeti(L, LUA_REGISTRYINDEX, it->second.reference);
     return;
   }
 
@@ -29,9 +27,17 @@ void sourcepool::insert(std::string_view name) {
   bytecode.reserve(8192);
   lua_dump(L, bytecode_writer, &bytecode);
 
-  _pool.try_emplace(key, std::move(chunk), std::move(bytecode));
+  lua_pushvalue(L, -1);
+  const auto reference = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  _pool.try_emplace(key, source{std::move(chunk), std::move(bytecode), reference});
 }
 
 void sourcepool::clear() {
+  for (auto& [_, e] : _pool) {
+    luaL_unref(L, LUA_REGISTRYINDEX, e.reference);
+    e.reference = LUA_NOREF;
+  }
+
   _pool.clear();
 }

@@ -10,5 +10,11 @@ public:
   void clear();
 
 private:
-  ankerl::unordered_dense::map<entt::id_type, std::pair<std::string, std::vector<uint8_t>>> _pool;
+  struct source final {
+    std::string chunk;
+    std::vector<uint8_t> bytecode;
+    int reference{LUA_NOREF};
+  };
+
+  ankerl::unordered_dense::map<entt::id_type, source> _pool;
 };
