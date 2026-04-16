@@ -28,6 +28,36 @@ namespace {
     b2Body_SetTransform(bd.id, center_of(bd, tf, fr), b2Rot_identity);
   }
 
+  struct prototype {
+    int reference{LUA_NOREF};
+    int on_loop{LUA_NOREF};
+    int on_animation_end{LUA_NOREF};
+    int on_animation_begin{LUA_NOREF};
+    int on_collision_begin{LUA_NOREF};
+    int on_collision_end{LUA_NOREF};
+    int on_wake{LUA_NOREF};
+    int on_sleep{LUA_NOREF};
+    int on_screen_exit{LUA_NOREF};
+    int on_screen_enter{LUA_NOREF};
+    int on_spawn{LUA_NOREF};
+  };
+
+  ankerl::unordered_dense::map<entt::id_type, prototype> prototypes;
+
+  static int duplicate_ref(int source) {
+    if (source == LUA_NOREF) return LUA_NOREF;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, source);
+    return luaL_ref(L, LUA_REGISTRYINDEX);
+  }
+
+  static void commit(scriptable& proxy) {
+    auto* memory = static_cast<scriptable*>(lua_newuserdata(L, sizeof(scriptable)));
+    luaL_getmetatable(L, "Object");
+    lua_setmetatable(L, -2);
+    proxy.handle = luaL_ref(L, LUA_REGISTRYINDEX);
+    std::memcpy(memory, &proxy, sizeof(scriptable));
+  }
+
   int object_index(lua_State* state) {
     const auto* proxy = static_cast<scriptable*>(luaL_checkudata(state, 1, "Object"));
     const auto* key = luaL_checkstring(state, 2);
@@ -348,6 +378,27 @@ void object::bind(scriptable& proxy, std::string_view name, std::string_view kin
   lua_pushlstring(L, kind.data(), kind.size());
   proxy.kind_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
+  const auto identity = entt::hashed_string{kind.data()};
+
+  if (const auto it = prototypes.find(identity); it != prototypes.end()) [[likely]] {
+    lua_pop(L, 1);
+
+    const auto& blueprint = it->second;
+    proxy.prototype          = duplicate_ref(blueprint.reference);
+    proxy.on_loop            = duplicate_ref(blueprint.on_loop);
+    proxy.on_animation_end   = duplicate_ref(blueprint.on_animation_end);
+    proxy.on_animation_begin = duplicate_ref(blueprint.on_animation_begin);
+    proxy.on_collision_begin = duplicate_ref(blueprint.on_collision_begin);
+    proxy.on_collision_end   = duplicate_ref(blueprint.on_collision_end);
+    proxy.on_wake            = duplicate_ref(blueprint.on_wake);
+    proxy.on_sleep           = duplicate_ref(blueprint.on_sleep);
+    proxy.on_screen_exit     = duplicate_ref(blueprint.on_screen_exit);
+    proxy.on_screen_enter    = duplicate_ref(blueprint.on_screen_enter);
+    proxy.on_spawn           = duplicate_ref(blueprint.on_spawn);
+
+    return commit(proxy);
+  }
+
   pcall(L, 0, 1);
 
   proxy.prototype = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -386,12 +437,21 @@ void object::bind(scriptable& proxy, std::string_view name, std::string_view kin
 
   lua_pop(L, 1);
 
-  auto* memory = static_cast<scriptable*>(lua_newuserdata(L, sizeof(scriptable)));
-  luaL_getmetatable(L, "Object");
-  lua_setmetatable(L, -2);
+  prototypes.emplace(identity, prototype{
+    duplicate_ref(proxy.prototype),
+    duplicate_ref(proxy.on_loop),
+    duplicate_ref(proxy.on_animation_end),
+    duplicate_ref(proxy.on_animation_begin),
+    duplicate_ref(proxy.on_collision_begin),
+    duplicate_ref(proxy.on_collision_end),
+    duplicate_ref(proxy.on_wake),
+    duplicate_ref(proxy.on_sleep),
+    duplicate_ref(proxy.on_screen_exit),
+    duplicate_ref(proxy.on_screen_enter),
+    duplicate_ref(proxy.on_spawn),
+  });
 
-  proxy.handle = luaL_ref(L, LUA_REGISTRYINDEX);
-  std::memcpy(memory, &proxy, sizeof(scriptable));
+  commit(proxy);
 }
 
 void object::wire() {
