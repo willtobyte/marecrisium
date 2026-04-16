@@ -175,8 +175,21 @@ void pcall(lua_State *state, int nargs, int nresults) {
   lua_remove(state, handler);
 }
 
+void hcall(lua_State *state, int nargs, int nresults, int handler) {
+  if (lua_pcall(state, nargs, nresults, handler) != 0) [[unlikely]] {
+    std::string error{lua_tostring(state, -1)};
+    lua_pop(state, 1);
+    throw std::runtime_error{std::move(error)};
+  }
+}
+
 void fcall(lua_State *state, int nargs, int nresults) noexcept {
   lua_call(state, nargs, nresults);
+}
+
+int push_traceback(lua_State *state) {
+  lua_rawgeti(state, LUA_REGISTRYINDEX, _traceback);
+  return lua_gettop(state);
 }
 
 void compile(lua_State *state, std::span<const uint8_t> buffer, std::string_view chunk) {
