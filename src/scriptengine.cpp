@@ -6,11 +6,9 @@ static int loader(lua_State *state) {
 
   try {
     const auto buffer = io::read(filename);
-    const auto *data = reinterpret_cast<const char *>(buffer.data());
-    const auto size = buffer.size();
     const auto label = std::format("@{}", filename);
 
-    if (luaL_loadbuffer(state, data, size, label.c_str()) != 0)
+    if (luaL_loadbuffer(state, reinterpret_cast<const char *>(buffer.data()), buffer.size(), label.c_str()) != 0)
       return lua_error(state);
 
     return 1;
