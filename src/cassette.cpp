@@ -157,7 +157,7 @@ void cassette::wire() {
   sqlite3_open(FILENAME, &database);
   sqlite3_exec(database,
     "PRAGMA journal_mode=WAL;"
-    "PRAGMA synchronous=NORMAL;"
+    "PRAGMA synchronous=FULL;"
     "CREATE TABLE IF NOT EXISTS data("
       "key TEXT PRIMARY KEY,"
       "value JSONB NOT NULL"
