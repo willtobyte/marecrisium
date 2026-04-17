@@ -47,6 +47,8 @@ void scriptengine::run() {
   xorshift128::wire();
   // websocket::wire();
 
+  lua_gc(L, LUA_GCSTOP, 0);
+
   engine e;
   e.run();
 }
