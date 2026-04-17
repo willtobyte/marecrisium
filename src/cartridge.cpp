@@ -45,12 +45,12 @@ static T read(const uint8_t *p) noexcept {
 static bool drain(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   auto *destination = static_cast<uint8_t *>(buffer);
   while (length > 0) {
-    const auto got = io->read(io, destination, length);
-    if (got <= 0) [[unlikely]]
+    const auto read = io->read(io, destination, length);
+    if (read <= 0) [[unlikely]]
       return false;
 
-    destination += got;
-    length -= static_cast<PHYSFS_uint64>(got);
+    destination += read;
+    length -= static_cast<PHYSFS_uint64>(read);
   }
 
   return true;
@@ -259,14 +259,14 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     auto remaining = static_cast<PHYSFS_uint64>(found.compressed);
 
     while (remaining > 0) {
-      const auto to_read = std::min(remaining, static_cast<PHYSFS_uint64>(capacity));
-      const auto got = arc->io->read(arc->io, chunk.get(), to_read);
-      if (got <= 0) [[unlikely]] {
+      const auto want = std::min(remaining, static_cast<PHYSFS_uint64>(capacity));
+      const auto read = arc->io->read(arc->io, chunk.get(), want);
+      if (read <= 0) [[unlikely]] {
         PHYSFS_setErrorCode(PHYSFS_ERR_IO);
         return nullptr;
       }
 
-      ZSTD_inBuffer in{chunk.get(), static_cast<size_t>(got), 0};
+      ZSTD_inBuffer in{chunk.get(), static_cast<size_t>(read), 0};
       while (in.pos < in.size) {
         const auto result = ZSTD_decompressStream(arc->dctx, &out, &in);
         if (ZSTD_isError(result)) [[unlikely]] {
@@ -275,7 +275,7 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
         }
       }
 
-      remaining -= static_cast<PHYSFS_uint64>(got);
+      remaining -= static_cast<PHYSFS_uint64>(read);
     }
 
     if (out.pos != uncompressed) [[unlikely]] {
