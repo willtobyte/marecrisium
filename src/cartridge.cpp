@@ -267,8 +267,8 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
       ZSTD_inBuffer in{chunk.data(), static_cast<size_t>(got), 0};
       while (in.pos < in.size) {
-        const auto ret = ZSTD_decompressStream(arc->dctx, &out, &in);
-        if (ZSTD_isError(ret)) [[unlikely]] {
+        const auto result = ZSTD_decompressStream(arc->dctx, &out, &in);
+        if (ZSTD_isError(result)) [[unlikely]] {
           PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
           return nullptr;
         }
