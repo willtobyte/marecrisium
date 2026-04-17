@@ -19,14 +19,7 @@ static void ingest(tilemap::layer& layer, const char* field, size_t total) {
 
   lua_pop(L, 1);
 
-  auto any = false;
-  for (size_t i = 0; i < total; ++i) {
-    if (dst[i] != 0) {
-      any = true;
-      break;
-    }
-  }
-  if (!any)
+  if (std::ranges::none_of(layer.tiles, [](auto t) { return t != 0; }))
     layer.tiles.clear();
 }
 
@@ -170,14 +163,25 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
     const auto tx = static_cast<size_t>(viewport.width * _inverse) + 2;
     const auto ty = static_cast<size_t>(viewport.height * _inverse) + 2;
     const auto capacity = tx * ty;
-    if (_background.atlas) {
-      _background.vertices.reserve(capacity * 4);
-      _background.indices.reserve(capacity * 6);
-    }
-    if (_foreground.atlas) {
-      _foreground.vertices.reserve(capacity * 4);
-      _foreground.indices.reserve(capacity * 6);
-    }
+
+    const auto allocate = [](layer& l, size_t capacity) {
+      l.vertices.reserve(capacity * 4);
+      l.indices.resize(capacity * 6);
+
+      for (auto i = 0uz; i < capacity; ++i) {
+        const auto base = static_cast<int32_t>(i * 4);
+
+        auto* ip = l.indices.data() + i * 6;
+
+        *ip++ = base; *ip++ = base + 1; *ip++ = base + 2;
+        *ip++ = base; *ip++ = base + 2; *ip++ = base + 3;
+      }
+    };
+
+    if (_background.atlas)
+      allocate(_background, capacity);
+    if (_foreground.atlas)
+      allocate(_foreground, capacity);
   }
 }
 
@@ -191,13 +195,14 @@ void tilemap::draw_background() noexcept {
   if (_dirty)
     tessellate(_background);
 
+  const auto nv = static_cast<int>(_background.vertices.size());
   SDL_RenderGeometry(
     renderer,
     static_cast<SDL_Texture*>(*_background.atlas),
     _background.vertices.data(),
-    static_cast<int>(_background.vertices.size()),
+    nv,
     _background.indices.data(),
-    static_cast<int>(_background.indices.size())
+    nv / 4 * 6
   );
 
   if (!_foreground.atlas) {
@@ -216,13 +221,14 @@ void tilemap::draw_foreground() noexcept {
   _viewport_snapshot = viewport;
   _dirty = false;
 
+  const auto nv = static_cast<int>(_foreground.vertices.size());
   SDL_RenderGeometry(
     renderer,
     static_cast<SDL_Texture*>(*_foreground.atlas),
     _foreground.vertices.data(),
-    static_cast<int>(_foreground.vertices.size()),
+    nv,
     _foreground.indices.data(),
-    static_cast<int>(_foreground.indices.size())
+    nv / 4 * 6
   );
 }
 
@@ -384,26 +390,21 @@ void tilemap::tessellate(layer& layer) noexcept {
 
   if (sc > ec || sr > er) [[unlikely]] {
     layer.vertices.clear();
-    layer.indices.clear();
     return;
   }
 
   const auto capacity = static_cast<size_t>((ec - sc + 1) * (er - sr + 1));
   layer.vertices.resize(capacity * 4);
-  layer.indices.resize(capacity * 6);
 
-  auto* noalias vertices = layer.vertices.data();
-  auto* noalias indices = layer.indices.data();
+  auto* vp = layer.vertices.data();
 
   const SDL_FColor white{1.f, 1.f, 1.f, 1.f};
 
-  auto visible = 0uz;
   auto ro = sr * _width;
   auto dy = static_cast<float>(sr) * _size - viewport.y;
 
   for (auto row = sr; row <= er; ++row, ro += _width, dy += _size) {
-    const auto vy0 = dy;
-    const auto vy1 = dy + _size;
+    const auto y1 = dy + _size;
 
     for (auto column = sc; column <= ec; ++column) {
       const auto ti = layer.tiles[static_cast<size_t>(ro + column)];
@@ -412,26 +413,15 @@ void tilemap::tessellate(layer& layer) noexcept {
 
       assert(static_cast<size_t>(ti - 1) < layer.uvs.size() && "tile index out of bounds");
       const auto& uv = layer.uvs[ti - 1];
-      const auto vx0 = static_cast<float>(column) * _size - viewport.x;
-      const auto vx1 = vx0 + _size;
-      const auto base = static_cast<int32_t>(visible * 4);
+      const auto x0 = static_cast<float>(column) * _size - viewport.x;
+      const auto x1 = x0 + _size;
 
-      vertices[visible * 4]     = SDL_Vertex{{vx0, vy0}, white, {uv.u0, uv.v0}};
-      vertices[visible * 4 + 1] = SDL_Vertex{{vx1, vy0}, white, {uv.u1, uv.v0}};
-      vertices[visible * 4 + 2] = SDL_Vertex{{vx1, vy1}, white, {uv.u1, uv.v1}};
-      vertices[visible * 4 + 3] = SDL_Vertex{{vx0, vy1}, white, {uv.u0, uv.v1}};
-
-      indices[visible * 6]     = base;
-      indices[visible * 6 + 1] = base + 1;
-      indices[visible * 6 + 2] = base + 2;
-      indices[visible * 6 + 3] = base;
-      indices[visible * 6 + 4] = base + 2;
-      indices[visible * 6 + 5] = base + 3;
-
-      ++visible;
+      *vp++ = SDL_Vertex{{x0, dy}, white, {uv.u0, uv.v0}};
+      *vp++ = SDL_Vertex{{x1, dy}, white, {uv.u1, uv.v0}};
+      *vp++ = SDL_Vertex{{x1, y1}, white, {uv.u1, uv.v1}};
+      *vp++ = SDL_Vertex{{x0, y1}, white, {uv.u0, uv.v1}};
     }
   }
 
-  layer.vertices.resize(visible * 4);
-  layer.indices.resize(visible * 6);
+  layer.vertices.resize(static_cast<size_t>(vp - layer.vertices.data()));
 }

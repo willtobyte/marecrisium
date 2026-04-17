@@ -90,6 +90,15 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
 
   _vertices.resize(n * 4);
   _indices.resize(n * 6);
+
+  for (auto i = 0uz; i < n; ++i) {
+    const auto base = static_cast<int>(i * 4);
+
+    auto* ip = _indices.data() + i * 6;
+
+    *ip++ = base; *ip++ = base + 1; *ip++ = base + 2;
+    *ip++ = base; *ip++ = base + 2; *ip++ = base + 3;
+  }
 }
 
 float particle::x() const noexcept { return _x; }
@@ -179,7 +188,7 @@ void particle::draw() noexcept {
   const auto* noalias scales = _scale.data();
   const auto* noalias angles = _angle.data();
 
-  auto visible = 0uz;
+  auto* vp = vertices;
 
   for (auto i = 0uz; i < n; ++i) {
     if (lifes[i] <= .0f) [[unlikely]]
@@ -207,29 +216,21 @@ void particle::draw() noexcept {
 
     const SDL_FColor color{1.f, 1.f, 1.f, alpha};
 
-    const auto base = static_cast<int>(visible * 4);
-    vertices[visible * 4]     = SDL_Vertex{{px + dx0, py + dy0}, color, {.0f, .0f}};
-    vertices[visible * 4 + 1] = SDL_Vertex{{px + dx1, py + dy1}, color, {1.f, .0f}};
-    vertices[visible * 4 + 2] = SDL_Vertex{{px - dx0, py - dy0}, color, {1.f, 1.f}};
-    vertices[visible * 4 + 3] = SDL_Vertex{{px - dx1, py - dy1}, color, {.0f, 1.f}};
-
-    indices[visible * 6]     = base;
-    indices[visible * 6 + 1] = base + 1;
-    indices[visible * 6 + 2] = base + 2;
-    indices[visible * 6 + 3] = base;
-    indices[visible * 6 + 4] = base + 2;
-    indices[visible * 6 + 5] = base + 3;
-
-    ++visible;
+    *vp++ = SDL_Vertex{{px + dx0, py + dy0}, color, {.0f, .0f}};
+    *vp++ = SDL_Vertex{{px + dx1, py + dy1}, color, {1.f, .0f}};
+    *vp++ = SDL_Vertex{{px - dx0, py - dy0}, color, {1.f, 1.f}};
+    *vp++ = SDL_Vertex{{px - dx1, py - dy1}, color, {.0f, 1.f}};
   }
+
+  const auto nv = static_cast<int>(vp - vertices);
 
   SDL_RenderGeometry(
     renderer,
     static_cast<SDL_Texture*>(*_texture),
     vertices,
-    static_cast<int>(visible * 4),
+    nv,
     indices,
-    static_cast<int>(visible * 6));
+    nv / 4 * 6);
 }
 
 void particle::wire() {

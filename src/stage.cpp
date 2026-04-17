@@ -941,7 +941,12 @@ void stage::draw() {
     _vertices.emplace_back(SDL_Vertex{{mx - dx0, my - dy0}, color, {u1, v1}});
     _vertices.emplace_back(SDL_Vertex{{mx - dx1, my - dy1}, color, {u0, v1}});
 
-    _indices.insert(_indices.end(), {base, base + 1, base + 2, base, base + 2, base + 3});
+    _indices.emplace_back(base);
+    _indices.emplace_back(base + 1);
+    _indices.emplace_back(base + 2);
+    _indices.emplace_back(base);
+    _indices.emplace_back(base + 2);
+    _indices.emplace_back(base + 3);
   }
 
   submit(current, _vertices, _indices);

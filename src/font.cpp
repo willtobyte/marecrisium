@@ -172,12 +172,10 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
       _vertices[_vertex_count++] = SDL_Vertex{rotate(gx, gy + sh, midx, midy, cosine, sine), color, {glyph.u0, glyph.v1}};
     }
 
-    _indices[_index_count++] = base;
-    _indices[_index_count++] = base + 1;
-    _indices[_index_count++] = base + 2;
-    _indices[_index_count++] = base;
-    _indices[_index_count++] = base + 2;
-    _indices[_index_count++] = base + 3;
+    auto* ip = _indices.data() + _index_count;
+    *ip++ = base; *ip++ = base + 1; *ip++ = base + 2;
+    *ip++ = base; *ip++ = base + 2; *ip++ = base + 3;
+    _index_count += 6;
 
     cx += sw + static_cast<float>(_spacing);
     ++ei;

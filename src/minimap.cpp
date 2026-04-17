@@ -98,26 +98,14 @@ void minimap::draw() noexcept {
     const auto ty = cy + dy;
     const auto row = static_cast<size_t>((dy + RADIUS) * SIDE);
 
-    if (ty < 0 || ty >= th) [[unlikely]] {
-      std::fill_n(pixels + row, SIDE, _empty);
+    std::fill_n(pixels + row, SIDE, _empty);
+
+    if (ty < 0 || ty >= th) [[unlikely]]
       continue;
-    }
 
     const auto base = static_cast<size_t>(ty * tw);
     const auto dx_lo = std::max(static_cast<int32_t>(-RADIUS), -cx);
     const auto dx_hi = std::min(static_cast<int32_t>(RADIUS), tw - 1 - cx);
-
-    if (dx_lo > RADIUS || dx_hi < -RADIUS) [[unlikely]] {
-      std::fill_n(pixels + row, SIDE, _empty);
-      continue;
-    }
-
-    if (dx_lo > -RADIUS)
-      std::fill_n(pixels + row, static_cast<size_t>(dx_lo + RADIUS), _empty);
-
-    if (dx_hi < RADIUS)
-      std::fill_n(pixels + row + static_cast<size_t>(dx_hi + 1 + RADIUS),
-                  static_cast<size_t>(RADIUS - dx_hi), _empty);
 
     for (auto dx = dx_lo; dx <= dx_hi; ++dx) {
       pixels[row + static_cast<size_t>(dx + RADIUS)] =
