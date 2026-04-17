@@ -1,12 +1,5 @@
 #include "tilemap.hpp"
 
-static int32_t to_column(float x, float inverse, int32_t width) noexcept {
-  return std::clamp(static_cast<int32_t>(x * inverse), 0, width - 1);
-}
-
-static int32_t to_row(float y, float inverse, int32_t height) noexcept {
-  return std::clamp(static_cast<int32_t>(y * inverse), 0, height - 1);
-}
 
 static void load_tiles(tilemap::layer& layer, const char* field, size_t total) {
   lua_getfield(L, -1, field);
@@ -157,6 +150,11 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
     }
   }
 
+  _world = world;
+  _pathfinder.generation.resize(total, 0);
+  _pathfinder.parent.resize(total);
+  _pathfinder.queue.reserve(total);
+
   lua_pop(L, 1);
 
   prepare(_background, name, "background", _size, _inverse);
@@ -231,97 +229,25 @@ void tilemap::draw_foreground() noexcept {
   );
 }
 
-int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept {
+int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float) noexcept {
   if (_collision.empty() || _width == 0 || _height == 0) [[unlikely]] {
     lua_newtable(state);
     return 1;
   }
 
-  const auto sc = to_column(x1, _inverse, _width);
-  const auto sr = to_row(y1, _inverse, _height);
-  const auto ec = to_column(x2, _inverse, _width);
-  const auto er = to_row(y2, _inverse, _height);
+  const auto sc = std::clamp(static_cast<int32_t>(x1 * _inverse), 0, _width - 1);
+  const auto sr = std::clamp(static_cast<int32_t>(y1 * _inverse), 0, _height - 1);
+  const auto ec = std::clamp(static_cast<int32_t>(x2 * _inverse), 0, _width - 1);
+  const auto er = std::clamp(static_cast<int32_t>(y2 * _inverse), 0, _height - 1);
 
-  if (sc == ec && sr == er) [[unlikely]] {
+  const auto start = sr * _width + sc;
+  const auto goal = er * _width + ec;
+
+  if (start == goal ||
+      _collision[static_cast<size_t>(start)] != 0 ||
+      _collision[static_cast<size_t>(goal)] != 0) [[unlikely]] {
     lua_newtable(state);
     return 1;
-  }
-
-  const auto margin = static_cast<int32_t>(radius * _inverse);
-  const auto padding = margin + 8;
-
-  const auto bx0 = std::max(0, std::min(sc, ec) - padding);
-  const auto by0 = std::max(0, std::min(sr, er) - padding);
-  const auto bx1 = std::min(_width - 1, std::max(sc, ec) + padding);
-  const auto by1 = std::min(_height - 1, std::max(sr, er) + padding);
-
-  const auto bw = bx1 - bx0 + 1;
-  const auto bh = by1 - by0 + 1;
-  const auto lt = static_cast<size_t>(bw) * static_cast<size_t>(bh);
-
-  _pathfinder.local_blocked.resize(lt);
-  auto* noalias blocked = _pathfinder.local_blocked.data();
-  const auto* noalias collision = _collision.data();
-
-  for (int32_t row = 0; row < bh; ++row) {
-    const auto go = static_cast<size_t>((row + by0) * _width + bx0);
-    const auto lo = static_cast<size_t>(row * bw);
-    std::memcpy(blocked + lo, collision + go, static_cast<size_t>(bw));
-  }
-
-  if (margin > 0) {
-    _pathfinder.temp_blocked.resize(lt);
-    auto* noalias temp = _pathfinder.temp_blocked.data();
-
-    for (int32_t row = 0; row < bh; ++row) {
-      const auto* src = blocked + row * bw;
-      auto* dst = temp + row * bw;
-      int32_t count = 0;
-
-      for (int32_t c = 0; c <= std::min(margin, bw - 1); ++c)
-        count += src[c] != 0;
-      dst[0] = count > 0 ? 1 : 0;
-
-      for (int32_t c = 1; c < bw; ++c) {
-        if (const auto add = c + margin; add < bw) count += src[add] != 0;
-        if (const auto rem = c - margin - 1; rem >= 0) count -= src[rem] != 0;
-        dst[c] = count > 0 ? 1 : 0;
-      }
-    }
-
-    for (int32_t col = 0; col < bw; ++col) {
-      int32_t count = 0;
-
-      for (int32_t r = 0; r <= std::min(margin, bh - 1); ++r)
-        count += temp[r * bw + col] != 0;
-      blocked[col] = count > 0 ? 1 : 0;
-
-      for (int32_t r = 1; r < bh; ++r) {
-        if (const auto add = r + margin; add < bh) count += temp[add * bw + col] != 0;
-        if (const auto rem = r - margin - 1; rem >= 0) count -= temp[rem * bw + col] != 0;
-        blocked[r * bw + col] = count > 0 ? 1 : 0;
-      }
-    }
-  }
-
-  const auto lsc = sc - bx0;
-  const auto lsr = sr - by0;
-  const auto lec = ec - bx0;
-  const auto ler = er - by0;
-
-  const auto start = lsr * bw + lsc;
-  const auto goal = ler * bw + lec;
-
-  if (blocked[static_cast<size_t>(start)] != 0 || blocked[static_cast<size_t>(goal)] != 0) [[unlikely]] {
-    lua_newtable(state);
-    return 1;
-  }
-
-  if (_pathfinder.g.size() < lt) {
-    _pathfinder.g.resize(lt);
-    _pathfinder.generation.resize(lt, 0);
-    _pathfinder.parent.resize(lt);
-    _pathfinder.current_generation = 0;
   }
 
   ++_pathfinder.current_generation;
@@ -331,106 +257,88 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   }
 
   const auto generation = _pathfinder.current_generation;
-  auto* noalias costs = _pathfinder.g.data();
   auto* noalias generations = _pathfinder.generation.data();
   auto* noalias parents = _pathfinder.parent.data();
+  const auto* noalias collision = _collision.data();
 
-  _pathfinder.path.clear();
-  _pathfinder.heap.clear();
+  constexpr int32_t DC[] = {1, -1, 0, 0, 1, 1, -1, -1};
+  constexpr int32_t DR[] = {0, 0, 1, -1, 1, -1, 1, -1};
 
-  const auto si = static_cast<size_t>(start);
-  costs[si] = .0f;
-  generations[si] = generation;
-  parents[si] = -1;
+  _pathfinder.queue.clear();
+  _pathfinder.queue.emplace_back(start);
+  generations[static_cast<size_t>(start)] = generation;
+  parents[static_cast<size_t>(start)] = -1;
 
-  constexpr int32_t DC[] = { 1, -1, 0, 0, 1, 1, -1, -1 };
-  constexpr int32_t DR[] = { 0, 0, 1, -1, 1, -1, 1, -1 };
-  constexpr float COST[] = { 1.f, 1.f, 1.f, 1.f, 1.41421356f, 1.41421356f, 1.41421356f, 1.41421356f };
-
-  constexpr auto SQRT2_MINUS_1 = .41421356f;
-
-  const auto octile = [lec, ler](int32_t column, int32_t row) noexcept -> float {
-    const auto dc = static_cast<float>(std::abs(column - lec));
-    const auto dr = static_cast<float>(std::abs(row - ler));
-    return dc > dr
-      ? dc + SQRT2_MINUS_1 * dr
-      : dr + SQRT2_MINUS_1 * dc;
-  };
-
-  _pathfinder.heap.emplace_back(octile(lsc, lsr), start);
-
-  const auto compare = [](const node& a, const node& b) noexcept { return a.f > b.f; };
-
-  auto iterations = lt;
-  while (!_pathfinder.heap.empty() && iterations > 0) {
-    --iterations;
-    std::ranges::pop_heap(_pathfinder.heap, compare);
-    const auto [priority, current] = _pathfinder.heap.back();
-    _pathfinder.heap.pop_back();
-
+  for (size_t head = 0; head < _pathfinder.queue.size(); ++head) {
+    const auto current = _pathfinder.queue[head];
     if (current == goal) break;
 
-    const auto ci = static_cast<size_t>(current);
-    if (generations[ci] == generation &&
-        priority > costs[ci] + octile(current % bw, current / bw))
-      continue;
+    const auto cr = current / _width;
+    const auto cc = current % _width;
 
-    const auto cr = current / bw;
-    const auto cc = current % bw;
-    const auto cg = costs[ci];
+    for (int d = 0; d < 8; ++d) {
+      const auto nc = cc + DC[d];
+      const auto nr = cr + DR[d];
 
-    for (int direction = 0; direction < 8; ++direction) {
-      const auto nc = cc + DC[direction];
-      const auto nr = cr + DR[direction];
-
-      if (static_cast<uint32_t>(nc) >= static_cast<uint32_t>(bw) ||
-          static_cast<uint32_t>(nr) >= static_cast<uint32_t>(bh)) [[unlikely]]
+      if (static_cast<uint32_t>(nc) >= static_cast<uint32_t>(_width) ||
+          static_cast<uint32_t>(nr) >= static_cast<uint32_t>(_height))
         continue;
 
-      const auto ni = static_cast<size_t>(nr * bw + nc);
-
-      if (blocked[ni] != 0)
+      const auto ni = nr * _width + nc;
+      if (collision[ni] != 0 || generations[ni] == generation)
         continue;
 
-      if (direction >= 4) {
-        if (blocked[static_cast<size_t>(cr * bw + nc)] != 0 ||
-            blocked[static_cast<size_t>(nr * bw + cc)] != 0)
-          continue;
-      }
-
-      const auto ng = cg + COST[direction];
-
-      if (generations[ni] == generation && ng >= costs[ni])
+      if (d >= 4 && (collision[cr * _width + nc] != 0 || collision[nr * _width + cc] != 0))
         continue;
 
-      costs[ni] = ng;
       generations[ni] = generation;
       parents[ni] = current;
-
-      _pathfinder.heap.emplace_back(ng + octile(nc, nr), static_cast<int32_t>(ni));
-      std::ranges::push_heap(_pathfinder.heap, compare);
+      _pathfinder.queue.emplace_back(ni);
     }
   }
 
-  if (generations[static_cast<size_t>(goal)] == generation
-      && parents[static_cast<size_t>(goal)] != -1) [[likely]] {
+  _pathfinder.path.clear();
+  if (generations[static_cast<size_t>(goal)] == generation &&
+      parents[static_cast<size_t>(goal)] != -1) [[likely]] {
     for (auto current = goal; current != -1; current = parents[static_cast<size_t>(current)])
       _pathfinder.path.emplace_back(current);
     std::ranges::reverse(_pathfinder.path);
   }
 
-  lua_newtable(state);
   const auto half = _size * .5f;
+  const auto to_world = [&](int32_t cell) -> b2Vec2 {
+    const auto col = static_cast<float>(cell % _width);
+    const auto row = static_cast<float>(cell / _width);
+    return {col * _size + half, row * _size + half};
+  };
+
+  const auto filter = b2DefaultQueryFilter();
+  for (size_t i = 0; i + 2 < _pathfinder.path.size();) {
+    const auto a = to_world(_pathfinder.path[i]);
+    const auto b = to_world(_pathfinder.path[i + 2]);
+    const b2Vec2 translation = {b.x - a.x, b.y - a.y};
+
+    auto blocked = false;
+    b2World_CastRay(_world, a, translation, filter,
+      +[](b2ShapeId, b2Vec2, b2Vec2, float, void* userdata) -> float {
+        *static_cast<bool*>(userdata) = true;
+        return .0f;
+      }, &blocked);
+
+    if (!blocked)
+      _pathfinder.path.erase(_pathfinder.path.begin() + static_cast<ptrdiff_t>(i + 1));
+    else
+      ++i;
+  }
+
+  lua_newtable(state);
   int index = 1;
   for (const auto cell : _pathfinder.path) {
-    const auto lc = cell % bw;
-    const auto lr = cell / bw;
-    const auto gc = lc + bx0;
-    const auto gr = lr + by0;
+    const auto pos = to_world(cell);
     lua_createtable(state, 2, 0);
-    lua_pushnumber(state, static_cast<lua_Number>(gc * _size + half));
+    lua_pushnumber(state, static_cast<lua_Number>(pos.x));
     lua_rawseti(state, -2, 1);
-    lua_pushnumber(state, static_cast<lua_Number>(gr * _size + half));
+    lua_pushnumber(state, static_cast<lua_Number>(pos.y));
     lua_rawseti(state, -2, 2);
     lua_rawseti(state, -2, index++);
   }

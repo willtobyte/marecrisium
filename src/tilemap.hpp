@@ -29,24 +29,17 @@ public:
 private:
   friend class minimap;
 
-  struct node final {
-    float f;
-    int32_t index;
-  };
-
   struct pathfinder final {
-    std::vector<float> g;
     std::vector<uint32_t> generation;
     std::vector<int32_t> parent;
     std::vector<int32_t> path;
-    std::vector<node> heap;
-    std::vector<uint8_t> local_blocked;
-    std::vector<uint8_t> temp_blocked;
+    std::vector<int32_t> queue;
     uint32_t current_generation{};
   };
 
   std::vector<uint8_t> _collision;
   pathfinder _pathfinder;
+  b2WorldId _world{};
 
   layer _background;
   layer _foreground;
