@@ -41,6 +41,7 @@ private:
     std::vector<int32_t> path;
     std::vector<node> heap;
     std::vector<uint8_t> local_blocked;
+    std::vector<uint8_t> temp_blocked;
     uint32_t current_generation{};
   };
 

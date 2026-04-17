@@ -263,36 +263,43 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   auto* noalias blocked = _pathfinder.local_blocked.data();
   const auto* noalias collision = _collision.data();
 
-  if (margin == 0) {
+  for (int32_t row = 0; row < bh; ++row) {
+    const auto go = static_cast<size_t>((row + by0) * _width + bx0);
+    const auto lo = static_cast<size_t>(row * bw);
+    std::memcpy(blocked + lo, collision + go, static_cast<size_t>(bw));
+  }
+
+  if (margin > 0) {
+    _pathfinder.temp_blocked.resize(lt);
+    auto* noalias temp = _pathfinder.temp_blocked.data();
+
     for (int32_t row = 0; row < bh; ++row) {
-      const auto go = static_cast<size_t>((row + by0) * _width + bx0);
-      const auto lo = static_cast<size_t>(row * bw);
-      std::memcpy(blocked + lo, collision + go, static_cast<size_t>(bw));
+      const auto* src = blocked + row * bw;
+      auto* dst = temp + row * bw;
+      int32_t count = 0;
+
+      for (int32_t c = 0; c <= std::min(margin, bw - 1); ++c)
+        count += src[c] != 0;
+      dst[0] = count > 0 ? 1 : 0;
+
+      for (int32_t c = 1; c < bw; ++c) {
+        if (const auto add = c + margin; add < bw) count += src[add] != 0;
+        if (const auto rem = c - margin - 1; rem >= 0) count -= src[rem] != 0;
+        dst[c] = count > 0 ? 1 : 0;
+      }
     }
-  } else {
-    std::memset(blocked, 0, lt);
 
-    const auto sx0 = std::max(0, bx0 - margin);
-    const auto sy0 = std::max(0, by0 - margin);
-    const auto sx1 = std::min(_width - 1, bx1 + margin);
-    const auto sy1 = std::min(_height - 1, by1 + margin);
+    for (int32_t col = 0; col < bw; ++col) {
+      int32_t count = 0;
 
-    for (int32_t row = sy0; row <= sy1; ++row) {
-      const auto ro = static_cast<size_t>(row) * static_cast<size_t>(_width);
-      for (int32_t column = sx0; column <= sx1; ++column) {
-        if (collision[ro + static_cast<size_t>(column)] == 0)
-          continue;
+      for (int32_t r = 0; r <= std::min(margin, bh - 1); ++r)
+        count += temp[r * bw + col] != 0;
+      blocked[col] = count > 0 ? 1 : 0;
 
-        const auto mr0 = std::max(by0, row - margin);
-        const auto mr1 = std::min(by1, row + margin);
-        const auto mc0 = std::max(bx0, column - margin);
-        const auto mc1 = std::min(bx1, column + margin);
-
-        for (auto r = mr0; r <= mr1; ++r) {
-          const auto lro = static_cast<size_t>(r - by0) * static_cast<size_t>(bw);
-          std::memset(blocked + lro + static_cast<size_t>(mc0 - bx0), 1,
-                      static_cast<size_t>(mc1 - mc0 + 1));
-        }
+      for (int32_t r = 1; r < bh; ++r) {
+        if (const auto add = r + margin; add < bh) count += temp[add * bw + col] != 0;
+        if (const auto rem = r - margin - 1; rem >= 0) count -= temp[rem * bw + col] != 0;
+        blocked[r * bw + col] = count > 0 ? 1 : 0;
       }
     }
   }
