@@ -1,23 +1,33 @@
 #include "tilemap.hpp"
 
 
-static void load_tiles(tilemap::layer& layer, const char* field, size_t total) {
+static void ingest(tilemap::layer& layer, const char* field, size_t total) {
   lua_getfield(L, -1, field);
   if (!lua_istable(L, -1)) {
     lua_pop(L, 1);
     return;
   }
 
-  layer.tiles.reserve(total);
-  for (size_t i = 0; i < total; ++i) {
-    lua_rawgeti(L, -1, static_cast<int>(i + 1));
-    const auto value = lua_isnumber(L, -1) ? static_cast<uint32_t>(lua_tonumber(L, -1)) : 0u;
-    lua_pop(L, 1);
-    layer.tiles.emplace_back(value);
+  layer.tiles.resize(total);
+  auto* noalias dst = layer.tiles.data();
+
+  alignas(16) uint32_t buf[4];
+  for (size_t i = 0; i < total; i += 4) {
+    for (size_t j = 0; j < 4; ++j) {
+      lua_rawgeti(L, -1, static_cast<int>(i + j + 1));
+      buf[j] = lua_isnumber(L, -1) ? static_cast<uint32_t>(lua_tonumber(L, -1)) : 0u;
+      lua_pop(L, 1);
+    }
+    simde_mm_storeu_si128(reinterpret_cast<simde__m128i*>(dst + i),
+                          simde_mm_load_si128(reinterpret_cast<const simde__m128i*>(buf)));
   }
 
   lua_pop(L, 1);
-  if (std::ranges::none_of(layer.tiles, std::identity{}))
+
+  auto acc = simde_mm_setzero_si128();
+  for (size_t i = 0; i < total; i += 4)
+    acc = simde_mm_or_si128(acc, simde_mm_loadu_si128(reinterpret_cast<const simde__m128i*>(dst + i)));
+  if (simde_mm_movemask_epi8(simde_mm_cmpeq_epi32(acc, simde_mm_setzero_si128())) == 0xFFFF)
     layer.tiles.clear();
 }
 
@@ -37,16 +47,12 @@ static void prepare(tilemap::layer& layer, std::string_view name, std::string_vi
   const auto htv = .5f / ah;
 
   layer.uvs.reserve(count);
-  for (size_t id = 0; id < count; ++id) {
+  std::generate_n(std::back_inserter(layer.uvs), count, [&, id = 0uz]() mutable {
     const auto column = static_cast<float>(id % tpr);
     const auto row = static_cast<float>(id / tpr);
-    layer.uvs.emplace_back(uv{
-      column * us + htu,
-      row * vs + htv,
-      (column + 1.f) * us - htu,
-      (row + 1.f) * vs - htv
-    });
-  }
+    ++id;
+    return uv{column * us + htu, row * vs + htv, (column + 1.f) * us - htu, (row + 1.f) * vs - htv};
+  });
 }
 
 tilemap::tilemap(std::string_view name, b2WorldId world) {
@@ -73,9 +79,10 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   _inverse = 1.f / _size;
 
   const auto total = static_cast<size_t>(_width) * static_cast<size_t>(_height);
+  assert(total % 4 == 0 && "tilemap: total tiles must be multiple of 4");
 
-  load_tiles(_background, "background", total);
-  load_tiles(_foreground, "foreground", total);
+  ingest(_background, "background", total);
+  ingest(_foreground, "foreground", total);
 
   {
     _collision.resize(total);
@@ -132,7 +139,7 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
         }
 
         for (size_t dy = 0; dy < rh; ++dy) {
-          std::memset(data + (row + dy) * w + column, 1, rw);
+          std::fill_n(data + (row + dy) * w + column, rw, uint8_t{1});
         }
 
         const auto half  = _size * .5f;
@@ -180,10 +187,8 @@ void tilemap::draw_background() noexcept {
   if (!_background.atlas) [[unlikely]]
     return;
 
-  if (_viewport_x != viewport.x
-      || _viewport_y != viewport.y
-      || _viewport_width != viewport.width
-      || _viewport_height != viewport.height) [[unlikely]]
+  const SDL_FRect current{viewport.x, viewport.y, viewport.width, viewport.height};
+  if (std::memcmp(&_cached_viewport, &current, sizeof(SDL_FRect)) != 0) [[unlikely]]
     _dirty = true;
 
   if (_dirty)
@@ -199,10 +204,7 @@ void tilemap::draw_background() noexcept {
   );
 
   if (!_foreground.atlas) {
-    _viewport_x = viewport.x;
-    _viewport_y = viewport.y;
-    _viewport_width = viewport.width;
-    _viewport_height = viewport.height;
+    _cached_viewport = current;
     _dirty = false;
   }
 }
@@ -214,10 +216,7 @@ void tilemap::draw_foreground() noexcept {
   if (_dirty)
     tessellate(_foreground);
 
-  _viewport_x = viewport.x;
-  _viewport_y = viewport.y;
-  _viewport_width = viewport.width;
-  _viewport_height = viewport.height;
+  _cached_viewport = {viewport.x, viewport.y, viewport.width, viewport.height};
   _dirty = false;
 
   SDL_RenderGeometry(
@@ -263,12 +262,12 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   auto* noalias parents = _pathfinder.parent.data();
   const auto* noalias collision = _collision.data();
 
-  constexpr int32_t DC[] = {1, -1, 0, 0, 1, 1, -1, -1};
-  constexpr int32_t DR[] = {0, 0, 1, -1, 1, -1, 1, -1};
-  constexpr float COST[] = {1.f, 1.f, 1.f, 1.f, 1.41421356f, 1.41421356f, 1.41421356f, 1.41421356f};
-  constexpr auto SQRT2_MINUS_1 = .41421356f;
+  static constexpr int32_t DC[] = {1, -1, 0, 0, 1, 1, -1, -1};
+  static constexpr int32_t DR[] = {0, 0, 1, -1, 1, -1, 1, -1};
+  static constexpr float COST[] = {1.f, 1.f, 1.f, 1.f, 1.41421356f, 1.41421356f, 1.41421356f, 1.41421356f};
+  static constexpr auto SQRT2_MINUS_1 = .41421356f;
 
-  const auto octile = [ec, er, w = _width](int32_t c, int32_t r) noexcept -> float {
+  const auto octile = [ec, er](int32_t c, int32_t r) noexcept -> float {
     const auto dc = static_cast<float>(std::abs(c - ec));
     const auto dr = static_cast<float>(std::abs(r - er));
     return dc > dr ? dc + SQRT2_MINUS_1 * dr : dr + SQRT2_MINUS_1 * dc;
@@ -396,18 +395,19 @@ void tilemap::tessellate(layer& layer) noexcept {
   layer.vertices.resize(capacity * 4);
   layer.indices.resize(capacity * 6);
 
-  auto* noalias vertices = layer.vertices.data();
+  auto* noalias vertices = reinterpret_cast<float*>(layer.vertices.data());
   auto* noalias indices = layer.indices.data();
 
-  constexpr SDL_FColor white{1.f, 1.f, 1.f, 1.f};
+  const auto vwhite = simde_mm_set1_ps(1.f);
+  static constexpr int32_t INDEX_OFFSET[] = {0, 1, 2, 0, 2, 3};
 
   auto visible = 0uz;
   auto ro = sr * _width;
   auto dy = static_cast<float>(sr) * _size - viewport.y;
 
   for (auto row = sr; row <= er; ++row, ro += _width, dy += _size) {
-    const auto y0 = dy;
-    const auto y1 = dy + _size;
+    const auto vy0 = dy;
+    const auto vy1 = dy + _size;
 
     for (auto column = sc; column <= ec; ++column) {
       const auto ti = layer.tiles[static_cast<size_t>(ro + column)];
@@ -415,25 +415,32 @@ void tilemap::tessellate(layer& layer) noexcept {
         continue;
 
       assert(static_cast<size_t>(ti - 1) < layer.uvs.size() && "tile index out of bounds");
-      const auto& entry = layer.uvs[ti - 1];
-      const auto dx = static_cast<float>(column) * _size - viewport.x;
-      const auto x0 = dx;
-      const auto x1 = dx + _size;
+      const auto vuv = simde_mm_load_ps(reinterpret_cast<const float*>(&layer.uvs[ti - 1]));
+      const auto vx0 = static_cast<float>(column) * _size - viewport.x;
+      const auto vx1 = vx0 + _size;
       const auto base = static_cast<int32_t>(visible * 4);
 
-      auto* vertex = vertices + visible * 4;
-      vertex[0] = {{x0, y0}, white, {entry.u0, entry.v0}};
-      vertex[1] = {{x1, y0}, white, {entry.u1, entry.v0}};
-      vertex[2] = {{x1, y1}, white, {entry.u1, entry.v1}};
-      vertex[3] = {{x0, y1}, white, {entry.u0, entry.v1}};
+      auto* noalias dst = vertices + visible * 32;
 
-      auto* index = indices + visible * 6;
-      index[0] = base;
-      index[1] = base + 1;
-      index[2] = base + 2;
-      index[3] = base;
-      index[4] = base + 2;
-      index[5] = base + 3;
+      simde_mm_storeu_ps(dst, simde_mm_set_ps(1.f, 1.f, vy0, vx0));
+      simde_mm_storeu_ps(dst + 4, simde_mm_movelh_ps(vwhite, vuv));
+
+      simde_mm_storeu_ps(dst + 8, simde_mm_set_ps(1.f, 1.f, vy0, vx1));
+      simde_mm_storeu_ps(dst + 12, simde_mm_movelh_ps(vwhite,
+        simde_mm_shuffle_ps(vuv, vuv, SIMDE_MM_SHUFFLE(0, 0, 1, 2))));
+
+      simde_mm_storeu_ps(dst + 16, simde_mm_set_ps(1.f, 1.f, vy1, vx1));
+      simde_mm_storeu_ps(dst + 20, simde_mm_movelh_ps(vwhite, simde_mm_movehl_ps(vuv, vuv)));
+
+      simde_mm_storeu_ps(dst + 24, simde_mm_set_ps(1.f, 1.f, vy1, vx0));
+      simde_mm_storeu_ps(dst + 28, simde_mm_movelh_ps(vwhite,
+        simde_mm_shuffle_ps(vuv, vuv, SIMDE_MM_SHUFFLE(0, 0, 3, 0))));
+
+      const auto vbase = simde_mm_set1_epi32(base);
+      simde_mm_storeu_si128(reinterpret_cast<simde__m128i*>(indices + visible * 6),
+        simde_mm_add_epi32(vbase, simde_mm_loadu_si128(reinterpret_cast<const simde__m128i*>(INDEX_OFFSET))));
+      indices[visible * 6 + 4] = base + 2;
+      indices[visible * 6 + 5] = base + 3;
 
       ++visible;
     }

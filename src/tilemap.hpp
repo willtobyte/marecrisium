@@ -52,10 +52,7 @@ private:
 
   float _size{};
   float _inverse{};
-  float _viewport_x{};
-  float _viewport_y{};
-  float _viewport_width{};
-  float _viewport_height{};
+  SDL_FRect _cached_viewport{};
 
   int32_t _width{};
   int32_t _height{};
