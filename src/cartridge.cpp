@@ -6,6 +6,7 @@ using namespace std::string_view_literals;
 constexpr uint32_t CROM_MAGIC = 0x43524F4D;
 constexpr uint32_t CROM_VERSION = 1;
 constexpr uint8_t FLAG_DIRECTORY = 1;
+constexpr uint64_t MAX_UNCOMPRESSED = 64 * 1024 * 1024;
 
 struct entry final {
   std::string path;
@@ -240,6 +241,11 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     return nullptr;
   }
 
+  if (found.uncompressed > MAX_UNCOMPRESSED) [[unlikely]] {
+    PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
+    return nullptr;
+  }
+
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
 
   auto buffer = std::make_shared_for_overwrite<uint8_t[]>(uncompressed);
@@ -247,19 +253,19 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   if (uncompressed > 0) [[likely]] {
     ZSTD_DCtx_reset(arc->dctx, ZSTD_reset_session_only);
 
-    uint8_t chunk[ZSTD_DStreamInSize()];
+    std::vector<uint8_t> chunk(ZSTD_DStreamInSize());
     ZSTD_outBuffer out{buffer.get(), uncompressed, 0};
     auto remaining = static_cast<PHYSFS_uint64>(found.compressed);
 
     while (remaining > 0) {
-      const auto to_read = std::min(remaining, static_cast<PHYSFS_uint64>(sizeof(chunk)));
-      const auto got = arc->io->read(arc->io, chunk, to_read);
+      const auto to_read = std::min(remaining, static_cast<PHYSFS_uint64>(chunk.size()));
+      const auto got = arc->io->read(arc->io, chunk.data(), to_read);
       if (got <= 0) [[unlikely]] {
         PHYSFS_setErrorCode(PHYSFS_ERR_IO);
         return nullptr;
       }
 
-      ZSTD_inBuffer in{chunk, static_cast<size_t>(got), 0};
+      ZSTD_inBuffer in{chunk.data(), static_cast<size_t>(got), 0};
       while (in.pos < in.size) {
         const auto ret = ZSTD_decompressStream(arc->dctx, &out, &in);
         if (ZSTD_isError(ret)) [[unlikely]] {
