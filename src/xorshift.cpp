@@ -3,7 +3,6 @@
 xorshift128 rng{};
 
 namespace {
-
 static int math_random(lua_State *state) {
   const auto argc = lua_gettop(state);
 
