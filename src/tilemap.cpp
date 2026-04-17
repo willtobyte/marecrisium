@@ -11,23 +11,22 @@ static void ingest(tilemap::layer& layer, const char* field, size_t total) {
   layer.tiles.resize(total);
   auto* noalias dst = layer.tiles.data();
 
-  alignas(16) uint32_t buf[4];
-  for (size_t i = 0; i < total; i += 4) {
-    for (size_t j = 0; j < 4; ++j) {
-      lua_rawgeti(L, -1, static_cast<int>(i + j + 1));
-      buf[j] = lua_isnumber(L, -1) ? static_cast<uint32_t>(lua_tonumber(L, -1)) : 0u;
-      lua_pop(L, 1);
-    }
-    simde_mm_storeu_si128(reinterpret_cast<simde__m128i*>(dst + i),
-                          simde_mm_load_si128(reinterpret_cast<const simde__m128i*>(buf)));
+  for (size_t i = 0; i < total; ++i) {
+    lua_rawgeti(L, -1, static_cast<int>(i + 1));
+    dst[i] = lua_isnumber(L, -1) ? static_cast<uint32_t>(lua_tonumber(L, -1)) : 0u;
+    lua_pop(L, 1);
   }
 
   lua_pop(L, 1);
 
-  auto acc = simde_mm_setzero_si128();
-  for (size_t i = 0; i < total; i += 4)
-    acc = simde_mm_or_si128(acc, simde_mm_loadu_si128(reinterpret_cast<const simde__m128i*>(dst + i)));
-  if (simde_mm_movemask_epi8(simde_mm_cmpeq_epi32(acc, simde_mm_setzero_si128())) == 0xFFFF)
+  auto any = false;
+  for (size_t i = 0; i < total; ++i) {
+    if (dst[i] != 0) {
+      any = true;
+      break;
+    }
+  }
+  if (!any)
     layer.tiles.clear();
 }
 
@@ -79,7 +78,6 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   _inverse = 1.f / _size;
 
   const auto total = static_cast<size_t>(_width) * static_cast<size_t>(_height);
-  assert(total % 4 == 0 && "tilemap: total tiles must be multiple of 4");
 
   ingest(_background, "background", total);
   ingest(_foreground, "foreground", total);
@@ -187,8 +185,7 @@ void tilemap::draw_background() noexcept {
   if (!_background.atlas) [[unlikely]]
     return;
 
-  const auto current = simde_mm_set_ps(viewport.height, viewport.width, viewport.y, viewport.x);
-  if (simde_mm_movemask_ps(simde_mm_cmpeq_ps(_viewport_snapshot, current)) != 0xF) [[unlikely]]
+  if (_viewport_snapshot != viewport) [[unlikely]]
     _dirty = true;
 
   if (_dirty)
@@ -204,7 +201,7 @@ void tilemap::draw_background() noexcept {
   );
 
   if (!_foreground.atlas) {
-    _viewport_snapshot = simde_mm_set_ps(viewport.height, viewport.width, viewport.y, viewport.x);
+    _viewport_snapshot = viewport;
     _dirty = false;
   }
 }
@@ -216,7 +213,7 @@ void tilemap::draw_foreground() noexcept {
   if (_dirty)
     tessellate(_foreground);
 
-  _viewport_snapshot = simde_mm_set_ps(viewport.height, viewport.width, viewport.y, viewport.x);
+  _viewport_snapshot = viewport;
   _dirty = false;
 
   SDL_RenderGeometry(
@@ -395,11 +392,10 @@ void tilemap::tessellate(layer& layer) noexcept {
   layer.vertices.resize(capacity * 4);
   layer.indices.resize(capacity * 6);
 
-  auto* noalias vertices = reinterpret_cast<float*>(layer.vertices.data());
+  auto* noalias vertices = layer.vertices.data();
   auto* noalias indices = layer.indices.data();
 
-  const auto vwhite = simde_mm_set1_ps(1.f);
-  static constexpr int32_t INDEX_OFFSET[] = {0, 1, 2, 0, 2, 3};
+  const SDL_FColor white{1.f, 1.f, 1.f, 1.f};
 
   auto visible = 0uz;
   auto ro = sr * _width;
@@ -415,30 +411,20 @@ void tilemap::tessellate(layer& layer) noexcept {
         continue;
 
       assert(static_cast<size_t>(ti - 1) < layer.uvs.size() && "tile index out of bounds");
-      const auto vuv = simde_mm_load_ps(reinterpret_cast<const float*>(&layer.uvs[ti - 1]));
+      const auto& uv = layer.uvs[ti - 1];
       const auto vx0 = static_cast<float>(column) * _size - viewport.x;
       const auto vx1 = vx0 + _size;
       const auto base = static_cast<int32_t>(visible * 4);
 
-      auto* noalias dst = vertices + visible * 32;
+      vertices[visible * 4]     = SDL_Vertex{{vx0, vy0}, white, {uv.u0, uv.v0}};
+      vertices[visible * 4 + 1] = SDL_Vertex{{vx1, vy0}, white, {uv.u1, uv.v0}};
+      vertices[visible * 4 + 2] = SDL_Vertex{{vx1, vy1}, white, {uv.u1, uv.v1}};
+      vertices[visible * 4 + 3] = SDL_Vertex{{vx0, vy1}, white, {uv.u0, uv.v1}};
 
-      simde_mm_storeu_ps(dst, simde_mm_set_ps(1.f, 1.f, vy0, vx0));
-      simde_mm_storeu_ps(dst + 4, simde_mm_movelh_ps(vwhite, vuv));
-
-      simde_mm_storeu_ps(dst + 8, simde_mm_set_ps(1.f, 1.f, vy0, vx1));
-      simde_mm_storeu_ps(dst + 12, simde_mm_movelh_ps(vwhite,
-        simde_mm_shuffle_ps(vuv, vuv, SIMDE_MM_SHUFFLE(0, 0, 1, 2))));
-
-      simde_mm_storeu_ps(dst + 16, simde_mm_set_ps(1.f, 1.f, vy1, vx1));
-      simde_mm_storeu_ps(dst + 20, simde_mm_movelh_ps(vwhite, simde_mm_movehl_ps(vuv, vuv)));
-
-      simde_mm_storeu_ps(dst + 24, simde_mm_set_ps(1.f, 1.f, vy1, vx0));
-      simde_mm_storeu_ps(dst + 28, simde_mm_movelh_ps(vwhite,
-        simde_mm_shuffle_ps(vuv, vuv, SIMDE_MM_SHUFFLE(0, 0, 3, 0))));
-
-      const auto vbase = simde_mm_set1_epi32(base);
-      simde_mm_storeu_si128(reinterpret_cast<simde__m128i*>(indices + visible * 6),
-        simde_mm_add_epi32(vbase, simde_mm_loadu_si128(reinterpret_cast<const simde__m128i*>(INDEX_OFFSET))));
+      indices[visible * 6]     = base;
+      indices[visible * 6 + 1] = base + 1;
+      indices[visible * 6 + 2] = base + 2;
+      indices[visible * 6 + 3] = base;
       indices[visible * 6 + 4] = base + 2;
       indices[visible * 6 + 5] = base + 3;
 

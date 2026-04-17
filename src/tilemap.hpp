@@ -1,6 +1,6 @@
 #pragma once
 
-struct alignas(16) uv final {
+struct uv final {
   float u0, v0, u1, v1;
 };
 
@@ -52,7 +52,7 @@ private:
 
   float _size{};
   float _inverse{};
-  simde__m128 _viewport_snapshot = simde_mm_setzero_ps();
+  struct viewport _viewport_snapshot{};
 
   int32_t _width{};
   int32_t _height{};

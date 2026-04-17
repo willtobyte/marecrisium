@@ -48,7 +48,6 @@ find_package(SPNG CONFIG REQUIRED)
 find_package(luajit CONFIG REQUIRED)
 find_package(miniaudio CONFIG REQUIRED)
 find_package(opusfile CONFIG REQUIRED)
-find_package(simde CONFIG REQUIRED)
 find_package(SQLite3 CONFIG REQUIRED)
 find_package(unordered_dense CONFIG REQUIRED)
 find_package(yyjson CONFIG REQUIRED)
@@ -63,7 +62,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   spng::spng_static
   miniaudio::miniaudio
   opusfile::opusfile
-  simde::simde
   luajit::luajit
   websockets
   SQLite::SQLite3

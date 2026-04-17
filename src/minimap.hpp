@@ -35,10 +35,6 @@ private:
   uint32_t _player;
   uint32_t _entity;
 
-  simde__m128i _vsolid;
-  simde__m128i _vpassable;
-  simde__m128i _vzero;
-
   struct snapshot final {
     int32_t cx{std::numeric_limits<int32_t>::min()};
     int32_t cy{std::numeric_limits<int32_t>::min()};

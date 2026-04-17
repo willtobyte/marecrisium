@@ -38,7 +38,6 @@ using namespace entt::literals;
 #include <physfs.h>
 #include <SDL3/SDL.h>
 #include <sentry.h>
-#include <simde/x86/sse2.h>
 #include <spng.h>
 #include <sqlite3.h>
 #include <yyjson.h>
@@ -63,6 +62,8 @@ struct viewport {
   float scale;
   float x;
   float y;
+
+  constexpr bool operator==(const viewport&) const noexcept = default;
 };
 
 extern struct viewport viewport;
