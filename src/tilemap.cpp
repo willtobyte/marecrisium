@@ -151,9 +151,10 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   }
 
   _world = world;
+  _pathfinder.g.resize(total);
   _pathfinder.generation.resize(total, 0);
   _pathfinder.parent.resize(total);
-  _pathfinder.queue.reserve(total);
+  _pathfinder.heap.reserve(total);
 
   lua_pop(L, 1);
 
@@ -257,24 +258,47 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   }
 
   const auto generation = _pathfinder.current_generation;
+  auto* noalias costs = _pathfinder.g.data();
   auto* noalias generations = _pathfinder.generation.data();
   auto* noalias parents = _pathfinder.parent.data();
   const auto* noalias collision = _collision.data();
 
   constexpr int32_t DC[] = {1, -1, 0, 0, 1, 1, -1, -1};
   constexpr int32_t DR[] = {0, 0, 1, -1, 1, -1, 1, -1};
+  constexpr float COST[] = {1.f, 1.f, 1.f, 1.f, 1.41421356f, 1.41421356f, 1.41421356f, 1.41421356f};
+  constexpr auto SQRT2_MINUS_1 = .41421356f;
 
-  _pathfinder.queue.clear();
-  _pathfinder.queue.emplace_back(start);
+  const auto octile = [ec, er, w = _width](int32_t c, int32_t r) noexcept -> float {
+    const auto dc = static_cast<float>(std::abs(c - ec));
+    const auto dr = static_cast<float>(std::abs(r - er));
+    return dc > dr ? dc + SQRT2_MINUS_1 * dr : dr + SQRT2_MINUS_1 * dc;
+  };
+
+  const auto compare = [](const tilemap::node& a, const tilemap::node& b) noexcept {
+    return a.f > b.f;
+  };
+
+  costs[static_cast<size_t>(start)] = .0f;
   generations[static_cast<size_t>(start)] = generation;
   parents[static_cast<size_t>(start)] = -1;
 
-  for (size_t head = 0; head < _pathfinder.queue.size(); ++head) {
-    const auto current = _pathfinder.queue[head];
+  _pathfinder.heap.clear();
+  _pathfinder.heap.emplace_back(octile(sc, sr), start);
+
+  while (!_pathfinder.heap.empty()) {
+    std::ranges::pop_heap(_pathfinder.heap, compare);
+    const auto [f, current] = _pathfinder.heap.back();
+    _pathfinder.heap.pop_back();
+
     if (current == goal) break;
 
+    const auto ci = static_cast<size_t>(current);
+    const auto cg = costs[ci];
     const auto cr = current / _width;
     const auto cc = current % _width;
+
+    if (f > cg + octile(cc, cr) + .001f)
+      continue;
 
     for (int d = 0; d < 8; ++d) {
       const auto nc = cc + DC[d];
@@ -284,16 +308,23 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
           static_cast<uint32_t>(nr) >= static_cast<uint32_t>(_height))
         continue;
 
-      const auto ni = nr * _width + nc;
-      if (collision[ni] != 0 || generations[ni] == generation)
+      const auto ni = static_cast<size_t>(nr * _width + nc);
+      if (collision[ni] != 0)
         continue;
 
-      if (d >= 4 && (collision[cr * _width + nc] != 0 || collision[nr * _width + cc] != 0))
+      if (d >= 4 && (collision[static_cast<size_t>(cr * _width + nc)] != 0 ||
+                     collision[static_cast<size_t>(nr * _width + cc)] != 0))
         continue;
 
+      const auto ng = cg + COST[d];
+      if (generations[ni] == generation && ng >= costs[ni])
+        continue;
+
+      costs[ni] = ng;
       generations[ni] = generation;
       parents[ni] = current;
-      _pathfinder.queue.emplace_back(ni);
+      _pathfinder.heap.emplace_back(ng + octile(nc, nr), static_cast<int32_t>(ni));
+      std::ranges::push_heap(_pathfinder.heap, compare);
     }
   }
 
@@ -312,23 +343,26 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
     return {col * _size + half, row * _size + half};
   };
 
-  const auto filter = b2DefaultQueryFilter();
-  for (size_t i = 0; i + 2 < _pathfinder.path.size();) {
-    const auto a = to_world(_pathfinder.path[i]);
-    const auto b = to_world(_pathfinder.path[i + 2]);
-    const b2Vec2 translation = {b.x - a.x, b.y - a.y};
+  if (_pathfinder.path.size() > 2) {
+    const auto filter = b2DefaultQueryFilter();
+    size_t write = 1;
+    for (size_t read = 1, end = _pathfinder.path.size() - 1; read < end; ++read) {
+      const auto a = to_world(_pathfinder.path[write - 1]);
+      const auto c = to_world(_pathfinder.path[read + 1]);
+      const b2Vec2 translation = {c.x - a.x, c.y - a.y};
 
-    auto blocked = false;
-    b2World_CastRay(_world, a, translation, filter,
-      +[](b2ShapeId, b2Vec2, b2Vec2, float, void* userdata) -> float {
-        *static_cast<bool*>(userdata) = true;
-        return .0f;
-      }, &blocked);
+      auto hit = false;
+      b2World_CastRay(_world, a, translation, filter,
+        +[](b2ShapeId, b2Vec2, b2Vec2, float, void* ud) -> float {
+          *static_cast<bool*>(ud) = true;
+          return .0f;
+        }, &hit);
 
-    if (!blocked)
-      _pathfinder.path.erase(_pathfinder.path.begin() + static_cast<ptrdiff_t>(i + 1));
-    else
-      ++i;
+      if (hit)
+        _pathfinder.path[write++] = _pathfinder.path[read];
+    }
+    _pathfinder.path[write++] = _pathfinder.path.back();
+    _pathfinder.path.resize(write);
   }
 
   lua_newtable(state);
