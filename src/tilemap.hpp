@@ -52,7 +52,7 @@ private:
 
   float _size{};
   float _inverse{};
-  SDL_FRect _cached_viewport{};
+  simde__m128 _viewport_snapshot = simde_mm_setzero_ps();
 
   int32_t _width{};
   int32_t _height{};

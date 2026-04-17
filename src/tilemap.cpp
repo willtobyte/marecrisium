@@ -187,8 +187,8 @@ void tilemap::draw_background() noexcept {
   if (!_background.atlas) [[unlikely]]
     return;
 
-  const SDL_FRect current{viewport.x, viewport.y, viewport.width, viewport.height};
-  if (std::memcmp(&_cached_viewport, &current, sizeof(SDL_FRect)) != 0) [[unlikely]]
+  const auto current = simde_mm_set_ps(viewport.height, viewport.width, viewport.y, viewport.x);
+  if (simde_mm_movemask_ps(simde_mm_cmpeq_ps(_viewport_snapshot, current)) != 0xF) [[unlikely]]
     _dirty = true;
 
   if (_dirty)
@@ -204,7 +204,7 @@ void tilemap::draw_background() noexcept {
   );
 
   if (!_foreground.atlas) {
-    _cached_viewport = current;
+    _viewport_snapshot = simde_mm_set_ps(viewport.height, viewport.width, viewport.y, viewport.x);
     _dirty = false;
   }
 }
@@ -216,7 +216,7 @@ void tilemap::draw_foreground() noexcept {
   if (_dirty)
     tessellate(_foreground);
 
-  _cached_viewport = {viewport.x, viewport.y, viewport.width, viewport.height};
+  _viewport_snapshot = simde_mm_set_ps(viewport.height, viewport.width, viewport.y, viewport.x);
   _dirty = false;
 
   SDL_RenderGeometry(
