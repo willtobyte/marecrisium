@@ -253,19 +253,20 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   if (uncompressed > 0) [[likely]] {
     ZSTD_DCtx_reset(arc->dctx, ZSTD_reset_session_only);
 
-    std::vector<uint8_t> chunk(ZSTD_DStreamInSize());
+    const auto capacity = ZSTD_DStreamInSize();
+    auto chunk = std::make_unique_for_overwrite<uint8_t[]>(capacity);
     ZSTD_outBuffer out{buffer.get(), uncompressed, 0};
     auto remaining = static_cast<PHYSFS_uint64>(found.compressed);
 
     while (remaining > 0) {
-      const auto to_read = std::min(remaining, static_cast<PHYSFS_uint64>(chunk.size()));
-      const auto got = arc->io->read(arc->io, chunk.data(), to_read);
+      const auto to_read = std::min(remaining, static_cast<PHYSFS_uint64>(capacity));
+      const auto got = arc->io->read(arc->io, chunk.get(), to_read);
       if (got <= 0) [[unlikely]] {
         PHYSFS_setErrorCode(PHYSFS_ERR_IO);
         return nullptr;
       }
 
-      ZSTD_inBuffer in{chunk.data(), static_cast<size_t>(got), 0};
+      ZSTD_inBuffer in{chunk.get(), static_cast<size_t>(got), 0};
       while (in.pos < in.size) {
         const auto result = ZSTD_decompressStream(arc->dctx, &out, &in);
         if (ZSTD_isError(result)) [[unlikely]] {
