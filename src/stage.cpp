@@ -880,6 +880,8 @@ void stage::draw() {
   _vertices.reserve(capacity * 4);
   _indices.reserve(capacity * 6);
 
+  static constexpr int32_t INDEX_OFFSET[] = {0, 1, 2, 0, 2, 3};
+
   SDL_Texture *current = nullptr;
 
   for (auto&& [e, r, a, tf] : view.each()) {
@@ -917,7 +919,7 @@ void stage::draw() {
     if (std::to_underlying(tf.flip) & SDL_FLIP_HORIZONTAL) std::swap(u0, u1);
     if (std::to_underlying(tf.flip) & SDL_FLIP_VERTICAL) std::swap(v0, v1);
 
-    const SDL_FColor color{1.f, 1.f, 1.f, std::clamp(tf.alpha, .0f, 255.f) / 255.f};
+    const auto alpha = std::clamp(tf.alpha, .0f, 255.f) / 255.f;
 
     const auto hw = dw * .5f;
     const auto hh = dh * .5f;
@@ -934,18 +936,36 @@ void stage::draw() {
     const auto dy1 =  hw * sa - hh * ca;
 
     const auto base = static_cast<int>(_vertices.size());
+    const auto vi = _vertices.size();
+    _vertices.resize(vi + 4);
+    auto* noalias vertices = reinterpret_cast<float*>(_vertices.data() + vi);
 
-    _vertices.emplace_back(SDL_Vertex{{mx + dx0, my + dy0}, color, {u0, v0}});
-    _vertices.emplace_back(SDL_Vertex{{mx + dx1, my + dy1}, color, {u1, v0}});
-    _vertices.emplace_back(SDL_Vertex{{mx - dx0, my - dy0}, color, {u1, v1}});
-    _vertices.emplace_back(SDL_Vertex{{mx - dx1, my - dy1}, color, {u0, v1}});
+    const auto vuv = simde_mm_set_ps(v1, u1, v0, u0);
+    const auto vba = simde_mm_set_ps(0, 0, alpha, 1.f);
 
-    _indices.emplace_back(base);
-    _indices.emplace_back(base + 1);
-    _indices.emplace_back(base + 2);
-    _indices.emplace_back(base);
-    _indices.emplace_back(base + 2);
-    _indices.emplace_back(base + 3);
+    simde_mm_storeu_ps(vertices, simde_mm_set_ps(1.f, 1.f, my + dy0, mx + dx0));
+    simde_mm_storeu_ps(vertices + 4, simde_mm_movelh_ps(vba, vuv));
+
+    simde_mm_storeu_ps(vertices + 8, simde_mm_set_ps(1.f, 1.f, my + dy1, mx + dx1));
+    simde_mm_storeu_ps(vertices + 12, simde_mm_movelh_ps(vba,
+      simde_mm_shuffle_ps(vuv, vuv, SIMDE_MM_SHUFFLE(0, 0, 1, 2))));
+
+    simde_mm_storeu_ps(vertices + 16, simde_mm_set_ps(1.f, 1.f, my - dy0, mx - dx0));
+    simde_mm_storeu_ps(vertices + 20, simde_mm_movelh_ps(vba, simde_mm_movehl_ps(vuv, vuv)));
+
+    simde_mm_storeu_ps(vertices + 24, simde_mm_set_ps(1.f, 1.f, my - dy1, mx - dx1));
+    simde_mm_storeu_ps(vertices + 28, simde_mm_movelh_ps(vba,
+      simde_mm_shuffle_ps(vuv, vuv, SIMDE_MM_SHUFFLE(0, 0, 3, 0))));
+
+    const auto ii = _indices.size();
+    _indices.resize(ii + 6);
+    auto* noalias ix = _indices.data() + ii;
+
+    const auto vbase = simde_mm_set1_epi32(base);
+    simde_mm_storeu_si128(reinterpret_cast<simde__m128i*>(ix),
+      simde_mm_add_epi32(vbase, simde_mm_loadu_si128(reinterpret_cast<const simde__m128i*>(INDEX_OFFSET))));
+    ix[4] = base + 2;
+    ix[5] = base + 3;
   }
 
   submit(current, _vertices, _indices);

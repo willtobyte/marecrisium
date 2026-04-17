@@ -38,7 +38,10 @@ minimap::minimap(const tilemap &tilemap, entt::registry &registry,
     , _empty(static_cast<uint32_t>(empty))
     , _player(static_cast<uint32_t>(player))
     , _entity(static_cast<uint32_t>(entity))
-    , _pixels(static_cast<size_t>(SIDE * SIDE)) {
+    , _pixels(static_cast<size_t>(SIDE * SIDE))
+    , _vsolid(simde_mm_set1_epi32(static_cast<int32_t>(_solid)))
+    , _vpassable(simde_mm_set1_epi32(static_cast<int32_t>(_passable)))
+    , _vzero(simde_mm_setzero_si128()) {
   _texture.reset(SDL_CreateTexture(
     renderer,
     SDL_PIXELFORMAT_RGBA32,
@@ -92,6 +95,7 @@ void minimap::draw() noexcept {
   }
 
   auto *noalias pixels = _pixels.data();
+  const auto* noalias coll = collision.data();
 
   for (int32_t dy = -RADIUS; dy <= RADIUS; ++dy) {
     const auto ty = cy + dy;
@@ -103,17 +107,40 @@ void minimap::draw() noexcept {
     }
 
     const auto base = static_cast<size_t>(ty * tw);
+    const auto dx_lo = std::max(static_cast<int32_t>(-RADIUS), -cx);
+    const auto dx_hi = std::min(static_cast<int32_t>(RADIUS), tw - 1 - cx);
 
-    for (int32_t dx = -RADIUS; dx <= RADIUS; ++dx) {
+    if (dx_lo > RADIUS || dx_hi < -RADIUS) [[unlikely]] {
+      std::fill_n(pixels + row, SIDE, _empty);
+      continue;
+    }
+
+    if (dx_lo > -RADIUS)
+      std::fill_n(pixels + row, static_cast<size_t>(dx_lo + RADIUS), _empty);
+
+    if (dx_hi < RADIUS)
+      std::fill_n(pixels + row + static_cast<size_t>(dx_hi + 1 + RADIUS),
+                  static_cast<size_t>(RADIUS - dx_hi), _empty);
+
+    auto dx = dx_lo;
+    for (; dx + 3 <= dx_hi; dx += 4) {
+      uint32_t four;
+      std::memcpy(&four, coll + base + static_cast<size_t>(cx + dx), 4);
+      const auto bytes = simde_mm_cvtsi32_si128(static_cast<int32_t>(four));
+      const auto words = simde_mm_unpacklo_epi8(bytes, _vzero);
+      const auto dwords = simde_mm_unpacklo_epi16(words, _vzero);
+      const auto is_zero = simde_mm_cmpeq_epi32(dwords, _vzero);
+      simde_mm_storeu_si128(
+        reinterpret_cast<simde__m128i*>(pixels + row + static_cast<size_t>(dx + RADIUS)),
+        simde_mm_or_si128(
+          simde_mm_and_si128(is_zero, _vpassable),
+          simde_mm_andnot_si128(is_zero, _vsolid)));
+    }
+
+    for (; dx <= dx_hi; ++dx) {
       const auto tx = cx + dx;
-      const auto index = row + static_cast<size_t>(dx + RADIUS);
-
-      if (tx < 0 || tx >= tw) [[unlikely]] {
-        pixels[index] = _empty;
-        continue;
-      }
-
-      pixels[index] = collision[base + static_cast<size_t>(tx)] != 0 ? _solid : _passable;
+      pixels[row + static_cast<size_t>(dx + RADIUS)] =
+        coll[base + static_cast<size_t>(tx)] != 0 ? _solid : _passable;
     }
   }
 
