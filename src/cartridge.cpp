@@ -235,21 +235,8 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     return nullptr;
   }
 
-  const auto size = static_cast<size_t>(found.compressed);
-
-  auto compressed = std::make_unique_for_overwrite<uint8_t[]>(size);
-
-  if (!arc->io->seek(arc->io, found.offset) ||
-      !drain(arc->io, compressed.get(), found.compressed)) [[unlikely]] {
+  if (!arc->io->seek(arc->io, found.offset)) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_IO);
-    return nullptr;
-  }
-
-  const auto expected = ZSTD_getFrameContentSize(compressed.get(), size);
-  if (expected == ZSTD_CONTENTSIZE_ERROR ||
-      expected == ZSTD_CONTENTSIZE_UNKNOWN ||
-      expected != found.uncompressed) [[unlikely]] {
-    PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
     return nullptr;
   }
 
@@ -258,14 +245,33 @@ static PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   auto buffer = std::make_shared_for_overwrite<uint8_t[]>(uncompressed);
 
   if (uncompressed > 0) [[likely]] {
-    const auto result = ZSTD_decompressDCtx(
-      arc->dctx,
-      buffer.get(),
-      uncompressed,
-      compressed.get(),
-      size);
+    ZSTD_DCtx_reset(arc->dctx, ZSTD_reset_session_only);
 
-    if (ZSTD_isError(result)) [[unlikely]] {
+    uint8_t chunk[ZSTD_DStreamInSize()];
+    ZSTD_outBuffer out{buffer.get(), uncompressed, 0};
+    auto remaining = static_cast<PHYSFS_uint64>(found.compressed);
+
+    while (remaining > 0) {
+      const auto to_read = std::min(remaining, static_cast<PHYSFS_uint64>(sizeof(chunk)));
+      const auto got = arc->io->read(arc->io, chunk, to_read);
+      if (got <= 0) [[unlikely]] {
+        PHYSFS_setErrorCode(PHYSFS_ERR_IO);
+        return nullptr;
+      }
+
+      ZSTD_inBuffer in{chunk, static_cast<size_t>(got), 0};
+      while (in.pos < in.size) {
+        const auto ret = ZSTD_decompressStream(arc->dctx, &out, &in);
+        if (ZSTD_isError(ret)) [[unlikely]] {
+          PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
+          return nullptr;
+        }
+      }
+
+      remaining -= static_cast<PHYSFS_uint64>(got);
+    }
+
+    if (out.pos != uncompressed) [[unlikely]] {
       PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
       return nullptr;
     }
