@@ -897,8 +897,8 @@ void stage::draw() {
 
     const auto dw = fr.width * tf.scale;
     const auto dh = fr.height * tf.scale;
-    const auto px = std::floor((rx + fr.offset_x - viewport.x) * viewport.scale) / viewport.scale;
-    const auto py = std::floor((ry + fr.offset_y - viewport.y) * viewport.scale) / viewport.scale;
+    const auto px = rx + fr.offset_x - viewport.x;
+    const auto py = ry + fr.offset_y - viewport.y;
 
     if (px + dw < .0f || px > viewport.width ||
         py + dh < .0f || py > viewport.height)
