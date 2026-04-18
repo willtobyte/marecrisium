@@ -11,27 +11,21 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  SDL_SetHint(SDL_HINT_MAC_PRESS_AND_HOLD, "0");
-  if (!SDL_Init(SDL_INIT_GAMEPAD | SDL_INIT_VIDEO))
-    throw std::runtime_error("SDL_Init failed");
+  // SDL_SetHint(SDL_HINT_MAC_PRESS_AND_HOLD, "0");
+  SDL_Init(SDL_INIT_GAMEPAD | SDL_INIT_VIDEO);
 
-  if (!PHYSFS_init(argv[0]))
-    throw std::runtime_error("PHYSFS_init failed");
-  if (!PHYSFS_registerArchiver(&archiver))
-    throw std::runtime_error("PHYSFS_registerArchiver failed");
+  PHYSFS_init(argv[0]);
+  PHYSFS_registerArchiver(&archiver);
 
   ma_engine engine;
   auto config = ma_engine_config_init();
   config.channels = 2;
   config.sampleRate = 48000;
   config.periodSizeInFrames = 2048;
-  if (ma_engine_init(&config, &engine) != MA_SUCCESS)
-    throw std::runtime_error("ma_engine_init failed");
+  ma_engine_init(&config, &engine);
   audioengine = &engine;
 
   L = luaL_newstate();
-  if (!L)
-    throw std::runtime_error("luaL_newstate failed");
   luaL_openlibs(L);
 
   SteamAPI_InitSafe();
