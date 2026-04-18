@@ -30,8 +30,6 @@ struct frame final {
   float y{};
   float width{};
   float height{};
-  float offset_x{};
-  float offset_y{};
   float duration{};
   float bound_x{};
   float bound_y{};

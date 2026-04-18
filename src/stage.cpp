@@ -49,8 +49,8 @@ static bool culled(const transform &tf, const animation &an, float margin) noexc
   const auto &fr = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
   const auto width  = fr.width * tf.scale;
   const auto height = fr.height * tf.scale;
-  const auto screen_x = tf.x - viewport.x + fr.offset_x * tf.scale;
-  const auto screen_y = tf.y - viewport.y + fr.offset_y * tf.scale;
+  const auto screen_x = tf.x - viewport.x;
+  const auto screen_y = tf.y - viewport.y;
   return screen_x + width  < -margin ||
     screen_x >  viewport.width  + margin ||
     screen_y + height < -margin ||
@@ -897,8 +897,8 @@ void stage::draw() {
 
     const auto dw = fr.width * tf.scale;
     const auto dh = fr.height * tf.scale;
-    const auto px = std::floor((rx - viewport.x + fr.offset_x * tf.scale) * viewport.scale) / viewport.scale;
-    const auto py = std::floor((ry - viewport.y + fr.offset_y * tf.scale) * viewport.scale) / viewport.scale;
+    const auto px = std::floor((rx - viewport.x) * viewport.scale) / viewport.scale;
+    const auto py = std::floor((ry - viewport.y) * viewport.scale) / viewport.scale;
 
     if (px + dw < .0f || px > viewport.width ||
         py + dh < .0f || py > viewport.height)

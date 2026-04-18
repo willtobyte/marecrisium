@@ -72,26 +72,20 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
         fr.height = static_cast<float>(lua_tonumber(state, -1));
         lua_pop(state, 1);
         lua_rawgeti(state, -1, 5);
-        fr.offset_x = static_cast<float>(lua_tonumber(state, -1));
-        lua_pop(state, 1);
-        lua_rawgeti(state, -1, 6);
-        fr.offset_y = static_cast<float>(lua_tonumber(state, -1));
-        lua_pop(state, 1);
-        lua_rawgeti(state, -1, 7);
         fr.duration = static_cast<float>(lua_tonumber(state, -1)) / 1000.f;
         lua_pop(state, 1);
 
-        lua_rawgeti(state, -1, 8);
+        lua_rawgeti(state, -1, 6);
         if (!lua_isnil(state, -1)) {
           fr.bound_x = static_cast<float>(lua_tonumber(state, -1));
           lua_pop(state, 1);
-          lua_rawgeti(state, -1, 9);
+          lua_rawgeti(state, -1, 7);
           fr.bound_y = static_cast<float>(lua_tonumber(state, -1));
           lua_pop(state, 1);
-          lua_rawgeti(state, -1, 10);
+          lua_rawgeti(state, -1, 8);
           fr.bound_width = static_cast<float>(lua_tonumber(state, -1));
           lua_pop(state, 1);
-          lua_rawgeti(state, -1, 11);
+          lua_rawgeti(state, -1, 9);
           fr.bound_height = static_cast<float>(lua_tonumber(state, -1));
           lua_pop(state, 1);
           fr.collidable = true;
