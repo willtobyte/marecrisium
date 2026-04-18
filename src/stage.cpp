@@ -186,7 +186,7 @@ static void on_object_destroy(entt::registry& registry, entt::entity entity) {
     b2DestroyBody(b.id);
 }
 
-bool gather(b2ShapeId shape, void *userdata) noexcept {
+static bool gather(b2ShapeId shape, void *userdata) noexcept {
   const auto *ud = b2Shape_GetUserData(shape);
   if (!ud) [[unlikely]]
     return true;

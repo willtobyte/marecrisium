@@ -9,6 +9,11 @@ class pixmap;
 
 class stage final {
 public:
+  struct hit {
+    entt::entity entity{entt::null};
+    float fraction{};
+  };
+
   explicit stage(std::string name);
   ~stage();
 
@@ -67,18 +72,12 @@ private:
     bool ready{false};
   } _interpolation;
 
-  struct hit {
-    entt::entity entity{entt::null};
-    float fraction{};
-  };
-
   std::vector<hit> _hits{};
 
   std::vector<SDL_Vertex> _vertices{};
   std::vector<int> _indices{};
 
   friend class director;
-  friend bool gather(b2ShapeId, void*) noexcept;
 
   float _sleep_margin{};
   float _wake_margin{};
