@@ -61,12 +61,13 @@ def load_config(path):
 
 def collider(info, duration):
     f = info["frame"]
+    s = info["spriteSourceSize"]
     w, h = f["w"], f["h"]
     cw = max(1, round(w * 0.5))
     ch = max(1, round(h * 0.3))
     cx = (w - cw) // 2
     cy = h - ch
-    return f"{f['x']}, {f['y']}, {w}, {h}, {duration}, {cx}, {cy}, {cw}, {ch}"
+    return f"{f['x']}, {f['y']}, {w}, {h}, {s['x']}, {s['y']}, {duration}, {cx}, {cy}, {cw}, {ch}"
 
 
 def clips(groups, config):
