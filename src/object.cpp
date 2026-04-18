@@ -259,6 +259,9 @@ namespace {
           if (a->sheet->clips[i].identity.hash != hash)
             continue;
 
+          if (a->active == i && a->playing)
+            return 0;
+
           const auto& pc = a->sheet->clips[a->active];
           const auto previous = a->playing ? pc.identity.reference : LUA_NOREF;
           a->active = i;

@@ -1,0 +1,20 @@
+{%- block header %}{% endblock %}
+return {
+	body = "{{ body }}",
+
+	animation = {
+{%- for clip in clips %}
+		{{ clip.name }} = {
+{%- for frame in clip.frames %}
+			{ {{ frame }} },
+{%- endfor %}
+		},
+{%- endfor %}
+	},
+
+	on_spawn = function(self)
+		self.x = 0
+		self.y = 0
+	end,
+{%- block behaviors %}{% endblock %}
+}

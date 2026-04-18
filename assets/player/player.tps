@@ -173,18 +173,18 @@
         </struct>
         <key>individualSpriteSettings</key>
         <map type="IndividualSpriteSettingsMap">
-            <key type="filename">player 1.png</key>
-            <key type="filename">player 10.png</key>
-            <key type="filename">player 11.png</key>
-            <key type="filename">player 12.png</key>
-            <key type="filename">player 2.png</key>
-            <key type="filename">player 3.png</key>
-            <key type="filename">player 4.png</key>
-            <key type="filename">player 5.png</key>
-            <key type="filename">player 6.png</key>
-            <key type="filename">player 7.png</key>
-            <key type="filename">player 8.png</key>
-            <key type="filename">player 9.png</key>
+            <key type="filename">east 1.png</key>
+            <key type="filename">east 2.png</key>
+            <key type="filename">east 3.png</key>
+            <key type="filename">east 4.png</key>
+            <key type="filename">north 1.png</key>
+            <key type="filename">north 2.png</key>
+            <key type="filename">north 3.png</key>
+            <key type="filename">north 4.png</key>
+            <key type="filename">south 1.png</key>
+            <key type="filename">south 2.png</key>
+            <key type="filename">south 3.png</key>
+            <key type="filename">south 4.png</key>
             <struct type="IndividualSpriteSettings">
                 <key>pivotPoint</key>
                 <point_f>0.5,0.5</point_f>
@@ -206,18 +206,18 @@
             <struct type="SpriteSheet">
                 <key>files</key>
                 <array>
-                    <filename>player 1.png</filename>
-                    <filename>player 10.png</filename>
-                    <filename>player 11.png</filename>
-                    <filename>player 12.png</filename>
-                    <filename>player 2.png</filename>
-                    <filename>player 3.png</filename>
-                    <filename>player 4.png</filename>
-                    <filename>player 5.png</filename>
-                    <filename>player 6.png</filename>
-                    <filename>player 7.png</filename>
-                    <filename>player 8.png</filename>
-                    <filename>player 9.png</filename>
+                    <filename>east 1.png</filename>
+                    <filename>east 2.png</filename>
+                    <filename>east 3.png</filename>
+                    <filename>east 4.png</filename>
+                    <filename>north 1.png</filename>
+                    <filename>north 2.png</filename>
+                    <filename>north 3.png</filename>
+                    <filename>north 4.png</filename>
+                    <filename>south 1.png</filename>
+                    <filename>south 2.png</filename>
+                    <filename>south 3.png</filename>
+                    <filename>south 4.png</filename>
                 </array>
             </struct>
         </map>

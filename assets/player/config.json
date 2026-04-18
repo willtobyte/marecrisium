@@ -1,0 +1,22 @@
+{
+	"body": "dynamic",
+	"duration": {
+		"east": [100, 100, 100, 100],
+		"north": [100, 100, 100, 100],
+		"south": [100, 100, 100, 100]
+	},
+	"aliases": {
+		"idle_east": {
+			"group": "east",
+			"frames": [0]
+		},
+		"idle_north": {
+			"group": "north",
+			"frames": [0]
+		},
+		"idle_south": {
+			"group": "south",
+			"frames": [0]
+		}
+	}
+}

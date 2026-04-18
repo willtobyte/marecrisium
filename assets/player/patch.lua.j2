@@ -1,46 +1,12 @@
+{% extends "template.lua.j2" %}
+{%- block header %}
 local controls = require("helpers/controls")
 local sqrt = math.sqrt
 
 local speed = 99
 local facing = "south"
-
-return {
-	body = "dynamic",
-
-	animation = {
-		east = {
-			{ 1, 352, 24, 42, 100, 6, 29, 12, 13 },
-			{ 1, 309, 25, 41, 100, 6, 29, 12, 12 },
-			{ 1, 396, 24, 42, 100, 6, 29, 12, 13 },
-			{ 1, 440, 24, 41, 100, 6, 29, 12, 12 },
-		},
-		north = {
-			{ 1, 1, 26, 42, 100, 6, 29, 13, 13 },
-			{ 1, 45, 26, 42, 100, 6, 29, 13, 13 },
-			{ 1, 1, 26, 42, 100, 6, 29, 13, 13 },
-			{ 1, 89, 26, 42, 100, 6, 29, 13, 13 },
-		},
-		south = {
-			{ 1, 133, 26, 42, 100, 6, 29, 13, 13 },
-			{ 1, 177, 26, 42, 100, 6, 29, 13, 13 },
-			{ 1, 221, 26, 42, 100, 6, 29, 13, 13 },
-			{ 1, 265, 26, 42, 100, 6, 29, 13, 13 },
-		},
-		idle_east = {
-			{ 1, 352, 24, 42, 100, 6, 29, 12, 13 },
-		},
-		idle_north = {
-			{ 1, 1, 26, 42, 100, 6, 29, 13, 13 },
-		},
-		idle_south = {
-			{ 1, 133, 26, 42, 100, 6, 29, 13, 13 },
-		},
-	},
-
-	on_spawn = function(self)
-		self.x = 0
-		self.y = 0
-	end,
+{% endblock -%}
+{%- block behaviors %}
 
 	on_loop = function(self, delta)
 		local vx = 0
@@ -91,4 +57,4 @@ return {
 	on_damage = function(self)
 		print("on damage " .. self.name)
 	end,
-}
+{%- endblock %}
