@@ -7,7 +7,7 @@ public:
   particlepool() = default;
   ~particlepool() = default;
 
-  [[nodiscard]] config* get(std::string_view kind);
+  config* get(std::string_view kind);
 
   void clear();
 

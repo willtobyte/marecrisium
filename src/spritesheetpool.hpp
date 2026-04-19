@@ -7,7 +7,7 @@ public:
   spritesheetpool() = default;
   ~spritesheetpool() = default;
 
-  [[nodiscard]] const spritesheet* get(std::string_view kind, lua_State* state, int index);
+  const spritesheet* get(std::string_view kind, lua_State* state, int index);
 
   void clear();
 

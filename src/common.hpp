@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <limits>
 #include <memory>
@@ -23,6 +24,7 @@
 #include <thread>
 #include <type_traits>
 #include <unordered_set>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -117,6 +119,8 @@ struct transparent_hash final {
 };
 
 template <typename T>
-[[nodiscard]] constexpr T to_radians(T degrees) {
+constexpr T to_radians(T degrees) {
   return degrees * (std::numbers::pi_v<T> / T{180});
 }
+
+#include "die.hpp"

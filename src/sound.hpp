@@ -10,17 +10,17 @@ public:
   void stop();
 
   void set_volume(float gain);
-  [[nodiscard]] float volume() const;
+  float volume() const;
 
   void set_pan(float pan);
-  [[nodiscard]] float pan() const;
+  float pan() const;
 
   static void wire();
 
   void set_loop(bool loop);
-  [[nodiscard]] bool loop() const;
+  bool loop() const;
 
-  [[nodiscard]] bool playing() const;
+  bool playing() const;
 
   void fade(float from, float to, uint64_t ms);
 

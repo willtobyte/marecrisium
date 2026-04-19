@@ -5,7 +5,7 @@ public:
   fontpool() = default;
   ~fontpool() = default;
 
-  [[nodiscard]] font* get(std::string_view family);
+  font* get(std::string_view family);
 
   void clear();
 

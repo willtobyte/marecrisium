@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  // SDL_SetHint(SDL_HINT_MAC_PRESS_AND_HOLD, "0");
+  SDL_SetHint(SDL_HINT_MAC_PRESS_AND_HOLD, "0");
   SDL_Init(SDL_INIT_GAMEPAD | SDL_INIT_VIDEO);
 
   PHYSFS_init(argv[0]);

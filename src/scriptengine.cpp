@@ -4,17 +4,13 @@ static int loader(lua_State *state) {
   const std::string_view module = luaL_checkstring(state, 1);
   const auto filename = std::format("scripts/{}.lua", module);
 
-  try {
-    const auto buffer = io::read(filename);
-    const auto label = std::format("@{}", filename);
+  const auto buffer = io::read(filename);
+  const auto label = std::format("@{}", filename);
 
-    if (luaL_loadbuffer(state, reinterpret_cast<const char *>(buffer.data()), buffer.size(), label.c_str()) != 0)
-      return lua_error(state);
+  if (luaL_loadbuffer(state, reinterpret_cast<const char *>(buffer.data()), buffer.size(), label.c_str()) != 0)
+    return lua_error(state);
 
-    return 1;
-  } catch (const std::exception &exc) {
-    return luaL_error(state, "%s", exc.what());
-  }
+  return 1;
 }
 
 void scriptengine::run() {

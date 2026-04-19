@@ -458,7 +458,7 @@ void object::bind(scriptable& proxy, std::string_view name, std::string_view kin
 }
 
 void object::wire() {
-  metatable(L, "Object", object_index, guard<object_newindex>, object_gc);
+  metatable(L, "Object", object_index, object_newindex, object_gc);
 
   lua_createtable(L, 0, 4);
   lua_pushinteger(L, static_cast<lua_Integer>(mirror::none));

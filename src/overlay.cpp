@@ -130,7 +130,7 @@ overlay::overlay(std::string_view name) {
       lua_rawgeti(L, -1, i);
 
       if (lua_isstring(L, -1)) {
-        std::ignore = depot->font.get(lua_tostring(L, -1));
+        depot->font.get(lua_tostring(L, -1));
       }
 
       lua_pop(L, 1);
@@ -174,7 +174,7 @@ overlay::~overlay() {
 }
 
 void overlay::wire() {
-  lua_pushcfunction(L, guard<overlay_label>);
+  lua_pushcfunction(L, overlay_label);
   _label_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Overlay", overlay_index);

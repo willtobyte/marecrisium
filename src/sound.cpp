@@ -138,8 +138,6 @@ sound::sound(std::string_view filename) {
 
   const std::unique_ptr<OggOpusFile, OggOpusFile_Deleter> codec{
     op_open_memory(buffer.data(), buffer.size(), nullptr)};
-  if (!codec) [[unlikely]]
-    throw std::runtime_error{std::format("[op_open_memory] failed to decode: {}", filename)};
 
   const auto channels = op_channel_count(codec.get(), -1);
   const auto samples = op_pcm_total(codec.get(), -1);
@@ -159,8 +157,10 @@ sound::sound(std::string_view filename) {
     if (read == OP_HOLE)
       continue;
 
-    if (read < 0) [[unlikely]]
-      throw std::runtime_error{std::format("[op_read_float] failed to decode: {}", filename)};
+    if (read < 0) [[unlikely]] {
+      assert(read >= 0 && "[op_read_float] failed to decode");
+      break;
+    }
 
     if (read == 0)
       break;
@@ -255,7 +255,7 @@ void sound::poll() {
 }
 
 void sound::wire() {
-  lua_pushcfunction(L, guard<sound_play>);
+  lua_pushcfunction(L, sound_play);
   _play_ref = luaL_ref(L, LUA_REGISTRYINDEX);
   lua_pushcfunction(L, sound_stop);
   _stop_ref = luaL_ref(L, LUA_REGISTRYINDEX);

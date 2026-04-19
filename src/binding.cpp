@@ -9,14 +9,14 @@ struct breadcrumbs final {
   std::array<const void *, MAX_DEPTH> _data{};
   int _size{0};
 
-  [[nodiscard]] bool contains(const void *ptr) const {
+  bool contains(const void *ptr) const {
     for (int i = 0; i < _size; ++i)
       if (_data[static_cast<size_t>(i)] == ptr) [[unlikely]]
         return true;
     return false;
   }
 
-  [[nodiscard]] bool push(const void *ptr) {
+  bool push(const void *ptr) {
     if (_size >= MAX_DEPTH) [[unlikely]]
       return false;
 
@@ -156,6 +156,10 @@ static int traceback(lua_State *state) {
 }
 
 void binding::wire() {
+  lua_atpanic(L, [](lua_State *state) -> int {
+    die(state);
+  });
+
   lua_pushcfunction(L, traceback);
   _traceback = luaL_ref(L, LUA_REGISTRYINDEX);
 }
@@ -165,22 +169,24 @@ void pcall(lua_State *state, int nargs, int nresults) {
   lua_rawgeti(state, LUA_REGISTRYINDEX, _traceback);
   lua_insert(state, handler);
 
-  if (lua_pcall(state, nargs, nresults, handler) != 0) [[unlikely]] {
-    std::string error{lua_tostring(state, -1)};
-    lua_pop(state, 1);
-    lua_remove(state, handler);
-    throw std::runtime_error{std::move(error)};
-  }
+  if (lua_pcall(state, nargs, nresults, handler)) [[unlikely]]
+    die(state);
 
   lua_remove(state, handler);
 }
 
 void hcall(lua_State *state, int nargs, int nresults, int handler) {
-  if (lua_pcall(state, nargs, nresults, handler) != 0) [[unlikely]] {
-    std::string error{lua_tostring(state, -1)};
+  if (lua_pcall(state, nargs, nresults, handler)) [[unlikely]]
+    die(state);
+}
+
+bool try_pcall(lua_State *state, int nargs, int nresults) noexcept {
+  if (lua_pcall(state, nargs, nresults, 0)) [[unlikely]] {
     lua_pop(state, 1);
-    throw std::runtime_error{std::move(error)};
+    return false;
   }
+
+  return true;
 }
 
 void fcall(lua_State *state, int nargs, int nresults) {
@@ -196,11 +202,8 @@ void compile(lua_State *state, std::span<const uint8_t> buffer, std::string_view
   const auto *data = reinterpret_cast<const char *>(buffer.data());
   const auto size = buffer.size();
 
-  if (luaL_loadbuffer(state, data, size, chunk.data()) != 0) [[unlikely]] {
-    std::string error{lua_tostring(state, -1)};
-    lua_pop(state, 1);
-    throw std::runtime_error{std::move(error)};
-  }
+  if (luaL_loadbuffer(state, data, size, chunk.data())) [[unlikely]]
+    die(state);
 }
 
 void singleton(lua_State *state, const char *metatable, const char *global) {

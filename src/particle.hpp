@@ -28,11 +28,11 @@ public:
   void update(float delta);
   void draw();
 
-  [[nodiscard]] float x() const;
+  float x() const;
   void set_x(float value);
-  [[nodiscard]] float y() const;
+  float y() const;
   void set_y(float value);
-  [[nodiscard]] bool active() const;
+  bool active() const;
   void set_active(bool value);
 
   static void wire();

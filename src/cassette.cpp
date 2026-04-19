@@ -182,7 +182,7 @@ void cassette::wire() {
   lua_pushcfunction(L, cassette_clear);
   _purge_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  metatable(L, "Cassette", guard<cassette_index>, guard<cassette_newindex>);
+  metatable(L, "Cassette", cassette_index, cassette_newindex);
   singleton(L, "Cassette", "cassette");
 
   luaL_loadbuffer(L, PROXY_SOURCE.data(), PROXY_SOURCE.size(), "cassette_proxy");

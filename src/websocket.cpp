@@ -69,12 +69,12 @@ static int subscription_index(lua_State *state) {
   const std::string_view key = luaL_checkstring(state, 2);
 
   if (key == "publish") {
-    lua_pushcfunction(state, guard<subscription_publish>);
+    lua_pushcfunction(state, subscription_publish);
     return 1;
   }
 
   if (key == "unsubscribe") {
-    lua_pushcfunction(state, guard<subscription_unsubscribe>);
+    lua_pushcfunction(state, subscription_unsubscribe);
     return 1;
   }
 
@@ -132,17 +132,17 @@ static int websocket_index(lua_State *state) {
   const std::string_view key = luaL_checkstring(state, 2);
 
   if (key == "subscribe") {
-    lua_pushcfunction(state, guard<websocket_subscribe>);
+    lua_pushcfunction(state, websocket_subscribe);
     return 1;
   }
 
   if (key == "on_connect") {
-    lua_pushcfunction(state, guard<websocket_on_connect>);
+    lua_pushcfunction(state, websocket_on_connect);
     return 1;
   }
 
   if (key == "on_disconnect") {
-    lua_pushcfunction(state, guard<websocket_on_disconnect>);
+    lua_pushcfunction(state, websocket_on_disconnect);
     return 1;
   }
 
@@ -281,12 +281,10 @@ channel::channel(std::string url)
 }
 
 channel::~channel() {
-  try {
-    if (_on_disconnect != LUA_NOREF) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disconnect);
-      pcall(L, 0, 0);
-    }
-  } catch (...) {}
+  if (_on_disconnect != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disconnect);
+    try_pcall(L, 0, 0);
+  }
 
   luaL_unref(L, LUA_REGISTRYINDEX, _on_connect);
   _on_connect = LUA_NOREF;
@@ -520,7 +518,7 @@ void websocket::wire() {
   metatable(L, "WebSocket", websocket_index, nullptr, websocket_gc);
 
   lua_newtable(L);
-  lua_pushcfunction(L, guard<websocket_call>);
+  lua_pushcfunction(L, websocket_call);
   lua_setfield(L, -2, "new");
   lua_setglobal(L, "WebSocket");
 

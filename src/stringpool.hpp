@@ -5,11 +5,11 @@ public:
   stringpool() = default;
   ~stringpool() = default;
 
-  [[nodiscard]] entt::id_type get(std::string_view value);
+  entt::id_type get(std::string_view value);
 
-  [[nodiscard]] const char* get(entt::id_type key) const;
+  const char* get(entt::id_type key) const;
 
-  [[nodiscard]] int ref(entt::id_type key) const;
+  int ref(entt::id_type key) const;
 
 private:
   ankerl::unordered_dense::map<entt::id_type, std::string> _pool;

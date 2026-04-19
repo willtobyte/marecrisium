@@ -5,7 +5,7 @@ public:
   soundpool() = default;
   ~soundpool() = default;
 
-  [[nodiscard]] sound* get(std::string_view name);
+  sound* get(std::string_view name);
 
   void clear();
 

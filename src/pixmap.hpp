@@ -14,10 +14,10 @@ public:
     const mirror flip = mirror::none
   ) const;
 
-  [[nodiscard]] operator SDL_Texture*() const;
+  operator SDL_Texture*() const;
 
-  [[nodiscard]] int width() const;
-  [[nodiscard]] int height() const;
+  int width() const;
+  int height() const;
 
 private:
   int _width;

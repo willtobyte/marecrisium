@@ -86,19 +86,19 @@ struct body final {
 
 static_assert(std::is_trivially_copyable_v<body>);
 
-[[nodiscard]] inline bool alive(const body& b) {
+inline bool alive(const body& b) {
   return b2Body_IsValid(b.id);
 }
 
-[[nodiscard]] inline bool propelled(const body& b) {
+inline bool propelled(const body& b) {
   return b.type == body_type::dynamic && b2Body_IsValid(b.id);
 }
 
-[[nodiscard]] inline bool anchored(const body& b) {
+inline bool anchored(const body& b) {
   return b.type != body_type::kinematic && b2Body_IsValid(b.id);
 }
 
-[[nodiscard]] inline b2Vec2 center_of(const body& b, const transform& tf, const frame* fr = nullptr) {
+inline b2Vec2 center_of(const body& b, const transform& tf, const frame* fr = nullptr) {
   const auto ox = fr ? fr->offset_x + fr->bound_x : .0f;
   const auto oy = fr ? fr->offset_y + fr->bound_y : .0f;
   return {tf.x + ox + b.extent_x, tf.y + oy + b.extent_y};
