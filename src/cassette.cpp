@@ -56,7 +56,7 @@ static void proxify(lua_State *state, std::string_view key) {
   lua_rawgeti(state, LUA_REGISTRYINDEX, _wrap_ref);
   lua_pushvalue(state, -2);
   lua_pushlstring(state, key.data(), key.size());
-  lua_call(state, 2, 1);
+  pcall(state, 2, 1);
   lua_replace(state, -2);
 }
 }
@@ -187,6 +187,6 @@ void cassette::wire() {
 
   luaL_loadbuffer(L, PROXY_SOURCE.data(), PROXY_SOURCE.size(), "cassette_proxy");
   lua_getglobal(L, "cassette");
-  lua_call(L, 1, 1);
+  pcall(L, 1, 1);
   _wrap_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 }

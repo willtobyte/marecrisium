@@ -158,45 +158,27 @@ static int traceback(lua_State *state) {
 void binding::wire() {
   lua_atpanic(L, +[](lua_State *state) -> int {
     die(state);
-    std::unreachable();
   });
 
   lua_pushcfunction(L, traceback);
   _traceback = luaL_ref(L, LUA_REGISTRYINDEX);
 }
 
-void pcall(lua_State *state, int nargs, int nresults) {
+bool pcall(lua_State *state, int nargs, int nresults, fault mode) noexcept {
   const auto handler = lua_gettop(state) - nargs;
   lua_rawgeti(state, LUA_REGISTRYINDEX, _traceback);
   lua_insert(state, handler);
 
-  if (lua_pcall(state, nargs, nresults, handler)) [[unlikely]]
-    die(state);
-
-  lua_remove(state, handler);
-}
-
-void hcall(lua_State *state, int nargs, int nresults, int handler) {
-  if (lua_pcall(state, nargs, nresults, handler)) [[unlikely]]
-    die(state);
-}
-
-bool try_pcall(lua_State *state, int nargs, int nresults) noexcept {
-  if (lua_pcall(state, nargs, nresults, 0)) [[unlikely]] {
-    lua_pop(state, 1);
-    return false;
+  const auto ok = lua_pcall(state, nargs, nresults, handler) == LUA_OK;
+  if (!ok) [[unlikely]] {
+    switch (mode) {
+      case fault::fatal: die(state);
+      case fault::ignore: lua_pop(state, 1); break;
+    }
   }
 
-  return true;
-}
-
-void fcall(lua_State *state, int nargs, int nresults) {
-  lua_call(state, nargs, nresults);
-}
-
-int push_traceback(lua_State *state) {
-  lua_rawgeti(state, LUA_REGISTRYINDEX, _traceback);
-  return lua_gettop(state);
+  lua_remove(state, handler);
+  return ok;
 }
 
 void compile(lua_State *state, std::span<const uint8_t> buffer, std::string_view chunk) {

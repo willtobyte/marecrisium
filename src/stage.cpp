@@ -604,13 +604,11 @@ void stage::update(float delta) {
     }
   }
 
-  const auto handler = push_traceback(L);
-
   if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
-    hcall(L, 2, 0, handler);
+    pcall(L, 2, 0);
   }
 
   for (auto&& [e, op] : _registry.view<scriptable>(entt::exclude<dormant>).each()) {
@@ -621,7 +619,7 @@ void stage::update(float delta) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_loop);
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
       lua_pushnumber(L, static_cast<lua_Number>(delta));
-      hcall(L, 2, 0, handler);
+      pcall(L, 2, 0);
     }
 
     if (!_registry.valid(e)) continue;
@@ -648,7 +646,7 @@ void stage::update(float delta) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_animation_end);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
           lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
-          hcall(L, 2, 0, handler);
+          pcall(L, 2, 0);
         }
 
         if (!_registry.valid(e)) continue;
@@ -657,13 +655,11 @@ void stage::update(float delta) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_animation_begin);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
           lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
-          hcall(L, 2, 0, handler);
+          pcall(L, 2, 0);
         }
       }
     }
   }
-
-  lua_remove(L, handler);
 
   _accumulator += delta;
 

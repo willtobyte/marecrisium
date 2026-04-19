@@ -283,7 +283,7 @@ channel::channel(std::string url)
 channel::~channel() {
   if (_on_disconnect != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disconnect);
-    try_pcall(L, 0, 0);
+    pcall(L, 0, 0, fault::ignore);
   }
 
   luaL_unref(L, LUA_REGISTRYINDEX, _on_connect);

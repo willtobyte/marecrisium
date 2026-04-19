@@ -210,7 +210,7 @@ void foreground::disappear() {
   if (_on_disappear != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disappear);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
-    try_pcall(L, 1, 0);
+    pcall(L, 1, 0, fault::ignore);
   }
 
   luaL_unref(L, LUA_REGISTRYINDEX, _on_disappear);
