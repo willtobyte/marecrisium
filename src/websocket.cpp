@@ -5,6 +5,13 @@
 namespace {
 std::unique_ptr<channel> connection;
 
+struct anchor {
+  lua_State *state;
+  int ref;
+  ~anchor() { if (ref != LUA_NOREF) luaL_unref(state, LUA_REGISTRYINDEX, ref); }
+  int release() noexcept { int r = ref; ref = LUA_NOREF; return r; }
+};
+
 static std::vector<uint8_t> envelope(yyjson_mut_doc *doc) {
   size_t length = 0;
   auto *json = yyjson_mut_write(doc, 0, &length);
@@ -62,12 +69,12 @@ static int subscription_index(lua_State *state) {
   const std::string_view key = luaL_checkstring(state, 2);
 
   if (key == "publish") {
-    lua_pushcfunction(state, subscription_publish);
+    lua_pushcfunction(state, guard<subscription_publish>);
     return 1;
   }
 
   if (key == "unsubscribe") {
-    lua_pushcfunction(state, subscription_unsubscribe);
+    lua_pushcfunction(state, guard<subscription_unsubscribe>);
     return 1;
   }
 
@@ -108,21 +115,15 @@ static int websocket_subscribe(lua_State *state) {
   const auto topic = static_cast<uint16_t>(raw);
   luaL_checktype(state, 3, LUA_TFUNCTION);
   lua_pushvalue(state, 3);
-  auto reference = luaL_ref(state, LUA_REGISTRYINDEX);
+  anchor callback{state, luaL_ref(state, LUA_REGISTRYINDEX)};
 
-  subscription *sub = nullptr;
-  try {
-    sub = new subscription(instance, topic, reference);
-  } catch (...) {
-    luaL_unref(state, LUA_REGISTRYINDEX, reference);
-    reference = LUA_NOREF;
-    throw;
-  }
-
-  auto **m = static_cast<subscription **>(lua_newuserdata(state, sizeof(subscription *)));
-  *m = sub;
+  auto **slot = static_cast<subscription **>(lua_newuserdata(state, sizeof(subscription *)));
+  *slot = nullptr;
   luaL_getmetatable(state, "Subscription");
   lua_setmetatable(state, -2);
+
+  *slot = new subscription(instance, topic, callback.ref);
+  callback.release();
   return 1;
 }
 
@@ -131,17 +132,17 @@ static int websocket_index(lua_State *state) {
   const std::string_view key = luaL_checkstring(state, 2);
 
   if (key == "subscribe") {
-    lua_pushcfunction(state, websocket_subscribe);
+    lua_pushcfunction(state, guard<websocket_subscribe>);
     return 1;
   }
 
   if (key == "on_connect") {
-    lua_pushcfunction(state, websocket_on_connect);
+    lua_pushcfunction(state, guard<websocket_on_connect>);
     return 1;
   }
 
   if (key == "on_disconnect") {
-    lua_pushcfunction(state, websocket_on_disconnect);
+    lua_pushcfunction(state, guard<websocket_on_disconnect>);
     return 1;
   }
 
@@ -161,8 +162,8 @@ static int websocket_call(lua_State *state) {
 
   connection = std::make_unique<channel>(std::move(url));
 
-  auto **m = static_cast<channel **>(lua_newuserdata(state, sizeof(channel *)));
-  *m = connection.get();
+  auto **slot = static_cast<channel **>(lua_newuserdata(state, sizeof(channel *)));
+  *slot = connection.get();
   luaL_getmetatable(state, "WebSocket");
   lua_setmetatable(state, -2);
   return 1;
@@ -519,7 +520,7 @@ void websocket::wire() {
   metatable(L, "WebSocket", websocket_index, nullptr, websocket_gc);
 
   lua_newtable(L);
-  lua_pushcfunction(L, websocket_call);
+  lua_pushcfunction(L, guard<websocket_call>);
   lua_setfield(L, -2, "new");
   lua_setglobal(L, "WebSocket");
 
