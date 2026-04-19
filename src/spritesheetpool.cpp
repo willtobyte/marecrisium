@@ -1,7 +1,7 @@
 #include "spritesheetpool.hpp"
 
 const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state, int index) {
-  const auto key = entt::hashed_string{kind.data()};
+  const auto key = entt::hashed_string{kind.data(), kind.size()};
   const auto [it, inserted] = _pool.try_emplace(key, nullptr);
 
   if (inserted) [[unlikely]] {
@@ -29,7 +29,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       }
 
       lua_pushvalue(state, -2);
-      const std::string_view label = lua_tostring(state, -1);
+      const std::string label = lua_tostring(state, -1);
       lua_pop(state, 1);
 
       if (label == "default" || label == "sound") [[unlikely]] {

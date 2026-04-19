@@ -381,7 +381,7 @@ void object::bind(scriptable& proxy, std::string_view name, std::string_view kin
   lua_pushlstring(L, kind.data(), kind.size());
   proxy.kind_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  const auto identity = entt::hashed_string{kind.data()};
+  const auto identity = entt::hashed_string{kind.data(), kind.size()};
 
   if (const auto it = prototypes.find(identity); it != prototypes.end()) [[likely]] {
     lua_pop(L, 1);

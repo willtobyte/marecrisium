@@ -10,7 +10,7 @@ namespace {
 }
 
 void sourcepool::insert(std::string_view name) {
-  const auto key = entt::hashed_string{name.data()};
+  const auto key = entt::hashed_string{name.data(), name.size()};
 
   if (const auto it = _pool.find(key); it != _pool.end()) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, it->second.reference);

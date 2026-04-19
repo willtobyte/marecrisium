@@ -89,7 +89,7 @@ static int foreground_draw(lua_State *state) {
 static int foreground_index(lua_State *state) {
   auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
   const std::string_view key = luaL_checkstring(state, 2);
-  const auto id = entt::hashed_string{key.data()};
+  const auto id = entt::hashed_string{key.data(), key.size()};
 
   if (id == property::draw) {
     lua_rawgeti(state, LUA_REGISTRYINDEX, _draw_ref);

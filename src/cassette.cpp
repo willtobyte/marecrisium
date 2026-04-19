@@ -72,7 +72,7 @@ static int cassette_clear(lua_State *state) {
 
 static int cassette_index(lua_State *state) {
   const auto key = std::string_view{luaL_checkstring(state, 2)};
-  const auto id = entt::hashed_string{key.data()};
+  const auto id = entt::hashed_string{key.data(), key.size()};
 
   if (id == property::purge) [[unlikely]]
     return lua_rawgeti(state, LUA_REGISTRYINDEX, _purge_ref), 1;
@@ -118,7 +118,7 @@ static int cassette_index(lua_State *state) {
 
 static int cassette_newindex(lua_State *state) {
   const auto key = std::string_view{luaL_checkstring(state, 2)};
-  const auto id = entt::hashed_string{key.data()};
+  const auto id = entt::hashed_string{key.data(), key.size()};
 
   if (id == property::purge) [[unlikely]]
     return 0;

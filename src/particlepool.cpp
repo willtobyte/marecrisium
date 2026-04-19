@@ -18,7 +18,7 @@ static std::pair<float, float> read_range(lua_State* state, const char* field) {
 }
 
 config* particlepool::get(std::string_view kind) {
-  const auto key = entt::hashed_string{kind.data()};
+  const auto key = entt::hashed_string{kind.data(), kind.size()};
   const auto [it, inserted] = _pool.try_emplace(key, nullptr);
   if (inserted) [[unlikely]] {
     auto config = std::make_unique<struct config>();

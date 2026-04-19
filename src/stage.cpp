@@ -339,11 +339,11 @@ stage::stage(std::string name)
       lua_rawgeti(L, -1, i);
 
       lua_getfield(L, -1, "name");
-      const std::string_view label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      std::string label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "kind");
-      const std::string_view kind = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      std::string kind = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "x");
@@ -376,7 +376,7 @@ stage::stage(std::string name)
       }
 
       lua_getfield(L, -1, "name");
-      const std::string_view label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      std::string label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "loop");
@@ -473,11 +473,11 @@ stage::stage(std::string name)
       lua_rawgeti(L, -1, i);
 
       lua_getfield(L, -1, "name");
-      const std::string_view label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      std::string label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "kind");
-      const std::string_view kind = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      std::string kind = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "x");
@@ -1035,8 +1035,8 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   auto& op = _registry.emplace<scriptable>(entity);
   op.registry = &_registry;
   op.entity = entity;
-  op.name = entt::hashed_string{name.data()};
-  op.kind = entt::hashed_string{kind.data()};
+  op.name = entt::hashed_string{name.data(), name.size()};
+  op.kind = entt::hashed_string{kind.data(), kind.size()};
   object::bind(op, name, kind);
   const auto prototype = op.prototype;
   const auto handle = op.handle;
@@ -1066,7 +1066,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
     if (sheet->collidable) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
       lua_getfield(L, -1, "body");
-      const std::string_view behavior = lua_isstring(L, -1) ? lua_tostring(L, -1) : "kinematic";
+      const std::string behavior = lua_isstring(L, -1) ? lua_tostring(L, -1) : "kinematic";
       lua_pop(L, 2);
 
       const auto [type, b2type] = mapping(behavior.data());
