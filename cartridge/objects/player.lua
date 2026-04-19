@@ -8,38 +8,38 @@ return {
 	body = "dynamic",
 
 	animation = {
-		east = {
+		["east"] = {
 			{ 1, 1, 32, 48, 100, 8, 34, 16, 14 },
 			{ 35, 1, 32, 48, 100, 8, 34, 16, 14 },
 			{ 69, 1, 32, 48, 100, 8, 34, 16, 14 },
 			{ 103, 1, 32, 48, 100, 8, 34, 16, 14 },
 		},
-		north = {
+		["north"] = {
 			{ 137, 1, 32, 48, 100, 8, 34, 16, 14 },
 			{ 171, 1, 32, 48, 100, 8, 34, 16, 14 },
 			{ 137, 1, 32, 48, 100, 8, 34, 16, 14 },
 			{ 205, 1, 32, 48, 100, 8, 34, 16, 14 },
 		},
-		south = {
+		["south"] = {
 			{ 239, 1, 32, 48, 100, 8, 34, 16, 14 },
 			{ 273, 1, 32, 48, 100, 8, 34, 16, 14 },
 			{ 307, 1, 32, 48, 100, 8, 34, 16, 14 },
 			{ 341, 1, 32, 48, 100, 8, 34, 16, 14 },
 		},
-		idle_east = {
+		["idle.east"] = {
 			{ 1, 1, 32, 48, 100, 8, 34, 16, 14 },
 		},
-		idle_north = {
+		["idle.north"] = {
 			{ 137, 1, 32, 48, 100, 8, 34, 16, 14 },
 		},
-		idle_south = {
+		["idle.south"] = {
 			{ 239, 1, 32, 48, 100, 8, 34, 16, 14 },
 		},
 	},
 
 	on_spawn = function(self)
-		self.x = 20
-		self.y = 20
+		self.x = 0
+		self.y = 0
 	end,
 
 	on_loop = function(self, delta)
@@ -63,7 +63,7 @@ return {
 			facing = "east"
 		end
 
-		self.animation = (vx ~= 0 or vy ~= 0) and facing or ("idle_" .. facing)
+		self.animation = (vx ~= 0 or vy ~= 0) and facing or ("idle." .. facing)
 
 		self.velocity_x, self.velocity_y = vx, vy
 	end,

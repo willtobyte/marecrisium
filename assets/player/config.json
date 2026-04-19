@@ -6,15 +6,15 @@
 		"south": [100, 100, 100, 100]
 	},
 	"aliases": {
-		"idle_east": {
+		"idle.east": {
 			"group": "east",
 			"frames": [0]
 		},
-		"idle_north": {
+		"idle.north": {
 			"group": "north",
 			"frames": [0]
 		},
-		"idle_south": {
+		"idle.south": {
 			"group": "south",
 			"frames": [0]
 		}

@@ -29,7 +29,7 @@ local facing = "south"
 			facing = "east"
 		end
 
-		self.animation = (vx ~= 0 or vy ~= 0) and facing or ("idle_" .. facing)
+		self.animation = (vx ~= 0 or vy ~= 0) and facing or ("idle." .. facing)
 
 		self.velocity_x, self.velocity_y = vx, vy
 	end,
