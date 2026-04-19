@@ -11,7 +11,7 @@ constexpr float COS_C2 = .03659f;
 constexpr int QUADRANT_MASK = 3;
 }
 
-void sincos(float x, float& sine, float& cosine) noexcept {
+void sincos(float x, float& sine, float& cosine) {
   const auto raw = x * (2.f * std::numbers::inv_pi_v<float>);
   const auto q = static_cast<int>(raw) - static_cast<int>(raw < .0f);
   const auto t = x - static_cast<float>(q) * (std::numbers::pi_v<float> * .5f);

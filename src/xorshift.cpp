@@ -37,7 +37,7 @@ static int math_randomseed(lua_State *state) {
 }
 }
 
-void xorshift128::seed(uint32_t value) noexcept {
+void xorshift128::seed(uint32_t value) {
   auto s = static_cast<uint64_t>(value);
   for (auto &word : state) {
     s += 0x9E3779B97F4A7C15ull;
@@ -49,7 +49,7 @@ void xorshift128::seed(uint32_t value) noexcept {
   }
 }
 
-uint32_t xorshift128::operator()() noexcept {
+uint32_t xorshift128::operator()() {
   auto t = state[3];
   t ^= t << 11;
   t ^= t >> 8;
@@ -62,13 +62,13 @@ uint32_t xorshift128::operator()() noexcept {
   return t;
 }
 
-float xorshift128::operator()(std::pair<float, float> range) noexcept {
+float xorshift128::operator()(std::pair<float, float> range) {
   constexpr auto scale = 1.f / 4294967296.f;
   const auto [minimum, maximum] = range;
   return minimum + (maximum - minimum) * (static_cast<float>((*this)()) * scale);
 }
 
-int xorshift128::operator()(int minimum, int maximum) noexcept {
+int xorshift128::operator()(int minimum, int maximum) {
   const auto range = static_cast<uint32_t>(maximum - minimum + 1);
   auto raw = (*this)();
   auto product = static_cast<uint64_t>(raw) * static_cast<uint64_t>(range);

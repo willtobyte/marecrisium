@@ -20,11 +20,11 @@ public:
 
   ~tilemap() = default;
 
-  void draw_background() noexcept;
+  void draw_background();
 
-  void draw_foreground() noexcept;
+  void draw_foreground();
 
-  int pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept;
+  int pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius);
 
 private:
   friend class minimap;
@@ -59,5 +59,5 @@ private:
 
   bool _dirty{true};
 
-  void tessellate(layer& layer) noexcept;
+  void tessellate(layer& layer);
 };

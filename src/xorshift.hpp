@@ -3,13 +3,13 @@
 struct xorshift128 final {
   uint32_t state[4];
 
-  xorshift128() noexcept = default;
+  xorshift128() = default;
 
-  void seed(uint32_t value) noexcept;
+  void seed(uint32_t value);
 
-  [[nodiscard]] uint32_t operator()() noexcept;
-  [[nodiscard]] float operator()(std::pair<float, float> range) noexcept;
-  [[nodiscard]] int operator()(int minimum, int maximum) noexcept;
+  [[nodiscard]] uint32_t operator()();
+  [[nodiscard]] float operator()(std::pair<float, float> range);
+  [[nodiscard]] int operator()(int minimum, int maximum);
 
   static void wire();
 };

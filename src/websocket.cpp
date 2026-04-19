@@ -369,7 +369,7 @@ void channel::run() {
   }
 }
 
-void channel::send(message message) noexcept {
+void channel::send(message message) {
   _outbound.push(std::move(message));
   if (_context) [[likely]]
     lws_cancel_service(_context);
@@ -430,12 +430,12 @@ void channel::poll() {
   }
 }
 
-void channel::set_on_connect(int reference) noexcept {
+void channel::set_on_connect(int reference) {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_connect);
   _on_connect = reference;
 }
 
-void channel::set_on_disconnect(int reference) noexcept {
+void channel::set_on_disconnect(int reference) {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_disconnect);
   _on_disconnect = reference;
 }
@@ -502,15 +502,15 @@ void subscription::unsubscribe() {
   _callback = LUA_NOREF;
 }
 
-uint16_t subscription::topic() const noexcept {
+uint16_t subscription::topic() const {
   return _topic;
 }
 
-int subscription::callback() const noexcept {
+int subscription::callback() const {
   return _callback;
 }
 
-bool subscription::active() const noexcept {
+bool subscription::active() const {
   return _active;
 }
 

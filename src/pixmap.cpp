@@ -35,7 +35,7 @@ void pixmap::draw(
     const double angle,
     const uint8_t alpha,
     const mirror flip
-) const noexcept {
+) const {
   const SDL_FRect source{sx, sy, sw, sh};
   const SDL_FRect destination{dx, dy, dw, dh};
 
@@ -43,14 +43,14 @@ void pixmap::draw(
   SDL_RenderTextureRotated(renderer, _texture.get(), &source, &destination, angle, nullptr, static_cast<SDL_FlipMode>(flip));
 }
 
-pixmap::operator SDL_Texture*() const noexcept {
+pixmap::operator SDL_Texture*() const {
   return _texture.get();
 }
 
-int pixmap::width() const noexcept {
+int pixmap::width() const {
   return _width;
 }
 
-int pixmap::height() const noexcept {
+int pixmap::height() const {
   return _height;
 }

@@ -99,8 +99,8 @@ PHYSFS_EnumerateCallbackResult enumerate_callback(void *, const char *, const ch
 }
 
 static struct initializer final {
-  initializer() noexcept { PHYSFS_init("fuzzer"); }
-  ~initializer() noexcept { PHYSFS_deinit(); }
+  initializer() { PHYSFS_init("fuzzer"); }
+  ~initializer() { PHYSFS_deinit(); }
 } init;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {

@@ -7,22 +7,22 @@ public:
   ~sound();
 
   void play();
-  void stop() noexcept;
+  void stop();
 
-  void set_volume(float gain) noexcept;
-  [[nodiscard]] float volume() const noexcept;
+  void set_volume(float gain);
+  [[nodiscard]] float volume() const;
 
-  void set_pan(float pan) noexcept;
-  [[nodiscard]] float pan() const noexcept;
+  void set_pan(float pan);
+  [[nodiscard]] float pan() const;
 
   static void wire();
 
-  void set_loop(bool loop) noexcept;
-  [[nodiscard]] bool loop() const noexcept;
+  void set_loop(bool loop);
+  [[nodiscard]] bool loop() const;
 
-  [[nodiscard]] bool playing() const noexcept;
+  [[nodiscard]] bool playing() const;
 
-  void fade(float from, float to, uint64_t ms) noexcept;
+  void fade(float from, float to, uint64_t ms);
 
   void poll();
 

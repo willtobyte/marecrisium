@@ -9,13 +9,13 @@ particle* particlesystem::add(std::string_view name, std::string_view kind, floa
   return it->second.get();
 }
 
-void particlesystem::update(float delta) noexcept {
+void particlesystem::update(float delta) {
   for (auto& [_, p] : _particles) {
     p->update(delta);
   }
 }
 
-void particlesystem::draw() noexcept {
+void particlesystem::draw() {
   for (auto& [_, p] : _particles) {
     p->draw();
   }

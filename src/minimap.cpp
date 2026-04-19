@@ -48,7 +48,7 @@ minimap::minimap(const tilemap &tilemap, entt::registry &registry,
   SDL_SetTextureScaleMode(_texture.get(), SDL_SCALEMODE_NEAREST);
 }
 
-void minimap::draw() noexcept {
+void minimap::draw() {
   if (!_visible)
     return;
 

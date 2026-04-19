@@ -22,7 +22,7 @@ struct entry {
 };
 
 template <typename T>
-T read(const uint8_t *p) noexcept {
+T read(const uint8_t *p) {
   T v = 0;
   for (size_t i = 0; i < sizeof(T); ++i)
     v |= static_cast<T>(p[i]) << (i * 8);

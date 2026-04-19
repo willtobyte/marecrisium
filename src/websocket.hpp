@@ -18,7 +18,7 @@ class ringbuffer final {
   static_assert((N & (N - 1)) == 0, "N must be a power of two");
 
 public:
-  void push(T item) noexcept {
+  void push(T item) {
     const auto head = _head.load(std::memory_order_relaxed);
     const auto tail = _tail.load(std::memory_order_acquire);
     if (head - tail == N)
@@ -27,7 +27,7 @@ public:
     _head.store(head + 1, std::memory_order_release);
   }
 
-  bool try_pop(T& out) noexcept {
+  bool try_pop(T& out) {
     const auto tail = _tail.load(std::memory_order_relaxed);
     const auto head = _head.load(std::memory_order_acquire);
     if (tail == head) return false;
@@ -64,14 +64,14 @@ public:
   channel(channel&&) = delete;
   channel& operator=(channel&&) = delete;
 
-  void send(message message) noexcept;
+  void send(message message);
   void poll();
 
   void add_subscription(subscription* subscription);
   void remove_subscription(subscription* subscription);
 
-  void set_on_connect(int reference) noexcept;
-  void set_on_disconnect(int reference) noexcept;
+  void set_on_connect(int reference);
+  void set_on_disconnect(int reference);
 
 private:
   friend int lws_callback(struct lws*, enum lws_callback_reasons, void*, void*, size_t);
@@ -118,9 +118,9 @@ public:
   void publish(lua_State* state, int index);
   void unsubscribe();
 
-  uint16_t topic() const noexcept;
-  int callback() const noexcept;
-  bool active() const noexcept;
+  uint16_t topic() const;
+  int callback() const;
+  bool active() const;
 
 private:
   friend class channel;

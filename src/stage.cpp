@@ -7,15 +7,15 @@ namespace {
   }
 }
 
-static void* to_userdata(entt::entity e) noexcept {
+static void* to_userdata(entt::entity e) {
   return reinterpret_cast<void*>(static_cast<uintptr_t>(e) + 1);
 }
 
-static entt::entity to_entity(const void* p) noexcept {
+static entt::entity to_entity(const void* p) {
   return static_cast<entt::entity>(reinterpret_cast<uintptr_t>(p) - 1);
 }
 
-static void submit(SDL_Texture *texture, std::vector<SDL_Vertex> &vertices, std::vector<int> &indices) noexcept {
+static void submit(SDL_Texture *texture, std::vector<SDL_Vertex> &vertices, std::vector<int> &indices) {
   SDL_RenderGeometry(
     renderer,
     texture,
@@ -30,7 +30,7 @@ static void submit(SDL_Texture *texture, std::vector<SDL_Vertex> &vertices, std:
 
 static const auto filter = b2DefaultQueryFilter();
 
-static color unpack(lua_State *state, int index) noexcept {
+static color unpack(lua_State *state, int index) {
   lua_rawgeti(state, index, 1);
   const auto r = static_cast<uint8_t>(lua_tonumber(state, -1));
   lua_pop(state, 1);
@@ -45,7 +45,7 @@ static color unpack(lua_State *state, int index) noexcept {
 
 
 
-static bool culled(const transform &tf, const animation &an, float margin) noexcept {
+static bool culled(const transform &tf, const animation &an, float margin) {
   const auto &fr = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
   const auto width  = fr.width * tf.scale;
   const auto height = fr.height * tf.scale;
@@ -57,7 +57,7 @@ static bool culled(const transform &tf, const animation &an, float margin) noexc
     screen_y >  viewport.height + margin;
 }
 
-static constexpr auto mapping(const char *s) noexcept -> std::pair<body_type, b2BodyType> {
+static constexpr auto mapping(const char *s) -> std::pair<body_type, b2BodyType> {
   const auto id = entt::hashed_string{s};
   switch (id) {
     case property::dynamic_bodytype: return {body_type::dynamic, b2_dynamicBody};
@@ -66,7 +66,7 @@ static constexpr auto mapping(const char *s) noexcept -> std::pair<body_type, b2
   }
 }
 
-static bool ensure_shape(body &b, const frame &fr, entt::entity entity, const transform &tf, float timestep) noexcept {
+static bool ensure_shape(body &b, const frame &fr, entt::entity entity, const transform &tf, float timestep) {
   const auto hx = fr.bound_width * .5f;
   const auto hy = fr.bound_height * .5f;
 
@@ -112,7 +112,7 @@ static bool ensure_shape(body &b, const frame &fr, entt::entity entity, const tr
   return false;
 }
 
-static bool resolve(b2ShapeId a, b2ShapeId b, entt::entity &ea, entt::entity &eb) noexcept {
+static bool resolve(b2ShapeId a, b2ShapeId b, entt::entity &ea, entt::entity &eb) {
   if (!b2Shape_IsValid(a) || !b2Shape_IsValid(b)) [[unlikely]]
     return false;
 
@@ -186,7 +186,7 @@ static void on_object_destroy(entt::registry& registry, entt::entity entity) {
     b2DestroyBody(b.id);
 }
 
-static bool gather(b2ShapeId shape, void *userdata) noexcept {
+static bool gather(b2ShapeId shape, void *userdata) {
   const auto *ud = b2Shape_GetUserData(shape);
   if (!ud) [[unlikely]]
     return true;
@@ -196,7 +196,7 @@ static bool gather(b2ShapeId shape, void *userdata) noexcept {
   return true;
 }
 
-static const scriptable* scriptable_of(entt::registry& registry, entt::entity entity) noexcept {
+static const scriptable* scriptable_of(entt::registry& registry, entt::entity entity) {
   if (!registry.valid(entity)) [[unlikely]]
     return nullptr;
 
@@ -855,7 +855,7 @@ void stage::update(float delta) {
 
   auto& rd = _registry.ctx().get<reorder>();
   if (rd.dirty) [[unlikely]] {
-    _registry.sort<renderable>([](const renderable& lhs, const renderable& rhs) noexcept {
+    _registry.sort<renderable>([](const renderable& lhs, const renderable& rhs) {
       return lhs.z < rhs.z;
     }, entt::insertion_sort{});
 
@@ -1271,7 +1271,7 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
   return 1;
 }
 
-int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) noexcept {
+int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) {
   return _tilemap.pathfind(state, x1, y1, x2, y2, radius);
 }
 

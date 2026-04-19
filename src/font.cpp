@@ -1,6 +1,6 @@
 #include "font.hpp"
 
-static SDL_FPoint rotate(float x, float y, float middle_x, float middle_y, float cosine, float sine) noexcept {
+static SDL_FPoint rotate(float x, float y, float middle_x, float middle_y, float cosine, float sine) {
   const auto dx = x - middle_x;
   const auto dy = y - middle_y;
   return {middle_x + dx * cosine - dy * sine, middle_y + dx * sine + dy * cosine};
@@ -109,11 +109,11 @@ font::font(std::string_view family) {
   }
 }
 
-void font::draw(std::string_view text, float x, float y) noexcept {
+void font::draw(std::string_view text, float x, float y) {
   draw(text, x, y, {});
 }
 
-void font::draw(std::string_view text, float x, float y, std::span<const glypheffect> effects) noexcept {
+void font::draw(std::string_view text, float x, float y, std::span<const glypheffect> effects) {
   if (text.empty()) [[unlikely]] return;
 
   _vertex_count = 0;

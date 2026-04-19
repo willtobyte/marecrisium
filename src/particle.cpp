@@ -101,17 +101,17 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
   }
 }
 
-float particle::x() const noexcept { return _x; }
-void particle::set_x(float value) noexcept { _x = value; }
-float particle::y() const noexcept { return _y; }
-void particle::set_y(float value) noexcept { _y = value; }
-bool particle::active() const noexcept { return _active; }
+float particle::x() const { return _x; }
+void particle::set_x(float value) { _x = value; }
+float particle::y() const { return _y; }
+void particle::set_y(float value) { _y = value; }
+bool particle::active() const { return _active; }
 
-void particle::set_active(bool value) noexcept {
+void particle::set_active(bool value) {
   _active = value;
 }
 
-void particle::update(float delta) noexcept {
+void particle::update(float delta) {
   const auto n = _count;
   const auto twopi = 2.f * std::numbers::pi_v<float>;
 
@@ -172,7 +172,7 @@ void particle::update(float delta) noexcept {
   }
 }
 
-void particle::draw() noexcept {
+void particle::draw() {
   const auto n = _count;
   const auto hw = _half_width;
   const auto hh = _half_height;

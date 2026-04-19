@@ -12,12 +12,12 @@ public:
     const double angle = .0,
     const uint8_t alpha = 255,
     const mirror flip = mirror::none
-  ) const noexcept;
+  ) const;
 
-  [[nodiscard]] operator SDL_Texture*() const noexcept;
+  [[nodiscard]] operator SDL_Texture*() const;
 
-  [[nodiscard]] int width() const noexcept;
-  [[nodiscard]] int height() const noexcept;
+  [[nodiscard]] int width() const;
+  [[nodiscard]] int height() const;
 
 private:
   int _width;

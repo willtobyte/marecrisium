@@ -9,14 +9,14 @@ struct breadcrumbs final {
   std::array<const void *, MAX_DEPTH> _data{};
   int _size{0};
 
-  [[nodiscard]] bool contains(const void *ptr) const noexcept {
+  [[nodiscard]] bool contains(const void *ptr) const {
     for (int i = 0; i < _size; ++i)
       if (_data[static_cast<size_t>(i)] == ptr) [[unlikely]]
         return true;
     return false;
   }
 
-  [[nodiscard]] bool push(const void *ptr) noexcept {
+  [[nodiscard]] bool push(const void *ptr) {
     if (_size >= MAX_DEPTH) [[unlikely]]
       return false;
 
@@ -24,7 +24,7 @@ struct breadcrumbs final {
     return true;
   }
 
-  void pop() noexcept { --_size; }
+  void pop() { --_size; }
 };
 
 static void pretty(lua_State *state, std::string &output, int index, int depth, breadcrumbs &visited) {
@@ -183,7 +183,7 @@ void hcall(lua_State *state, int nargs, int nresults, int handler) {
   }
 }
 
-void fcall(lua_State *state, int nargs, int nresults) noexcept {
+void fcall(lua_State *state, int nargs, int nresults) {
   lua_call(state, nargs, nresults);
 }
 
@@ -203,14 +203,14 @@ void compile(lua_State *state, std::span<const uint8_t> buffer, std::string_view
   }
 }
 
-void singleton(lua_State *state, const char *metatable, const char *global) noexcept {
+void singleton(lua_State *state, const char *metatable, const char *global) {
   lua_newuserdata(state, 1);
   luaL_getmetatable(state, metatable);
   lua_setmetatable(state, -2);
   lua_setglobal(state, global);
 }
 
-void metatable(lua_State *state, const char *name, lua_CFunction index, lua_CFunction newindex, lua_CFunction gc) noexcept {
+void metatable(lua_State *state, const char *name, lua_CFunction index, lua_CFunction newindex, lua_CFunction gc) {
   luaL_newmetatable(state, name);
 
   if (index) {

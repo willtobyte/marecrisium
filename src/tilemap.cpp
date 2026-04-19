@@ -185,7 +185,7 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   }
 }
 
-void tilemap::draw_background() noexcept {
+void tilemap::draw_background() {
   if (!_background.atlas) [[unlikely]]
     return;
 
@@ -211,7 +211,7 @@ void tilemap::draw_background() noexcept {
   }
 }
 
-void tilemap::draw_foreground() noexcept {
+void tilemap::draw_foreground() {
   if (!_foreground.atlas) [[unlikely]]
     return;
 
@@ -232,7 +232,7 @@ void tilemap::draw_foreground() noexcept {
   );
 }
 
-int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float) noexcept {
+int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float) {
   if (_collision.empty() || _width == 0 || _height == 0) [[unlikely]] {
     lua_newtable(state);
     return 1;
@@ -270,13 +270,13 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   static constexpr float COST[] = {1.f, 1.f, 1.f, 1.f, 1.41421356f, 1.41421356f, 1.41421356f, 1.41421356f};
   static constexpr auto SQRT2_MINUS_1 = .41421356f;
 
-  const auto octile = [ec, er](int32_t c, int32_t r) noexcept -> float {
+  const auto octile = [ec, er](int32_t c, int32_t r) -> float {
     const auto dc = static_cast<float>(std::abs(c - ec));
     const auto dr = static_cast<float>(std::abs(r - er));
     return dc > dr ? dc + SQRT2_MINUS_1 * dr : dr + SQRT2_MINUS_1 * dc;
   };
 
-  const auto compare = [](const tilemap::node& a, const tilemap::node& b) noexcept {
+  const auto compare = [](const tilemap::node& a, const tilemap::node& b) {
     return a.f > b.f;
   };
 
@@ -382,7 +382,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   return 1;
 }
 
-void tilemap::tessellate(layer& layer) noexcept {
+void tilemap::tessellate(layer& layer) {
   const auto sc = std::max(0, static_cast<int32_t>(viewport.x * _inverse));
   const auto sr = std::max(0, static_cast<int32_t>(viewport.y * _inverse));
   const auto ec = std::min(_width - 1, static_cast<int32_t>((viewport.x + viewport.width) * _inverse) + 1);

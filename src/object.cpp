@@ -20,7 +20,7 @@ namespace {
     constexpr auto kind = "kind"_hs;
   }
 
-  static void sync_body_position(body& bd, const transform& tf, const animation* an) noexcept {
+  static void sync_body_position(body& bd, const transform& tf, const animation* an) {
     const frame* fr = nullptr;
     if (an && an->playing && an->sheet->count > 0) [[likely]]
       fr = &an->sheet->frames[an->sheet->clips[an->active].offset + an->current];

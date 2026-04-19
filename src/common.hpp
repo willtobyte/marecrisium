@@ -63,14 +63,14 @@ struct viewport {
   float x;
   float y;
 
-  constexpr bool operator==(const viewport&) const noexcept = default;
+  constexpr bool operator==(const viewport&) const = default;
 };
 
 extern struct viewport viewport;
 
 struct SDL_Deleter final {
   template <typename T>
-  void operator()(T* ptr) const noexcept {
+  void operator()(T* ptr) const {
     if (!ptr) [[unlikely]] return;
 
     if constexpr (requires { SDL_CloseGamepad(ptr); }) SDL_CloseGamepad(ptr);
@@ -80,7 +80,7 @@ struct SDL_Deleter final {
 };
 
 struct SPNG_Deleter final {
-  void operator()(spng_ctx* context) const noexcept {
+  void operator()(spng_ctx* context) const {
     if (!context) [[unlikely]] return;
 
     spng_ctx_free(context);
@@ -88,7 +88,7 @@ struct SPNG_Deleter final {
 };
 
 struct OggOpusFile_Deleter final {
-  void operator()(OggOpusFile* ptr) const noexcept {
+  void operator()(OggOpusFile* ptr) const {
     if (!ptr) [[unlikely]] return;
 
     op_free(ptr);
@@ -97,7 +97,7 @@ struct OggOpusFile_Deleter final {
 
 struct PHYSFS_Deleter final {
   template <typename T>
-  void operator()(T* ptr) const noexcept {
+  void operator()(T* ptr) const {
     if (!ptr) [[unlikely]] return;
 
     if constexpr (std::is_same_v<T, PHYSFS_File>) {
@@ -111,12 +111,12 @@ struct PHYSFS_Deleter final {
 struct transparent_hash final {
   using is_transparent = void;
   using is_avalanching = void;
-  auto operator()(std::string_view sv) const noexcept {
+  auto operator()(std::string_view sv) const {
     return ankerl::unordered_dense::hash<std::string_view>{}(sv);
   }
 };
 
 template <typename T>
-[[nodiscard]] constexpr T to_radians(T degrees) noexcept {
+[[nodiscard]] constexpr T to_radians(T degrees) {
   return degrees * (std::numbers::pi_v<T> / T{180});
 }

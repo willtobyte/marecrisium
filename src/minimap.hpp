@@ -12,10 +12,10 @@ public:
 
   ~minimap() = default;
 
-  minimap(minimap&&) noexcept = default;
-  minimap& operator=(minimap&&) noexcept = default;
+  minimap(minimap&&) = default;
+  minimap& operator=(minimap&&) = default;
 
-  void draw() noexcept;
+  void draw();
 
   bool _visible{false};
 
@@ -40,7 +40,7 @@ private:
     int32_t cy{std::numeric_limits<int32_t>::min()};
     size_t count{};
 
-    constexpr auto operator<=>(const snapshot&) const noexcept = default;
+    constexpr auto operator<=>(const snapshot&) const = default;
   };
 
   snapshot _previous{};

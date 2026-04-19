@@ -23,7 +23,7 @@ struct archive final {
   ankerl::unordered_dense::map<std::string_view, size_t> index;
   ankerl::unordered_dense::map<std::string_view, std::vector<std::string_view>> children;
 
-  ~archive() noexcept {
+  ~archive() {
     if (dctx)
       ZSTD_freeDCtx(dctx);
   }
@@ -36,7 +36,7 @@ struct handle final {
 };
 
 template <std::integral T>
-static T read(const uint8_t *p) noexcept {
+static T read(const uint8_t *p) {
   T value;
   std::memcpy(&value, p, sizeof(T));
   return value;
@@ -56,7 +56,7 @@ static bool drain(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   return true;
 }
 
-static std::string_view parent_dir(std::string_view path) noexcept {
+static std::string_view parent_dir(std::string_view path) {
   const auto position = path.rfind('/');
   if (position == std::string_view::npos)
     return ""sv;
@@ -64,7 +64,7 @@ static std::string_view parent_dir(std::string_view path) noexcept {
   return path.substr(0, position);
 }
 
-static std::string_view filename(std::string_view path) noexcept {
+static std::string_view filename(std::string_view path) {
   const auto position = path.rfind('/');
   if (position == std::string_view::npos)
     return path;

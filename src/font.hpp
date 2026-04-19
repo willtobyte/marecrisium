@@ -1,6 +1,6 @@
 #pragma once
 
-void sincos(float x, float& sine, float& cosine) noexcept;
+void sincos(float x, float& sine, float& cosine);
 
 struct alignas(32) glypheffect final {
   float x_offset{.0f};
@@ -26,12 +26,12 @@ public:
 
   ~font() = default;
 
-  font(font&&) noexcept = default;
-  font& operator=(font&&) noexcept = default;
+  font(font&&) = default;
+  font& operator=(font&&) = default;
 
-  void draw(std::string_view text, float x, float y) noexcept;
+  void draw(std::string_view text, float x, float y);
 
-  void draw(std::string_view text, float x, float y, std::span<const glypheffect> effects) noexcept;
+  void draw(std::string_view text, float x, float y, std::span<const glypheffect> effects);
 
 private:
   std::array<glyphprops, 256> _props{};

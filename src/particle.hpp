@@ -1,6 +1,6 @@
 #pragma once
 
-void sincos(float x, float& sine, float& cosine) noexcept;
+void sincos(float x, float& sine, float& cosine);
 
 class pixmap;
 
@@ -22,18 +22,18 @@ public:
 
   ~particle() = default;
 
-  particle(particle&&) noexcept = default;
-  particle& operator=(particle&&) noexcept = default;
+  particle(particle&&) = default;
+  particle& operator=(particle&&) = default;
 
-  void update(float delta) noexcept;
-  void draw() noexcept;
+  void update(float delta);
+  void draw();
 
-  [[nodiscard]] float x() const noexcept;
-  void set_x(float value) noexcept;
-  [[nodiscard]] float y() const noexcept;
-  void set_y(float value) noexcept;
-  [[nodiscard]] bool active() const noexcept;
-  void set_active(bool value) noexcept;
+  [[nodiscard]] float x() const;
+  void set_x(float value);
+  [[nodiscard]] float y() const;
+  void set_y(float value);
+  [[nodiscard]] bool active() const;
+  void set_active(bool value);
 
   static void wire();
 

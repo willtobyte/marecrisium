@@ -207,39 +207,39 @@ void sound::play() {
   ma_sound_start(&_sound);
 }
 
-void sound::stop() noexcept {
+void sound::stop() {
   ma_sound_stop(&_sound);
 }
 
-void sound::set_volume(float gain) noexcept {
+void sound::set_volume(float gain) {
   ma_sound_set_volume(&_sound, std::clamp(gain, .0f, 1.f));
 }
 
-float sound::volume() const noexcept {
+float sound::volume() const {
   return ma_sound_get_volume(&_sound);
 }
 
-void sound::set_pan(float pan) noexcept {
+void sound::set_pan(float pan) {
   ma_sound_set_pan(&_sound, std::clamp(pan, -1.f, 1.f));
 }
 
-float sound::pan() const noexcept {
+float sound::pan() const {
   return ma_sound_get_pan(&_sound);
 }
 
-void sound::set_loop(bool loop) noexcept {
+void sound::set_loop(bool loop) {
   ma_sound_set_looping(&_sound, loop ? MA_TRUE : MA_FALSE);
 }
 
-bool sound::loop() const noexcept {
+bool sound::loop() const {
   return ma_sound_is_looping(&_sound) == MA_TRUE;
 }
 
-bool sound::playing() const noexcept {
+bool sound::playing() const {
   return ma_sound_is_playing(&_sound) == MA_TRUE;
 }
 
-void sound::fade(float from, float to, uint64_t ms) noexcept {
+void sound::fade(float from, float to, uint64_t ms) {
   ma_sound_set_fade_in_milliseconds(&_sound, from, to, ms);
 }
 
