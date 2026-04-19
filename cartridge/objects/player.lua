@@ -9,31 +9,31 @@ return {
 
 	animation = {
 		east = {
-			{ 1, 352, 24, 42, 100, 3, 30, 16, 14, 5, 4 },
-			{ 1, 309, 25, 41, 100, 4, 29, 16, 14, 4, 5 },
-			{ 1, 396, 24, 42, 100, 3, 30, 16, 14, 5, 4 },
-			{ 1, 440, 24, 41, 100, 3, 29, 16, 14, 5, 5 },
+			{ 1, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
+			{ 35, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
+			{ 69, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
+			{ 103, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
 		},
 		north = {
-			{ 1, 1, 26, 42, 100, 5, 30, 16, 14, 3, 4 },
-			{ 1, 45, 26, 42, 100, 5, 29, 16, 14, 3, 5 },
-			{ 1, 1, 26, 42, 100, 5, 30, 16, 14, 3, 4 },
-			{ 1, 89, 26, 42, 100, 5, 29, 16, 14, 3, 5 },
+			{ 137, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
+			{ 171, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
+			{ 137, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
+			{ 205, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
 		},
 		south = {
-			{ 1, 133, 26, 42, 100, 5, 31, 16, 14, 3, 3 },
-			{ 1, 177, 26, 42, 100, 5, 30, 16, 14, 3, 4 },
-			{ 1, 221, 26, 42, 100, 5, 31, 16, 14, 3, 3 },
-			{ 1, 265, 26, 42, 100, 5, 30, 16, 14, 3, 4 },
+			{ 239, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
+			{ 273, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
+			{ 307, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
+			{ 341, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
 		},
 		idle_east = {
-			{ 1, 352, 24, 42, 100, 3, 30, 16, 14, 5, 4 },
+			{ 1, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
 		},
 		idle_north = {
-			{ 1, 1, 26, 42, 100, 5, 30, 16, 14, 3, 4 },
+			{ 137, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
 		},
 		idle_south = {
-			{ 1, 133, 26, 42, 100, 5, 31, 16, 14, 3, 3 },
+			{ 239, 1, 32, 48, 100, 8, 34, 16, 14, 0, 0 },
 		},
 	},
 
@@ -43,49 +43,29 @@ return {
 	end,
 
 	on_loop = function(self, delta)
-		local vx = 0
-		local vy = 0
-
-		if controls.left then
-			vx = vx - speed
-		end
-		if controls.right then
-			vx = vx + speed
-		end
-		if controls.up then
-			vy = vy - speed
-		end
-		if controls.down then
-			vy = vy + speed
-		end
+		local vx = (controls.right and speed or 0) - (controls.left and speed or 0)
+		local vy = (controls.down and speed or 0) - (controls.up and speed or 0)
 
 		if vx ~= 0 and vy ~= 0 then
 			local im = speed / sqrt(vx * vx + vy * vy)
-			vx = vx * im
-			vy = vy * im
+			vx, vy = vx * im, vy * im
 		end
 
-		if vx < 0 then
-			self.flip = flip.horizontal
-		elseif vx > 0 then
-			self.flip = flip.none
+		if vx ~= 0 then
+			self.flip = vx < 0 and flip.horizontal or flip.none
 		end
 
 		if vy > 0 then
 			facing = "south"
-			self.animation = "south"
 		elseif vy < 0 then
 			facing = "north"
-			self.animation = "north"
 		elseif vx ~= 0 then
 			facing = "east"
-			self.animation = "east"
-		else
-			self.animation = "idle_" .. facing
 		end
 
-		self.velocity_x = vx
-		self.velocity_y = vy
+		self.animation = (vx ~= 0 or vy ~= 0) and facing or ("idle_" .. facing)
+
+		self.velocity_x, self.velocity_y = vx, vy
 	end,
 
 	on_damage = function(self)
