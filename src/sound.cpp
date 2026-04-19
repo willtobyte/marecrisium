@@ -157,10 +157,7 @@ sound::sound(std::string_view filename) {
     if (read == OP_HOLE)
       continue;
 
-    if (read < 0) [[unlikely]] {
-      assert(read >= 0 && "[op_read_float] failed to decode");
-      break;
-    }
+    assert(read >= 0 && "[op_read_float] failed to decode");
 
     if (read == 0)
       break;
