@@ -156,7 +156,7 @@ static int traceback(lua_State *state) {
 }
 
 void binding::wire() {
-  lua_atpanic(L, [](lua_State *state) -> int {
+  lua_atpanic(L, +[](lua_State *state) -> int {
     die(state);
     std::unreachable();
   });
