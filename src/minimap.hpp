@@ -38,7 +38,7 @@ private:
   struct snapshot final {
     int32_t cx{std::numeric_limits<int32_t>::min()};
     int32_t cy{std::numeric_limits<int32_t>::min()};
-    size_t count{};
+    uint64_t digest{};
 
     constexpr auto operator<=>(const snapshot&) const = default;
   };

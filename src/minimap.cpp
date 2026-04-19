@@ -84,7 +84,16 @@ void minimap::draw() {
     SIZE, SIZE
   };
 
-  const snapshot current{cx, cy, _positions.size()};
+  uint64_t digest = 0;
+  for (const auto& [x, y] : _positions) {
+    const auto ex = static_cast<int32_t>(x / ts);
+    const auto ey = static_cast<int32_t>(y / ts);
+    const auto packed = (static_cast<uint64_t>(static_cast<uint32_t>(ex)) << 32)
+                      |  static_cast<uint64_t>(static_cast<uint32_t>(ey));
+    digest = (digest << 6) + (digest >> 2) + packed + 0x9e3779b97f4a7c15ull;
+  }
+
+  const snapshot current{cx, cy, digest};
 
   if (current == std::exchange(_previous, current)) [[likely]] {
     SDL_RenderTexture(renderer, _texture.get(), nullptr, &target);
