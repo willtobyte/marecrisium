@@ -35,8 +35,6 @@ struct frame final {
   float bound_y{};
   float bound_width{};
   float bound_height{};
-  float offset_x{};
-  float offset_y{};
   float u0{};
   float v0{};
   float u1{};
@@ -99,8 +97,8 @@ inline bool anchored(const body& b) {
 }
 
 inline b2Vec2 center_of(const body& b, const transform& tf, const frame* fr = nullptr) {
-  const auto ox = fr ? fr->offset_x + fr->bound_x : .0f;
-  const auto oy = fr ? fr->offset_y + fr->bound_y : .0f;
+  const auto ox = fr ? fr->bound_x : .0f;
+  const auto oy = fr ? fr->bound_y : .0f;
   return {tf.x + ox + b.extent_x, tf.y + oy + b.extent_y};
 }
 

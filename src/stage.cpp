@@ -702,8 +702,8 @@ void stage::update(float delta) {
       auto& tf = _registry.get<transform>(entity);
       const auto& frame = an->sheet->frames[an->sheet->clips[an->active].offset + an->current];
       const auto position = event.transform.p;
-      tf.x = position.x - frame.offset_x - frame.bound_x - b->extent_x;
-      tf.y = position.y - frame.offset_y - frame.bound_y - b->extent_y;
+      tf.x = position.x - frame.bound_x - b->extent_x;
+      tf.y = position.y - frame.bound_y - b->extent_y;
 
       auto &r = _registry.get<renderable>(entity);
       const auto z = static_cast<int>(tf.y + frame.height * tf.scale);
@@ -893,8 +893,8 @@ void stage::draw() {
 
     const auto dw = fr.width * tf.scale;
     const auto dh = fr.height * tf.scale;
-    const auto px = rx + fr.offset_x - viewport.x;
-    const auto py = ry + fr.offset_y - viewport.y;
+    const auto px = rx - viewport.x;
+    const auto py = ry - viewport.y;
 
     if (px + dw < .0f || px > viewport.width ||
         py + dh < .0f || py > viewport.height)
