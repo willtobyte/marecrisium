@@ -38,8 +38,8 @@ return {
 	},
 
 	on_spawn = function(self)
-		self.x = 0
-		self.y = 0
+		self.x = 20
+		self.y = 20
 	end,
 
 	on_loop = function(self, delta)
