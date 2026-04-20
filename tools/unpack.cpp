@@ -10,9 +10,9 @@
 #include <zstd.h>
 
 namespace {
-constexpr uint8_t FLAG_DIRECTORY = 1;
-constexpr size_t HEADER_SIZE = 24;
-constexpr size_t METADATA_SIZE = 25;
+constexpr uint8_t DIRECTORY = 1;
+constexpr size_t HEADER = 24;
+constexpr size_t METADATA = 25;
 
 template <std::integral T>
 T read(const uint8_t *p) {
@@ -24,21 +24,21 @@ T read(const uint8_t *p) {
 
 int main() {
   std::ifstream input("cartridge.rom", std::ios::binary | std::ios::ate);
-  const auto file_size = static_cast<size_t>(input.tellg());
+  const auto size = static_cast<size_t>(input.tellg());
   input.seekg(0);
-  std::vector<uint8_t> rom(file_size);
-  input.read(reinterpret_cast<char *>(rom.data()), static_cast<std::streamsize>(file_size));
+  std::vector<uint8_t> rom(size);
+  input.read(reinterpret_cast<char *>(rom.data()), static_cast<std::streamsize>(size));
 
   const auto count = read<uint32_t>(rom.data() + 8);
-  const auto directory_bytes = read<uint64_t>(rom.data() + 12);
-  const auto dictionary_bytes = read<uint32_t>(rom.data() + 20);
+  const auto directories = read<uint64_t>(rom.data() + 12);
+  const auto footprint = read<uint32_t>(rom.data() + 20);
 
-  std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)> dctx(ZSTD_createDCtx(), ZSTD_freeDCtx);
-  std::unique_ptr<ZSTD_DDict, decltype(&ZSTD_freeDDict)> ddict(
-    ZSTD_createDDict(rom.data() + HEADER_SIZE, dictionary_bytes), ZSTD_freeDDict);
+  std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)> context(ZSTD_createDCtx(), ZSTD_freeDCtx);
+  std::unique_ptr<ZSTD_DDict, decltype(&ZSTD_freeDDict)> decompressor(
+    ZSTD_createDDict(rom.data() + HEADER, footprint), ZSTD_freeDDict);
 
   const std::filesystem::path root = "cartridge";
-  const auto *cursor = rom.data() + HEADER_SIZE + dictionary_bytes;
+  const auto *cursor = rom.data() + HEADER + footprint;
   std::vector<uint8_t> decompressed;
 
   for (uint32_t i = 0; i < count; ++i) {
@@ -47,7 +47,7 @@ int main() {
 
     const std::string_view path{reinterpret_cast<const char *>(cursor), length};
     const auto *metadata = cursor + length;
-    cursor += static_cast<size_t>(length) + METADATA_SIZE;
+    cursor += static_cast<size_t>(length) + METADATA;
 
     const auto offset = read<uint64_t>(metadata);
     const auto compressed = read<uint64_t>(metadata + 8);
@@ -56,7 +56,7 @@ int main() {
 
     const auto destination = root / path;
 
-    if (flags & FLAG_DIRECTORY) {
+    if (flags & DIRECTORY) {
       std::filesystem::create_directories(destination);
       continue;
     }
@@ -68,10 +68,10 @@ int main() {
 
     if (uncompressed > 0)
       ZSTD_decompress_usingDDict(
-        dctx.get(),
+        context.get(),
         decompressed.data(), static_cast<size_t>(uncompressed),
         rom.data() + offset, static_cast<size_t>(compressed),
-        ddict.get());
+        decompressor.get());
 
     std::ofstream output(destination, std::ios::binary);
     if (uncompressed > 0)
