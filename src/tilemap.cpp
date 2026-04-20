@@ -9,11 +9,11 @@ static void ingest(tilemap::layer& layer, const char* field, size_t total) {
   }
 
   layer.tiles.resize(total);
-  auto* noalias dst = layer.tiles.data();
+  auto* noalias out = layer.tiles.data();
 
   for (size_t i = 0; i < total; ++i) {
     lua_rawgeti(L, -1, static_cast<int>(i + 1));
-    dst[i] = lua_isnumber(L, -1) ? static_cast<uint32_t>(lua_tonumber(L, -1)) : 0u;
+    out[i] = lua_isnumber(L, -1) ? static_cast<uint32_t>(lua_tonumber(L, -1)) : 0u;
     lua_pop(L, 1);
   }
 
@@ -92,22 +92,19 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
     const auto w = static_cast<size_t>(_width);
     const auto h = static_cast<size_t>(_height);
 
-    std::vector<uint8_t> visited(total);
+    std::vector<bool> seen(total, false);
     const auto* noalias tiles = _collision.data();
-    auto* noalias data = visited.data();
 
     for (size_t row = 0; row < h; ++row) {
       const auto ro = row * w;
 
       for (size_t column = 0; column < w; ++column) {
         const auto index = ro + column;
-        if (tiles[index] == 0 || data[index]) [[likely]]
+        if (tiles[index] == 0 || seen[index]) [[likely]]
           continue;
 
         auto rw = size_t{1};
-        while (column + rw < w &&
-               tiles[index + rw] != 0 &&
-               !data[index + rw]) {
+        while (column + rw < w && tiles[index + rw] != 0 && !seen[index + rw]) {
           ++rw;
         }
 
@@ -117,7 +114,7 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
           auto valid = true;
 
           for (size_t dx = 0; dx < rw; ++dx) {
-            if (tiles[co + dx] == 0 || data[co + dx]) [[likely]] {
+            if (tiles[co + dx] == 0 || seen[co + dx]) [[likely]] {
               valid = false;
               break;
             }
@@ -130,7 +127,8 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
         }
 
         for (size_t dy = 0; dy < rh; ++dy) {
-          std::fill_n(data + (row + dy) * w + column, rw, uint8_t{1});
+          const auto base = (row + dy) * w + column;
+          for (size_t dx = 0; dx < rw; ++dx) seen[base + dx] = true;
         }
 
         const auto half  = _size * .5f;
@@ -138,10 +136,9 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
         const auto bhy = static_cast<float>(rh) * half;
 
         auto bdef = b2DefaultBodyDef();
-        bdef.type     = b2_staticBody;
-        bdef.position = {static_cast<float>(column) * _size + bhx,
-                         static_cast<float>(row)    * _size + bhy};
-        const auto sdef    = b2DefaultShapeDef();
+        bdef.type = b2_staticBody;
+        bdef.position = {static_cast<float>(column) * _size + bhx, static_cast<float>(row)    * _size + bhy};
+        const auto sdef = b2DefaultShapeDef();
         const auto polygon = b2MakeBox(bhx, bhy);
         b2CreatePolygonShape(b2CreateBody(world, &bdef), &sdef, &polygon);
       }

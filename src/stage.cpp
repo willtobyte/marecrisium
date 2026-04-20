@@ -43,8 +43,6 @@ static color unpack(lua_State *state, int index) {
   return {r, g, b};
 }
 
-
-
 static bool culled(const transform &tf, const animation &an, float margin) {
   const auto &fr = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
   const auto width  = fr.width * tf.scale;
@@ -269,6 +267,7 @@ stage::stage(std::string name)
   const auto filename = std::format("stages/{}.lua", _name);
   const auto buffer = io::read(filename);
   const auto chunk = std::format("@{}", filename);
+
   compile(L, buffer, chunk);
 
   lua_newtable(L);
@@ -339,11 +338,11 @@ stage::stage(std::string name)
       lua_rawgeti(L, -1, i);
 
       lua_getfield(L, -1, "name");
-      std::string label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      const std::string label{lua_isstring(L, -1) ? lua_tostring(L, -1) : ""};
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "kind");
-      std::string kind = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      const std::string kind{lua_isstring(L, -1) ? lua_tostring(L, -1) : ""};
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "x");
@@ -376,15 +375,15 @@ stage::stage(std::string name)
       }
 
       lua_getfield(L, -1, "name");
-      std::string label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      const std::string label{lua_isstring(L, -1) ? lua_tostring(L, -1) : ""};
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "loop");
       const auto loop = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : false;
       lua_pop(L, 1);
 
-      auto *instance = depot->sound.get(std::format("sounds/{}", label));
-
+      const auto key = std::format("sounds/{}", label);
+      auto *instance = depot->sound.get(key);
       auto **memory = static_cast<class sound **>(lua_newuserdata(L, sizeof(class sound *)));
       *memory = instance;
       luaL_getmetatable(L, "Sound");
@@ -392,7 +391,7 @@ stage::stage(std::string name)
 
       lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
       lua_pushvalue(L, -2);
-      lua_setfield(L, -2, label.data());
+      lua_setfield(L, -2, label.c_str());
       lua_pop(L, 1);
 
       _sounds.emplace_back(instance);
@@ -473,11 +472,11 @@ stage::stage(std::string name)
       lua_rawgeti(L, -1, i);
 
       lua_getfield(L, -1, "name");
-      std::string label = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      const std::string label{lua_isstring(L, -1) ? lua_tostring(L, -1) : ""};
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "kind");
-      std::string kind = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+      const std::string kind{lua_isstring(L, -1) ? lua_tostring(L, -1) : ""};
       lua_pop(L, 1);
 
       lua_getfield(L, -1, "x");
@@ -503,7 +502,7 @@ stage::stage(std::string name)
 
       lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
       lua_pushvalue(L, -2);
-      lua_setfield(L, -2, label.data());
+      lua_setfield(L, -2, label.c_str());
       lua_pop(L, 1);
 
       lua_pop(L, 1);

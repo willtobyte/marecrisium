@@ -91,7 +91,7 @@ PHYSFS_Io *make_io(const uint8_t *data, size_t size) {
   };
 }
 
-constexpr auto MAX_ENTRIES = 4096uz;
+constexpr auto FUZZ_MAX_ENTRIES = 4096uz;
 
 PHYSFS_EnumerateCallbackResult enumerate_callback(void *, const char *, const char *) {
   return PHYSFS_ENUM_OK;
@@ -109,7 +109,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   uint32_t count;
   std::memcpy(&count, data + 8, sizeof(count));
-  if (count > MAX_ENTRIES)
+  if (count > FUZZ_MAX_ENTRIES)
     return 0;
 
   auto *io = make_io(data, size);
@@ -125,21 +125,89 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   auto *arc = static_cast<archive *>(opaque);
 
+  // collect path strings up-front so we have null-terminated views
+  // and can drive operations even after destroying entries indirectly.
+  std::vector<std::string> names;
+  std::vector<bool> is_dir;
+  names.reserve(arc->entries.size());
+  is_dir.reserve(arc->entries.size());
   for (const auto &item : arc->entries) {
-    PHYSFS_Stat stat;
-    crom_stat(opaque, item.path.c_str(), &stat);
-
-    if (!(item.flags & FLAG_DIRECTORY)) {
-      auto *file = crom_open_read(opaque, item.path.c_str());
-      if (file) [[likely]] {
-        uint8_t buffer[256];
-        file->read(file, buffer, sizeof(buffer));
-        file->destroy(file);
-      }
-    }
+    names.emplace_back(item.path);
+    is_dir.push_back((item.flags & FLAG_DIRECTORY) != 0);
   }
 
+  // 1. stat every entry
+  for (const auto &name : names) {
+    PHYSFS_Stat stat;
+    crom_stat(opaque, name.c_str(), &stat);
+  }
+
+  // 2. stat with absent / adversarial names
+  static constexpr const char *bogus[] = {
+    "", "/", "..", "../etc/passwd", "nonexistent.bin",
+    "a/b/c/d/e/f/g", "////", "\x01\x02\x03",
+  };
+  for (auto *b : bogus) {
+    PHYSFS_Stat stat;
+    crom_stat(opaque, b, &stat);
+    auto *file = crom_open_read(opaque, b);
+    if (file) [[unlikely]]
+      file->destroy(file);
+  }
+
+  // 3. open + exercise file API on every regular entry
+  for (size_t i = 0; i < names.size(); ++i) {
+    if (is_dir[i])
+      continue;
+
+    auto *file = crom_open_read(opaque, names[i].c_str());
+    if (!file)
+      continue;
+
+    const auto length = file->length(file);
+    (void)file->tell(file);
+
+    // small sequential read
+    uint8_t buffer[256];
+    file->read(file, buffer, sizeof(buffer));
+
+    // seek + read at multiple offsets derived from data
+    if (length > 0) {
+      const auto half = static_cast<PHYSFS_uint64>(length) / 2;
+      file->seek(file, half);
+      file->read(file, buffer, sizeof(buffer));
+
+      // edge: seek to length (valid), past length (invalid)
+      file->seek(file, static_cast<PHYSFS_uint64>(length));
+      file->seek(file, static_cast<PHYSFS_uint64>(length) + 1);
+    }
+
+    // exercise duplicate
+    if (auto *dup = file->duplicate(file)) {
+      dup->seek(dup, 0);
+      dup->read(dup, buffer, sizeof(buffer));
+      dup->destroy(dup);
+    }
+
+    file->flush(file);
+    file->destroy(file);
+  }
+
+  // 4. enumerate root and a few synthetic dirs
   crom_enumerate(opaque, "", enumerate_callback, "", nullptr);
+  crom_enumerate(opaque, "/", enumerate_callback, "", nullptr);
+  crom_enumerate(opaque, "missing", enumerate_callback, "", nullptr);
+  for (const auto &name : names) {
+    if (name.size() > 256) continue;
+    crom_enumerate(opaque, name.c_str(), enumerate_callback, "", nullptr);
+  }
+
+  // 5. read-only API surface
+  (void)crom_open_write(opaque, "x");
+  (void)crom_open_append(opaque, "x");
+  (void)crom_remove(opaque, "x");
+  (void)crom_mkdir(opaque, "x");
+
   crom_close_archive(opaque);
 
   return 0;
