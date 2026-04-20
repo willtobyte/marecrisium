@@ -49,7 +49,12 @@ class LuajitConan(ConanFile):
 
     def generate(self):
         if is_msvc(self):
-            MSBuildToolchain(self).generate()
+            tc = MSBuildToolchain(self)
+            # MSVC uses SEH (table-based on x64) so C++ exceptions already
+            # traverse LuaJIT frames; define LUAJIT_UNWIND_EXTERNAL anyway to
+            # keep parity with the Autotools branch and document intent.
+            tc.preprocessor_definitions["LUAJIT_UNWIND_EXTERNAL"] = ""
+            tc.generate()
             VCVars(self).generate()
         else:
             tc = AutotoolsToolchain(self)
