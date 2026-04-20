@@ -1,9 +1,11 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <cstdio>
 #include <filesystem>
+#include <format>
 #include <fstream>
-#include <print>
+#include <iostream>
 #include <span>
 #include <string>
 #include <thread>
@@ -48,7 +50,7 @@ void put(std::vector<uint8_t> &output, std::span<const uint8_t> bytes) {
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    std::println(stderr, "usage: pack <dir>");
+    std::fputs("usage: pack <dir>\n", stderr);
     return 1;
   }
 
@@ -150,7 +152,7 @@ int main(int argc, char **argv) {
   std::ofstream output("cartridge.rom", std::ios::binary);
   output.write(reinterpret_cast<const char *>(blob.data()), static_cast<std::streamsize>(blob.size()));
 
-  std::println("created cartridge.rom ({} entries, {} bytes)", records.size(), blob.size());
+  std::cout << std::format("created cartridge.rom ({} entries, {} bytes)\n", records.size(), blob.size());
 
   return 0;
 }
