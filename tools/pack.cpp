@@ -1,16 +1,16 @@
 #include <algorithm>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <memory>
 #include <string>
 #include <vector>
 
-#include <zdict.h>
 #include <zstd.h>
+
+#define ZDICT_STATIC_LINKING_ONLY
+#include <zdict.h>
 
 namespace {
 constexpr uint32_t CROM_MAGIC = 0x43524F4D;
@@ -18,160 +18,112 @@ constexpr uint32_t CROM_VERSION = 1;
 constexpr uint8_t FLAG_DIRECTORY = 1;
 constexpr size_t HEADER_SIZE = 24;
 constexpr size_t METADATA_SIZE = 25;
-constexpr size_t DICTIONARY_CAPACITY = 112 * 1024;
-constexpr size_t DICTIONARY_MIN_SAMPLES = 7;
-constexpr size_t DICTIONARY_SAMPLE_CAP = 32 * 1024;
-constexpr int COMPRESSION_LEVEL = 19;
+
+constexpr size_t DICTIONARY_CAPACITIES[] = {16 * 1024, 64 * 1024, 112 * 1024};
+constexpr int COMPRESSION_LEVELS[] = {3, 9, 15, 19, 22};
 
 struct entry final {
   std::string path;
-  uint64_t blob_offset{};
-  uint64_t blob_size{};
-  uint64_t uncompressed{};
-  uint8_t flags{};
+  std::vector<uint8_t> data;
+  std::vector<uint8_t> blob;
+  bool directory{};
 };
 
 template <std::integral T>
 void put(std::vector<uint8_t> &out, T value) {
-  uint8_t buffer[sizeof(T)];
-  std::memcpy(buffer, &value, sizeof(T));
-  out.insert(out.end(), buffer, buffer + sizeof(T));
+  const auto offset = out.size();
+  out.resize(offset + sizeof(T));
+  std::memcpy(out.data() + offset, &value, sizeof(T));
 }
 }
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    std::cerr << "usage: pack <directory>\n";
-    return 1;
-  }
-
   const std::filesystem::path root = argv[1];
-  if (!std::filesystem::is_directory(root)) {
-    std::cerr << "error: " << root << " is not a directory\n";
-    return 1;
-  }
 
-  std::vector<std::filesystem::path> paths;
-  for (const auto &it : std::filesystem::recursive_directory_iterator(root))
-    paths.push_back(it.path());
-  std::ranges::sort(paths);
-
-  struct sample final {
-    std::string relative;
-    std::vector<uint8_t> data;
-    bool directory;
-  };
-
-  std::vector<sample> samples;
-  samples.reserve(paths.size());
-
-  for (const auto &path : paths) {
-    auto relative = std::filesystem::relative(path, root).generic_string();
-    if (relative == "." || relative.empty())
+  std::vector<entry> entries;
+  for (const auto &it : std::filesystem::recursive_directory_iterator(root)) {
+    auto relative = std::filesystem::relative(it.path(), root).generic_string();
+    if (relative.empty() || relative == ".")
       continue;
 
-    if (std::filesystem::is_directory(path)) {
-      samples.push_back({std::move(relative), {}, true});
+    if (it.is_directory()) {
+      entries.push_back({std::move(relative), {}, {}, true});
       continue;
     }
 
-    if (!std::filesystem::is_regular_file(path))
+    if (!it.is_regular_file())
       continue;
 
-    std::ifstream input(path, std::ios::binary);
-    if (!input) {
-      std::cerr << "error: cannot read " << path << "\n";
-      return 1;
-    }
-
-    const auto size = static_cast<size_t>(std::filesystem::file_size(path));
+    const auto size = static_cast<size_t>(std::filesystem::file_size(it.path()));
     std::vector<uint8_t> data(size);
-    if (size > 0)
+    if (size > 0) {
+      std::ifstream input(it.path(), std::ios::binary);
       input.read(reinterpret_cast<char *>(data.data()), static_cast<std::streamsize>(size));
-
-    samples.push_back({std::move(relative), std::move(data), false});
+    }
+    entries.push_back({std::move(relative), std::move(data), {}, false});
   }
+
+  std::ranges::sort(entries, {}, &entry::path);
 
   std::vector<uint8_t> training_buffer;
   std::vector<size_t> sample_sizes;
-  for (const auto &s : samples) {
-    if (s.directory || s.data.empty())
+  for (const auto &e : entries) {
+    if (e.directory || e.data.empty())
       continue;
-    const auto slice = std::min(s.data.size(), DICTIONARY_SAMPLE_CAP);
-    training_buffer.insert(training_buffer.end(), s.data.begin(), s.data.begin() + static_cast<std::ptrdiff_t>(slice));
-    sample_sizes.push_back(slice);
+    training_buffer.insert(training_buffer.end(), e.data.begin(), e.data.end());
+    sample_sizes.push_back(e.data.size());
   }
-
-  if (sample_sizes.size() < DICTIONARY_MIN_SAMPLES) {
-    std::cerr << "error: need at least " << DICTIONARY_MIN_SAMPLES
-              << " non-empty files to train a dictionary (have "
-              << sample_sizes.size() << ")\n";
-    return 1;
-  }
-
-  std::vector<uint8_t> dictionary(DICTIONARY_CAPACITY);
-  const auto trained = ZDICT_trainFromBuffer(
-    dictionary.data(), dictionary.size(),
-    training_buffer.data(),
-    sample_sizes.data(), static_cast<unsigned>(sample_sizes.size()));
-
-  if (ZDICT_isError(trained)) {
-    std::cerr << "error: dictionary training failed: " << ZDICT_getErrorName(trained) << "\n";
-    return 1;
-  }
-  dictionary.resize(trained);
-
-  training_buffer.clear();
-  training_buffer.shrink_to_fit();
 
   std::unique_ptr<ZSTD_CCtx, decltype(&ZSTD_freeCCtx)> cctx(ZSTD_createCCtx(), ZSTD_freeCCtx);
-  if (!cctx) {
-    std::cerr << "error: ZSTD_createCCtx failed\n";
-    return 1;
-  }
 
-  std::unique_ptr<ZSTD_CDict, decltype(&ZSTD_freeCDict)> cdict(
-    ZSTD_createCDict(dictionary.data(), dictionary.size(), COMPRESSION_LEVEL),
-    ZSTD_freeCDict);
-  if (!cdict) {
-    std::cerr << "error: ZSTD_createCDict failed\n";
-    return 1;
-  }
+  std::vector<uint8_t> dictionary;
+  size_t best_total = SIZE_MAX;
+  std::vector<std::vector<uint8_t>> best_blobs;
 
-  std::vector<entry> entries;
-  entries.reserve(samples.size());
-  std::vector<uint8_t> blobs;
-  std::vector<uint8_t> scratch;
+  for (const auto dict_capacity : DICTIONARY_CAPACITIES) {
+    std::vector<uint8_t> candidate_dict(dict_capacity, 0);
+    ZDICT_fastCover_params_t params = {};
+    params.nbThreads = 1;
+    params.zParams.compressionLevel = ZSTD_maxCLevel();
 
-  for (auto &s : samples) {
-    if (s.directory) {
-      entries.push_back({std::move(s.relative), 0, 0, 0, FLAG_DIRECTORY});
+    const auto trained = ZDICT_optimizeTrainFromBuffer_fastCover(
+      candidate_dict.data(), candidate_dict.size(),
+      training_buffer.data(),
+      sample_sizes.data(), static_cast<unsigned>(sample_sizes.size()),
+      &params);
+    if (ZDICT_isError(trained))
       continue;
+    candidate_dict.resize(trained);
+
+    for (const auto level : COMPRESSION_LEVELS) {
+      std::unique_ptr<ZSTD_CDict, decltype(&ZSTD_freeCDict)> cdict(
+        ZSTD_createCDict(candidate_dict.data(), candidate_dict.size(), level),
+        ZSTD_freeCDict);
+
+      std::vector<std::vector<uint8_t>> blobs;
+      blobs.reserve(entries.size());
+      size_t total = candidate_dict.size();
+      std::vector<uint8_t> scratch;
+
+      for (const auto &e : entries) {
+        if (e.directory) {
+          blobs.emplace_back();
+          continue;
+        }
+        scratch.resize(ZSTD_compressBound(e.data.size()));
+        const auto result = ZSTD_compress_usingCDict(
+          cctx.get(), scratch.data(), scratch.size(),
+          e.data.data(), e.data.size(), cdict.get());
+        blobs.emplace_back(scratch.begin(), scratch.begin() + static_cast<std::ptrdiff_t>(result));
+        total += result;
+      }
+
+      if (total < best_total) {
+        best_total = total;
+        dictionary = candidate_dict;
+        best_blobs = std::move(blobs);
+      }
     }
-
-    const auto size = s.data.size();
-    const auto bound = ZSTD_compressBound(size);
-    scratch.resize(bound);
-
-    const auto result = ZSTD_compress_usingCDict(
-      cctx.get(),
-      scratch.data(), scratch.size(),
-      s.data.data(), size,
-      cdict.get());
-
-    if (ZSTD_isError(result)) {
-      std::cerr << "error: zstd compression failed for " << s.relative << ": " << ZSTD_getErrorName(result) << "\n";
-      return 1;
-    }
-
-    entries.push_back({
-      std::move(s.relative),
-      static_cast<uint64_t>(blobs.size()),
-      static_cast<uint64_t>(result),
-      static_cast<uint64_t>(size),
-      0,
-    });
-    blobs.insert(blobs.end(), scratch.data(), scratch.data() + result);
   }
 
   uint64_t directory_bytes = 0;
@@ -182,8 +134,6 @@ int main(int argc, char **argv) {
   const uint64_t data_base = HEADER_SIZE + dictionary_bytes + directory_bytes;
 
   std::vector<uint8_t> output;
-  output.reserve(static_cast<size_t>(data_base + blobs.size()));
-
   put(output, CROM_MAGIC);
   put(output, CROM_VERSION);
   put(output, static_cast<uint32_t>(entries.size()));
@@ -191,27 +141,28 @@ int main(int argc, char **argv) {
   put(output, dictionary_bytes);
   output.insert(output.end(), dictionary.begin(), dictionary.end());
 
-  for (const auto &e : entries) {
+  uint64_t blob_offset = 0;
+  for (size_t i = 0; i < entries.size(); ++i) {
+    const auto &e = entries[i];
+    const auto &blob = best_blobs[i];
     put(output, static_cast<uint16_t>(e.path.size()));
     output.insert(output.end(), e.path.begin(), e.path.end());
-    const uint64_t absolute_offset = (e.flags & FLAG_DIRECTORY) ? 0 : data_base + e.blob_offset;
+    const uint64_t absolute_offset = e.directory ? 0 : data_base + blob_offset;
     put(output, absolute_offset);
-    put(output, e.blob_size);
-    put(output, e.uncompressed);
-    output.push_back(e.flags);
+    put(output, static_cast<uint64_t>(blob.size()));
+    put(output, static_cast<uint64_t>(e.data.size()));
+    output.push_back(e.directory ? FLAG_DIRECTORY : 0);
+    blob_offset += blob.size();
   }
 
-  output.insert(output.end(), blobs.begin(), blobs.end());
+  for (const auto &blob : best_blobs)
+    output.insert(output.end(), blob.begin(), blob.end());
 
   std::ofstream out("cartridge.rom", std::ios::binary);
-  if (!out) {
-    std::cerr << "error: cannot create cartridge.rom\n";
-    return 1;
-  }
   out.write(reinterpret_cast<const char *>(output.data()), static_cast<std::streamsize>(output.size()));
 
   std::cout << "created cartridge.rom (" << entries.size() << " entries, "
-            << output.size() << " bytes, dictionary=" << dictionary_bytes << "B)\n";
+            << output.size() << " bytes)\n";
 
   return 0;
 }

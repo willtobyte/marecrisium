@@ -42,6 +42,7 @@ using namespace entt::literals;
 #include <spng.h>
 #include <sqlite3.h>
 #include <yyjson.h>
+#define ZDICT_STATIC_LINKING_ONLY
 #include <zstd.h>
 
 #ifdef _MSC_VER
