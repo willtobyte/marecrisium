@@ -84,10 +84,14 @@ engine::engine() {
     const std::string dsn = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
     lua_pop(L, 1);
 
+    std::string version;
+    std::getline(std::ifstream{"VERSION"}, version);
+
     auto *const options = sentry_options_new();
     sentry_options_set_dsn(options, dsn.data());
     sentry_options_set_database_path(options, ".sentry");
     sentry_options_set_sample_rate(options, 1.);
+    sentry_options_set_release(options, version.c_str());
 
     sentry_options_add_attachment(options, "cassette.tape");
     sentry_options_add_attachment(options, "stdout.txt");

@@ -151,6 +151,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Compute VERSION
+        run: echo "VERSION=${{ github.ref_name }}+$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
       - name: Download macOS build
         uses: actions/download-artifact@v8
         with:
@@ -196,6 +199,7 @@ jobs:
           mkdir -p output/{content,macos,windows}
 
           cp cartridge.rom output/content/
+          echo "$VERSION" > output/content/VERSION
 
           cp macos-build/carimbo output/macos/
           cp macos-build/LICENSES output/macos/
@@ -230,10 +234,10 @@ jobs:
 
       - name: Create Sentry release
         run: |
-          npx @sentry/cli releases new "${{ github.ref_name }}"
-          npx @sentry/cli releases set-commits "${{ github.ref_name }}" --auto
-          npx @sentry/cli releases deploys "${{ github.ref_name }}" new -e production
-          npx @sentry/cli releases finalize "${{ github.ref_name }}"
+          npx @sentry/cli releases new "$VERSION"
+          npx @sentry/cli releases set-commits "$VERSION" --auto
+          npx @sentry/cli releases deploys "$VERSION" new -e production
+          npx @sentry/cli releases finalize "$VERSION"
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: willtobyte
