@@ -9,10 +9,11 @@ class Carimbo(ConanFile):
     def requirements(self):
         for package in [
             "box2d/3.1.1",
+            "enet/1.3.18",
             "entt/3.16.0",
-            "grpc/1.78.1",
             "miniaudio/0.11.22",
             "physfs/3.2.0",
+            "protobuf/6.33.5",
             "libspng/0.7.4",
             "sdl/3.4.0",
             "sentry-native/0.12.6",

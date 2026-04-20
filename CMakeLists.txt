@@ -31,9 +31,10 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 find_package(box2d CONFIG REQUIRED)
+find_package(enet CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
-# find_package(gRPC CONFIG REQUIRED)
 find_package(PhysFS CONFIG REQUIRED)
+find_package(protobuf CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(sentry CONFIG REQUIRED)
 find_package(SPNG CONFIG REQUIRED)
@@ -47,9 +48,10 @@ find_package(zstd CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
   box2d::box2d
+  enet::enet
   EnTT::EnTT
-  # gRPC::grpc++
   physfs-static
+  protobuf::libprotobuf
   SDL3::SDL3-static
   sentry-native::sentry-native
   spng::spng_static
