@@ -47,9 +47,6 @@ jobs:
           !cmake/*: cmake/[>=3 <4]
           EOF
 
-      - name: Export local recipes
-        run: conan export recipes/luajit --version=2.1-20260330
-
       - name: Cache Conan packages
         uses: actions/cache@v5
         with:
@@ -57,6 +54,9 @@ jobs:
           key: conan-${{ runner.os }}-${{ hashFiles('conanfile.py', 'recipes/**') }}
           restore-keys: |
             conan-${{ runner.os }}-
+
+      - name: Export local recipes
+        run: conan export recipes/luajit --version=2.1-20260330
 
       - name: Install dependencies
         run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release
