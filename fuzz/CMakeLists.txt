@@ -13,7 +13,7 @@ find_package(PhysFS CONFIG REQUIRED)
 find_package(zstd CONFIG REQUIRED)
 find_package(unordered_dense CONFIG REQUIRED)
 
-add_executable(fuzzer cartridge.cpp)
+add_executable(fuzzer harness.cpp)
 target_include_directories(fuzzer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 target_link_libraries(fuzzer PRIVATE
   physfs-static

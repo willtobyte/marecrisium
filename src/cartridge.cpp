@@ -4,10 +4,14 @@ namespace {
 using namespace std::string_view_literals;
 
 constexpr uint32_t CROM_MAGIC = 0x43524F4D;
-constexpr uint32_t CROM_VERSION = 1;
+constexpr uint32_t CROM_VERSION = 2;
 constexpr uint8_t FLAG_DIRECTORY = 1;
 constexpr uint64_t MAX_UNCOMPRESSED = 64 * 1024 * 1024;
 constexpr uint32_t MAX_ENTRIES = 1u << 20;
+constexpr uint64_t MAX_DIRECTORY_BYTES = 256 * 1024 * 1024;
+constexpr uint32_t MAX_DICTIONARY_BYTES = 16 * 1024 * 1024;
+constexpr size_t HEADER_SIZE = 24;
+constexpr size_t METADATA_SIZE = 25;
 
 struct entry final {
   std::string_view path;
@@ -20,14 +24,17 @@ struct entry final {
 struct archive final {
   PHYSFS_Io *io{nullptr};
   ZSTD_DCtx *dctx{nullptr};
+  ZSTD_DDict *ddict{nullptr};
   PHYSFS_uint64 bytes{0};
   std::vector<char> paths;
-  std::vector<uint8_t> chunk;
+  std::vector<uint8_t> compressed;
   std::vector<entry> entries;
   ankerl::unordered_dense::map<std::string_view, size_t> index;
   ankerl::unordered_dense::map<std::string_view, std::vector<const char *>> children;
 
   ~archive() {
+    if (ddict)
+      ZSTD_freeDDict(ddict);
     if (dctx)
       ZSTD_freeDCtx(dctx);
   }
@@ -49,12 +56,12 @@ template <std::integral T>
 [[nodiscard]] bool drain(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) noexcept {
   auto *destination = static_cast<uint8_t *>(buffer);
   while (length > 0) {
-    const auto read = io->read(io, destination, length);
-    if (read <= 0) [[unlikely]]
+    const auto got = io->read(io, destination, length);
+    if (got <= 0) [[unlikely]]
       return false;
 
-    destination += read;
-    length -= static_cast<PHYSFS_uint64>(read);
+    destination += got;
+    length -= static_cast<PHYSFS_uint64>(got);
   }
 
   return true;
@@ -89,22 +96,19 @@ int file_seek(PHYSFS_Io *io, PHYSFS_uint64 offset) {
 }
 
 PHYSFS_sint64 file_tell(PHYSFS_Io *io) {
-  auto *reader = static_cast<handle *>(io->opaque);
-  return static_cast<PHYSFS_sint64>(reader->position);
+  return static_cast<PHYSFS_sint64>(static_cast<handle *>(io->opaque)->position);
 }
 
 PHYSFS_sint64 file_length(PHYSFS_Io *io) {
-  auto *reader = static_cast<handle *>(io->opaque);
-  return static_cast<PHYSFS_sint64>(reader->size);
+  return static_cast<PHYSFS_sint64>(static_cast<handle *>(io->opaque)->size);
 }
 
 PHYSFS_Io *file_duplicate(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
-  auto copy = std::make_unique<handle>(reader->data, reader->size, uint64_t{0});
-  auto clone = std::make_unique<PHYSFS_Io>(*io);
-
-  clone->opaque = copy.release();
-  return clone.release();
+  auto *copy = new handle{reader->data, reader->size, uint64_t{0}};
+  auto *clone = new PHYSFS_Io(*io);
+  clone->opaque = copy;
+  return clone;
 }
 
 int file_flush(PHYSFS_Io *) {
@@ -117,98 +121,99 @@ void file_destroy(PHYSFS_Io *io) {
 }
 
 void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
-  uint8_t header[12];
+  uint8_t header[HEADER_SIZE];
   if (!io->seek(io, 0) || !drain(io, header, sizeof(header))) [[unlikely]]
     return nullptr;
 
-  const auto magic = read<uint32_t>(header);
-  if (magic != CROM_MAGIC)
+  if (read<uint32_t>(header) != CROM_MAGIC)
     return nullptr;
 
   *claimed = 1;
 
-  const auto version = read<uint32_t>(header + 4);
-  if (version != CROM_VERSION) [[unlikely]] {
+  const auto fail = [&](PHYSFS_ErrorCode code) {
     io->destroy(io);
-    PHYSFS_setErrorCode(PHYSFS_ERR_UNSUPPORTED);
+    PHYSFS_setErrorCode(code);
+    return nullptr;
+  };
+
+  if (read<uint32_t>(header + 4) != CROM_VERSION) [[unlikely]]
+    return fail(PHYSFS_ERR_UNSUPPORTED);
+
+  const auto count = read<uint32_t>(header + 8);
+  const auto directory_bytes = read<uint64_t>(header + 12);
+  const auto dictionary_bytes = read<uint32_t>(header + 20);
+  if (count > MAX_ENTRIES || directory_bytes > MAX_DIRECTORY_BYTES || dictionary_bytes > MAX_DICTIONARY_BYTES) [[unlikely]]
+    return fail(PHYSFS_ERR_CORRUPT);
+
+  std::vector<uint8_t> dictionary(dictionary_bytes);
+  if (dictionary_bytes > 0 && !drain(io, dictionary.data(), dictionary_bytes)) [[unlikely]] {
+    io->destroy(io);
     return nullptr;
   }
 
-  const auto count = read<uint32_t>(header + 8);
-  if (count > MAX_ENTRIES) [[unlikely]] {
+  std::vector<uint8_t> toc(static_cast<size_t>(directory_bytes));
+  if (directory_bytes > 0 && !drain(io, toc.data(), directory_bytes)) [[unlikely]] {
     io->destroy(io);
-    PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
     return nullptr;
   }
 
   auto arc = std::make_unique<archive>();
   arc->io = io;
   arc->dctx = ZSTD_createDCtx();
-  arc->index.reserve(count);
+  if (dictionary_bytes > 0)
+    arc->ddict = ZSTD_createDDict(dictionary.data(), dictionary_bytes);
   arc->entries.reserve(count);
+  arc->index.reserve(count);
+  arc->paths.reserve(static_cast<size_t>(directory_bytes));
 
-  struct pending final {
-    uint32_t path_offset;
-    uint16_t path_length;
-    uint64_t offset;
-    uint64_t compressed;
-    uint64_t uncompressed;
-    uint8_t flags;
+  struct slot final {
+    uint32_t offset;
+    uint16_t length;
   };
+  std::vector<slot> slots;
+  slots.reserve(count);
 
-  std::vector<pending> staging;
-  staging.reserve(count);
-  arc->paths.reserve(static_cast<size_t>(count) * 25);
+  const auto *cursor = toc.data();
+  const auto *end = cursor + toc.size();
 
-  std::vector<uint8_t> buffer;
   for (uint32_t i = 0; i < count; ++i) {
-    uint8_t preamble[2];
-    if (!drain(io, preamble, 2)) [[unlikely]] {
-      io->destroy(io);
-      return nullptr;
-    }
+    if (static_cast<size_t>(end - cursor) < 2u) [[unlikely]]
+      return fail(PHYSFS_ERR_CORRUPT);
 
-    const auto length = read<uint16_t>(preamble);
-    if (length == 0) [[unlikely]] {
-      io->destroy(io);
-      PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
-      return nullptr;
-    }
+    const auto length = read<uint16_t>(cursor);
+    cursor += 2;
 
-    const auto size = static_cast<size_t>(length) + 25;
-    buffer.resize(size);
-    if (!drain(io, buffer.data(), size)) [[unlikely]] {
-      io->destroy(io);
-      return nullptr;
-    }
+    if (length == 0 || static_cast<size_t>(end - cursor) < static_cast<size_t>(length) + METADATA_SIZE) [[unlikely]]
+      return fail(PHYSFS_ERR_CORRUPT);
 
-    const auto *metadata = buffer.data() + length;
-    const auto path_offset = static_cast<uint32_t>(arc->paths.size());
-    arc->paths.insert(arc->paths.end(), buffer.data(), buffer.data() + length);
+    slots.push_back({static_cast<uint32_t>(arc->paths.size()), length});
+    arc->paths.insert(arc->paths.end(), cursor, cursor + length);
     arc->paths.push_back('\0');
 
-    staging.push_back(pending{
-      path_offset,
-      length,
+    const auto *metadata = cursor + length;
+    arc->entries.push_back(entry{
+      {},
       read<uint64_t>(metadata),
       read<uint64_t>(metadata + 8),
       read<uint64_t>(metadata + 16),
       metadata[24],
     });
+
+    cursor += static_cast<size_t>(length) + METADATA_SIZE;
   }
 
+  // Bind path string_views now that arc->paths won't reallocate again.
   const auto *base = arc->paths.data();
   for (uint32_t i = 0; i < count; ++i) {
-    const auto &staged = staging[i];
-    const std::string_view path{base + staged.path_offset, staged.path_length};
+    auto &e = arc->entries[i];
+    e.path = std::string_view{base + slots[i].offset, slots[i].length};
 
-    arc->entries.push_back(entry{path, staged.offset, staged.compressed, staged.uncompressed, staged.flags});
-    arc->index.emplace(path, i);
+    arc->index.emplace(e.path, i);
 
-    const auto slash = path.rfind('/');
-    const auto parent = slash == std::string_view::npos ? ""sv : path.substr(0, slash);
-    const auto leaf_offset = slash == std::string_view::npos ? 0u : static_cast<uint32_t>(slash + 1);
-    arc->children[parent].emplace_back(base + staged.path_offset + leaf_offset);
+    const auto slash = e.path.rfind('/');
+    const auto parent = slash == std::string_view::npos ? ""sv : e.path.substr(0, slash);
+    const auto leaf = slash == std::string_view::npos ? 0u : slash + 1;
+    arc->children[parent].emplace_back(e.path.data() + leaf);
   }
 
   const auto total = io->length(io);
@@ -219,18 +224,15 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
 
 PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname, PHYSFS_EnumerateCallback callback, const char *origdir, void *cbdata) {
   auto *arc = static_cast<archive *>(opaque);
-  const std::string_view dir = dirname;
 
-  const auto it = arc->children.find(dir);
+  const auto it = arc->children.find(dirname);
   if (it == arc->children.end())
     return PHYSFS_ENUM_OK;
 
   for (const auto *name : it->second) {
     const auto result = callback(cbdata, origdir, name);
-    if (result == PHYSFS_ENUM_ERROR)
-      return PHYSFS_ENUM_ERROR;
-    if (result == PHYSFS_ENUM_STOP)
-      return PHYSFS_ENUM_STOP;
+    if (result != PHYSFS_ENUM_OK)
+      return result;
   }
 
   return PHYSFS_ENUM_OK;
@@ -252,67 +254,54 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     return nullptr;
   }
 
-  const auto bytes = arc->bytes;
-  if (found.offset > bytes ||
-      found.compressed > bytes - found.offset) [[unlikely]] {
+  if (found.uncompressed > MAX_UNCOMPRESSED ||
+      found.offset > arc->bytes ||
+      found.compressed > arc->bytes - found.offset) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
-    return nullptr;
-  }
-
-  if (found.uncompressed > MAX_UNCOMPRESSED) [[unlikely]] {
-    PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
-    return nullptr;
-  }
-
-  if (!arc->io->seek(arc->io, found.offset)) [[unlikely]] {
-    PHYSFS_setErrorCode(PHYSFS_ERR_IO);
     return nullptr;
   }
 
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
+  const auto compressed = static_cast<size_t>(found.compressed);
 
   auto buffer = std::make_shared_for_overwrite<uint8_t[]>(uncompressed);
 
   if (uncompressed > 0) [[likely]] {
-    ZSTD_DCtx_reset(arc->dctx, ZSTD_reset_session_only);
-
-    const auto capacity = ZSTD_DStreamInSize();
-    if (arc->chunk.size() < capacity)
-      arc->chunk.resize(capacity);
-    auto *chunk = arc->chunk.data();
-    ZSTD_outBuffer out{buffer.get(), uncompressed, 0};
-    auto remaining = static_cast<PHYSFS_uint64>(found.compressed);
-
-    while (remaining > 0) {
-      const auto want = std::min(remaining, static_cast<PHYSFS_uint64>(capacity));
-      const auto read = arc->io->read(arc->io, chunk, want);
-      if (read <= 0) [[unlikely]] {
-        PHYSFS_setErrorCode(PHYSFS_ERR_IO);
-        return nullptr;
-      }
-
-      ZSTD_inBuffer in{chunk, static_cast<size_t>(read), 0};
-      while (in.pos < in.size) {
-        const auto result = ZSTD_decompressStream(arc->dctx, &out, &in);
-        if (ZSTD_isError(result)) [[unlikely]] {
-          PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
-          return nullptr;
-        }
-      }
-
-      remaining -= static_cast<PHYSFS_uint64>(read);
+    if (!arc->io->seek(arc->io, found.offset)) [[unlikely]] {
+      PHYSFS_setErrorCode(PHYSFS_ERR_IO);
+      return nullptr;
     }
 
-    if (out.pos != uncompressed) [[unlikely]] {
+    if (arc->compressed.size() < compressed)
+      arc->compressed.resize(compressed);
+
+    if (!drain(arc->io, arc->compressed.data(), compressed)) [[unlikely]] {
+      PHYSFS_setErrorCode(PHYSFS_ERR_IO);
+      return nullptr;
+    }
+
+    const auto result = arc->ddict
+      ? ZSTD_decompress_usingDDict(
+          arc->dctx,
+          buffer.get(), uncompressed,
+          arc->compressed.data(), compressed,
+          arc->ddict)
+      : ZSTD_decompressDCtx(
+          arc->dctx,
+          buffer.get(), uncompressed,
+          arc->compressed.data(), compressed
+        );
+
+    if (ZSTD_isError(result) || result != uncompressed) [[unlikely]] {
       PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
       return nullptr;
     }
   }
 
-  auto reader = std::make_unique<handle>(std::move(buffer), uncompressed, uint64_t{0});
-  auto io_out = std::make_unique<PHYSFS_Io>(PHYSFS_Io{
+  auto *reader = new handle{std::move(buffer), uncompressed, uint64_t{0}};
+  return new PHYSFS_Io{
     .version = 0,
-    .opaque = reader.get(),
+    .opaque = reader,
     .read = file_read,
     .write = file_write,
     .seek = file_seek,
@@ -321,10 +310,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     .duplicate = file_duplicate,
     .flush = file_flush,
     .destroy = file_destroy,
-  });
-
-  reader.release();
-  return io_out.release();
+  };
 }
 
 PHYSFS_Io *crom_open_write(void *, const char *) {
@@ -349,25 +335,20 @@ int crom_mkdir(void *, const char *) {
 
 int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
   auto *arc = static_cast<archive *>(opaque);
-  const std::string_view path = name;
 
-  const auto it = arc->index.find(path);
+  const auto it = arc->index.find(name);
   if (it == arc->index.end()) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_NOT_FOUND);
     return 0;
   }
 
-  const auto &e = arc->entries[it->second];
-  const auto directory = (e.flags & FLAG_DIRECTORY) != 0;
-  stat->filesize = directory
-    ? -1
-    : static_cast<PHYSFS_sint64>(e.uncompressed);
+  const auto &entry = arc->entries[it->second];
+  const auto directory = (entry.flags & FLAG_DIRECTORY) != 0;
+  stat->filesize = directory ? -1 : static_cast<PHYSFS_sint64>(e.uncompressed);
   stat->modtime = -1;
   stat->createtime = -1;
   stat->accesstime = -1;
-  stat->filetype = directory
-    ? PHYSFS_FILETYPE_DIRECTORY
-    : PHYSFS_FILETYPE_REGULAR;
+  stat->filetype = directory ? PHYSFS_FILETYPE_DIRECTORY : PHYSFS_FILETYPE_REGULAR;
   stat->readonly = 1;
 
   return 1;

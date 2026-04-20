@@ -4,8 +4,8 @@
 Usage: python3 corpus.py <output_dir>
 
 CROM binary format (little-endian):
-  Header (12 bytes): magic(u32) + version(u32) + count(u32)
-  TOC entries (variable): length(u16) + path(bytes) + offset(u64) + compressed(u64) + uncompressed(u64) + flags(u8)
+  Header (20 bytes): magic(u32) + version(u32) + count(u32) + directory_bytes(u64)
+  TOC entries (variable, total = directory_bytes): length(u16) + path(bytes) + offset(u64) + compressed(u64) + uncompressed(u64) + flags(u8)
   File data: zstd-compressed blobs at the offsets declared in the TOC
 """
 
@@ -18,13 +18,14 @@ import zstandard
 CROM_MAGIC = 0x43524F4D
 CROM_VERSION = 1
 FLAG_DIRECTORY = 1
+HEADER_SIZE = 20
 
 
-def header(magic=CROM_MAGIC, version=CROM_VERSION, count=0):
-    return struct.pack("<III", magic, version, count)
+def header(magic=CROM_MAGIC, version=CROM_VERSION, count=0, directory_bytes=0):
+    return struct.pack("<IIIQ", magic, version, count, directory_bytes)
 
 
-def toc_entry(path, offset=0, compressed=0, uncompressed=0, flags=0):
+def record(path, offset=0, compressed=0, uncompressed=0, flags=0):
     encoded = path.encode("utf-8") if isinstance(path, str) else path
     return (
         struct.pack("<H", len(encoded))
@@ -57,7 +58,7 @@ def build_rom(entries, file_contents=None):
 
     computed = []
     ts = toc_size(entries)
-    data_offset = 12 + ts
+    data_offset = HEADER_SIZE + ts
 
     for index, (path, offset, compressed_size, uncompressed_size, flags) in enumerate(
         entries
@@ -72,9 +73,9 @@ def build_rom(entries, file_contents=None):
         computed.append((path, offset, compressed_size, uncompressed_size, flags, blob))
         data_offset += len(blob)
 
-    rom = header(count=len(entries))
+    rom = header(count=len(entries), directory_bytes=ts)
     for path, offset, compressed_size, uncompressed_size, flags, _ in computed:
-        rom += toc_entry(path, offset, compressed_size, uncompressed_size, flags)
+        rom += record(path, offset, compressed_size, uncompressed_size, flags)
     for _, _, _, _, _, blob in computed:
         rom += blob
     return rom
@@ -162,7 +163,7 @@ def generate(output):
     seeds["boundary_null_in_path"] = build_rom([])
     null_path = b"test\x00file.txt"
     seeds["boundary_null_in_path"] = (
-        header(count=1)
+        header(count=1, directory_bytes=2 + len(null_path) + 25)
         + struct.pack("<H", len(null_path))
         + null_path
         + struct.pack("<QQQB", 0, 0, 0, 0)
@@ -195,16 +196,16 @@ def generate(output):
     )
 
     # offset=0 (pointing into header)
-    seeds["size_offset_zero"] = header(count=1) + toc_entry(
-        "file.txt", offset=0, compressed=10, uncompressed=10, flags=0
-    )
+    seeds["size_offset_zero"] = header(
+        count=1, directory_bytes=toc_size([("file.txt", 0, 0, 0, 0)])
+    ) + record("file.txt", offset=0, compressed=10, uncompressed=10, flags=0)
 
     # offset pointing to exact end of file
     rom = build_rom([("eof.bin", None, None, 5, 0)], {0: compress(b"hello")})
     eof_offset = len(rom)
-    seeds["size_offset_at_eof"] = header(count=1) + toc_entry(
-        "eof.bin", offset=eof_offset, compressed=10, uncompressed=10, flags=0
-    )
+    seeds["size_offset_at_eof"] = header(
+        count=1, directory_bytes=toc_size([("eof.bin", 0, 0, 0, 0)])
+    ) + record("eof.bin", offset=eof_offset, compressed=10, uncompressed=10, flags=0)
 
     # Overlapping offsets
     raw = b"shared data payload"
@@ -215,16 +216,16 @@ def generate(output):
             ("file_b.txt", 0, 0, 0, 0),
         ]
     )
-    shared_offset = 12 + ts
-    rom = header(count=2)
-    rom += toc_entry(
+    shared_offset = HEADER_SIZE + ts
+    rom = header(count=2, directory_bytes=ts)
+    rom += record(
         "file_a.txt",
         offset=shared_offset,
         compressed=len(blob),
         uncompressed=len(raw),
         flags=0,
     )
-    rom += toc_entry(
+    rom += record(
         "file_b.txt",
         offset=shared_offset,
         compressed=len(blob),
@@ -266,20 +267,22 @@ def generate(output):
     # Wrong version (max)
     seeds["corrupt_version_max"] = header(version=0xFFFFFFFF)
 
-    # Truncated headers (0 through 11 bytes)
+    # Truncated headers (0 through HEADER_SIZE-1 bytes)
     full_header = header()
-    for length in range(12):
+    for length in range(HEADER_SIZE):
         seeds[f"corrupt_truncated_{length:02d}"] = full_header[:length]
 
     # TOC entry truncated at various points
-    full_toc = header(count=1) + toc_entry("test.txt", 0, 0, 0, 0)
+    full_toc = header(
+        count=1, directory_bytes=toc_size([("test.txt", 0, 0, 0, 0)])
+    ) + record("test.txt", 0, 0, 0, 0)
     for trim in [1, 5, 10, 15, 20, 25]:
         seeds[f"corrupt_toc_truncated_{trim:02d}"] = full_toc[:-trim]
 
     # Count larger than actual entries
-    seeds["corrupt_count_larger"] = header(count=100) + toc_entry(
-        "only.txt", 0, 0, 0, 0
-    )
+    seeds["corrupt_count_larger"] = header(
+        count=100, directory_bytes=toc_size([("only.txt", 0, 0, 0, 0)])
+    ) + record("only.txt", 0, 0, 0, 0)
 
     # Count = max uint32
     seeds["corrupt_count_max"] = header(count=0xFFFFFFFF)
@@ -297,10 +300,10 @@ def generate(output):
 
     # Random bytes where zstd data should be
     ts = toc_size([("random.bin", 0, 0, 0, 0)])
-    data_offset = 12 + ts
+    data_offset = HEADER_SIZE + ts
     garbage = bytes(range(256))[:64]
-    rom = header(count=1)
-    rom += toc_entry(
+    rom = header(count=1, directory_bytes=ts)
+    rom += record(
         "random.bin",
         offset=data_offset,
         compressed=len(garbage),
@@ -314,9 +317,9 @@ def generate(output):
     blob = compress(b"this is a longer string for compression testing purposes" * 10)
     truncated = blob[: len(blob) // 2]
     ts = toc_size([("truncated.bin", 0, 0, 0, 0)])
-    data_offset = 12 + ts
-    rom = header(count=1)
-    rom += toc_entry(
+    data_offset = HEADER_SIZE + ts
+    rom = header(count=1, directory_bytes=ts)
+    rom += record(
         "truncated.bin",
         offset=data_offset,
         compressed=len(truncated),
