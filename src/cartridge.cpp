@@ -13,6 +13,10 @@ constexpr uint32_t MAX_DICTIONARY_BYTES = 16 * 1024 * 1024;
 constexpr size_t HEADER_SIZE = 24;
 constexpr size_t METADATA_SIZE = 25;
 
+using decoder = std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)>;
+
+using decompressor = std::unique_ptr<ZSTD_DDict, decltype(&ZSTD_freeDDict)>;
+
 struct entry final {
   std::string_view path;
   uint64_t offset;
@@ -23,21 +27,14 @@ struct entry final {
 
 struct archive final {
   PHYSFS_Io *io{nullptr};
-  ZSTD_DCtx *dctx{nullptr};
-  ZSTD_DDict *ddict{nullptr};
+  decoder engine{nullptr, ZSTD_freeDCtx};
+  decompressor bundle{nullptr, ZSTD_freeDDict};
   PHYSFS_uint64 bytes{0};
   std::vector<char> paths;
   std::vector<uint8_t> compressed;
   std::vector<entry> entries;
   ankerl::unordered_dense::map<std::string_view, size_t> index;
   ankerl::unordered_dense::map<std::string_view, std::vector<const char *>> children;
-
-  ~archive() {
-    if (ddict)
-      ZSTD_freeDDict(ddict);
-    if (dctx)
-      ZSTD_freeDCtx(dctx);
-  }
 };
 
 struct handle final {
@@ -46,10 +43,10 @@ struct handle final {
   uint64_t position;
 };
 
-template <std::integral T>
-[[nodiscard]] T read(const uint8_t *p) noexcept {
-  T value;
-  std::memcpy(&value, p, sizeof(T));
+template <std::integral Integer>
+[[nodiscard]] Integer read(const uint8_t *pointer) noexcept {
+  Integer value;
+  std::memcpy(&value, pointer, sizeof(Integer));
   return value;
 }
 
@@ -158,13 +155,13 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
     return nullptr;
   }
 
-  auto arc = std::make_unique<archive>();
-  arc->io = io;
-  arc->dctx = ZSTD_createDCtx();
-  arc->ddict = ZSTD_createDDict(dictionary.data(), dictionary_bytes);
-  arc->entries.reserve(count);
-  arc->index.reserve(count);
-  arc->paths.reserve(static_cast<size_t>(directory_bytes));
+  auto cartridge = std::make_unique<archive>();
+  cartridge->io = io;
+  cartridge->engine.reset(ZSTD_createDCtx());
+  cartridge->bundle.reset(ZSTD_createDDict(dictionary.data(), dictionary_bytes));
+  cartridge->entries.reserve(count);
+  cartridge->index.reserve(count);
+  cartridge->paths.reserve(static_cast<size_t>(directory_bytes));
 
   struct slot final {
     uint32_t offset;
@@ -176,7 +173,7 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   const auto *cursor = toc.data();
   const auto *end = cursor + toc.size();
 
-  for (uint32_t i = 0; i < count; ++i) {
+  for (uint32_t index = 0; index < count; ++index) {
     if (static_cast<size_t>(end - cursor) < 2u) [[unlikely]]
       return fail(PHYSFS_ERR_CORRUPT);
 
@@ -186,12 +183,12 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
     if (length == 0 || static_cast<size_t>(end - cursor) < static_cast<size_t>(length) + METADATA_SIZE) [[unlikely]]
       return fail(PHYSFS_ERR_CORRUPT);
 
-    slots.push_back({static_cast<uint32_t>(arc->paths.size()), length});
-    arc->paths.insert(arc->paths.end(), cursor, cursor + length);
-    arc->paths.push_back('\0');
+    slots.emplace_back(static_cast<uint32_t>(cartridge->paths.size()), length);
+    cartridge->paths.insert(cartridge->paths.end(), cursor, cursor + length);
+    cartridge->paths.emplace_back('\0');
 
     const auto *metadata = cursor + length;
-    arc->entries.push_back(entry{
+    cartridge->entries.emplace_back(entry{
       {},
       read<uint64_t>(metadata),
       read<uint64_t>(metadata + 8),
@@ -202,31 +199,31 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
     cursor += static_cast<size_t>(length) + METADATA_SIZE;
   }
 
-  // Bind path string_views now that arc->paths won't reallocate again.
-  const auto *base = arc->paths.data();
-  for (uint32_t i = 0; i < count; ++i) {
-    auto &e = arc->entries[i];
-    e.path = std::string_view{base + slots[i].offset, slots[i].length};
+  // Bind path string_views now that cartridge->paths won't reallocate again.
+  const auto *base = cartridge->paths.data();
+  for (uint32_t index = 0; index < count; ++index) {
+    auto &current = cartridge->entries[index];
+    current.path = std::string_view{base + slots[index].offset, slots[index].length};
 
-    arc->index.emplace(e.path, i);
+    cartridge->index.emplace(current.path, index);
 
-    const auto slash = e.path.rfind('/');
-    const auto parent = slash == std::string_view::npos ? ""sv : e.path.substr(0, slash);
+    const auto slash = current.path.rfind('/');
+    const auto parent = slash == std::string_view::npos ? ""sv : current.path.substr(0, slash);
     const auto leaf = slash == std::string_view::npos ? 0u : slash + 1;
-    arc->children[parent].emplace_back(e.path.data() + leaf);
+    cartridge->children[parent].emplace_back(current.path.data() + leaf);
   }
 
   const auto total = io->length(io);
-  arc->bytes = total < 0 ? 0 : static_cast<PHYSFS_uint64>(total);
+  cartridge->bytes = total < 0 ? 0 : static_cast<PHYSFS_uint64>(total);
 
-  return arc.release();
+  return cartridge.release();
 }
 
 PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname, PHYSFS_EnumerateCallback callback, const char *origdir, void *cbdata) {
-  auto *arc = static_cast<archive *>(opaque);
+  auto *cartridge = static_cast<archive *>(opaque);
 
-  const auto it = arc->children.find(dirname);
-  if (it == arc->children.end())
+  const auto it = cartridge->children.find(dirname);
+  if (it == cartridge->children.end())
     return PHYSFS_ENUM_OK;
 
   for (const auto *name : it->second) {
@@ -239,15 +236,15 @@ PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname,
 }
 
 PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
-  auto *arc = static_cast<archive *>(opaque);
+  auto *cartridge = static_cast<archive *>(opaque);
 
-  const auto it = arc->index.find(name);
-  if (it == arc->index.end()) [[unlikely]] {
+  const auto it = cartridge->index.find(name);
+  if (it == cartridge->index.end()) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_NOT_FOUND);
     return nullptr;
   }
 
-  const auto &found = arc->entries[it->second];
+  const auto &found = cartridge->entries[it->second];
 
   if (found.flags & FLAG_DIRECTORY) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_NOT_A_FILE);
@@ -255,8 +252,8 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   }
 
   if (found.uncompressed > MAX_UNCOMPRESSED ||
-      found.offset > arc->bytes ||
-      found.compressed > arc->bytes - found.offset) [[unlikely]] {
+      found.offset > cartridge->bytes ||
+      found.compressed > cartridge->bytes - found.offset) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
     return nullptr;
   }
@@ -267,24 +264,24 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   auto buffer = std::make_shared_for_overwrite<uint8_t[]>(uncompressed);
 
   if (uncompressed > 0) [[likely]] {
-    if (!arc->io->seek(arc->io, found.offset)) [[unlikely]] {
+    if (!cartridge->io->seek(cartridge->io, found.offset)) [[unlikely]] {
       PHYSFS_setErrorCode(PHYSFS_ERR_IO);
       return nullptr;
     }
 
-    if (arc->compressed.size() < compressed)
-      arc->compressed.resize(compressed);
+    if (cartridge->compressed.size() < compressed)
+      cartridge->compressed.resize(compressed);
 
-    if (!drain(arc->io, arc->compressed.data(), compressed)) [[unlikely]] {
+    if (!drain(cartridge->io, cartridge->compressed.data(), compressed)) [[unlikely]] {
       PHYSFS_setErrorCode(PHYSFS_ERR_IO);
       return nullptr;
     }
 
     const auto result = ZSTD_decompress_usingDDict(
-      arc->dctx,
+      cartridge->engine.get(),
       buffer.get(), uncompressed,
-      arc->compressed.data(), compressed,
-      arc->ddict
+      cartridge->compressed.data(), compressed,
+      cartridge->bundle.get()
     );
 
     if (ZSTD_isError(result) || result != uncompressed) [[unlikely]] {
@@ -329,17 +326,17 @@ int crom_mkdir(void *, const char *) {
 }
 
 int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
-  auto *arc = static_cast<archive *>(opaque);
+  auto *cartridge = static_cast<archive *>(opaque);
 
-  const auto it = arc->index.find(name);
-  if (it == arc->index.end()) [[unlikely]] {
+  const auto it = cartridge->index.find(name);
+  if (it == cartridge->index.end()) [[unlikely]] {
     PHYSFS_setErrorCode(PHYSFS_ERR_NOT_FOUND);
     return 0;
   }
 
-  const auto &entry = arc->entries[it->second];
-  const auto directory = (entry.flags & FLAG_DIRECTORY) != 0;
-  stat->filesize = directory ? -1 : static_cast<PHYSFS_sint64>(entry.uncompressed);
+  const auto &current = cartridge->entries[it->second];
+  const auto directory = (current.flags & FLAG_DIRECTORY) != 0;
+  stat->filesize = directory ? -1 : static_cast<PHYSFS_sint64>(current.uncompressed);
   stat->modtime = -1;
   stat->createtime = -1;
   stat->accesstime = -1;
@@ -350,9 +347,9 @@ int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
 }
 
 void crom_close_archive(void *opaque) {
-  auto *arc = static_cast<archive *>(opaque);
-  arc->io->destroy(arc->io);
-  delete arc;
+  auto *cartridge = static_cast<archive *>(opaque);
+  cartridge->io->destroy(cartridge->io);
+  delete cartridge;
 }
 }
 
