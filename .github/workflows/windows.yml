@@ -59,7 +59,7 @@ jobs:
         run: conan export recipes/luajit --version=2.1-20260330
 
       - name: Install dependencies
-        run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release
+        run: conan install . --output-folder=build --build=missing -s:a compiler.cppstd=23 --settings build_type=Release
 
       - name: Build
         run: |
@@ -93,7 +93,7 @@ jobs:
 
       - name: Install fuzzer dependencies
         working-directory: fuzz
-        run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Debug
+        run: conan install . --output-folder=build --build=missing -s:a compiler.cppstd=23 --settings build_type=Debug
 
       - name: Build fuzzer
         working-directory: fuzz
