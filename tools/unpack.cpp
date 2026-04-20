@@ -14,6 +14,10 @@ constexpr uint8_t DIRECTORY = 1;
 constexpr size_t HEADER = 24;
 constexpr size_t METADATA = 25;
 
+using decoder_t = std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)>;
+
+using dictionary_t = std::unique_ptr<ZSTD_DDict, decltype(&ZSTD_freeDDict)>;
+
 template <std::integral Integer>
 Integer read(const uint8_t *pointer) {
   Integer value;
@@ -32,8 +36,8 @@ int main() {
   const auto count = read<uint32_t>(rom.data() + 8);
   const auto footprint = read<uint32_t>(rom.data() + 20);
 
-  std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)> engine(ZSTD_createDCtx(), ZSTD_freeDCtx);
-  std::unique_ptr<ZSTD_DDict, decltype(&ZSTD_freeDDict)> bundle(
+  decoder_t decoder(ZSTD_createDCtx(), ZSTD_freeDCtx);
+  dictionary_t dictionary(
     ZSTD_createDDict(rom.data() + HEADER, footprint), ZSTD_freeDDict);
 
   const std::filesystem::path root = "cartridge";
@@ -67,10 +71,10 @@ int main() {
 
     if (uncompressed > 0)
       ZSTD_decompress_usingDDict(
-        engine.get(),
+        decoder.get(),
         decompressed.data(), static_cast<size_t>(uncompressed),
         rom.data() + offset, static_cast<size_t>(compressed),
-        bundle.get());
+        dictionary.get());
 
     std::ofstream output(destination, std::ios::binary);
     if (uncompressed > 0)
