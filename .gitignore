@@ -24,3 +24,6 @@ stdout.txt
 
 # Sentry
 .sentry/
+
+# Fuzz
+fuzz/corpus/
