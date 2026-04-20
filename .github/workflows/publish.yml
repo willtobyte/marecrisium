@@ -31,11 +31,14 @@ jobs:
           !cmake/*: cmake/[>=3 <4]
           EOF
 
+      - name: Export local recipes
+        run: conan export recipes/luajit --version=2.1-20260330
+
       - name: Restore Conan cache
         uses: actions/cache/restore@v5
         with:
           path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ hashFiles('conanfile.py') }}
+          key: conan-${{ runner.os }}-${{ hashFiles('conanfile.py', 'recipes/**') }}
           restore-keys: |
             conan-${{ runner.os }}-
 
@@ -99,11 +102,14 @@ jobs:
           !cmake/*: cmake/[>=3 <4]
           EOF
 
+      - name: Export local recipes
+        run: conan export recipes/luajit --version=2.1-20260330
+
       - name: Restore Conan cache
         uses: actions/cache/restore@v5
         with:
           path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ hashFiles('conanfile.py') }}
+          key: conan-${{ runner.os }}-${{ hashFiles('conanfile.py', 'recipes/**') }}
           restore-keys: |
             conan-${{ runner.os }}-
 

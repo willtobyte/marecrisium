@@ -771,12 +771,17 @@ function WebSocket.new(url) end
 -- Localization
 --------------------------------------------------------------------------------
 
----Looks up key in the loaded locale file (locales/<lang>.lua).
----Language is auto-detected from the OS via SDL.
----Returns the translated string, or the key itself if not found.
----@param key string
+---Looks up key in the loaded locale file (locales/<lang>.lua, 2-letter code from SDL).
+---Tries each preferred OS locale in order; first existing file wins.
+---If no locale file is found (or the key is missing), the key itself is used,
+---which is treated as the original English text written in the source.
+---Extra arguments are applied via string.format on the resolved string,
+---supporting %s, %d, %1$s positional specifiers, %% literals, etc.
+---Format errors are silently ignored and the resolved template is returned as-is.
+---@param key string Template string (may contain string.format placeholders)
+---@vararg any Values to interpolate
 ---@return string
-function _(key) end
+function _(key, ...) end
 
 --------------------------------------------------------------------------------
 -- Moment (time)
