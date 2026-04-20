@@ -13,9 +13,9 @@ constexpr uint32_t MAX_DICTIONARY_BYTES = 16 * 1024 * 1024;
 constexpr size_t HEADER_SIZE = 24;
 constexpr size_t METADATA_SIZE = 25;
 
-using decoder = std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)>;
+using decoder_t = std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)>;
 
-using decompressor = std::unique_ptr<ZSTD_DDict, decltype(&ZSTD_freeDDict)>;
+using dictionary_t = std::unique_ptr<ZSTD_DDict, decltype(&ZSTD_freeDDict)>;
 
 struct entry final {
   std::string_view path;
@@ -27,8 +27,8 @@ struct entry final {
 
 struct archive final {
   PHYSFS_Io *io{nullptr};
-  decoder engine{nullptr, ZSTD_freeDCtx};
-  decompressor bundle{nullptr, ZSTD_freeDDict};
+  decoder_t decoder{nullptr, ZSTD_freeDCtx};
+  dictionary_t dictionary{nullptr, ZSTD_freeDDict};
   PHYSFS_uint64 bytes{0};
   std::vector<char> paths;
   std::vector<uint8_t> compressed;
@@ -143,8 +143,8 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
       dictionary_bytes == 0 || dictionary_bytes > MAX_DICTIONARY_BYTES) [[unlikely]]
     return fail(PHYSFS_ERR_CORRUPT);
 
-  std::vector<uint8_t> dictionary(dictionary_bytes);
-  if (!drain(io, dictionary.data(), dictionary_bytes)) [[unlikely]] {
+  std::vector<uint8_t> trained(dictionary_bytes);
+  if (!drain(io, trained.data(), dictionary_bytes)) [[unlikely]] {
     io->destroy(io);
     return nullptr;
   }
@@ -157,8 +157,8 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
 
   auto cartridge = std::make_unique<archive>();
   cartridge->io = io;
-  cartridge->engine.reset(ZSTD_createDCtx());
-  cartridge->bundle.reset(ZSTD_createDDict(dictionary.data(), dictionary_bytes));
+  cartridge->decoder.reset(ZSTD_createDCtx());
+  cartridge->dictionary.reset(ZSTD_createDDict(trained.data(), dictionary_bytes));
   cartridge->entries.reserve(count);
   cartridge->index.reserve(count);
   cartridge->paths.reserve(static_cast<size_t>(directory_bytes));
@@ -278,10 +278,10 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     }
 
     const auto result = ZSTD_decompress_usingDDict(
-      cartridge->engine.get(),
+      cartridge->decoder.get(),
       buffer.get(), uncompressed,
       cartridge->compressed.data(), compressed,
-      cartridge->bundle.get()
+      cartridge->dictionary.get()
     );
 
     if (ZSTD_isError(result) || result != uncompressed) [[unlikely]] {

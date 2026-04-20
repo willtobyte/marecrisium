@@ -25,9 +25,9 @@ constexpr size_t METADATA = 25;
 constexpr size_t CAPACITY = 2048;
 constexpr int LEVEL = 22;
 
-using context = std::unique_ptr<ZSTD_CCtx, decltype(&ZSTD_freeCCtx)>;
+using encoder_t = std::unique_ptr<ZSTD_CCtx, decltype(&ZSTD_freeCCtx)>;
 
-using compressor = std::unique_ptr<ZSTD_CDict, decltype(&ZSTD_freeCDict)>;
+using dictionary_t = std::unique_ptr<ZSTD_CDict, decltype(&ZSTD_freeCDict)>;
 
 struct record final {
   std::string path;
@@ -88,23 +88,23 @@ int main(int argc, char **argv) {
     samples.push_back(current.data.size());
   }
 
-  std::vector<uint8_t> dictionary(CAPACITY, 0);
+  std::vector<uint8_t> trained(CAPACITY, 0);
   ZDICT_fastCover_params_t parameters = {};
   parameters.nbThreads = std::thread::hardware_concurrency();
   parameters.splitPoint = 1.0;
   parameters.zParams.compressionLevel = LEVEL;
-  const auto trained = ZDICT_optimizeTrainFromBuffer_fastCover(
-    dictionary.data(), dictionary.size(),
+  const auto trained_size = ZDICT_optimizeTrainFromBuffer_fastCover(
+    trained.data(), trained.size(),
     training.data(), samples.data(), static_cast<unsigned>(samples.size()),
     &parameters);
-  dictionary.resize(trained);
+  trained.resize(trained_size);
 
-  context engine(ZSTD_createCCtx(), ZSTD_freeCCtx);
-  compressor bundle(
-    ZSTD_createCDict(dictionary.data(), dictionary.size(), LEVEL),
+  encoder_t encoder(ZSTD_createCCtx(), ZSTD_freeCCtx);
+  dictionary_t dictionary(
+    ZSTD_createCDict(trained.data(), trained.size(), LEVEL),
     ZSTD_freeCDict);
-  ZSTD_CCtx_refCDict(engine.get(), bundle.get());
-  ZSTD_CCtx_setParameter(engine.get(), ZSTD_c_nbWorkers, std::thread::hardware_concurrency());
+  ZSTD_CCtx_refCDict(encoder.get(), dictionary.get());
+  ZSTD_CCtx_setParameter(encoder.get(), ZSTD_c_nbWorkers, std::thread::hardware_concurrency());
 
   std::vector<uint8_t> scratch;
   for (auto &current : records) {
@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
       continue;
     scratch.resize(ZSTD_compressBound(current.data.size()));
     const auto result = ZSTD_compress2(
-      engine.get(), scratch.data(), scratch.size(),
+      encoder.get(), scratch.data(), scratch.size(),
       current.data.data(), current.data.size());
     current.blob.assign(scratch.begin(), scratch.begin() + static_cast<std::ptrdiff_t>(result));
   }
@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
   for (const auto &current : records)
     directories += 2 + current.path.size() + METADATA;
 
-  const auto bytes = static_cast<uint32_t>(dictionary.size());
+  const auto bytes = static_cast<uint32_t>(trained.size());
   const uint64_t base = HEADER + bytes + directories;
 
   std::vector<uint8_t> blob;
@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
   put(blob, static_cast<uint32_t>(records.size()));
   put(blob, directories);
   put(blob, bytes);
-  put(blob, std::span<const uint8_t>(dictionary));
+  put(blob, std::span<const uint8_t>(trained));
 
   uint64_t cursor = 0;
   for (const auto &current : records) {
