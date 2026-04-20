@@ -89,11 +89,11 @@ static bool ensure_shape(body &b, const frame &fr, entt::entity entity, const tr
 
     const auto center = center_of(b, tf, &fr);
 
-    if (b.type == body_type::kinematic)
+    if (b.type == body_type::kinematic) {
       b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
-    else
-      b2Body_SetTransform(b.id, center, b2Rot_identity);
-
+      return true;
+    }
+    b2Body_SetTransform(b.id, center, b2Rot_identity);
     return true;
   }
 
@@ -1282,11 +1282,12 @@ void stage::dispatch_collision(const scriptable& self, const scriptable* target,
   lua_rawgeti(L, LUA_REGISTRYINDEX, self.handle);
   lua_rawgeti(L, LUA_REGISTRYINDEX, target->name_ref);
   lua_rawgeti(L, LUA_REGISTRYINDEX, target->kind_ref);
-  if (normal) {
-    lua_pushnumber(L, static_cast<lua_Number>(normal->x));
-    lua_pushnumber(L, static_cast<lua_Number>(normal->y));
-    pcall(L, 5, 0);
-  } else {
+  if (!normal) {
     pcall(L, 3, 0);
+    return;
   }
+
+  lua_pushnumber(L, static_cast<lua_Number>(normal->x));
+  lua_pushnumber(L, static_cast<lua_Number>(normal->y));
+  pcall(L, 5, 0);
 }

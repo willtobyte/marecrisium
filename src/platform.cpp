@@ -5,12 +5,9 @@ namespace {
     constexpr auto name = "name"_hs;
     constexpr auto cores = "cores"_hs;
     constexpr auto memory = "memory"_hs;
-    constexpr auto locale = "locale"_hs;
     constexpr auto clipboard = "clipboard"_hs;
   }
 }
-
-static int _locale_ref = LUA_NOREF;
 
 static int platform_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
@@ -26,10 +23,6 @@ static int platform_index(lua_State *state) {
 
     case property::memory:
       lua_pushinteger(state, static_cast<lua_Integer>(SDL_GetSystemRAM()));
-      return 1;
-
-    case property::locale:
-      lua_rawgeti(state, LUA_REGISTRYINDEX, _locale_ref);
       return 1;
 
     case property::clipboard: {
@@ -55,21 +48,6 @@ static int platform_newindex(lua_State *state) {
 }
 
 void platform::wire() {
-  auto count = 0;
-  const auto locales = std::unique_ptr<SDL_Locale*[], SDL_Deleter>{SDL_GetPreferredLocales(&count)};
-  if (locales && count > 0 && locales[0]->language) [[likely]] {
-    if (locales[0]->country) {
-      const auto result = std::format("{}-{}", locales[0]->language, locales[0]->country);
-      lua_pushstring(L, result.c_str());
-    } else {
-      lua_pushstring(L, locales[0]->language);
-    }
-  } else {
-    lua_pushstring(L, "");
-  }
-
-  _locale_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-
   metatable(L, "Platform", platform_index, platform_newindex);
 
   singleton(L, "Platform", "platform");

@@ -59,12 +59,13 @@ static int mouse_index(lua_State *state) {
 static int mouse_newindex(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
-  if (id == property::shown && lua_isboolean(state, 3)) {
-    if (lua_toboolean(state, 3))
-      SDL_ShowCursor();
-    else
-      SDL_HideCursor();
-  }
+  if (id != property::shown || !lua_isboolean(state, 3))
+    return 0;
+
+  if (lua_toboolean(state, 3))
+    SDL_ShowCursor();
+  else
+    SDL_HideCursor();
 
   return 0;
 }

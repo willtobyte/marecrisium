@@ -7,7 +7,7 @@ bool io::exists(std::string_view filename) {
 blob io::read(std::string_view filename) {
   const auto ptr = std::unique_ptr<PHYSFS_File, PHYSFS_Deleter>{PHYSFS_openRead(filename.data())};
   if (!ptr) [[unlikely]]
-    die("[PHYSFS_openRead] error while opening file: {}", filename);
+    throw std::runtime_error{std::format("[PHYSFS_openRead] error while opening file: {}", filename)};
 
   const auto bytes = PHYSFS_fileLength(ptr.get());
   assert(bytes >= 0 && "[PHYSFS_fileLength] unknown length");

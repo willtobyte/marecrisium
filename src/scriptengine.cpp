@@ -41,7 +41,6 @@ void scriptengine::run() {
   sound::wire();
   user::wire();
   xorshift128::wire();
-  // websocket::wire();
 
   lua_gc(L, LUA_GCSTOP, 0);
 

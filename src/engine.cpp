@@ -119,12 +119,10 @@ engine::engine() {
   _director.wire();
 
   lua_getfield(L, -1, "on_begin");
-  auto callback = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
-
-  if (callback != LUA_NOREF) [[likely]] {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
+  if (lua_isnoneornil(L, -1)) {
+    lua_pop(L, 1);
+  } else {
     pcall(L, 0, 0);
-    luaL_unref(L, LUA_REGISTRYINDEX, callback);
   }
 
   lua_pop(L, 1);
@@ -185,8 +183,6 @@ void engine::loop() {
   }
 
   lua_gc(L, LUA_GCSTEP, lua_gc(L, LUA_GCCOUNT, 0) > 4096 ? 240 : 80);
-
-  // websocket::poll();
 
   _director.transition();
 

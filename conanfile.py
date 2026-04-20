@@ -10,7 +10,6 @@ class Carimbo(ConanFile):
         for package in [
             "box2d/3.1.1",
             "entt/3.16.0",
-            "libwebsockets/4.3.5",
             "miniaudio/0.11.22",
             "physfs/3.2.0",
             "libspng/0.7.4",

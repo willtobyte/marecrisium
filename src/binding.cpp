@@ -90,17 +90,20 @@ static void pretty(lua_State *state, std::string &output, int index, int depth, 
   } break;
 
   case LUA_TUSERDATA: {
-    if (lua_getmetatable(state, index)) [[likely]] {
-      lua_getfield(state, -1, "__name");
-      if (lua_isstring(state, -1)) [[likely]] {
-        std::format_to(out, "({})", lua_tostring(state, -1));
-      } else {
-        std::format_to(out, "(userdata)");
-      }
-      lua_pop(state, 2);
-    } else {
+    if (!lua_getmetatable(state, index)) {
       std::format_to(out, "(userdata)");
+      break;
     }
+
+    lua_getfield(state, -1, "__name");
+    if (!lua_isstring(state, -1)) [[unlikely]] {
+      std::format_to(out, "(userdata)");
+      lua_pop(state, 2);
+      break;
+    }
+
+    std::format_to(out, "({})", lua_tostring(state, -1));
+    lua_pop(state, 2);
   } break;
 
   case LUA_TLIGHTUSERDATA: {
@@ -155,30 +158,39 @@ static int traceback(lua_State *state) {
   return 1;
 }
 
+[[noreturn]] static void raise(lua_State *state) {
+  const char *message = lua_tostring(state, -1);
+  std::string error{message ? message : "unknown lua error"};
+  lua_pop(state, 1);
+  throw std::runtime_error{std::move(error)};
+}
+
 void binding::wire() {
   lua_atpanic(L, +[](lua_State *state) -> int {
-    die(state);
+    raise(state);
   });
 
   lua_pushcfunction(L, traceback);
   _traceback = luaL_ref(L, LUA_REGISTRYINDEX);
 }
 
-bool pcall(lua_State *state, int nargs, int nresults, fault mode) noexcept {
+bool pcall(lua_State *state, int nargs, int nresults, fault mode) {
   const auto handler = lua_gettop(state) - nargs;
   lua_rawgeti(state, LUA_REGISTRYINDEX, _traceback);
   lua_insert(state, handler);
 
-  const auto ok = lua_pcall(state, nargs, nresults, handler) == LUA_OK;
-  if (!ok) [[unlikely]] {
-    switch (mode) {
-      case fault::fatal: die(state);
-      case fault::ignore: lua_pop(state, 1); break;
-    }
+  const auto result = lua_pcall(state, nargs, nresults, handler);
+  lua_remove(state, handler);
+
+  if (result == LUA_OK) [[likely]]
+    return true;
+
+  if (mode == fault::ignore) {
+    lua_pop(state, 1);
+    return false;
   }
 
-  lua_remove(state, handler);
-  return ok;
+  raise(state);
 }
 
 void compile(lua_State *state, std::span<const uint8_t> buffer, std::string_view chunk) {
@@ -186,7 +198,7 @@ void compile(lua_State *state, std::span<const uint8_t> buffer, std::string_view
   const auto size = buffer.size();
 
   if (luaL_loadbuffer(state, data, size, chunk.data())) [[unlikely]]
-    die(state);
+    raise(state);
 }
 
 void singleton(lua_State *state, const char *metatable, const char *global) {

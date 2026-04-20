@@ -5,13 +5,13 @@ static int translate(lua_State *state) {
   lua_pushvalue(state, 1);
   lua_rawget(state, -2);
 
-  if (lua_isnil(state, -1)) [[unlikely]] {
-    lua_pop(state, 2);
-    lua_pushvalue(state, 1);
-  } else {
+  if (!lua_isnil(state, -1)) [[likely]] {
     lua_remove(state, -2);
+    return 1;
   }
 
+  lua_pop(state, 2);
+  lua_pushvalue(state, 1);
   return 1;
 }
 

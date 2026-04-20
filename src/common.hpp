@@ -33,7 +33,6 @@
 #include <entt/entt.hpp>
 
 using namespace entt::literals;
-#include <libwebsockets.h>
 #include <lua.hpp>
 #include <miniaudio.h>
 #include <opusfile.h>
@@ -122,5 +121,3 @@ template <typename T>
 constexpr T to_radians(T degrees) {
   return degrees * (std::numbers::pi_v<T> / T{180});
 }
-
-#include "die.hpp"

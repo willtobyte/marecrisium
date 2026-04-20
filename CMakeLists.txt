@@ -26,24 +26,12 @@ target_sources(${PROJECT_NAME} PRIVATE
   ${HEADER_FILES}
 )
 
-target_compile_options(${PROJECT_NAME} PRIVATE
-  $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:MSVC>>:/EHs-c->
-  $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:MSVC>>:/GR->
-  $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-fno-exceptions>
-  $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-fno-rtti>
-)
-
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-  $<$<CXX_COMPILER_ID:MSVC>:_HAS_EXCEPTIONS=0>
-)
-
 set_target_properties(${PROJECT_NAME} PROPERTIES
   WIN32_EXECUTABLE $<$<PLATFORM_ID:Windows>:$<NOT:$<CONFIG:Debug>>>
 )
 
 find_package(box2d CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
-find_package(libwebsockets CONFIG REQUIRED)
 find_package(PhysFS CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(sentry CONFIG REQUIRED)
@@ -66,7 +54,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   miniaudio::miniaudio
   opusfile::opusfile
   luajit::luajit
-  websockets
   SQLite::SQLite3
   unordered_dense::unordered_dense
   yyjson::yyjson

@@ -76,23 +76,26 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
         lua_pop(state, 1);
 
         lua_rawgeti(state, -1, 6);
-        if (!lua_isnil(state, -1)) {
-          fr.bound_x = static_cast<float>(lua_tonumber(state, -1));
+        if (lua_isnil(state, -1)) {
           lua_pop(state, 1);
-          lua_rawgeti(state, -1, 7);
-          fr.bound_y = static_cast<float>(lua_tonumber(state, -1));
+          ++c.count;
           lua_pop(state, 1);
-          lua_rawgeti(state, -1, 8);
-          fr.bound_width = static_cast<float>(lua_tonumber(state, -1));
-          lua_pop(state, 1);
-          lua_rawgeti(state, -1, 9);
-          fr.bound_height = static_cast<float>(lua_tonumber(state, -1));
-          lua_pop(state, 1);
-          fr.collidable = true;
-          collidable = true;
-        } else {
-          lua_pop(state, 1);
+          continue;
         }
+
+        fr.bound_x = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+        lua_rawgeti(state, -1, 7);
+        fr.bound_y = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+        lua_rawgeti(state, -1, 8);
+        fr.bound_width = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+        lua_rawgeti(state, -1, 9);
+        fr.bound_height = static_cast<float>(lua_tonumber(state, -1));
+        lua_pop(state, 1);
+        fr.collidable = true;
+        collidable = true;
 
         ++c.count;
         lua_pop(state, 1);
