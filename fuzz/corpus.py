@@ -4,7 +4,8 @@
 Usage: python3 corpus.py <output_dir>
 
 CROM binary format (little-endian):
-  Header (20 bytes): magic(u32) + version(u32) + count(u32) + directory_bytes(u64)
+  Header (24 bytes): magic(u32) + version(u32) + count(u32) + directory_bytes(u64) + dictionary_bytes(u32)
+  Dictionary (dictionary_bytes): raw zstd dictionary
   TOC entries (variable, total = directory_bytes): length(u16) + path(bytes) + offset(u64) + compressed(u64) + uncompressed(u64) + flags(u8)
   File data: zstd-compressed blobs at the offsets declared in the TOC
 """
@@ -18,11 +19,19 @@ import zstandard
 CROM_MAGIC = 0x43524F4D
 CROM_VERSION = 1
 FLAG_DIRECTORY = 1
-HEADER_SIZE = 20
+HEADER_SIZE = 24
 
 
-def header(magic=CROM_MAGIC, version=CROM_VERSION, count=0, directory_bytes=0):
-    return struct.pack("<IIIQ", magic, version, count, directory_bytes)
+def header(
+    magic=CROM_MAGIC,
+    version=CROM_VERSION,
+    count=0,
+    directory_bytes=0,
+    dictionary_bytes=0,
+):
+    return struct.pack(
+        "<IIIQI", magic, version, count, directory_bytes, dictionary_bytes
+    )
 
 
 def record(path, offset=0, compressed=0, uncompressed=0, flags=0):
@@ -34,9 +43,35 @@ def record(path, offset=0, compressed=0, uncompressed=0, flags=0):
     )
 
 
+def train_dictionary():
+    # Train a tiny dictionary from synthetic samples resembling game assets.
+    samples = (
+        [
+            b"level = {width=%d, height=%d, enemies=%d}" % (w, h, e)
+            for w in (100, 200, 400, 800)
+            for h in (60, 120, 240)
+            for e in (0, 3, 7, 15)
+        ]
+        + [
+            b'{"name":"sprite_%03d","frames":[0,1,2,3],"loop":true}' % i
+            for i in range(32)
+        ]
+        + [
+            b"function update_%d(dt) self.x = self.x + %d * dt end" % (i, i)
+            for i in range(16)
+        ]
+    )
+    return zstandard.train_dictionary(4096, samples).as_bytes()
+
+
+DICTIONARY = train_dictionary()
+_compressor = zstandard.ZstdCompressor(
+    dict_data=zstandard.ZstdCompressionDict(DICTIONARY)
+)
+
+
 def compress(data):
-    compressor = zstandard.ZstdCompressor()
-    return compressor.compress(data)
+    return _compressor.compress(data)
 
 
 def toc_size(entries):
@@ -47,18 +82,20 @@ def toc_size(entries):
     return total
 
 
-def build_rom(entries, file_contents=None):
-    """Build a valid ROM from a list of (path, offset, compressed, uncompressed, flags) tuples.
+def build_rom(entries, file_contents=None, dictionary=DICTIONARY):
+    """Build a valid ROM.
 
-    If file_contents is provided, it maps entry indices to raw (already compressed) data blobs.
-    When offset/compressed/uncompressed are None, they are computed automatically.
+    entries: list of (path, offset, compressed, uncompressed, flags) tuples.
+      offset/compressed/uncompressed may be None to be computed.
+    file_contents: maps entry index to raw (already compressed) data blob.
+    dictionary: embedded dictionary bytes (defaults to the shared training dict).
     """
     if file_contents is None:
         file_contents = {}
 
     computed = []
     ts = toc_size(entries)
-    data_offset = HEADER_SIZE + ts
+    data_offset = HEADER_SIZE + len(dictionary) + ts
 
     for index, (path, offset, compressed_size, uncompressed_size, flags) in enumerate(
         entries
@@ -73,7 +110,12 @@ def build_rom(entries, file_contents=None):
         computed.append((path, offset, compressed_size, uncompressed_size, flags, blob))
         data_offset += len(blob)
 
-    rom = header(count=len(entries), directory_bytes=ts)
+    rom = header(
+        count=len(entries),
+        directory_bytes=ts,
+        dictionary_bytes=len(dictionary),
+    )
+    rom += dictionary
     for path, offset, compressed_size, uncompressed_size, flags, _ in computed:
         rom += record(path, offset, compressed_size, uncompressed_size, flags)
     for _, _, _, _, _, blob in computed:
@@ -85,8 +127,8 @@ def generate(output):
     os.makedirs(output, exist_ok=True)
     seeds = {}
 
-    # Empty ROM (0 entries)
-    seeds["valid_empty"] = header()
+    # Empty ROM (0 entries) — still carries the dictionary.
+    seeds["valid_empty"] = build_rom([])
 
     # Single directory entry
     seeds["valid_one_dir"] = build_rom([("scripts", None, None, None, FLAG_DIRECTORY)])
@@ -149,7 +191,7 @@ def generate(output):
             {0: blob},
         )
 
-    # Exact 12 byte header (no TOC, no data)
+    # Header-only ROM (no dict, no TOC, no data) — invalid: dictionary_bytes=0.
     seeds["boundary_exact_header"] = header()
 
     # Path with length=0
@@ -160,10 +202,14 @@ def generate(output):
     seeds["boundary_long_path"] = build_rom([(long_path, None, None, None, 0)])
 
     # Path with null bytes
-    seeds["boundary_null_in_path"] = build_rom([])
     null_path = b"test\x00file.txt"
     seeds["boundary_null_in_path"] = (
-        header(count=1, directory_bytes=2 + len(null_path) + 25)
+        header(
+            count=1,
+            directory_bytes=2 + len(null_path) + 25,
+            dictionary_bytes=len(DICTIONARY),
+        )
+        + DICTIONARY
         + struct.pack("<H", len(null_path))
         + null_path
         + struct.pack("<QQQB", 0, 0, 0, 0)
@@ -196,16 +242,28 @@ def generate(output):
     )
 
     # offset=0 (pointing into header)
-    seeds["size_offset_zero"] = header(
-        count=1, directory_bytes=toc_size([("file.txt", 0, 0, 0, 0)])
-    ) + record("file.txt", offset=0, compressed=10, uncompressed=10, flags=0)
+    seeds["size_offset_zero"] = (
+        header(
+            count=1,
+            directory_bytes=toc_size([("file.txt", 0, 0, 0, 0)]),
+            dictionary_bytes=len(DICTIONARY),
+        )
+        + DICTIONARY
+        + record("file.txt", offset=0, compressed=10, uncompressed=10, flags=0)
+    )
 
     # offset pointing to exact end of file
     rom = build_rom([("eof.bin", None, None, 5, 0)], {0: compress(b"hello")})
     eof_offset = len(rom)
-    seeds["size_offset_at_eof"] = header(
-        count=1, directory_bytes=toc_size([("eof.bin", 0, 0, 0, 0)])
-    ) + record("eof.bin", offset=eof_offset, compressed=10, uncompressed=10, flags=0)
+    seeds["size_offset_at_eof"] = (
+        header(
+            count=1,
+            directory_bytes=toc_size([("eof.bin", 0, 0, 0, 0)]),
+            dictionary_bytes=len(DICTIONARY),
+        )
+        + DICTIONARY
+        + record("eof.bin", offset=eof_offset, compressed=10, uncompressed=10, flags=0)
+    )
 
     # Overlapping offsets
     raw = b"shared data payload"
@@ -216,8 +274,11 @@ def generate(output):
             ("file_b.txt", 0, 0, 0, 0),
         ]
     )
-    shared_offset = HEADER_SIZE + ts
-    rom = header(count=2, directory_bytes=ts)
+    shared_offset = HEADER_SIZE + len(DICTIONARY) + ts
+    rom = (
+        header(count=2, directory_bytes=ts, dictionary_bytes=len(DICTIONARY))
+        + DICTIONARY
+    )
     rom += record(
         "file_a.txt",
         offset=shared_offset,
@@ -268,27 +329,59 @@ def generate(output):
     seeds["corrupt_version_max"] = header(version=0xFFFFFFFF)
 
     # Truncated headers (0 through HEADER_SIZE-1 bytes)
-    full_header = header()
+    full_header = header(dictionary_bytes=len(DICTIONARY))
     for length in range(HEADER_SIZE):
         seeds[f"corrupt_truncated_{length:02d}"] = full_header[:length]
 
     # TOC entry truncated at various points
-    full_toc = header(
-        count=1, directory_bytes=toc_size([("test.txt", 0, 0, 0, 0)])
-    ) + record("test.txt", 0, 0, 0, 0)
+    full_toc = (
+        header(
+            count=1,
+            directory_bytes=toc_size([("test.txt", 0, 0, 0, 0)]),
+            dictionary_bytes=len(DICTIONARY),
+        )
+        + DICTIONARY
+        + record("test.txt", 0, 0, 0, 0)
+    )
     for trim in [1, 5, 10, 15, 20, 25]:
         seeds[f"corrupt_toc_truncated_{trim:02d}"] = full_toc[:-trim]
 
     # Count larger than actual entries
-    seeds["corrupt_count_larger"] = header(
-        count=100, directory_bytes=toc_size([("only.txt", 0, 0, 0, 0)])
-    ) + record("only.txt", 0, 0, 0, 0)
+    seeds["corrupt_count_larger"] = (
+        header(
+            count=100,
+            directory_bytes=toc_size([("only.txt", 0, 0, 0, 0)]),
+            dictionary_bytes=len(DICTIONARY),
+        )
+        + DICTIONARY
+        + record("only.txt", 0, 0, 0, 0)
+    )
 
     # Count = max uint32
     seeds["corrupt_count_max"] = header(count=0xFFFFFFFF)
 
     # Count = max uint32 followed by some data
     seeds["corrupt_count_max_data"] = header(count=0xFFFFFFFF) + b"\x00" * 100
+
+    # Dictionary-specific adversarial cases.
+    seeds["dict_missing"] = header(count=0, directory_bytes=0, dictionary_bytes=0)
+    seeds["dict_truncated"] = (
+        header(
+            count=0,
+            directory_bytes=0,
+            dictionary_bytes=len(DICTIONARY),
+        )
+        + DICTIONARY[: len(DICTIONARY) // 2]
+    )
+    seeds["dict_declared_huge"] = header(
+        count=0, directory_bytes=0, dictionary_bytes=0xFFFFFFFF
+    )
+    seeds["dict_garbage"] = header(
+        count=0, directory_bytes=0, dictionary_bytes=128
+    ) + bytes(range(128))
+    seeds["dict_zeros"] = (
+        header(count=0, directory_bytes=0, dictionary_bytes=128) + b"\x00" * 128
+    )
 
     # Valid zstd data
     raw = b"the quick brown fox jumps over the lazy dog"
@@ -300,33 +393,39 @@ def generate(output):
 
     # Random bytes where zstd data should be
     ts = toc_size([("random.bin", 0, 0, 0, 0)])
-    data_offset = HEADER_SIZE + ts
+    data_offset = HEADER_SIZE + len(DICTIONARY) + ts
     garbage = bytes(range(256))[:64]
-    rom = header(count=1, directory_bytes=ts)
-    rom += record(
-        "random.bin",
-        offset=data_offset,
-        compressed=len(garbage),
-        uncompressed=100,
-        flags=0,
+    rom = (
+        header(count=1, directory_bytes=ts, dictionary_bytes=len(DICTIONARY))
+        + DICTIONARY
+        + record(
+            "random.bin",
+            offset=data_offset,
+            compressed=len(garbage),
+            uncompressed=100,
+            flags=0,
+        )
+        + garbage
     )
-    rom += garbage
     seeds["zstd_random_bytes"] = rom
 
     # Truncated zstd frame
     blob = compress(b"this is a longer string for compression testing purposes" * 10)
     truncated = blob[: len(blob) // 2]
     ts = toc_size([("truncated.bin", 0, 0, 0, 0)])
-    data_offset = HEADER_SIZE + ts
-    rom = header(count=1, directory_bytes=ts)
-    rom += record(
-        "truncated.bin",
-        offset=data_offset,
-        compressed=len(truncated),
-        uncompressed=560,
-        flags=0,
+    data_offset = HEADER_SIZE + len(DICTIONARY) + ts
+    rom = (
+        header(count=1, directory_bytes=ts, dictionary_bytes=len(DICTIONARY))
+        + DICTIONARY
+        + record(
+            "truncated.bin",
+            offset=data_offset,
+            compressed=len(truncated),
+            uncompressed=560,
+            flags=0,
+        )
+        + truncated
     )
-    rom += truncated
     seeds["zstd_truncated"] = rom
 
     # Empty zstd frame (compressed size = 0, uncompressed > 0)

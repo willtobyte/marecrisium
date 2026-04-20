@@ -4,7 +4,7 @@ namespace {
 using namespace std::string_view_literals;
 
 constexpr uint32_t CROM_MAGIC = 0x43524F4D;
-constexpr uint32_t CROM_VERSION = 2;
+constexpr uint32_t CROM_VERSION = 1;
 constexpr uint8_t FLAG_DIRECTORY = 1;
 constexpr uint64_t MAX_UNCOMPRESSED = 64 * 1024 * 1024;
 constexpr uint32_t MAX_ENTRIES = 1u << 20;
@@ -142,11 +142,12 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   const auto count = read<uint32_t>(header + 8);
   const auto directory_bytes = read<uint64_t>(header + 12);
   const auto dictionary_bytes = read<uint32_t>(header + 20);
-  if (count > MAX_ENTRIES || directory_bytes > MAX_DIRECTORY_BYTES || dictionary_bytes > MAX_DICTIONARY_BYTES) [[unlikely]]
+  if (count > MAX_ENTRIES || directory_bytes > MAX_DIRECTORY_BYTES ||
+      dictionary_bytes == 0 || dictionary_bytes > MAX_DICTIONARY_BYTES) [[unlikely]]
     return fail(PHYSFS_ERR_CORRUPT);
 
   std::vector<uint8_t> dictionary(dictionary_bytes);
-  if (dictionary_bytes > 0 && !drain(io, dictionary.data(), dictionary_bytes)) [[unlikely]] {
+  if (!drain(io, dictionary.data(), dictionary_bytes)) [[unlikely]] {
     io->destroy(io);
     return nullptr;
   }
@@ -160,8 +161,7 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   auto arc = std::make_unique<archive>();
   arc->io = io;
   arc->dctx = ZSTD_createDCtx();
-  if (dictionary_bytes > 0)
-    arc->ddict = ZSTD_createDDict(dictionary.data(), dictionary_bytes);
+  arc->ddict = ZSTD_createDDict(dictionary.data(), dictionary_bytes);
   arc->entries.reserve(count);
   arc->index.reserve(count);
   arc->paths.reserve(static_cast<size_t>(directory_bytes));
@@ -280,17 +280,12 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
       return nullptr;
     }
 
-    const auto result = arc->ddict
-      ? ZSTD_decompress_usingDDict(
-          arc->dctx,
-          buffer.get(), uncompressed,
-          arc->compressed.data(), compressed,
-          arc->ddict)
-      : ZSTD_decompressDCtx(
-          arc->dctx,
-          buffer.get(), uncompressed,
-          arc->compressed.data(), compressed
-        );
+    const auto result = ZSTD_decompress_usingDDict(
+      arc->dctx,
+      buffer.get(), uncompressed,
+      arc->compressed.data(), compressed,
+      arc->ddict
+    );
 
     if (ZSTD_isError(result) || result != uncompressed) [[unlikely]] {
       PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
@@ -344,7 +339,7 @@ int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
 
   const auto &entry = arc->entries[it->second];
   const auto directory = (entry.flags & FLAG_DIRECTORY) != 0;
-  stat->filesize = directory ? -1 : static_cast<PHYSFS_sint64>(e.uncompressed);
+  stat->filesize = directory ? -1 : static_cast<PHYSFS_sint64>(entry.uncompressed);
   stat->modtime = -1;
   stat->createtime = -1;
   stat->accesstime = -1;

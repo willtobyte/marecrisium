@@ -14,12 +14,14 @@
 
 namespace {
 constexpr uint32_t CROM_MAGIC = 0x43524F4D;
-constexpr uint32_t CROM_VERSION = 2;
+constexpr uint32_t CROM_VERSION = 1;
 constexpr uint8_t FLAG_DIRECTORY = 1;
 constexpr size_t HEADER_SIZE = 24;
 constexpr size_t METADATA_SIZE = 25;
 constexpr size_t DICTIONARY_CAPACITY = 112 * 1024;
 constexpr size_t DICTIONARY_MIN_SAMPLES = 7;
+constexpr size_t DICTIONARY_SAMPLE_CAP = 32 * 1024;
+constexpr int COMPRESSION_LEVEL = 19;
 
 struct entry final {
   std::string path;
@@ -90,31 +92,34 @@ int main(int argc, char **argv) {
     samples.push_back({std::move(relative), std::move(data), false});
   }
 
-  // Train dictionary from file samples (non-directory entries).
-  std::vector<uint8_t> dictionary;
   std::vector<uint8_t> training_buffer;
   std::vector<size_t> sample_sizes;
   for (const auto &s : samples) {
     if (s.directory || s.data.empty())
       continue;
-    training_buffer.insert(training_buffer.end(), s.data.begin(), s.data.end());
-    sample_sizes.push_back(s.data.size());
+    const auto slice = std::min(s.data.size(), DICTIONARY_SAMPLE_CAP);
+    training_buffer.insert(training_buffer.end(), s.data.begin(), s.data.begin() + static_cast<std::ptrdiff_t>(slice));
+    sample_sizes.push_back(slice);
   }
 
-  if (sample_sizes.size() >= DICTIONARY_MIN_SAMPLES) {
-    dictionary.resize(DICTIONARY_CAPACITY);
-    const auto trained = ZDICT_trainFromBuffer(
-      dictionary.data(), dictionary.size(),
-      training_buffer.data(),
-      sample_sizes.data(), static_cast<unsigned>(sample_sizes.size()));
-
-    if (ZDICT_isError(trained)) {
-      std::cerr << "warning: dictionary training failed: " << ZDICT_getErrorName(trained) << ", falling back to dictless\n";
-      dictionary.clear();
-    } else {
-      dictionary.resize(trained);
-    }
+  if (sample_sizes.size() < DICTIONARY_MIN_SAMPLES) {
+    std::cerr << "error: need at least " << DICTIONARY_MIN_SAMPLES
+              << " non-empty files to train a dictionary (have "
+              << sample_sizes.size() << ")\n";
+    return 1;
   }
+
+  std::vector<uint8_t> dictionary(DICTIONARY_CAPACITY);
+  const auto trained = ZDICT_trainFromBuffer(
+    dictionary.data(), dictionary.size(),
+    training_buffer.data(),
+    sample_sizes.data(), static_cast<unsigned>(sample_sizes.size()));
+
+  if (ZDICT_isError(trained)) {
+    std::cerr << "error: dictionary training failed: " << ZDICT_getErrorName(trained) << "\n";
+    return 1;
+  }
+  dictionary.resize(trained);
 
   training_buffer.clear();
   training_buffer.shrink_to_fit();
@@ -125,13 +130,12 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  std::unique_ptr<ZSTD_CDict, decltype(&ZSTD_freeCDict)> cdict(nullptr, ZSTD_freeCDict);
-  if (!dictionary.empty()) {
-    cdict.reset(ZSTD_createCDict(dictionary.data(), dictionary.size(), ZSTD_defaultCLevel()));
-    if (!cdict) {
-      std::cerr << "error: ZSTD_createCDict failed\n";
-      return 1;
-    }
+  std::unique_ptr<ZSTD_CDict, decltype(&ZSTD_freeCDict)> cdict(
+    ZSTD_createCDict(dictionary.data(), dictionary.size(), COMPRESSION_LEVEL),
+    ZSTD_freeCDict);
+  if (!cdict) {
+    std::cerr << "error: ZSTD_createCDict failed\n";
+    return 1;
   }
 
   std::vector<entry> entries;
@@ -149,17 +153,11 @@ int main(int argc, char **argv) {
     const auto bound = ZSTD_compressBound(size);
     scratch.resize(bound);
 
-    const auto result = cdict
-      ? ZSTD_compress_usingCDict(
-          cctx.get(),
-          scratch.data(), scratch.size(),
-          s.data.data(), size,
-          cdict.get())
-      : ZSTD_compressCCtx(
-          cctx.get(),
-          scratch.data(), scratch.size(),
-          s.data.data(), size,
-          ZSTD_defaultCLevel());
+    const auto result = ZSTD_compress_usingCDict(
+      cctx.get(),
+      scratch.data(), scratch.size(),
+      s.data.data(), size,
+      cdict.get());
 
     if (ZSTD_isError(result)) {
       std::cerr << "error: zstd compression failed for " << s.relative << ": " << ZSTD_getErrorName(result) << "\n";
