@@ -14,11 +14,11 @@ constexpr uint8_t DIRECTORY = 1;
 constexpr size_t HEADER = 24;
 constexpr size_t METADATA = 25;
 
-template <std::integral T>
-T read(const uint8_t *p) {
-  T v;
-  std::memcpy(&v, p, sizeof(T));
-  return v;
+template <std::integral Integer>
+Integer read(const uint8_t *pointer) {
+  Integer value;
+  std::memcpy(&value, pointer, sizeof(Integer));
+  return value;
 }
 }
 
@@ -30,18 +30,17 @@ int main() {
   input.read(reinterpret_cast<char *>(rom.data()), static_cast<std::streamsize>(size));
 
   const auto count = read<uint32_t>(rom.data() + 8);
-  const auto directories = read<uint64_t>(rom.data() + 12);
   const auto footprint = read<uint32_t>(rom.data() + 20);
 
-  std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)> context(ZSTD_createDCtx(), ZSTD_freeDCtx);
-  std::unique_ptr<ZSTD_DDict, decltype(&ZSTD_freeDDict)> decompressor(
+  std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)> engine(ZSTD_createDCtx(), ZSTD_freeDCtx);
+  std::unique_ptr<ZSTD_DDict, decltype(&ZSTD_freeDDict)> bundle(
     ZSTD_createDDict(rom.data() + HEADER, footprint), ZSTD_freeDDict);
 
   const std::filesystem::path root = "cartridge";
   const auto *cursor = rom.data() + HEADER + footprint;
   std::vector<uint8_t> decompressed;
 
-  for (uint32_t i = 0; i < count; ++i) {
+  for (uint32_t index = 0; index < count; ++index) {
     const auto length = read<uint16_t>(cursor);
     cursor += 2;
 
@@ -68,10 +67,10 @@ int main() {
 
     if (uncompressed > 0)
       ZSTD_decompress_usingDDict(
-        context.get(),
+        engine.get(),
         decompressed.data(), static_cast<size_t>(uncompressed),
         rom.data() + offset, static_cast<size_t>(compressed),
-        decompressor.get());
+        bundle.get());
 
     std::ofstream output(destination, std::ios::binary);
     if (uncompressed > 0)
