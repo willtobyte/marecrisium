@@ -2,11 +2,15 @@
 
 int main(int argc, char** argv) {
 #ifndef DEBUG
-  if (auto* out = std::freopen("stdout.txt", "w", stdout)) std::setvbuf(out, nullptr, _IONBF, 0);
-  if (auto* err = std::freopen("stderr.txt", "w", stderr)) std::setvbuf(err, nullptr, _IONBF, 0);
+  if (auto* out = std::freopen("stdout.txt", "w", stdout)) {
+    std::setvbuf(out, nullptr, _IONBF, 0);
+  }
+
+  if (auto* err = std::freopen("stderr.txt", "w", stderr)) {
+    std::setvbuf(err, nullptr, _IONBF, 0);
+  }
 #endif
 
-  SDL_SetHint(SDL_HINT_MAC_PRESS_AND_HOLD, "0");
   SDL_Init(SDL_INIT_GAMEPAD | SDL_INIT_VIDEO);
   std::atexit([] { SDL_Quit(); });
 
