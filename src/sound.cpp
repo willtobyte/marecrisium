@@ -178,7 +178,7 @@ sound::sound(std::string_view filename) {
   ma_audio_buffer_init(&config, &_buffer);
 
   ma_sound_init_from_data_source(
-    audioengine,
+    &audio,
     &_buffer,
     MA_SOUND_FLAG_NO_SPATIALIZATION | MA_SOUND_FLAG_NO_PITCH,
     nullptr,

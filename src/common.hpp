@@ -53,7 +53,7 @@ using namespace entt::literals;
 
 extern lua_State* L;
 extern SDL_Renderer* renderer;
-extern ma_engine* audioengine;
+extern ma_engine audio;
 
 struct resources;
 extern struct resources *depot;
