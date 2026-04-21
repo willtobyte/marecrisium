@@ -28,6 +28,9 @@ public:
 
 private:
   friend class minimap;
+#ifdef DEBUG
+  friend class stage;
+#endif
 
   struct node final {
     float f;

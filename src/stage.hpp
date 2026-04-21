@@ -90,4 +90,11 @@ private:
   int _on_tick{LUA_NOREF};
   int _on_enter{LUA_NOREF};
   int _on_leave{LUA_NOREF};
+
+#ifdef DEBUG
+  b2Vec2 _origin{};
+  b2Vec2 _target{};
+  b2Vec2 _center{};
+  float _radius{};
+#endif
 };

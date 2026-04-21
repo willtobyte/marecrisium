@@ -975,6 +975,60 @@ void stage::draw() {
     return true;
   }, nullptr);
 
+  SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+
+  {
+    const auto count = _tilemap._pathfinder.path.size();
+    if (count >= 2) {
+      static std::vector<SDL_FPoint> points;
+      points.resize(count);
+      const auto half = _tilemap._size * .5f;
+      const auto width = _tilemap._width;
+      const auto size = _tilemap._size;
+      for (size_t i = 0; i < count; ++i) {
+        const auto cell = _tilemap._pathfinder.path[i];
+        const auto column = static_cast<float>(cell % width);
+        const auto row = static_cast<float>(cell / width);
+        points[i].x = column * size + half - viewport.x;
+        points[i].y = row * size + half - viewport.y;
+      }
+
+      SDL_RenderLines(renderer, points.data(), static_cast<int>(count));
+    }
+  }
+
+  SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+
+  if (_origin.x != _target.x || _origin.y != _target.y) {
+    SDL_RenderLine(
+      renderer,
+      _origin.x - viewport.x,
+      _origin.y - viewport.y,
+      _target.x - viewport.x,
+      _target.y - viewport.y
+    );
+  }
+
+  if (_radius > .0f) {
+    static constexpr size_t segments = 32;
+    static const auto unit = []() {
+      std::array<SDL_FPoint, segments + 1> table{};
+      for (size_t i = 0; i <= segments; ++i) {
+        const auto angle = static_cast<float>(i) * (2.f * std::numbers::pi_v<float> / static_cast<float>(segments));
+        table[i] = {std::cos(angle), std::sin(angle)};
+      }
+      return table;
+    }();
+
+    static SDL_FPoint points[segments + 1];
+    for (size_t i = 0; i <= segments; ++i) {
+      points[i].x = _center.x + unit[i].x * _radius - viewport.x;
+      points[i].y = _center.y + unit[i].y * _radius - viewport.y;
+    }
+
+    SDL_RenderLines(renderer, points, static_cast<int>(segments + 1));
+  }
+
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 #endif
 }
@@ -1194,6 +1248,11 @@ int stage::radar(lua_State *state, entt::entity caller, float x, float y, float 
   const b2Vec2 center{x, y};
   const auto proxy = b2MakeProxy(&center, 1, radius);
 
+#ifdef DEBUG
+  _center = center;
+  _radius = radius;
+#endif
+
   _hits.clear();
   b2World_OverlapShape(
     _world,
@@ -1227,6 +1286,11 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
   sincos(radians, sine, cosine);
   const b2Vec2 origin{x, y};
   const b2Vec2 translation{cosine * distance, sine * distance};
+
+#ifdef DEBUG
+  _origin = origin;
+  _target = {origin.x + translation.x, origin.y + translation.y};
+#endif
 
   _hits.clear();
   b2World_CastRay(
