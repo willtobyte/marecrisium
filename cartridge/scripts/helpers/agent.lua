@@ -3,6 +3,7 @@ local sin = math.sin
 local atan2 = math.atan2
 local random = math.random
 local fmod = math.fmod
+local min = math.min
 
 local PI = math.pi
 local TWO_PI = 2 * PI
@@ -10,6 +11,7 @@ local RTD = 180 / PI
 local DTR = PI / 180
 
 local PROBE_OFFSETS = { 45, -45, 90, -90, 135, -135, 180 }
+local RETRY_FAST = 5
 
 local DEFAULTS = {
 	radius = 200,
@@ -21,6 +23,7 @@ local DEFAULTS = {
 	threshold = 10,
 	deadzone = 1,
 	blend = 0.35,
+	blockers = { tree = true },
 }
 
 local function normalize_angle(angle)
@@ -46,6 +49,13 @@ function agent.new(config)
 	end
 	self._radius_squared = self.radius * self.radius
 	self._reach_squared = self.reach * self.reach
+
+	local blockers = {}
+	for kind in pairs(self.blockers) do
+		blockers[kind] = true
+	end
+	self._blockers = blockers
+
 	return setmetatable(self, agent)
 end
 
@@ -57,6 +67,7 @@ function agent:init(object)
 	object._angle = nil
 	object._last_x = nil
 	object._last_y = nil
+	object._direct = false
 end
 
 function agent:stop(object)
@@ -92,6 +103,7 @@ function agent:chase(object, target, world)
 
 		if path and #path > 0 then
 			object._path = path
+			object._direct = false
 
 			local best = 2
 			local nearest = nil
@@ -113,6 +125,8 @@ function agent:chase(object, target, world)
 		else
 			object._path = {}
 			object._waypoint_index = 1
+			object._direct = horizontal * horizontal + vertical * vertical <= self._radius_squared
+			object._timer = min(object._timer, RETRY_FAST)
 		end
 	end
 
@@ -159,9 +173,10 @@ function agent:chase(object, target, world)
 	local pursuit_squared = pursuit_horizontal * pursuit_horizontal + pursuit_vertical * pursuit_vertical
 	local close_range_squared = self._reach_squared * 9
 
-	if pursuit_squared > 0 and pursuit_squared <= close_range_squared then
+	if pursuit_squared > 0 and (pursuit_squared <= close_range_squared or object._direct) then
 		local desired = atan2(pursuit_vertical, pursuit_horizontal)
 		object._angle = desired
+		object.flip = pursuit_horizontal < 0 and flip.horizontal or pursuit_horizontal > 0 and flip.none or object.flip
 		object.velocity_x = cos(desired) * self.speed
 		object.velocity_y = sin(desired) * self.speed
 		return
@@ -185,13 +200,14 @@ function agent:chase(object, target, world)
 
 	local desired = atan2(vertical, horizontal)
 	local degrees = desired * RTD
+	local blockers = self._blockers
 	local hit = world.raycast(object, origin_x, origin_y, degrees, self.probe)[1]
 
-	if hit and hit.kind ~= target.kind then
+	if hit and blockers[hit.kind] then
 		local chosen = nil
 		for _, offset in ipairs(PROBE_OFFSETS) do
 			local candidate = world.raycast(object, origin_x, origin_y, degrees + offset, self.probe)[1]
-			if not candidate or candidate.kind == target.kind then
+			if not candidate or not blockers[candidate.kind] then
 				chosen = desired + offset * DTR
 				break
 			end

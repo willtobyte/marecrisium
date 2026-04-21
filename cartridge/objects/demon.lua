@@ -1,5 +1,6 @@
 local enemy = require("helpers/enemy")
 local scheduler = require("helpers/scheduler")
+local spawner = require("helpers/spawner")
 local cos = math.cos
 local sin = math.sin
 local atan2 = math.atan2
@@ -77,11 +78,8 @@ return enemy({
 				local name = self.name .. "_fireball_" .. self._fireball_id
 				local spawn_x = origin_x + cos(angle) * FIREBALL_OFFSET
 				local spawn_y = origin_y + sin(angle) * FIREBALL_OFFSET
-				world.spawn(name, "fireball", spawn_x, spawn_y)
-				local fireball = pool[name]
+				local fireball = spawner.at_center(name, "fireball", spawn_x, spawn_y)
 				if fireball then
-					fireball.x = fireball.x + (spawn_x - fireball.center_x)
-					fireball.y = fireball.y + (spawn_y - fireball.center_y)
 					fireball._angle = angle
 				end
 				scheduler.spawn(function()
