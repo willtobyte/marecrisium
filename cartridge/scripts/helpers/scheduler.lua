@@ -8,9 +8,9 @@ local list = {}
 local n = 0
 local tick = 0
 
-function scheduler.spawn(fn)
+function scheduler.spawn(routine)
 	n = n + 1
-	list[n] = { routine = create(fn), resume_at = tick }
+	list[n] = { routine = create(routine), resume_at = tick }
 end
 
 scheduler.wait = yield

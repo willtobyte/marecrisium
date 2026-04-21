@@ -1,8 +1,8 @@
 local cos = math.cos
 local sin = math.sin
 
-local SPEED = 160
-local TTL = 0.7
+local SPEED = 260
+local TTL = 1.2
 
 return {
 	body = "dynamic",

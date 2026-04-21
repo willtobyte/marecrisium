@@ -4,12 +4,13 @@ local cos = math.cos
 local sin = math.sin
 local atan2 = math.atan2
 
-local ATTACK_RANGE_SQUARED = 120 * 120
-local KEEP_DISTANCE_SQUARED = 80 * 80
-local COOLDOWN_TICKS = 72
+local ATTACK_RANGE_SQUARED = 200 * 200
+local KEEP_DISTANCE_SQUARED = 140 * 140
+local COOLDOWN_TICKS = 12
 local PATROL_SPEED = 15
 local PATROL_WALK = 50
 local PATROL_PAUSE = 60
+local FIREBALL_OFFSET = 18
 
 return enemy({
 	radius = 250,
@@ -57,26 +58,31 @@ return enemy({
 	end,
 
 	on_loop = function(self, delta, player, chaser)
-		local dx = player.x - self.x
-		local dy = player.y - self.y
-		local dsq = dx * dx + dy * dy
+		local origin_x = self.center_x
+		local origin_y = self.center_y
+		local horizontal = player.center_x - origin_x
+		local vertical = player.center_y - origin_y
+		local distance_squared = horizontal * horizontal + vertical * vertical
 
-		if dsq <= ATTACK_RANGE_SQUARED and dsq > 0 then
+		if distance_squared <= ATTACK_RANGE_SQUARED and distance_squared > 0 then
 			self.velocity_x = 0
 			self.velocity_y = 0
 
-			local angle = atan2(dy, dx)
-			self.flip = dx < 0 and flip.horizontal or dx > 0 and flip.none or self.flip
+			local angle = atan2(vertical, horizontal)
+			self.flip = horizontal < 0 and flip.horizontal or horizontal > 0 and flip.none or self.flip
 
 			if self._ready then
 				self._ready = false
 				self._fireball_id = self._fireball_id + 1
 				local name = self.name .. "_fireball_" .. self._fireball_id
-				local fx = self.x + cos(angle) * 12
-				local fy = self.y + sin(angle) * 12
-				world.spawn(name, "fireball", fx, fy)
-				if pool[name] then
-					pool[name]._angle = angle
+				local spawn_x = origin_x + cos(angle) * FIREBALL_OFFSET
+				local spawn_y = origin_y + sin(angle) * FIREBALL_OFFSET
+				world.spawn(name, "fireball", spawn_x, spawn_y)
+				local fireball = pool[name]
+				if fireball then
+					fireball.x = fireball.x + (spawn_x - fireball.center_x)
+					fireball.y = fireball.y + (spawn_y - fireball.center_y)
+					fireball._angle = angle
 				end
 				scheduler.spawn(function()
 					scheduler.wait(COOLDOWN_TICKS)
@@ -84,8 +90,8 @@ return enemy({
 				end)
 			end
 
-			if dsq < KEEP_DISTANCE_SQUARED then
-				local retreat = atan2(-dy, -dx)
+			if distance_squared < KEEP_DISTANCE_SQUARED then
+				local retreat = atan2(-vertical, -horizontal)
 				self.velocity_x = cos(retreat) * chaser.speed
 				self.velocity_y = sin(retreat) * chaser.speed
 			end

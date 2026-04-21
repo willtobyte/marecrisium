@@ -438,6 +438,8 @@ viewport = {}
 ---@class Object
 ---@field x number Transform X position. For dynamic and static bodies, setting this teleports the body.
 ---@field y number Transform Y position. For dynamic and static bodies, setting this teleports the body.
+---@field center_x number World X coordinate of the body's hitbox center, derived from the current animation frame's collider (read-only).
+---@field center_y number World Y coordinate of the body's hitbox center, derived from the current animation frame's collider (read-only).
 ---@field velocity_x number Linear velocity X component. Readable on all body types; writable only on dynamic bodies.
 ---@field velocity_y number Linear velocity Y component. Readable on all body types; writable only on dynamic bodies.
 ---@field scale number Transform scale factor.

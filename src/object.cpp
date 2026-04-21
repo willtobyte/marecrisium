@@ -18,6 +18,8 @@ namespace {
     constexpr auto alpha = "alpha"_hs;
     constexpr auto name = "name"_hs;
     constexpr auto kind = "kind"_hs;
+    constexpr auto center_x = "center_x"_hs;
+    constexpr auto center_y = "center_y"_hs;
   }
 
   static void sync_body_position(body& bd, const transform& tf, const animation* an) {
@@ -82,6 +84,30 @@ namespace {
       case property::y:
         lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).y));
         return 1;
+
+      case property::center_x: {
+        const auto& tf = registry.get<transform>(entity);
+        const auto* a = registry.try_get<animation>(entity);
+        const auto* b = registry.try_get<body>(entity);
+        const frame* fr = (a && a->playing && a->sheet->count > 0)
+          ? &a->sheet->frames[a->sheet->clips[a->active].offset + a->current]
+          : nullptr;
+        const auto value = (b && fr) ? center_of(*b, tf, fr).x : tf.x;
+        lua_pushnumber(state, static_cast<lua_Number>(value));
+        return 1;
+      }
+
+      case property::center_y: {
+        const auto& tf = registry.get<transform>(entity);
+        const auto* a = registry.try_get<animation>(entity);
+        const auto* b = registry.try_get<body>(entity);
+        const frame* fr = (a && a->playing && a->sheet->count > 0)
+          ? &a->sheet->frames[a->sheet->clips[a->active].offset + a->current]
+          : nullptr;
+        const auto value = (b && fr) ? center_of(*b, tf, fr).y : tf.y;
+        lua_pushnumber(state, static_cast<lua_Number>(value));
+        return 1;
+      }
 
       case property::z:
         lua_pushinteger(state, static_cast<lua_Integer>(registry.get<renderable>(entity).z));

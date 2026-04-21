@@ -43,29 +43,29 @@ return {
 	end,
 
 	on_loop = function(self, delta)
-		local vx = (controls.right and speed or 0) - (controls.left and speed or 0)
-		local vy = (controls.down and speed or 0) - (controls.up and speed or 0)
+		local velocity_x = (controls.right and speed or 0) - (controls.left and speed or 0)
+		local velocity_y = (controls.down and speed or 0) - (controls.up and speed or 0)
 
-		if vx ~= 0 and vy ~= 0 then
-			local im = speed / sqrt(vx * vx + vy * vy)
-			vx, vy = vx * im, vy * im
+		if velocity_x ~= 0 and velocity_y ~= 0 then
+			local inverse_magnitude = speed / sqrt(velocity_x * velocity_x + velocity_y * velocity_y)
+			velocity_x, velocity_y = velocity_x * inverse_magnitude, velocity_y * inverse_magnitude
 		end
 
-		if vx ~= 0 then
-			self.flip = vx < 0 and flip.horizontal or flip.none
+		if velocity_x ~= 0 then
+			self.flip = velocity_x < 0 and flip.horizontal or flip.none
 		end
 
-		if vy > 0 then
+		if velocity_y > 0 then
 			facing = "south"
-		elseif vy < 0 then
+		elseif velocity_y < 0 then
 			facing = "north"
-		elseif vx ~= 0 then
+		elseif velocity_x ~= 0 then
 			facing = "east"
 		end
 
-		self.animation = (vx ~= 0 or vy ~= 0) and facing or ("idle." .. facing)
+		self.animation = (velocity_x ~= 0 or velocity_y ~= 0) and facing or ("idle." .. facing)
 
-		self.velocity_x, self.velocity_y = vx, vy
+		self.velocity_x, self.velocity_y = velocity_x, velocity_y
 	end,
 
 	on_damage = function(self)

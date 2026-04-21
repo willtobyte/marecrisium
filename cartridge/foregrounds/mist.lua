@@ -13,7 +13,7 @@ for i = 1, MAX_QUADS * STRIDE do
 	drawings[i] = 0
 end
 
-local sw, sh, vw, vh
+local sheet_width, sheet_height, viewport_width, viewport_height
 
 return {
 	on_bump = function(self)
@@ -22,10 +22,10 @@ return {
 
 	on_appear = function(self)
 		local pixmap = self.pixmap
-		sw = pixmap.width
-		sh = pixmap.height
-		vw = viewport.width
-		vh = viewport.height
+		sheet_width = pixmap.width
+		sheet_height = pixmap.height
+		viewport_width = viewport.width
+		viewport_height = viewport.height
 	end,
 
 	on_loop = function(self, delta)
@@ -35,28 +35,28 @@ return {
 	end,
 
 	on_paint = function(self)
-		local n = 0
+		local count = 0
 
 		for i = 1, #layers do
 			local scale = layers[i].scale
 			local alpha = layers[i].alpha
-			local dw = sw * scale
-			local dh = sh * scale
-			local ox = fmod(offsets[i], dw)
+			local draw_width = sheet_width * scale
+			local draw_height = sheet_height * scale
+			local offset_x = fmod(offsets[i], draw_width)
 
-			for y = -dh, vh - 1, dh do
-				for x = -dw + ox, vw - 1, dw do
-					drawings[n + 1] = x
-					drawings[n + 2] = y
-					drawings[n + 3] = dw
-					drawings[n + 4] = dh
-					drawings[n + 5] = 0
-					drawings[n + 6] = alpha
-					n = n + 6
+			for y = -draw_height, viewport_height - 1, draw_height do
+				for x = -draw_width + offset_x, viewport_width - 1, draw_width do
+					drawings[count + 1] = x
+					drawings[count + 2] = y
+					drawings[count + 3] = draw_width
+					drawings[count + 4] = draw_height
+					drawings[count + 5] = 0
+					drawings[count + 6] = alpha
+					count = count + 6
 				end
 			end
 		end
 
-		self:draw(drawings, n)
+		self:draw(drawings, count)
 	end,
 }

@@ -74,15 +74,20 @@ end
 function agent:chase(object, target, world)
 	object._timer = object._timer - 1
 
+	local origin_x = object.center_x
+	local origin_y = object.center_y
+	local target_x = target.center_x
+	local target_y = target.center_y
+
 	if object._timer <= 0 then
 		object._timer = self.interval
 
-		local px, py = target.x, target.y
-		local dx, dy = px - object.x, py - object.y
+		local horizontal = target_x - origin_x
+		local vertical = target_y - origin_y
 
 		local path
-		if dx * dx + dy * dy <= self._radius_squared then
-			path = world.pathfind(object.x, object.y, px, py, self.body_radius)
+		if horizontal * horizontal + vertical * vertical <= self._radius_squared then
+			path = world.pathfind(origin_x, origin_y, target_x, target_y, self.body_radius)
 		end
 
 		if path and #path > 0 then
@@ -90,15 +95,16 @@ function agent:chase(object, target, world)
 
 			local best = 2
 			local nearest = nil
-			for i = 2, #path do
-				local wx = path[i][1] - object.x
-				local wy = path[i][2] - object.y
-				local dsq = wx * wx + wy * wy
-				if dsq < self._reach_squared then
-					best = i + 1
-				elseif nearest == nil or dsq < nearest then
-					nearest = dsq
-					best = i
+			for index = 2, #path do
+				local waypoint_horizontal = path[index][1] - origin_x
+				local waypoint_vertical = path[index][2] - origin_y
+				local distance_squared = waypoint_horizontal * waypoint_horizontal
+					+ waypoint_vertical * waypoint_vertical
+				if distance_squared < self._reach_squared then
+					best = index + 1
+				elseif nearest == nil or distance_squared < nearest then
+					nearest = distance_squared
+					best = index
 				else
 					break
 				end
@@ -111,50 +117,50 @@ function agent:chase(object, target, world)
 	end
 
 	local path = object._path
-	local wi = object._waypoint_index
+	local waypoint_index = object._waypoint_index
 	local length = #path
 
-	while wi <= length do
-		local waypoint = path[wi]
-		local dx = waypoint[1] - object.x
-		local dy = waypoint[2] - object.y
-		if dx * dx + dy * dy < self._reach_squared then
-			wi = wi + 1
-			object._waypoint_index = wi
+	while waypoint_index <= length do
+		local waypoint = path[waypoint_index]
+		local horizontal = waypoint[1] - origin_x
+		local vertical = waypoint[2] - origin_y
+		if horizontal * horizontal + vertical * vertical < self._reach_squared then
+			waypoint_index = waypoint_index + 1
+			object._waypoint_index = waypoint_index
 		else
 			break
 		end
 	end
 
-	local tx, ty
+	local destination_x, destination_y
 
-	if wi <= length then
-		local waypoint = path[wi]
-		tx = waypoint[1]
-		ty = waypoint[2]
+	if waypoint_index <= length then
+		local waypoint = path[waypoint_index]
+		destination_x = waypoint[1]
+		destination_y = waypoint[2]
 	else
-		tx = target.x
-		ty = target.y
+		destination_x = target_x
+		destination_y = target_y
 	end
 
-	local dx = tx - object.x
-	local dy = ty - object.y
-	local dsq = dx * dx + dy * dy
+	local horizontal = destination_x - origin_x
+	local vertical = destination_y - origin_y
+	local distance_squared = horizontal * horizontal + vertical * vertical
 
-	if dsq <= 0 or dsq > self._radius_squared then
+	if distance_squared <= 0 or distance_squared > self._radius_squared then
 		object.velocity_x = 0
 		object.velocity_y = 0
 		object._angle = nil
 		return
 	end
 
-	local pdx = target.x - object.x
-	local pdy = target.y - object.y
-	local pdsq = pdx * pdx + pdy * pdy
-	local crsq = self._reach_squared * 9
+	local pursuit_horizontal = target_x - origin_x
+	local pursuit_vertical = target_y - origin_y
+	local pursuit_squared = pursuit_horizontal * pursuit_horizontal + pursuit_vertical * pursuit_vertical
+	local close_range_squared = self._reach_squared * 9
 
-	if pdsq > 0 and pdsq <= crsq then
-		local desired = atan2(pdy, pdx)
+	if pursuit_squared > 0 and pursuit_squared <= close_range_squared then
+		local desired = atan2(pursuit_vertical, pursuit_horizontal)
 		object._angle = desired
 		object.velocity_x = cos(desired) * self.speed
 		object.velocity_y = sin(desired) * self.speed
@@ -162,9 +168,9 @@ function agent:chase(object, target, world)
 	end
 
 	if object._last_x then
-		local mx = object.x - object._last_x
-		local my = object.y - object._last_y
-		if mx * mx + my * my < self.deadzone then
+		local moved_horizontal = origin_x - object._last_x
+		local moved_vertical = origin_y - object._last_y
+		if moved_horizontal * moved_horizontal + moved_vertical * moved_vertical < self.deadzone then
 			object._stall = object._stall + 1
 			if object._stall >= self.threshold then
 				object._stall = 0
@@ -174,17 +180,17 @@ function agent:chase(object, target, world)
 			object._stall = 0
 		end
 	end
-	object._last_x = object.x
-	object._last_y = object.y
+	object._last_x = origin_x
+	object._last_y = origin_y
 
-	local desired = atan2(dy, dx)
+	local desired = atan2(vertical, horizontal)
 	local degrees = desired * RTD
-	local hit = world.raycast(object, object.x, object.y, degrees, self.probe)[1]
+	local hit = world.raycast(object, origin_x, origin_y, degrees, self.probe)[1]
 
 	if hit and hit.kind ~= target.kind then
 		local chosen = nil
 		for _, offset in ipairs(PROBE_OFFSETS) do
-			local candidate = world.raycast(object, object.x, object.y, degrees + offset, self.probe)[1]
+			local candidate = world.raycast(object, origin_x, origin_y, degrees + offset, self.probe)[1]
 			if not candidate or candidate.kind == target.kind then
 				chosen = desired + offset * DTR
 				break
@@ -209,22 +215,22 @@ function agent:chase(object, target, world)
 	end
 	object._angle = angle
 
-	local vx = cos(angle) * self.speed
-	local vy = sin(angle) * self.speed
+	local velocity_x = cos(angle) * self.speed
+	local velocity_y = sin(angle) * self.speed
 
-	object.flip = vx < 0 and flip.horizontal or vx > 0 and flip.none or object.flip
-	object.velocity_x = vx
-	object.velocity_y = vy
+	object.flip = velocity_x < 0 and flip.horizontal or velocity_x > 0 and flip.none or object.flip
+	object.velocity_x = velocity_x
+	object.velocity_y = velocity_y
 end
 
 function agent:in_range(object, target)
-	local dx = target.x - object.x
-	local dy = target.y - object.y
-	return dx * dx + dy * dy <= self._radius_squared
+	local horizontal = target.center_x - object.center_x
+	local vertical = target.center_y - object.center_y
+	return horizontal * horizontal + vertical * vertical <= self._radius_squared
 end
 
 function agent:angle_to(object, target)
-	return atan2(target.y - object.y, target.x - object.x)
+	return atan2(target.center_y - object.center_y, target.center_x - object.center_x)
 end
 
 return agent
