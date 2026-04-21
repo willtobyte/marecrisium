@@ -28,8 +28,8 @@ int main(int argc, char** argv) {
   SteamAPI_InitSafe();
   std::atexit([] { SteamAPI_Shutdown(); });
 
-  resources resources;
-  depot = &resources;
+  resources storage;
+  depot = &storage;
 
   application app;
   return app.run();
