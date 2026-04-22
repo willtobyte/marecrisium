@@ -131,7 +131,7 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
           for (size_t dx = 0; dx < rw; ++dx) seen[base + dx] = true;
         }
 
-        const auto half  = _size * .5f;
+        const auto half = _size * .5f;
         const auto bhx = static_cast<float>(rw)  * half;
         const auto bhy = static_cast<float>(rh) * half;
 

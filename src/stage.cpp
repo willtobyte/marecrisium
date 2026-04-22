@@ -3,7 +3,7 @@
 namespace {
   namespace property {
     constexpr auto dynamic_bodytype = "dynamic"_hs;
-    constexpr auto static_bodytype  = "static"_hs;
+    constexpr auto static_bodytype = "static"_hs;
   }
 }
 
@@ -45,7 +45,7 @@ static color unpack(lua_State *state, int index) {
 
 static bool culled(const transform &tf, const animation &an, float margin) {
   const auto &fr = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
-  const auto width  = fr.width * tf.scale;
+  const auto width = fr.width * tf.scale;
   const auto height = fr.height * tf.scale;
   const auto screen_x = tf.x - viewport.x;
   const auto screen_y = tf.y - viewport.y;
@@ -127,19 +127,8 @@ static bool resolve(b2ShapeId a, b2ShapeId b, entt::entity &ea, entt::entity &eb
 static void on_scriptable_destroy(entt::registry& registry, entt::entity entity) {
   auto& op = registry.get<scriptable>(entity);
 
-  luaL_unref(L, LUA_REGISTRYINDEX, op.on_spawn);
-  luaL_unref(L, LUA_REGISTRYINDEX, op.on_screen_enter);
-  luaL_unref(L, LUA_REGISTRYINDEX, op.on_screen_exit);
-  luaL_unref(L, LUA_REGISTRYINDEX, op.on_sleep);
-  luaL_unref(L, LUA_REGISTRYINDEX, op.on_wake);
-  luaL_unref(L, LUA_REGISTRYINDEX, op.on_collision_end);
-  luaL_unref(L, LUA_REGISTRYINDEX, op.on_collision_begin);
-  luaL_unref(L, LUA_REGISTRYINDEX, op.on_animation_begin);
-  luaL_unref(L, LUA_REGISTRYINDEX, op.on_animation_end);
-  luaL_unref(L, LUA_REGISTRYINDEX, op.on_loop);
   luaL_unref(L, LUA_REGISTRYINDEX, op.kind_ref);
   luaL_unref(L, LUA_REGISTRYINDEX, op.name_ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, op.prototype);
   luaL_unref(L, LUA_REGISTRYINDEX, op.handle);
 }
 
@@ -196,7 +185,7 @@ static int world_find(lua_State* state) {
 
 static int world_radar(lua_State* state) {
   auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  const auto* caller = static_cast<scriptable *>(luaL_checkudata(state, 1, "Object"));
+  const auto* caller = static_cast<proxy *>(luaL_checkudata(state, 1, "Object"));
   const auto x = static_cast<float>(luaL_checknumber(state, 2));
   const auto y = static_cast<float>(luaL_checknumber(state, 3));
   const auto radius = static_cast<float>(luaL_checknumber(state, 4));
@@ -205,7 +194,7 @@ static int world_radar(lua_State* state) {
 
 static int world_raycast(lua_State* state) {
   auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  const auto* caller = static_cast<scriptable *>(luaL_checkudata(state, 1, "Object"));
+  const auto* caller = static_cast<proxy *>(luaL_checkudata(state, 1, "Object"));
   const auto x = static_cast<float>(luaL_checknumber(state, 2));
   const auto y = static_cast<float>(luaL_checknumber(state, 3));
   const auto angle = static_cast<float>(luaL_checknumber(state, 4));
@@ -219,7 +208,7 @@ static int world_pathfind(lua_State* state) {
   const auto y1 = static_cast<float>(luaL_checknumber(state, 2));
   const auto x2 = static_cast<float>(luaL_checknumber(state, 3));
   const auto y2 = static_cast<float>(luaL_checknumber(state, 4));
-  const auto r  = static_cast<float>(luaL_checknumber(state, 5));
+  const auto r = static_cast<float>(luaL_checknumber(state, 5));
   return self->pathfind(state, x1, y1, x2, y2, r);
 }
 
@@ -718,7 +707,7 @@ void stage::update(float delta) {
     if (aabb.lowerBound.y > vb)
       current |= boundary::bottom;
 
-    const auto exited  = static_cast<uint8_t>(current & ~bd.previous);
+    const auto exited = static_cast<uint8_t>(current & ~bd.previous);
     const auto entered = static_cast<uint8_t>(bd.previous & ~current);
     bd.previous = current;
 
@@ -874,8 +863,8 @@ void stage::draw() {
 
     const auto dx0 = -hw * ca + hh * sa;
     const auto dy0 = -hw * sa - hh * ca;
-    const auto dx1 =  hw * ca + hh * sa;
-    const auto dy1 =  hw * sa - hh * ca;
+    const auto dx1 = hw * ca + hh * sa;
+    const auto dy1 = hw * sa - hh * ca;
 
     const auto base = static_cast<int>(_vertices.size());
     const SDL_FColor color{1.f, 1.f, 1.f, alpha};
@@ -1035,11 +1024,9 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   tf.previous_y = tf.y = y;
 
   auto& op = _registry.emplace<scriptable>(entity);
-  op.registry = &_registry;
-  op.entity = entity;
   op.name = entt::hashed_string{name.data(), name.size()};
   op.kind = entt::hashed_string{kind.data(), kind.size()};
-  object::bind(op, name, kind);
+  object::bind(_registry, entity, op, name, kind);
   const auto prototype = op.prototype;
   const auto handle = op.handle;
   const auto on_spawn = op.on_spawn;
@@ -1107,7 +1094,10 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
     pcall(L, 1, 0);
   }
 
-  if (!_registry.valid(entity)) [[unlikely]] return 0;
+  if (!_registry.valid(entity)) [[unlikely]] {
+    lua_pushnil(state);
+    return 1;
+  }
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
   lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
@@ -1130,18 +1120,19 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 }
 
 int stage::destroy(lua_State* state) {
-  auto* proxy = static_cast<scriptable *>(luaL_checkudata(state, 1, "Object"));
-  if (!_registry.valid(proxy->entity))
+  auto* self = static_cast<proxy *>(luaL_checkudata(state, 1, "Object"));
+  if (!_registry.valid(self->entity))
     return 0;
 
-  const auto* label = depot->string.get(proxy->name);
+  const auto& op = _registry.get<scriptable>(self->entity);
+  const auto* label = depot->string.get(op.name);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
   lua_pushnil(L);
   lua_setfield(L, -2, label);
   lua_pop(L, 1);
 
-  _registry.destroy(proxy->entity);
+  _registry.destroy(self->entity);
   return 0;
 }
 

@@ -1,10 +1,15 @@
 #pragma once
 
+struct proxy final {
+  entt::registry* registry{};
+  entt::entity entity{entt::null};
+};
+
+static_assert(std::is_trivially_copyable_v<proxy>);
+
 struct scriptable final {
   static constexpr auto in_place_delete = true;
 
-  entt::registry* registry;
-  entt::entity entity{entt::null};
   entt::id_type name{};
   entt::id_type kind{};
 
@@ -28,5 +33,5 @@ static_assert(std::is_trivially_copyable_v<scriptable>);
 
 namespace object {
   void wire();
-  void bind(scriptable& proxy, std::string_view name, std::string_view kind);
+  void bind(entt::registry& registry, entt::entity entity, scriptable& component, std::string_view name, std::string_view kind);
 }

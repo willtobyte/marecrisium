@@ -46,40 +46,33 @@ namespace {
 
   ankerl::unordered_dense::map<entt::id_type, prototype> prototypes;
 
-  static int duplicate_ref(int source) {
-    if (source == LUA_NOREF) return LUA_NOREF;
-    lua_rawgeti(L, LUA_REGISTRYINDEX, source);
-    return luaL_ref(L, LUA_REGISTRYINDEX);
-  }
-
-  static void commit(scriptable& proxy) {
-    auto* memory = static_cast<scriptable*>(lua_newuserdata(L, sizeof(scriptable)));
+  static void commit(entt::registry& registry, entt::entity entity, scriptable& component) {
+    auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));
     luaL_getmetatable(L, "Object");
     lua_setmetatable(L, -2);
-    proxy.handle = luaL_ref(L, LUA_REGISTRYINDEX);
-    *memory = scriptable{
-      .registry = proxy.registry,
-      .entity   = proxy.entity,
-      .name     = proxy.name,
-      .kind     = proxy.kind,
+    component.handle = luaL_ref(L, LUA_REGISTRYINDEX);
+    *memory = proxy{
+      .registry = &registry,
+      .entity = entity,
     };
   }
 
   static int object_index(lua_State* state) {
-    const auto* proxy = static_cast<scriptable*>(luaL_checkudata(state, 1, "Object"));
+    const auto* self = static_cast<proxy*>(luaL_checkudata(state, 1, "Object"));
     const auto* key = luaL_checkstring(state, 2);
     const auto id = entt::hashed_string{key};
 
     if (id == property::alive) {
-      lua_pushboolean(state, proxy->registry->valid(proxy->entity) ? 1 : 0);
+      lua_pushboolean(state, self->registry->valid(self->entity) ? 1 : 0);
       return 1;
     }
 
-    if (!proxy->registry->valid(proxy->entity)) [[unlikely]]
+    if (!self->registry->valid(self->entity)) [[unlikely]]
       return lua_pushnil(state), 1;
 
-    auto& registry = *proxy->registry;
-    const auto entity = proxy->entity;
+    auto& registry = *self->registry;
+    const auto entity = self->entity;
+    const auto& op = registry.get<scriptable>(entity);
 
     switch (id) {
       case property::x:
@@ -172,17 +165,17 @@ namespace {
         return 1;
 
       case property::name:
-        lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->name_ref);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, op.name_ref);
         return 1;
 
       case property::kind:
-        lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->kind_ref);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, op.kind_ref);
         return 1;
 
       default: {
-        assert(proxy->prototype != LUA_NOREF && "object must have an object reference");
+        assert(op.prototype != LUA_NOREF && "object must have an object reference");
 
-        lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->prototype);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, op.prototype);
         lua_getfield(state, -1, key);
         if (!lua_isnil(state, -1)) [[likely]] {
           lua_remove(state, -2);
@@ -210,15 +203,16 @@ namespace {
   }
 
   static int object_newindex(lua_State* state) {
-    auto* proxy = static_cast<scriptable*>(luaL_checkudata(state, 1, "Object"));
+    auto* self = static_cast<proxy*>(luaL_checkudata(state, 1, "Object"));
     const auto* key = luaL_checkstring(state, 2);
     const auto id = entt::hashed_string{key};
 
-    if (!proxy->registry->valid(proxy->entity))
+    if (!self->registry->valid(self->entity))
       return 0;
 
-    auto& registry = *proxy->registry;
-    const auto entity = proxy->entity;
+    auto& registry = *self->registry;
+    const auto entity = self->entity;
+    const auto& op = registry.get<scriptable>(entity);
 
     switch (id) {
       case property::x: {
@@ -303,21 +297,21 @@ namespace {
           if (a->sheet->clips[i].effect)
             a->sheet->clips[i].effect->play();
 
-          if (proxy->handle == LUA_NOREF)
+          if (op.handle == LUA_NOREF)
             return 0;
 
           if (previous != LUA_NOREF
               && pc.identity.hash != hash
-              && proxy->on_animation_end != LUA_NOREF) [[unlikely]] {
-            lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
+              && op.on_animation_end != LUA_NOREF) [[unlikely]] {
+            lua_rawgeti(state, LUA_REGISTRYINDEX, op.on_animation_end);
+            lua_rawgeti(state, LUA_REGISTRYINDEX, op.handle);
             lua_rawgeti(state, LUA_REGISTRYINDEX, previous);
             pcall(state, 2, 0);
           }
 
-          if (proxy->on_animation_begin != LUA_NOREF) {
-            lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->handle);
+          if (op.on_animation_begin != LUA_NOREF) {
+            lua_rawgeti(state, LUA_REGISTRYINDEX, op.on_animation_begin);
+            lua_rawgeti(state, LUA_REGISTRYINDEX, op.handle);
             lua_rawgeti(state, LUA_REGISTRYINDEX, a->sheet->clips[i].identity.reference);
             pcall(state, 2, 0);
           }
@@ -346,9 +340,9 @@ namespace {
         return 0;
 
       default:
-        assert(proxy->prototype != LUA_NOREF && "object must have an object reference");
+        assert(op.prototype != LUA_NOREF && "object must have an object reference");
 
-        lua_rawgeti(state, LUA_REGISTRYINDEX, proxy->prototype);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, op.prototype);
         lua_pushvalue(state, 3);
         lua_setfield(state, -2, key);
         lua_pop(state, 1);
@@ -358,14 +352,14 @@ namespace {
 }
 
 
-void object::bind(scriptable& proxy, std::string_view name, std::string_view kind) {
+void object::bind(entt::registry& registry, entt::entity entity, scriptable& component, std::string_view name, std::string_view kind) {
   depot->source.insert(kind);
 
   lua_pushlstring(L, name.data(), name.size());
-  proxy.name_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  component.name_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_pushlstring(L, kind.data(), kind.size());
-  proxy.kind_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  component.kind_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   const auto identity = entt::hashed_string{kind.data(), kind.size()};
 
@@ -373,74 +367,74 @@ void object::bind(scriptable& proxy, std::string_view name, std::string_view kin
     lua_pop(L, 1);
 
     const auto& blueprint = it->second;
-    proxy.prototype          = duplicate_ref(blueprint.reference);
-    proxy.on_loop            = duplicate_ref(blueprint.on_loop);
-    proxy.on_animation_end   = duplicate_ref(blueprint.on_animation_end);
-    proxy.on_animation_begin = duplicate_ref(blueprint.on_animation_begin);
-    proxy.on_collision_begin = duplicate_ref(blueprint.on_collision_begin);
-    proxy.on_collision_end   = duplicate_ref(blueprint.on_collision_end);
-    proxy.on_wake            = duplicate_ref(blueprint.on_wake);
-    proxy.on_sleep           = duplicate_ref(blueprint.on_sleep);
-    proxy.on_screen_exit     = duplicate_ref(blueprint.on_screen_exit);
-    proxy.on_screen_enter    = duplicate_ref(blueprint.on_screen_enter);
-    proxy.on_spawn           = duplicate_ref(blueprint.on_spawn);
+    component.prototype = blueprint.reference;
+    component.on_loop = blueprint.on_loop;
+    component.on_animation_end = blueprint.on_animation_end;
+    component.on_animation_begin = blueprint.on_animation_begin;
+    component.on_collision_begin = blueprint.on_collision_begin;
+    component.on_collision_end = blueprint.on_collision_end;
+    component.on_wake = blueprint.on_wake;
+    component.on_sleep = blueprint.on_sleep;
+    component.on_screen_exit = blueprint.on_screen_exit;
+    component.on_screen_enter = blueprint.on_screen_enter;
+    component.on_spawn = blueprint.on_spawn;
 
-    return commit(proxy);
+    return commit(registry, entity, component);
   }
 
   pcall(L, 0, 1);
 
-  proxy.prototype = luaL_ref(L, LUA_REGISTRYINDEX);
+  component.prototype = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy.prototype);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, component.prototype);
 
   lua_getfield(L, -1, "on_loop");
-  proxy.on_loop = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  component.on_loop = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_animation_end");
-  proxy.on_animation_end = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  component.on_animation_end = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_animation_begin");
-  proxy.on_animation_begin = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  component.on_animation_begin = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_collision_begin");
-  proxy.on_collision_begin = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  component.on_collision_begin = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_collision_end");
-  proxy.on_collision_end = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  component.on_collision_end = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_wake");
-  proxy.on_wake = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  component.on_wake = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_sleep");
-  proxy.on_sleep = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  component.on_sleep = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_screen_exit");
-  proxy.on_screen_exit = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  component.on_screen_exit = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_screen_enter");
-  proxy.on_screen_enter = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  component.on_screen_enter = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_spawn");
-  proxy.on_spawn = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  component.on_spawn = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_pop(L, 1);
 
   prototypes.emplace(identity, prototype{
-    duplicate_ref(proxy.prototype),
-    duplicate_ref(proxy.on_loop),
-    duplicate_ref(proxy.on_animation_end),
-    duplicate_ref(proxy.on_animation_begin),
-    duplicate_ref(proxy.on_collision_begin),
-    duplicate_ref(proxy.on_collision_end),
-    duplicate_ref(proxy.on_wake),
-    duplicate_ref(proxy.on_sleep),
-    duplicate_ref(proxy.on_screen_exit),
-    duplicate_ref(proxy.on_screen_enter),
-    duplicate_ref(proxy.on_spawn),
+    component.prototype,
+    component.on_loop,
+    component.on_animation_end,
+    component.on_animation_begin,
+    component.on_collision_begin,
+    component.on_collision_end,
+    component.on_wake,
+    component.on_sleep,
+    component.on_screen_exit,
+    component.on_screen_enter,
+    component.on_spawn,
   });
 
-  commit(proxy);
+  commit(registry, entity, component);
 }
 
 void object::wire() {
