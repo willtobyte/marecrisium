@@ -127,55 +127,20 @@ static bool resolve(b2ShapeId a, b2ShapeId b, entt::entity &ea, entt::entity &eb
 static void on_scriptable_destroy(entt::registry& registry, entt::entity entity) {
   auto& op = registry.get<scriptable>(entity);
 
-  if (op.handle == LUA_NOREF)
-    return;
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-  auto* userdata = static_cast<scriptable*>(lua_touserdata(L, -1));
-  if (userdata) {
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_spawn);
-    userdata->on_spawn = LUA_NOREF;
-
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_screen_enter);
-    userdata->on_screen_enter = LUA_NOREF;
-
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_screen_exit);
-    userdata->on_screen_exit = LUA_NOREF;
-
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_sleep);
-    userdata->on_sleep = LUA_NOREF;
-
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_wake);
-    userdata->on_wake = LUA_NOREF;
-
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_collision_end);
-    userdata->on_collision_end = LUA_NOREF;
-
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_collision_begin);
-    userdata->on_collision_begin = LUA_NOREF;
-
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_begin);
-    userdata->on_animation_begin = LUA_NOREF;
-
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_animation_end);
-    userdata->on_animation_end = LUA_NOREF;
-
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->on_loop);
-    userdata->on_loop = LUA_NOREF;
-
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->kind_ref);
-    userdata->kind_ref = LUA_NOREF;
-
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->name_ref);
-    userdata->name_ref = LUA_NOREF;
-
-    luaL_unref(L, LUA_REGISTRYINDEX, userdata->prototype);
-    userdata->prototype = LUA_NOREF;
-  }
-
-  lua_pop(L, 1);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.on_spawn);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.on_screen_enter);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.on_screen_exit);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.on_sleep);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.on_wake);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.on_collision_end);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.on_collision_begin);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.on_animation_begin);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.on_animation_end);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.on_loop);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.kind_ref);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.name_ref);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.prototype);
   luaL_unref(L, LUA_REGISTRYINDEX, op.handle);
-  op.handle = LUA_NOREF;
 }
 
 static void on_object_destroy(entt::registry& registry, entt::entity entity) {
@@ -534,28 +499,13 @@ stage::stage(std::string name)
 
 stage::~stage() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_leave);
-  _on_leave = LUA_NOREF;
-
   luaL_unref(L, LUA_REGISTRYINDEX, _on_enter);
-  _on_enter = LUA_NOREF;
-
   luaL_unref(L, LUA_REGISTRYINDEX, _on_tick);
-  _on_tick = LUA_NOREF;
-
   luaL_unref(L, LUA_REGISTRYINDEX, _on_camera);
-  _on_camera = LUA_NOREF;
-
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
-  _on_loop = LUA_NOREF;
-
   luaL_unref(L, LUA_REGISTRYINDEX, _world_ref);
-  _world_ref = LUA_NOREF;
-
   luaL_unref(L, LUA_REGISTRYINDEX, _pool_ref);
-  _pool_ref = LUA_NOREF;
-
   luaL_unref(L, LUA_REGISTRYINDEX, _ref);
-  _ref = LUA_NOREF;
 
   _registry.on_destroy<body>().disconnect<&on_object_destroy>();
   _registry.clear();

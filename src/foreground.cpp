@@ -171,17 +171,11 @@ foreground::~foreground() {
   disappear();
 
   luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
-  _on_paint = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
-  _on_loop = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _on_disappear);
-  _on_disappear = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _on_appear);
-  _on_appear = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _ref);
-  _ref = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _userdata_ref);
-  _userdata_ref = LUA_NOREF;
 }
 
 void foreground::wire() {

@@ -164,13 +164,9 @@ overlay::~overlay() {
   // SDL_StopTextInput(SDL_GetRenderWindow(renderer));
   // SDL_RemoveEventWatch(on_event, this);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
-  _on_paint = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
-  _on_loop = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _ref);
-  _ref = LUA_NOREF;
   luaL_unref(L, LUA_REGISTRYINDEX, _userdata_ref);
-  _userdata_ref = LUA_NOREF;
 }
 
 void overlay::wire() {

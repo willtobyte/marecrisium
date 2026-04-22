@@ -355,51 +355,6 @@ namespace {
         return 0;
     }
   }
-
-  static int object_gc(lua_State* state) {
-    auto* proxy = static_cast<scriptable*>(luaL_checkudata(state, 1, "Object"));
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_begin);
-    proxy->on_animation_begin = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_animation_end);
-    proxy->on_animation_end = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_loop);
-    proxy->on_loop = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_collision_begin);
-    proxy->on_collision_begin = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_collision_end);
-    proxy->on_collision_end = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_wake);
-    proxy->on_wake = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_sleep);
-    proxy->on_sleep = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_screen_exit);
-    proxy->on_screen_exit = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_screen_enter);
-    proxy->on_screen_enter = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->on_spawn);
-    proxy->on_spawn = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->kind_ref);
-    proxy->kind_ref = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->name_ref);
-    proxy->name_ref = LUA_NOREF;
-
-    luaL_unref(state, LUA_REGISTRYINDEX, proxy->prototype);
-    proxy->prototype = LUA_NOREF;
-
-    return 0;
-  }
 }
 
 
@@ -489,7 +444,7 @@ void object::bind(scriptable& proxy, std::string_view name, std::string_view kin
 }
 
 void object::wire() {
-  metatable(L, "Object", object_index, object_newindex, object_gc);
+  metatable(L, "Object", object_index, object_newindex);
 
   lua_createtable(L, 0, 4);
   lua_pushinteger(L, static_cast<lua_Integer>(mirror::none));
