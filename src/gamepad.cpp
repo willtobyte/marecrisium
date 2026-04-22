@@ -1,5 +1,3 @@
-#include "gamepad.hpp"
-
 namespace {
   namespace property {
     constexpr auto connected = "connected"_hs;

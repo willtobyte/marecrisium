@@ -1,5 +1,3 @@
-#include "engine.hpp"
-
 static constexpr std::array<SDL_EventType, 5> disabled_events{
   SDL_EVENT_KEY_DOWN,
   SDL_EVENT_MOUSE_MOTION,

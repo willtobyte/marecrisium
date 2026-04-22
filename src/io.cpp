@@ -1,5 +1,3 @@
-#include "io.hpp"
-
 bool io::exists(std::string_view filename) {
   return PHYSFS_exists(filename.data());
 }

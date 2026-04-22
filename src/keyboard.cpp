@@ -1,5 +1,3 @@
-#include "keyboard.hpp"
-
 static int keyboard_index(lua_State *state) {
   static const ankerl::unordered_dense::map<entt::id_type, SDL_Scancode> mapping{
     {"a"_hs, SDL_SCANCODE_A}, {"b"_hs, SDL_SCANCODE_B}, {"c"_hs, SDL_SCANCODE_C},

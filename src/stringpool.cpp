@@ -1,5 +1,3 @@
-#include "stringpool.hpp"
-
 entt::id_type stringpool::get(std::string_view value) {
   const auto key = entt::hashed_string{value.data(), value.size()};
   const auto [it, inserted] = _pool.try_emplace(key, value);

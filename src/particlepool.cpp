@@ -1,5 +1,3 @@
-#include "particlepool.hpp"
-
 static std::pair<float, float> read_range(lua_State* state, const char* field) {
   float a = .0f, b = .0f;
   lua_getfield(state, -1, field);

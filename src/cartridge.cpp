@@ -1,5 +1,3 @@
-#include "cartridge.hpp"
-
 namespace {
 using namespace std::string_view_literals;
 

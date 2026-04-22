@@ -1,5 +1,3 @@
-#include "scriptengine.hpp"
-
 static int loader(lua_State *state) {
   const std::string_view module = luaL_checkstring(state, 1);
   const auto filename = std::format("scripts/{}.lua", module);

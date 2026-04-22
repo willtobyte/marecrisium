@@ -1,5 +1,3 @@
-#include "font.hpp"
-
 static SDL_FPoint rotate(float x, float y, float middle_x, float middle_y, float cosine, float sine) {
   const auto dx = x - middle_x;
   const auto dy = y - middle_y;

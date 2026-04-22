@@ -1,5 +1,3 @@
-#include "math.hpp"
-
 namespace {
 constexpr float SIN_C0 = .99997f;
 constexpr float SIN_C1 = .16596f;

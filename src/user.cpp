@@ -1,5 +1,3 @@
-#include "user.hpp"
-
 namespace {
   namespace property {
     constexpr auto id = "id"_hs;

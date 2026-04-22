@@ -1,5 +1,3 @@
-#include "achievement.hpp"
-
 namespace {
   namespace property {
     constexpr auto unlock = "unlock"_hs;

@@ -1,5 +1,3 @@
-#include "overlay.hpp"
-
 static bool on_event(void *userdata, SDL_Event *event) {
   auto *self = static_cast<overlay *>(userdata);
   switch (event->type) {

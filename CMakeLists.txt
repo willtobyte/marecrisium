@@ -19,6 +19,11 @@ add_compile_definitions(
   $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN>
 )
 
+set_source_files_properties(
+  src/miniaudio.cpp
+  PROPERTIES SKIP_PRECOMPILE_HEADERS ON
+)
+
 add_executable(${PROJECT_NAME})
 
 target_sources(${PROJECT_NAME} PRIVATE

@@ -1,5 +1,3 @@
-#include "internet.hpp"
-
 static int openurl_call(lua_State *state) {
   const auto *url = luaL_checkstring(state, 1);
   lua_pushboolean(state, SDL_OpenURL(url) ? 1 : 0);

@@ -1,5 +1,3 @@
-#include "cassette.hpp"
-
 namespace {
 namespace property {
   constexpr auto purge = "purge"_hs;

@@ -1,5 +1,3 @@
-#include "pixmap.hpp"
-
 pixmap::pixmap(std::string_view filename) {
   const auto buffer = io::read(filename);
 

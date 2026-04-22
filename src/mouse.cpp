@@ -1,5 +1,3 @@
-#include "mouse.hpp"
-
 namespace {
 namespace property {
   constexpr auto x = "x"_hs;

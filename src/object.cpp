@@ -1,6 +1,3 @@
-#include "object.hpp"
-#include "sound.hpp"
-
 namespace {
   namespace property {
     constexpr auto alive = "alive"_hs;

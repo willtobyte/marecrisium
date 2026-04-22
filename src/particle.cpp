@@ -1,5 +1,3 @@
-#include "particle.hpp"
-
 namespace {
 namespace property {
   constexpr auto active = "active"_hs;

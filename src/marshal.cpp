@@ -1,5 +1,3 @@
-#include "marshal.hpp"
-
 namespace {
 static int absolute_index(lua_State *state, int index) {
   return (index > 0 || index <= LUA_REGISTRYINDEX)

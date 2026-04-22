@@ -1,5 +1,3 @@
-#include "sound.hpp"
-
 namespace {
   namespace property {
     constexpr auto volume = "volume"_hs;

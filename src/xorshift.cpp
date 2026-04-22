@@ -1,5 +1,3 @@
-#include "xorshift.hpp"
-
 xorshift128 rng{};
 
 namespace {

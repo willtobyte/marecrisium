@@ -1,5 +1,3 @@
-#include "sourcepool.hpp"
-
 namespace {
   static int writer(lua_State*, const void* data, size_t size, void* userdata) {
     auto* buffer = static_cast<std::vector<uint8_t>*>(userdata);

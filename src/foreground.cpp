@@ -1,5 +1,3 @@
-#include "foreground.hpp"
-
 namespace {
 namespace property {
   constexpr auto draw = "draw"_hs;

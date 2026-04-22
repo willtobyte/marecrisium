@@ -1,5 +1,3 @@
-#include "common.hpp"
-
 lua_State *L = nullptr;
 SDL_Renderer *renderer = nullptr;
 ma_engine audio{};

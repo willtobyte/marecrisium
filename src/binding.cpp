@@ -1,5 +1,3 @@
-#include "binding.hpp"
-
 constexpr int MAX_DEPTH = 6;
 constexpr int MAX_ENTRIES = 10;
 

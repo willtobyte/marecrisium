@@ -1,6 +1,3 @@
-#include "tilemap.hpp"
-
-
 static void ingest(tilemap::layer& layer, const char* field, size_t total) {
   lua_getfield(L, -1, field);
   if (!lua_istable(L, -1)) {

@@ -1,5 +1,3 @@
-#include "stage.hpp"
-
 namespace {
   namespace property {
     constexpr auto dynamic_bodytype = "dynamic"_hs;

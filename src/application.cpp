@@ -1,5 +1,3 @@
-#include "application.hpp"
-
 int application::run() {
   try {
     const auto* const rom = std::getenv("CARTRIDGE");

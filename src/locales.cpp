@@ -1,5 +1,3 @@
-#include "locales.hpp"
-
 static int translate(lua_State *state) {
   const auto extras = lua_gettop(state) - 1;
 

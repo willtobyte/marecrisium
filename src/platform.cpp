@@ -1,5 +1,3 @@
-#include "platform.hpp"
-
 namespace {
   namespace property {
     constexpr auto name = "name"_hs;

@@ -1,5 +1,3 @@
-#include "minimap.hpp"
-
 namespace {
 namespace property {
   constexpr auto visible = "visible"_hs;
