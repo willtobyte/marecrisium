@@ -57,21 +57,12 @@ namespace {
     luaL_getmetatable(L, "Object");
     lua_setmetatable(L, -2);
     proxy.handle = luaL_ref(L, LUA_REGISTRYINDEX);
-    std::memcpy(memory, &proxy, sizeof(scriptable));
-    memory->prototype          = LUA_NOREF;
-    memory->on_loop            = LUA_NOREF;
-    memory->on_animation_end   = LUA_NOREF;
-    memory->on_animation_begin = LUA_NOREF;
-    memory->on_collision_begin = LUA_NOREF;
-    memory->on_collision_end   = LUA_NOREF;
-    memory->on_wake            = LUA_NOREF;
-    memory->on_sleep           = LUA_NOREF;
-    memory->on_screen_exit     = LUA_NOREF;
-    memory->on_screen_enter    = LUA_NOREF;
-    memory->on_spawn           = LUA_NOREF;
-    memory->kind_ref           = LUA_NOREF;
-    memory->name_ref           = LUA_NOREF;
-    memory->handle             = LUA_NOREF;
+    *memory = scriptable{
+      .registry = proxy.registry,
+      .entity   = proxy.entity,
+      .name     = proxy.name,
+      .kind     = proxy.kind,
+    };
   }
 
   static int object_index(lua_State* state) {
