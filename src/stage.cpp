@@ -772,7 +772,7 @@ void stage::update(float delta) {
     const auto entered = static_cast<uint8_t>(bd.previous & ~current);
     bd.previous = current;
 
-    if (!(exited | entered)) [[likely]] continue;
+    if ((exited | entered) == 0) [[likely]] continue;
 
     for (uint8_t bit = 0; bit < 4; ++bit) {
       const auto mask = static_cast<uint8_t>(1u << bit);
