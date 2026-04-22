@@ -100,7 +100,7 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
       for (size_t column = 0; column < w; ++column) {
         const auto index = ro + column;
-        if (tiles[index] == 0 || seen[index]) [[likely]]
+        if (tiles[index] == 0 || seen[index]) [[unlikely]]
           continue;
 
         auto rw = size_t{1};
@@ -114,7 +114,7 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
           auto valid = true;
 
           for (size_t dx = 0; dx < rw; ++dx) {
-            if (tiles[co + dx] == 0 || seen[co + dx]) [[likely]] {
+            if (tiles[co + dx] == 0 || seen[co + dx]) [[unlikely]] {
               valid = false;
               break;
             }
@@ -283,6 +283,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
 
   _pathfinder.heap.clear();
   _pathfinder.heap.emplace_back(octile(sc, sr), start);
+  std::ranges::push_heap(_pathfinder.heap, compare);
 
   while (!_pathfinder.heap.empty()) {
     std::ranges::pop_heap(_pathfinder.heap, compare);
@@ -405,7 +406,7 @@ void tilemap::tessellate(layer& layer) {
 
     for (auto column = sc; column <= ec; ++column) {
       const auto ti = layer.tiles[static_cast<size_t>(ro + column)];
-      if (ti == 0) [[likely]]
+      if (ti == 0) [[unlikely]]
         continue;
 
       assert(static_cast<size_t>(ti - 1) < layer.uvs.size() && "tile index out of bounds");

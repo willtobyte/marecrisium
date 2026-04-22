@@ -770,6 +770,9 @@ void stage::update(float delta) {
 
     const auto exited  = static_cast<uint8_t>(current & ~bd.previous);
     const auto entered = static_cast<uint8_t>(bd.previous & ~current);
+    bd.previous = current;
+
+    if (!(exited | entered)) [[likely]] continue;
 
     for (uint8_t bit = 0; bit < 4; ++bit) {
       const auto mask = static_cast<uint8_t>(1u << bit);
@@ -791,10 +794,6 @@ void stage::update(float delta) {
         if (!_registry.valid(e)) break;
       }
     }
-
-    if (!_registry.valid(e)) continue;
-
-    bd.previous = current;
   }
 
   {
@@ -1157,6 +1156,8 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
     lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
     pcall(L, 1, 0);
   }
+
+  if (!_registry.valid(entity)) [[unlikely]] return 0;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
   lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
