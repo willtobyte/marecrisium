@@ -191,7 +191,6 @@ sound::sound(std::string_view filename) {
 sound::~sound() {
   ma_sound_set_end_callback(&_sound, nullptr, nullptr);
   ma_sound_stop(&_sound);
-  ma_device_wait_for_close(ma_sound_get_device(&_sound));
   ma_sound_uninit(&_sound);
   ma_audio_buffer_uninit(&_buffer);
   luaL_unref(L, LUA_REGISTRYINDEX, on_begin);
