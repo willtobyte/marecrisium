@@ -298,8 +298,7 @@ namespace {
           if (op.handle == LUA_NOREF)
             return 0;
 
-          const auto distinct = callback != LUA_NOREF && identity != hash;
-          if (distinct && op.on_animation_end != LUA_NOREF) [[unlikely]] {
+          if (callback != LUA_NOREF && identity != hash && op.on_animation_end != LUA_NOREF) [[unlikely]] {
             lua_rawgeti(state, LUA_REGISTRYINDEX, op.on_animation_end);
             lua_rawgeti(state, LUA_REGISTRYINDEX, op.handle);
             lua_rawgeti(state, LUA_REGISTRYINDEX, callback);
