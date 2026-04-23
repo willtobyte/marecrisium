@@ -306,6 +306,8 @@ namespace {
             pcall(state, 2, 0);
           }
 
+          if (!registry.valid(entity)) return 0;
+
           if (op.on_animation_begin != LUA_NOREF) {
             lua_rawgeti(state, LUA_REGISTRYINDEX, op.on_animation_begin);
             lua_rawgeti(state, LUA_REGISTRYINDEX, op.handle);
