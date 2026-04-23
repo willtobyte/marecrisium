@@ -689,7 +689,10 @@ void stage::update(float delta) {
   const auto vr = viewport.x + viewport.width;
   const auto vb = viewport.y + viewport.height;
 
-  for (auto&& [e, b, bd, op] : _registry.view<const body, boundary, const scriptable>(entt::exclude<dormant>).each()) {
+  auto screen = _registry.view<const body, boundary, const scriptable>(entt::exclude<dormant>);
+  screen.use<boundary>();
+
+  for (auto&& [e, b, bd, op] : screen.each()) {
     if (!b2Body_IsValid(b.id) || !b2Shape_IsValid(b.shape)) [[unlikely]]
       continue;
 
