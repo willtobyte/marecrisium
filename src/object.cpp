@@ -285,7 +285,8 @@ namespace {
             return 0;
 
           const auto& pc = a->sheet->clips[a->active];
-          const auto previous = a->playing ? pc.identity.reference : LUA_NOREF;
+          const auto callback = a->playing ? pc.identity.reference : LUA_NOREF;
+          const auto identity = pc.identity.hash;
           a->active = i;
           a->current = 0;
           a->elapsed = .0f;
@@ -297,12 +298,11 @@ namespace {
           if (op.handle == LUA_NOREF)
             return 0;
 
-          if (previous != LUA_NOREF
-              && pc.identity.hash != hash
-              && op.on_animation_end != LUA_NOREF) [[unlikely]] {
+          const auto distinct = callback != LUA_NOREF && identity != hash;
+          if (distinct && op.on_animation_end != LUA_NOREF) [[unlikely]] {
             lua_rawgeti(state, LUA_REGISTRYINDEX, op.on_animation_end);
             lua_rawgeti(state, LUA_REGISTRYINDEX, op.handle);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, previous);
+            lua_rawgeti(state, LUA_REGISTRYINDEX, callback);
             pcall(state, 2, 0);
           }
 
