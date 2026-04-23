@@ -309,8 +309,9 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
       if (collision[ni] != 0)
         continue;
 
-      if (d >= 4 && (collision[static_cast<size_t>(cr * _width + nc)] != 0 ||
-                     collision[static_cast<size_t>(nr * _width + cc)] != 0))
+      const auto corner = collision[static_cast<size_t>(cr * _width + nc)];
+      const auto diagonal = collision[static_cast<size_t>(nr * _width + cc)];
+      if (d >= 4 && (corner != 0 || diagonal != 0))
         continue;
 
       const auto ng = cg + COST[d];
