@@ -13,6 +13,6 @@ const char* stringpool::get(entt::id_type key) const {
   return _pool.find(key)->second.c_str();
 }
 
-int stringpool::ref(entt::id_type key) const {
+int stringpool::reference(entt::id_type key) const {
   return _references.find(key)->second;
 }

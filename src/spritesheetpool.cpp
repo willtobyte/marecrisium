@@ -39,7 +39,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
 
       auto& c = s->clips.emplace_back();
       c.identity.hash = id;
-      c.identity.reference = depot->string.ref(id);
+      c.identity.reference = depot->string.reference(id);
       c.offset = static_cast<uint16_t>(s->frames.size());
       c.count = 0;
 

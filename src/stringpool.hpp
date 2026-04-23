@@ -9,7 +9,7 @@ public:
 
   const char* get(entt::id_type key) const;
 
-  int ref(entt::id_type key) const;
+  int reference(entt::id_type key) const;
 
 private:
   ankerl::unordered_dense::map<entt::id_type, std::string> _pool;
