@@ -1,5 +1,7 @@
 #pragma once
 
+#include <concepts>
+
 class overlay;
 class stage;
 
@@ -10,11 +12,20 @@ public:
 
   void wire();
 
-  void navigate(std::string name);
+  template<typename T>
+    requires std::convertible_to<T, std::string>
+  void navigate(T&& name) { _pending = std::forward<T>(name); }
 
   void destroy(std::string_view name);
 
-  void enroll(std::string name);
+  template<typename T>
+    requires std::convertible_to<T, std::string>
+  void enroll(T&& name) {
+    const auto key = entt::hashed_string{name.data(), name.size()};
+    const auto [it, inserted] = _stages.try_emplace(key);
+    if (inserted)
+      it->second = std::make_unique<stage>(std::forward<T>(name));
+  }
 
   void set_overlay(std::string_view name);
 

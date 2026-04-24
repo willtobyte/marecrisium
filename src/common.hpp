@@ -72,6 +72,9 @@ extern struct viewport viewport;
 
 struct SDL_Deleter final {
   template <typename T>
+    requires requires(T* p) { SDL_CloseGamepad(p); } ||
+             requires(T* p) { SDL_DestroyTexture(p); } ||
+             requires(T* p) { SDL_free(p); }
   void operator()(T* ptr) const {
     if (!ptr) [[unlikely]] return;
 
@@ -119,6 +122,7 @@ struct transparent_hash final {
 };
 
 template <typename T>
+[[nodiscard("Angle conversion has no side effects")]]
 constexpr T to_radians(T degrees) {
   return degrees * (std::numbers::pi_v<T> / T{180});
 }

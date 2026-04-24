@@ -47,7 +47,7 @@ void xorshift128::seed(uint32_t value) {
   }
 }
 
-uint32_t xorshift128::operator()() {
+[[nodiscard("RNG result should be used")]] uint32_t xorshift128::operator()() {
   auto t = state[3];
   t ^= t << 11;
   t ^= t >> 8;
@@ -60,13 +60,13 @@ uint32_t xorshift128::operator()() {
   return t;
 }
 
-float xorshift128::operator()(std::pair<float, float> range) {
+[[nodiscard("RNG result should be used")]] float xorshift128::operator()(std::pair<float, float> range) {
   constexpr auto scale = 1.f / 4294967296.f;
   const auto [minimum, maximum] = range;
   return minimum + (maximum - minimum) * (static_cast<float>((*this)()) * scale);
 }
 
-int xorshift128::operator()(int minimum, int maximum) {
+[[nodiscard("RNG result should be used")]] int xorshift128::operator()(int minimum, int maximum) {
   const auto range = static_cast<uint32_t>(maximum - minimum + 1);
   auto raw = (*this)();
   auto product = static_cast<uint64_t>(raw) * static_cast<uint64_t>(range);

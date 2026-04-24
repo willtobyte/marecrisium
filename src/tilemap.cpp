@@ -8,6 +8,8 @@ static void ingest(tilemap::layer& layer, const char* field, size_t total) {
   layer.tiles.resize(total);
   auto* noalias out = layer.tiles.data();
 
+  [[assume(out != nullptr)]];
+
   for (size_t i = 0; i < total; ++i) {
     lua_rawgeti(L, -1, static_cast<int>(i + 1));
     out[i] = lua_isnumber(L, -1) ? static_cast<uint32_t>(lua_tonumber(L, -1)) : 0u;
@@ -258,6 +260,11 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   auto* noalias generations = _pathfinder.generation.data();
   auto* noalias parents = _pathfinder.parent.data();
   const auto* noalias collision = _collision.data();
+
+  [[assume(costs != nullptr)]];
+  [[assume(generations != nullptr)]];
+  [[assume(parents != nullptr)]];
+  [[assume(collision != nullptr)]];
 
   static constexpr int32_t DC[] = {1, -1, 0, 0, 1, 1, -1, -1};
   static constexpr int32_t DR[] = {0, 0, 1, -1, 1, -1, 1, -1};

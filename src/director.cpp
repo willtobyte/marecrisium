@@ -37,10 +37,6 @@ void director::wire() {
   lua_setglobal(L, "director");
 }
 
-void director::navigate(std::string name) {
-  _pending = std::move(name);
-}
-
 void director::destroy(std::string_view name) {
   const auto key = entt::hashed_string{name.data(), name.size()};
   auto it = _stages.find(key);
@@ -66,12 +62,7 @@ void director::clear_overlay() {
   _overlay = nullptr;
 }
 
-void director::enroll(std::string name) {
-  const auto key = entt::hashed_string{name.data(), name.size()};
-  const auto [it, inserted] = _stages.try_emplace(key);
-  if (inserted)
-    it->second = std::make_unique<stage>(std::move(name));
-}
+
 
 void director::transition() {
   if (!_pending) [[likely]] {

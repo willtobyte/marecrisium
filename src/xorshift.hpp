@@ -7,9 +7,9 @@ struct xorshift128 final {
 
   void seed(uint32_t value);
 
-  uint32_t operator()();
-  float operator()(std::pair<float, float> range);
-  int operator()(int minimum, int maximum);
+  [[nodiscard("RNG result should be used")]] uint32_t operator()();
+  [[nodiscard("RNG result should be used")]] float operator()(std::pair<float, float> range);
+  [[nodiscard("RNG result should be used")]] int operator()(int minimum, int maximum);
 
   static void wire();
 };

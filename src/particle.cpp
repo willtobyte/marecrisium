@@ -124,6 +124,13 @@ void particle::update(float delta) {
   auto* noalias avs = _angular_velocity.data();
   auto* noalias afs = _angular_force.data();
 
+  [[assume(xs != nullptr)]];
+  [[assume(ys != nullptr)]];
+  [[assume(vxs != nullptr)]];
+  [[assume(vys != nullptr)]];
+  [[assume(lifes != nullptr)]];
+  [[assume(angles != nullptr)]];
+
   for (auto i = 0uz; i < n; ++i) {
     lifes[i] -= delta;
 
@@ -185,6 +192,13 @@ void particle::draw() {
   const auto* noalias lifes = _life.data();
   const auto* noalias scales = _scale.data();
   const auto* noalias angles = _angle.data();
+
+  [[assume(xs != nullptr)]];
+  [[assume(ys != nullptr)]];
+  [[assume(lifes != nullptr)]];
+  [[assume(scales != nullptr)]];
+  [[assume(angles != nullptr)]];
+  [[assume(vertices != nullptr)]];
 
   auto* vp = vertices;
 
