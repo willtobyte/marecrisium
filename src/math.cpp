@@ -6,7 +6,7 @@ consteval float cos_c0() { return .99996f; }
 consteval float cos_c1() { return .49985f; }
 consteval float cos_c2() { return .03659f; }
 
-constexpr int QUADRANT_MASK = 3;
+constinit int QUADRANT_MASK = 3;
 }
 
 void sincos(float x, float& sine, float& cosine) {
