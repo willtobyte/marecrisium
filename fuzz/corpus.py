@@ -3,11 +3,14 @@
 
 Usage: python3 corpus.py <output_dir>
 
-CROM binary format (little-endian):
-  Header (24 bytes): magic(u32) + version(u32) + count(u32) + directory_bytes(u64) + dictionary_bytes(u32)
+CROM binary format v2 (little-endian):
+  Header (16 bytes): magic(u32) + entry_count(u32) + string_table_bytes(u32) + dictionary_bytes(u32)
   Dictionary (dictionary_bytes): raw zstd dictionary
-  TOC entries (variable, total = directory_bytes): length(u16) + path(bytes) + offset(u64) + compressed(u64) + uncompressed(u64) + flags(u8)
-  File data: zstd-compressed blobs at the offsets declared in the TOC
+  String table (string_table_bytes): concatenated paths, no terminators
+  Record table (entry_count * 32 bytes, sorted lex by path):
+    data_offset(u64) + compressed(u64) + uncompressed(u64)
+    + path_offset(u32) + path_length(u16) + flags(u8) + padding(u8)
+  Payloads: zstd-compressed blobs at the offsets declared in the records
 """
 
 import os
@@ -17,34 +20,31 @@ import sys
 import zstandard
 
 CROM_MAGIC = 0x43524F4D
-CROM_VERSION = 1
 FLAG_DIRECTORY = 1
-HEADER_SIZE = 24
+HEADER_SIZE = 16
+RECORD_SIZE = 32
 
 
-def header(
-    magic=CROM_MAGIC,
-    version=CROM_VERSION,
-    count=0,
-    directory_bytes=0,
-    dictionary_bytes=0,
+def header(magic=CROM_MAGIC, count=0, string_bytes=0, dictionary_bytes=0):
+    return struct.pack("<IIII", magic, count, string_bytes, dictionary_bytes)
+
+
+def record(
+    path_offset, path_length, data_offset=0, compressed=0, uncompressed=0, flags=0
 ):
     return struct.pack(
-        "<IIIQI", magic, version, count, directory_bytes, dictionary_bytes
-    )
-
-
-def record(path, offset=0, compressed=0, uncompressed=0, flags=0):
-    encoded = path.encode("utf-8") if isinstance(path, str) else path
-    return (
-        struct.pack("<H", len(encoded))
-        + encoded
-        + struct.pack("<QQQB", offset, compressed, uncompressed, flags)
+        "<QQQIHBB",
+        data_offset,
+        compressed,
+        uncompressed,
+        path_offset,
+        path_length,
+        flags,
+        0,
     )
 
 
 def train_dictionary():
-    # Train a tiny dictionary from synthetic samples resembling game assets.
     samples = (
         [
             b"level = {width=%d, height=%d, enemies=%d}" % (w, h, e)
@@ -74,51 +74,78 @@ def compress(data):
     return _compressor.compress(data)
 
 
-def toc_size(entries):
-    total = 0
-    for path, _, _, _, _ in entries:
-        encoded = path.encode("utf-8") if isinstance(path, str) else path
-        total += 2 + len(encoded) + 25
-    return total
+def encode_path(path):
+    return path.encode("utf-8") if isinstance(path, str) else path
 
 
 def build_rom(entries, file_contents=None, dictionary=DICTIONARY):
     """Build a valid ROM.
 
-    entries: list of (path, offset, compressed, uncompressed, flags) tuples.
-      offset/compressed/uncompressed may be None to be computed.
+    entries: list of (path, offset_override, compressed_override, uncompressed_override, flags) tuples.
+      Any of the override fields may be None to be auto-computed.
     file_contents: maps entry index to raw (already compressed) data blob.
     dictionary: embedded dictionary bytes (defaults to the shared training dict).
     """
     if file_contents is None:
         file_contents = {}
 
-    computed = []
-    ts = toc_size(entries)
-    data_offset = HEADER_SIZE + len(dictionary) + ts
+    # sort entries lexicographically by path (matches packer behavior)
+    indexed = list(enumerate(entries))
+    indexed.sort(key=lambda kv: encode_path(kv[1][0]))
 
-    for index, (path, offset, compressed_size, uncompressed_size, flags) in enumerate(
-        entries
-    ):
-        blob = file_contents.get(index, b"")
-        if offset is None:
-            offset = data_offset
-        if compressed_size is None:
-            compressed_size = len(blob)
-        if uncompressed_size is None:
-            uncompressed_size = 0
-        computed.append((path, offset, compressed_size, uncompressed_size, flags, blob))
-        data_offset += len(blob)
+    encoded_paths = [encode_path(entry[0]) for _, entry in indexed]
+    strings = b"".join(encoded_paths)
+    string_offsets = []
+    cursor = 0
+    for path in encoded_paths:
+        string_offsets.append(cursor)
+        cursor += len(path)
+
+    string_bytes = len(strings)
+    payload_base = (
+        HEADER_SIZE + len(dictionary) + string_bytes + len(entries) * RECORD_SIZE
+    )
+
+    payloads = []
+    payload_cursor = 0
+    record_blob = b""
+    for slot, (
+        original_index,
+        (path, offset_override, compressed_override, uncompressed_override, flags),
+    ) in enumerate(indexed):
+        blob = file_contents.get(original_index, b"")
+        is_dir = (flags & FLAG_DIRECTORY) != 0
+        data_offset = 0 if is_dir else (payload_base + payload_cursor)
+        if offset_override is not None:
+            data_offset = offset_override
+        compressed_size = (
+            len(blob) if compressed_override is None else compressed_override
+        )
+        uncompressed_size = (
+            0 if uncompressed_override is None else uncompressed_override
+        )
+
+        record_blob += record(
+            string_offsets[slot],
+            len(encoded_paths[slot]),
+            data_offset=data_offset,
+            compressed=compressed_size,
+            uncompressed=uncompressed_size,
+            flags=flags,
+        )
+
+        payloads.append(blob)
+        payload_cursor += len(blob)
 
     rom = header(
         count=len(entries),
-        directory_bytes=ts,
+        string_bytes=string_bytes,
         dictionary_bytes=len(dictionary),
     )
     rom += dictionary
-    for path, offset, compressed_size, uncompressed_size, flags, _ in computed:
-        rom += record(path, offset, compressed_size, uncompressed_size, flags)
-    for _, _, _, _, _, blob in computed:
+    rom += strings
+    rom += record_blob
+    for blob in payloads:
         rom += blob
     return rom
 
@@ -191,29 +218,19 @@ def generate(output):
             {0: blob},
         )
 
-    # Header-only ROM (no dict, no TOC, no data) — invalid: dictionary_bytes=0.
+    # Header-only ROM (no dict, no records, no data) — invalid: dictionary_bytes=0.
     seeds["boundary_exact_header"] = header()
 
     # Path with length=0
     seeds["boundary_empty_path"] = build_rom([("", None, None, None, 0)])
 
-    # Long path (1000+ bytes)
+    # Long path (1200 bytes)
     long_path = "a" * 1200
     seeds["boundary_long_path"] = build_rom([(long_path, None, None, None, 0)])
 
-    # Path with null bytes
+    # Path with null bytes (UTF-8 raw bytes preserved)
     null_path = b"test\x00file.txt"
-    seeds["boundary_null_in_path"] = (
-        header(
-            count=1,
-            directory_bytes=2 + len(null_path) + 25,
-            dictionary_bytes=len(DICTIONARY),
-        )
-        + DICTIONARY
-        + struct.pack("<H", len(null_path))
-        + null_path
-        + struct.pack("<QQQB", 0, 0, 0, 0)
-    )
+    seeds["boundary_null_in_path"] = build_rom([(null_path, None, None, None, 0)])
 
     # Path with unicode
     seeds["boundary_unicode_path"] = build_rom(
@@ -242,58 +259,41 @@ def generate(output):
     )
 
     # offset=0 (pointing into header)
-    seeds["size_offset_zero"] = (
-        header(
-            count=1,
-            directory_bytes=toc_size([("file.txt", 0, 0, 0, 0)]),
-            dictionary_bytes=len(DICTIONARY),
-        )
-        + DICTIONARY
-        + record("file.txt", offset=0, compressed=10, uncompressed=10, flags=0)
-    )
+    seeds["size_offset_zero"] = build_rom([("file.txt", 0, 10, 10, 0)])
 
     # offset pointing to exact end of file
     rom = build_rom([("eof.bin", None, None, 5, 0)], {0: compress(b"hello")})
-    eof_offset = len(rom)
-    seeds["size_offset_at_eof"] = (
-        header(
-            count=1,
-            directory_bytes=toc_size([("eof.bin", 0, 0, 0, 0)]),
-            dictionary_bytes=len(DICTIONARY),
-        )
-        + DICTIONARY
-        + record("eof.bin", offset=eof_offset, compressed=10, uncompressed=10, flags=0)
-    )
+    seeds["size_offset_at_eof"] = build_rom([("eof.bin", len(rom), 10, 10, 0)])
 
     # Overlapping offsets
     raw = b"shared data payload"
     blob = compress(raw)
-    ts = toc_size(
-        [
-            ("file_a.txt", 0, 0, 0, 0),
-            ("file_b.txt", 0, 0, 0, 0),
-        ]
+    base = (
+        HEADER_SIZE + len(DICTIONARY) + len(b"file_a.txtfile_b.txt") + 2 * RECORD_SIZE
     )
-    shared_offset = HEADER_SIZE + len(DICTIONARY) + ts
     rom = (
-        header(count=2, directory_bytes=ts, dictionary_bytes=len(DICTIONARY))
+        header(count=2, string_bytes=20, dictionary_bytes=len(DICTIONARY))
         + DICTIONARY
+        + b"file_a.txt"
+        + b"file_b.txt"
+        + record(
+            0,
+            10,
+            data_offset=base,
+            compressed=len(blob),
+            uncompressed=len(raw),
+            flags=0,
+        )
+        + record(
+            10,
+            10,
+            data_offset=base,
+            compressed=len(blob),
+            uncompressed=len(raw),
+            flags=0,
+        )
+        + blob
     )
-    rom += record(
-        "file_a.txt",
-        offset=shared_offset,
-        compressed=len(blob),
-        uncompressed=len(raw),
-        flags=0,
-    )
-    rom += record(
-        "file_b.txt",
-        offset=shared_offset,
-        compressed=len(blob),
-        uncompressed=len(raw),
-        flags=0,
-    )
-    rom += blob
     seeds["size_overlapping_offsets"] = rom
 
     # Declared uncompressed size mismatched (larger than actual)
@@ -319,42 +319,27 @@ def generate(output):
     # Almost correct magic (off by one)
     seeds["corrupt_magic_near"] = header(magic=0x43524F4E)
 
-    # Wrong version (0)
-    seeds["corrupt_version_zero"] = header(version=0)
-
-    # Wrong version (2)
-    seeds["corrupt_version_two"] = header(version=2)
-
-    # Wrong version (max)
-    seeds["corrupt_version_max"] = header(version=0xFFFFFFFF)
-
     # Truncated headers (0 through HEADER_SIZE-1 bytes)
     full_header = header(dictionary_bytes=len(DICTIONARY))
     for length in range(HEADER_SIZE):
         seeds[f"corrupt_truncated_{length:02d}"] = full_header[:length]
 
-    # TOC entry truncated at various points
-    full_toc = (
-        header(
-            count=1,
-            directory_bytes=toc_size([("test.txt", 0, 0, 0, 0)]),
-            dictionary_bytes=len(DICTIONARY),
-        )
-        + DICTIONARY
-        + record("test.txt", 0, 0, 0, 0)
-    )
-    for trim in [1, 5, 10, 15, 20, 25]:
-        seeds[f"corrupt_toc_truncated_{trim:02d}"] = full_toc[:-trim]
+    # Record table truncated at various points
+    full_rom = build_rom([("test.txt", None, None, 0, 0)])
+    for trim in [1, 5, 10, 15, 20, 25, RECORD_SIZE]:
+        if trim < len(full_rom):
+            seeds[f"corrupt_record_truncated_{trim:02d}"] = full_rom[:-trim]
 
     # Count larger than actual entries
     seeds["corrupt_count_larger"] = (
         header(
             count=100,
-            directory_bytes=toc_size([("only.txt", 0, 0, 0, 0)]),
+            string_bytes=len(b"only.txt"),
             dictionary_bytes=len(DICTIONARY),
         )
         + DICTIONARY
-        + record("only.txt", 0, 0, 0, 0)
+        + b"only.txt"
+        + record(0, 8, data_offset=0, compressed=0, uncompressed=0, flags=0)
     )
 
     # Count = max uint32
@@ -363,24 +348,36 @@ def generate(output):
     # Count = max uint32 followed by some data
     seeds["corrupt_count_max_data"] = header(count=0xFFFFFFFF) + b"\x00" * 100
 
+    # path_offset out of bounds
+    seeds["corrupt_path_offset_oob"] = (
+        header(count=1, string_bytes=4, dictionary_bytes=len(DICTIONARY))
+        + DICTIONARY
+        + b"name"
+        + record(1000, 4, data_offset=0, compressed=0, uncompressed=0, flags=0)
+    )
+
+    # path_length larger than string table
+    seeds["corrupt_path_length_oob"] = (
+        header(count=1, string_bytes=4, dictionary_bytes=len(DICTIONARY))
+        + DICTIONARY
+        + b"name"
+        + record(0, 0xFFFF, data_offset=0, compressed=0, uncompressed=0, flags=0)
+    )
+
     # Dictionary-specific adversarial cases.
-    seeds["dict_missing"] = header(count=0, directory_bytes=0, dictionary_bytes=0)
+    seeds["dict_missing"] = header(count=0, string_bytes=0, dictionary_bytes=0)
     seeds["dict_truncated"] = (
-        header(
-            count=0,
-            directory_bytes=0,
-            dictionary_bytes=len(DICTIONARY),
-        )
+        header(count=0, string_bytes=0, dictionary_bytes=len(DICTIONARY))
         + DICTIONARY[: len(DICTIONARY) // 2]
     )
     seeds["dict_declared_huge"] = header(
-        count=0, directory_bytes=0, dictionary_bytes=0xFFFFFFFF
+        count=0, string_bytes=0, dictionary_bytes=0xFFFFFFFF
     )
     seeds["dict_garbage"] = header(
-        count=0, directory_bytes=0, dictionary_bytes=128
+        count=0, string_bytes=0, dictionary_bytes=128
     ) + bytes(range(128))
     seeds["dict_zeros"] = (
-        header(count=0, directory_bytes=0, dictionary_bytes=128) + b"\x00" * 128
+        header(count=0, string_bytes=0, dictionary_bytes=128) + b"\x00" * 128
     )
 
     # Valid zstd data
@@ -392,41 +389,19 @@ def generate(output):
     )
 
     # Random bytes where zstd data should be
-    ts = toc_size([("random.bin", 0, 0, 0, 0)])
-    data_offset = HEADER_SIZE + len(DICTIONARY) + ts
     garbage = bytes(range(256))[:64]
-    rom = (
-        header(count=1, directory_bytes=ts, dictionary_bytes=len(DICTIONARY))
-        + DICTIONARY
-        + record(
-            "random.bin",
-            offset=data_offset,
-            compressed=len(garbage),
-            uncompressed=100,
-            flags=0,
-        )
-        + garbage
+    seeds["zstd_random_bytes"] = build_rom(
+        [("random.bin", None, len(garbage), 100, 0)],
+        {0: garbage},
     )
-    seeds["zstd_random_bytes"] = rom
 
     # Truncated zstd frame
     blob = compress(b"this is a longer string for compression testing purposes" * 10)
     truncated = blob[: len(blob) // 2]
-    ts = toc_size([("truncated.bin", 0, 0, 0, 0)])
-    data_offset = HEADER_SIZE + len(DICTIONARY) + ts
-    rom = (
-        header(count=1, directory_bytes=ts, dictionary_bytes=len(DICTIONARY))
-        + DICTIONARY
-        + record(
-            "truncated.bin",
-            offset=data_offset,
-            compressed=len(truncated),
-            uncompressed=560,
-            flags=0,
-        )
-        + truncated
+    seeds["zstd_truncated"] = build_rom(
+        [("truncated.bin", None, len(truncated), 560, 0)],
+        {0: truncated},
     )
-    seeds["zstd_truncated"] = rom
 
     # Empty zstd frame (compressed size = 0, uncompressed > 0)
     seeds["zstd_empty_frame"] = build_rom([("empty_zstd.bin", None, None, 100, 0)])

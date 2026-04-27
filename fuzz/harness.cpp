@@ -10,8 +10,6 @@
 #include <physfs.h>
 #include <zstd.h>
 
-#include <ankerl/unordered_dense.h>
-
 #include "../src/cartridge.cpp"
 
 namespace {
@@ -104,11 +102,11 @@ static struct initializer final {
 } init;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  if (size < 24)
+  if (size < 16)
     return 0;
 
   uint32_t count;
-  std::memcpy(&count, data + 8, sizeof(count));
+  std::memcpy(&count, data + 4, sizeof(count));
   if (count > FUZZ_MAX_ENTRIES)
     return 0;
 
@@ -125,24 +123,20 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   auto *arc = static_cast<archive *>(opaque);
 
-  // collect path strings up-front so we have null-terminated views
-  // and can drive operations even after destroying entries indirectly.
   std::vector<std::string> names;
   std::vector<bool> is_dir;
-  names.reserve(arc->entries.size());
-  is_dir.reserve(arc->entries.size());
-  for (const auto &item : arc->entries) {
-    names.emplace_back(item.path);
-    is_dir.push_back((item.flags & FLAG_DIRECTORY) != 0);
+  names.reserve(arc->records.size());
+  is_dir.reserve(arc->records.size());
+  for (size_t i = 0; i < arc->records.size(); ++i) {
+    names.emplace_back(arc->paths[i]);
+    is_dir.push_back((arc->records[i].flags & FLAG_DIRECTORY) != 0);
   }
 
-  // 1. stat every entry
   for (const auto &name : names) {
     PHYSFS_Stat stat;
     crom_stat(opaque, name.c_str(), &stat);
   }
 
-  // 2. stat with absent / adversarial names
   static constexpr const char *bogus[] = {
     "", "/", "..", "../etc/passwd", "nonexistent.bin",
     "a/b/c/d/e/f/g", "////", "\x01\x02\x03",
@@ -155,7 +149,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       file->destroy(file);
   }
 
-  // 3. open + exercise file API on every regular entry
   for (size_t i = 0; i < names.size(); ++i) {
     if (is_dir[i])
       continue;
@@ -167,22 +160,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     const auto length = file->length(file);
     (void)file->tell(file);
 
-    // small sequential read
     uint8_t buffer[256];
     file->read(file, buffer, sizeof(buffer));
 
-    // seek + read at multiple offsets derived from data
     if (length > 0) {
       const auto half = static_cast<PHYSFS_uint64>(length) / 2;
       file->seek(file, half);
       file->read(file, buffer, sizeof(buffer));
 
-      // edge: seek to length (valid), past length (invalid)
       file->seek(file, static_cast<PHYSFS_uint64>(length));
       file->seek(file, static_cast<PHYSFS_uint64>(length) + 1);
     }
 
-    // exercise duplicate
     if (auto *dup = file->duplicate(file)) {
       dup->seek(dup, 0);
       dup->read(dup, buffer, sizeof(buffer));
@@ -193,7 +182,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     file->destroy(file);
   }
 
-  // 4. enumerate root and a few synthetic dirs
   crom_enumerate(opaque, "", enumerate_callback, "", nullptr);
   crom_enumerate(opaque, "/", enumerate_callback, "", nullptr);
   crom_enumerate(opaque, "missing", enumerate_callback, "", nullptr);
@@ -202,7 +190,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     crom_enumerate(opaque, name.c_str(), enumerate_callback, "", nullptr);
   }
 
-  // 5. read-only API surface
   (void)crom_open_write(opaque, "x");
   (void)crom_open_append(opaque, "x");
   (void)crom_remove(opaque, "x");

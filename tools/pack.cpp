@@ -18,10 +18,9 @@
 
 namespace {
 constexpr uint32_t MAGIC = 0x43524F4D;
-constexpr uint32_t VERSION = 1;
 constexpr uint8_t DIRECTORY = 1;
-constexpr size_t HEADER = 24;
-constexpr size_t METADATA = 25;
+constexpr size_t HEADER = 16;
+constexpr size_t RECORD = 32;
 constexpr size_t CAPACITY = 2048;
 constexpr int LEVEL = 22;
 
@@ -29,12 +28,24 @@ using encoder_t = std::unique_ptr<ZSTD_CCtx, decltype(&ZSTD_freeCCtx)>;
 
 using dictionary_t = std::unique_ptr<ZSTD_CDict, decltype(&ZSTD_freeCDict)>;
 
-struct record final {
+struct source final {
   std::string path;
   std::vector<uint8_t> data;
   std::vector<uint8_t> blob;
   bool directory{};
 };
+
+struct record final {
+  uint64_t data_offset;
+  uint64_t compressed;
+  uint64_t uncompressed;
+  uint32_t path_offset;
+  uint16_t path_length;
+  uint8_t flags;
+  uint8_t padding;
+};
+
+static_assert(sizeof(record) == RECORD);
 
 template <std::integral Integer>
 void put(std::vector<uint8_t> &output, Integer value) {
@@ -56,14 +67,14 @@ int main(int argc, char **argv) {
 
   const std::filesystem::path root = argv[1];
 
-  std::vector<record> records;
+  std::vector<source> sources;
   for (const auto &it : std::filesystem::recursive_directory_iterator(root)) {
     auto relative = std::filesystem::relative(it.path(), root).generic_string();
     if (relative.empty() || relative == ".")
       continue;
 
     if (it.is_directory()) {
-      records.emplace_back(std::move(relative), std::vector<uint8_t>{}, std::vector<uint8_t>{}, true);
+      sources.emplace_back(std::move(relative), std::vector<uint8_t>{}, std::vector<uint8_t>{}, true);
       continue;
     }
 
@@ -74,14 +85,14 @@ int main(int argc, char **argv) {
     std::vector<uint8_t> data(size);
     std::ifstream input(it.path(), std::ios::binary);
     input.read(reinterpret_cast<char *>(data.data()), static_cast<std::streamsize>(size));
-    records.emplace_back(std::move(relative), std::move(data), std::vector<uint8_t>{}, false);
+    sources.emplace_back(std::move(relative), std::move(data), std::vector<uint8_t>{}, false);
   }
 
-  std::ranges::sort(records, {}, &record::path);
+  std::ranges::sort(sources, {}, &source::path);
 
   std::vector<uint8_t> training;
   std::vector<size_t> samples;
-  for (const auto &current : records) {
+  for (const auto &current : sources) {
     if (current.directory || current.data.empty() || !current.path.ends_with(".lua"))
       continue;
     training.insert(training.end(), current.data.begin(), current.data.end());
@@ -107,7 +118,7 @@ int main(int argc, char **argv) {
   ZSTD_CCtx_setParameter(encoder.get(), ZSTD_c_nbWorkers, std::thread::hardware_concurrency());
 
   std::vector<uint8_t> scratch;
-  for (auto &current : records) {
+  for (auto &current : sources) {
     if (current.directory)
       continue;
     scratch.resize(ZSTD_compressBound(current.data.size()));
@@ -117,42 +128,54 @@ int main(int argc, char **argv) {
     current.blob.assign(scratch.begin(), scratch.begin() + static_cast<std::ptrdiff_t>(result));
   }
 
-  uint64_t directories = 0;
-  for (const auto &current : records)
-    directories += 2 + current.path.size() + METADATA;
+  std::vector<uint8_t> strings;
+  std::vector<uint32_t> string_offsets;
+  string_offsets.reserve(sources.size());
+  for (const auto &current : sources) {
+    string_offsets.push_back(static_cast<uint32_t>(strings.size()));
+    strings.insert(strings.end(), current.path.begin(), current.path.end());
+  }
 
-  const auto bytes = static_cast<uint32_t>(trained.size());
-  const uint64_t base = HEADER + bytes + directories;
+  const auto count = static_cast<uint32_t>(sources.size());
+  const auto string_table_bytes = static_cast<uint32_t>(strings.size());
+  const auto dictionary_bytes = static_cast<uint32_t>(trained.size());
+  const uint64_t payload_base = HEADER + dictionary_bytes + string_table_bytes + static_cast<uint64_t>(count) * RECORD;
 
   std::vector<uint8_t> blob;
+  blob.reserve(payload_base);
+
   put(blob, MAGIC);
-  put(blob, VERSION);
-  put(blob, static_cast<uint32_t>(records.size()));
-  put(blob, directories);
-  put(blob, bytes);
+  put(blob, count);
+  put(blob, string_table_bytes);
+  put(blob, dictionary_bytes);
   put(blob, std::span<const uint8_t>(trained));
+  put(blob, std::span<const uint8_t>(strings));
 
   uint64_t cursor = 0;
-  for (const auto &current : records) {
-    put(blob, static_cast<uint16_t>(current.path.size()));
-    put(blob, std::span<const uint8_t>(reinterpret_cast<const uint8_t *>(current.path.data()), current.path.size()));
-    const uint64_t address = current.directory ? 0 : base + cursor;
-    put(blob, address);
-    put(blob, static_cast<uint64_t>(current.blob.size()));
-    put(blob, static_cast<uint64_t>(current.data.size()));
-    uint8_t flags = 0;
-    if (current.directory) flags |= DIRECTORY;
-    blob.push_back(flags);
+  for (uint32_t index = 0; index < count; ++index) {
+    const auto &current = sources[index];
+    record entry{
+      current.directory ? 0 : payload_base + cursor,
+      static_cast<uint64_t>(current.blob.size()),
+      static_cast<uint64_t>(current.data.size()),
+      string_offsets[index],
+      static_cast<uint16_t>(current.path.size()),
+      static_cast<uint8_t>(current.directory ? DIRECTORY : 0),
+      0,
+    };
+    const auto offset = blob.size();
+    blob.resize(offset + RECORD);
+    std::memcpy(blob.data() + offset, &entry, RECORD);
     cursor += current.blob.size();
   }
 
-  for (const auto &current : records)
+  for (const auto &current : sources)
     put(blob, std::span<const uint8_t>(current.blob));
 
   std::ofstream output("cartridge.rom", std::ios::binary);
   output.write(reinterpret_cast<const char *>(blob.data()), static_cast<std::streamsize>(blob.size()));
 
-  std::cout << std::format("created cartridge.rom ({} entries, {} bytes)\n", records.size(), blob.size());
+  std::cout << std::format("created cartridge.rom ({} entries, {} bytes)\n", sources.size(), blob.size());
 
   return 0;
 }
