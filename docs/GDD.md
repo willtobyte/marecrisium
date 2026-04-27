@@ -115,3 +115,11 @@ My name is Legion, for we are many.
 ## Minimap
 
 Simple, generated from the tilemap.
+
+## Inventory
+
+The inventory starts with a quick-access bar of 9 slots
+and a backpack that, at level 1, contains only one
+row of 9 slots. It can be upgraded to hold up to 3 rows.
+Some items can stack up to 999, while others
+have lower stack limits.
