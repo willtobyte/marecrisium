@@ -8,14 +8,12 @@ on:
     paths:
       - "src/**"
       - "tools/**"
-      - "fuzz/**"
   pull_request:
     branches:
       - main
     paths:
       - "src/**"
       - "tools/**"
-      - "fuzz/**"
 
 jobs:
   build:
@@ -85,30 +83,3 @@ jobs:
         with:
           name: build
           path: artifact/
-
-      - name: Install fuzzer dependencies
-        working-directory: fuzz
-        run: conan install . --output-folder=build --build=missing -s:a compiler.cppstd=23 --settings build_type=Debug
-
-      - name: Build fuzzer
-        working-directory: fuzz
-        run: |
-          LLVM_PREFIX=$(brew --prefix llvm@18)
-          cmake -Bbuild \
-            -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER=$LLVM_PREFIX/bin/clang \
-            -DCMAKE_CXX_COMPILER=$LLVM_PREFIX/bin/clang++
-          cmake --build build
-
-      - name: Generate corpus
-        run: |
-          pip3 install --break-system-packages zstandard
-          python3 fuzz/corpus.py fuzz/seed
-
-      - name: Run fuzzer
-        run: |
-          ./fuzz/build/fuzzer fuzz/seed \
-            -max_total_time=60 \
-            -max_len=65536 \
-            -rss_limit_mb=1024

@@ -1,10 +1,5 @@
 namespace {
-constexpr uint32_t CROM_MAGIC = 0x43524F4D;
 constexpr uint8_t FLAG_DIRECTORY = 1;
-constexpr uint64_t MAX_UNCOMPRESSED = 64 * 1024 * 1024;
-constexpr uint32_t MAX_ENTRIES = 1u << 20;
-constexpr uint32_t MAX_DIRECTORY_BYTES = 256 * 1024 * 1024;
-constexpr uint32_t MAX_DICTIONARY_BYTES = 16 * 1024 * 1024;
 constexpr size_t HEADER_SIZE = 16;
 constexpr size_t RECORD_SIZE = 32;
 
@@ -28,18 +23,24 @@ struct archive final {
   PHYSFS_Io *io{nullptr};
   decoder_t decoder{nullptr, ZSTD_freeDCtx};
   dictionary_t dictionary{nullptr, ZSTD_freeDDict};
-  PHYSFS_uint64 bytes{0};
   std::vector<uint8_t> strings;
   std::vector<record> records;
-  std::vector<std::string_view> paths;
   std::vector<uint8_t> compressed;
 };
 
 struct handle final {
-  std::shared_ptr<uint8_t[]> data;
+  PHYSFS_Io io;
   size_t size;
   uint64_t position;
 };
+
+[[nodiscard]] inline uint8_t *tail(handle *h) noexcept {
+  return reinterpret_cast<uint8_t *>(h + 1);
+}
+
+[[nodiscard]] inline std::string_view path_of(const archive *cartridge, const record &r) noexcept {
+  return {reinterpret_cast<const char *>(cartridge->strings.data() + r.path_offset), r.path_length};
+}
 
 template <std::integral Integer>
 [[nodiscard]] Integer read(const uint8_t *pointer) noexcept {
@@ -48,27 +49,18 @@ template <std::integral Integer>
   return value;
 }
 
-[[nodiscard]] bool drain(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) noexcept {
-  auto *destination = static_cast<uint8_t *>(buffer);
-  while (length > 0) {
-    const auto got = io->read(io, destination, length);
-    if (got <= 0) [[unlikely]]
-      return false;
-
-    destination += got;
-    length -= static_cast<PHYSFS_uint64>(got);
-  }
-
-  return true;
+void slurp(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) noexcept {
+  const auto got = io->read(io, buffer, length);
+  assert(got == static_cast<PHYSFS_sint64>(length));
 }
 
 [[nodiscard]] size_t locate(const archive *cartridge, std::string_view name) noexcept {
-  const auto &paths = cartridge->paths;
-  const auto it = std::ranges::lower_bound(paths, name);
-  if (it == paths.end() || *it != name) [[unlikely]]
+  const auto &records = cartridge->records;
+  const auto it = std::ranges::lower_bound(records, name, {}, [&](const record &r) { return path_of(cartridge, r); });
+  if (it == records.end() || path_of(cartridge, *it) != name) [[unlikely]]
     return SIZE_MAX;
 
-  return static_cast<size_t>(it - paths.begin());
+  return static_cast<size_t>(it - records.begin());
 }
 
 PHYSFS_sint64 file_read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
@@ -78,7 +70,7 @@ PHYSFS_sint64 file_read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
     return 0;
 
   const auto count = std::min(length, static_cast<PHYSFS_uint64>(remaining));
-  std::memcpy(buffer, reader->data.get() + reader->position, static_cast<size_t>(count));
+  std::memcpy(buffer, tail(reader) + reader->position, static_cast<size_t>(count));
   reader->position += count;
   return static_cast<PHYSFS_sint64>(count);
 }
@@ -89,13 +81,7 @@ PHYSFS_sint64 file_write(PHYSFS_Io *, const void *, PHYSFS_uint64) {
 }
 
 int file_seek(PHYSFS_Io *io, PHYSFS_uint64 offset) {
-  auto *reader = static_cast<handle *>(io->opaque);
-  if (offset > reader->size) [[unlikely]] {
-    PHYSFS_setErrorCode(PHYSFS_ERR_PAST_EOF);
-    return 0;
-  }
-
-  reader->position = offset;
+  static_cast<handle *>(io->opaque)->position = offset;
   return 1;
 }
 
@@ -109,10 +95,11 @@ PHYSFS_sint64 file_length(PHYSFS_Io *io) {
 
 PHYSFS_Io *file_duplicate(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
-  auto *copy = new handle{reader->data, reader->size, uint64_t{0}};
-  auto *clone = new PHYSFS_Io(*io);
-  clone->opaque = copy;
-  return clone;
+  auto *copy = static_cast<handle *>(::operator new(sizeof(handle) + reader->size));
+  new (copy) handle{reader->io, reader->size, uint64_t{0}};
+  copy->io.opaque = copy;
+  std::memcpy(tail(copy), tail(reader), reader->size);
+  return &copy->io;
 }
 
 int file_flush(PHYSFS_Io *) {
@@ -120,68 +107,40 @@ int file_flush(PHYSFS_Io *) {
 }
 
 void file_destroy(PHYSFS_Io *io) {
-  delete static_cast<handle *>(io->opaque);
-  delete io;
+  auto *h = static_cast<handle *>(io->opaque);
+  h->~handle();
+  ::operator delete(h);
 }
 
 void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   uint8_t header[HEADER_SIZE];
-  if (!io->seek(io, 0) || !drain(io, header, sizeof(header))) [[unlikely]]
-    return nullptr;
-
-  if (read<uint32_t>(header) != CROM_MAGIC)
-    return nullptr;
+  assert(io->seek(io, 0));
+  slurp(io, header, sizeof(header));
 
   *claimed = 1;
-
-  const auto fail = [&](PHYSFS_ErrorCode code) {
-    io->destroy(io);
-    PHYSFS_setErrorCode(code);
-    return nullptr;
-  };
 
   const auto count = read<uint32_t>(header + 4);
   const auto string_bytes = read<uint32_t>(header + 8);
   const auto dictionary_bytes = read<uint32_t>(header + 12);
 
-  if (count > MAX_ENTRIES ||
-      string_bytes > MAX_DIRECTORY_BYTES ||
-      dictionary_bytes == 0 ||
-      dictionary_bytes > MAX_DICTIONARY_BYTES) [[unlikely]]
-    return fail(PHYSFS_ERR_CORRUPT);
-
   auto cartridge = std::make_unique<archive>();
   cartridge->io = io;
 
   std::vector<uint8_t> trained(dictionary_bytes);
-  if (!drain(io, trained.data(), dictionary_bytes)) [[unlikely]]
-    return fail(PHYSFS_ERR_IO);
+  slurp(io, trained.data(), dictionary_bytes);
 
   cartridge->strings.resize(string_bytes);
-  if (string_bytes > 0 && !drain(io, cartridge->strings.data(), string_bytes)) [[unlikely]]
-    return fail(PHYSFS_ERR_IO);
+  if (string_bytes > 0)
+    slurp(io, cartridge->strings.data(), string_bytes);
 
   cartridge->records.resize(count);
-  if (count > 0 && !drain(io, cartridge->records.data(),
-                          static_cast<PHYSFS_uint64>(count) * RECORD_SIZE)) [[unlikely]]
-    return fail(PHYSFS_ERR_IO);
+  if (count > 0)
+    slurp(io, cartridge->records.data(), static_cast<PHYSFS_uint64>(count) * RECORD_SIZE);
 
   cartridge->decoder.reset(ZSTD_createDCtx());
   cartridge->dictionary.reset(ZSTD_createDDict(trained.data(), dictionary_bytes));
-
-  cartridge->paths.reserve(count);
-  const auto *base = cartridge->strings.data();
-  for (const auto &current : cartridge->records) {
-    if (static_cast<uint64_t>(current.path_offset) + current.path_length > string_bytes) [[unlikely]]
-      return fail(PHYSFS_ERR_CORRUPT);
-
-    cartridge->paths.emplace_back(
-      reinterpret_cast<const char *>(base + current.path_offset),
-      current.path_length);
-  }
-
-  const auto total = io->length(io);
-  cartridge->bytes = total < 0 ? 0 : static_cast<PHYSFS_uint64>(total);
+  assert(cartridge->decoder);
+  assert(cartridge->dictionary);
 
   return cartridge.release();
 }
@@ -189,19 +148,22 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
 PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname, PHYSFS_EnumerateCallback callback, const char *origdir, void *cbdata) {
   auto *cartridge = static_cast<archive *>(opaque);
 
-  std::string prefix = dirname;
-  if (!prefix.empty() && prefix.back() != '/') [[likely]]
-    prefix.push_back('/');
+  const std::string_view raw{dirname};
+  char buffer[512];
+  if (raw.size() + 1 >= sizeof(buffer)) [[unlikely]] return PHYSFS_ENUM_ERROR;
+  auto end = std::ranges::copy(raw, buffer).out;
+  if (raw.empty() || raw.back() != '/') [[likely]] *end++ = '/';
+  const std::string_view needle{buffer, end};
 
-  const auto &paths = cartridge->paths;
-  const std::string_view needle{prefix};
-  auto it = std::ranges::lower_bound(paths, needle);
+  const auto &records = cartridge->records;
+  auto it = std::ranges::lower_bound(records, needle, {}, [&](const record &r) { return path_of(cartridge, r); });
 
-  for (; it != paths.end(); ++it) {
-    if (!it->starts_with(needle)) [[unlikely]]
+  for (; it != records.end(); ++it) {
+    const auto path = path_of(cartridge, *it);
+    if (!path.starts_with(needle)) [[unlikely]]
       break;
 
-    const auto leaf = it->substr(needle.size());
+    const auto leaf = path.substr(needle.size());
     if (leaf.empty() || leaf.find('/') != std::string_view::npos) [[unlikely]]
       continue;
 
@@ -229,64 +191,48 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   }
 
   const auto &found = cartridge->records[index];
-
-  if (found.flags & FLAG_DIRECTORY) [[unlikely]] {
-    PHYSFS_setErrorCode(PHYSFS_ERR_NOT_A_FILE);
-    return nullptr;
-  }
-
-  if (found.uncompressed > MAX_UNCOMPRESSED ||
-      found.data_offset > cartridge->bytes ||
-      found.compressed > cartridge->bytes - found.data_offset) [[unlikely]] {
-    PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
-    return nullptr;
-  }
+  assert((found.flags & FLAG_DIRECTORY) == 0);
 
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
   const auto compressed = static_cast<size_t>(found.compressed);
 
-  auto buffer = std::make_shared_for_overwrite<uint8_t[]>(uncompressed);
+  auto *reader = static_cast<handle *>(::operator new(sizeof(handle) + uncompressed));
+  new (reader) handle{
+    PHYSFS_Io{
+      .version = 0,
+      .opaque = reader,
+      .read = file_read,
+      .write = file_write,
+      .seek = file_seek,
+      .tell = file_tell,
+      .length = file_length,
+      .duplicate = file_duplicate,
+      .flush = file_flush,
+      .destroy = file_destroy,
+    },
+    uncompressed,
+    uint64_t{0},
+  };
 
   if (uncompressed > 0) [[likely]] {
-    if (!cartridge->io->seek(cartridge->io, found.data_offset)) [[unlikely]] {
-      PHYSFS_setErrorCode(PHYSFS_ERR_IO);
-      return nullptr;
-    }
+    assert(cartridge->io->seek(cartridge->io, found.data_offset));
 
     if (cartridge->compressed.size() < compressed)
       cartridge->compressed.resize(compressed);
 
-    if (!drain(cartridge->io, cartridge->compressed.data(), compressed)) [[unlikely]] {
-      PHYSFS_setErrorCode(PHYSFS_ERR_IO);
-      return nullptr;
-    }
+    slurp(cartridge->io, cartridge->compressed.data(), compressed);
 
     const auto result = ZSTD_decompress_usingDDict(
       cartridge->decoder.get(),
-      buffer.get(), uncompressed,
+      tail(reader), uncompressed,
       cartridge->compressed.data(), compressed,
       cartridge->dictionary.get()
     );
 
-    if (ZSTD_isError(result) || result != uncompressed) [[unlikely]] {
-      PHYSFS_setErrorCode(PHYSFS_ERR_CORRUPT);
-      return nullptr;
-    }
+    assert(result == uncompressed);
   }
 
-  auto *reader = new handle{std::move(buffer), uncompressed, uint64_t{0}};
-  return new PHYSFS_Io{
-    .version = 0,
-    .opaque = reader,
-    .read = file_read,
-    .write = file_write,
-    .seek = file_seek,
-    .tell = file_tell,
-    .length = file_length,
-    .duplicate = file_duplicate,
-    .flush = file_flush,
-    .destroy = file_destroy,
-  };
+  return &reader->io;
 }
 
 PHYSFS_Io *crom_open_write(void *, const char *) {

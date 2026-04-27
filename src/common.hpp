@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cassert>
 #include <charconv>
 #include <cmath>
 #include <cstdint>

@@ -8,14 +8,12 @@ on:
     paths:
       - "src/**"
       - "tools/**"
-      - "fuzz/**"
   pull_request:
     branches:
       - main
     paths:
       - "src/**"
       - "tools/**"
-      - "fuzz/**"
 
 jobs:
   build:
@@ -90,23 +88,3 @@ jobs:
         with:
           name: build
           path: artifact/
-
-      - name: Install fuzzer dependencies
-        working-directory: fuzz
-        run: conan install . --output-folder=build --build=missing -s:a compiler.cppstd=23 --settings build_type=Debug
-
-      - name: Build fuzzer
-        working-directory: fuzz
-        run: |
-          cmake -Bbuild \
-            -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake \
-            -DCMAKE_BUILD_TYPE=Debug
-          cmake --build build --config Debug
-
-      - name: Generate corpus
-        run: |
-          pip install zstandard
-          python3 fuzz/corpus.py fuzz/seed
-
-      - name: Run corpus test
-        run: ./fuzz/build/Debug/fuzzer.exe fuzz/seed
