@@ -16,9 +16,7 @@ end
 local sheet_width, sheet_height, viewport_width, viewport_height
 
 return {
-	on_bump = function(self)
-		print("foreground: bump!")
-	end,
+	on_func = function(self) end,
 
 	on_appear = function(self)
 		local pixmap = self.pixmap
