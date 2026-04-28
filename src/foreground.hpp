@@ -24,6 +24,7 @@ public:
   std::vector<int32_t> _indices;
 
 private:
+  bool _visible{false};
   int _on_loop{LUA_NOREF};
   int _on_paint{LUA_NOREF};
   int _on_appear{LUA_NOREF};

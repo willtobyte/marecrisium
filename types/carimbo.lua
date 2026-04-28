@@ -305,6 +305,20 @@ director = {}
 ---@class Foreground
 local Foreground = {}
 
+---Called when the foreground becomes visible. Fires every time the foreground
+---is activated via `overlay.foreground = "<name>"`, including subsequent
+---activations after it was hidden. Foregrounds are cached, so the same
+---instance receives `on_appear` again when it is shown after being hidden.
+---@param self Foreground The foreground table itself.
+function Foreground.on_appear(self) end
+
+---Called when the foreground stops being visible. Fires every time the
+---foreground is hidden via `overlay.foreground = nil` or replaced via
+---`overlay.foreground = "<other>"`. The instance stays cached and may
+---receive `on_appear` again later.
+---@param self Foreground The foreground table itself.
+function Foreground.on_disappear(self) end
+
 ---Called every frame while this foreground is active (logic only, no rendering).
 ---Sprites declared in `pixmaps` are accessible as `self.<name>` and have
 ---mutable `x`, `y`, `width`, `height`, `alpha`, `angle` properties.
@@ -342,29 +356,8 @@ foreground = nil
 ---@class OverlayConfig
 ---@field fonts string[] Font families to preload from `overlay/fonts/`.
 
----Per-glyph visual effect applied to individual characters in a label.
----Each field is optional; omitted fields use their default (no effect).
----Newline characters do not count as glyphs for indexing purposes.
----
----Usage:
----```lua
----overlay:label("pixel", "hello", 10, 20, {
----  [1] = { r = 1, g = 0, b = 0 },           -- 'h' in red
----  [3] = { y_offset = -2, scale = 1.5 },      -- first 'l' raised and scaled
----  [5] = { alpha = 0.5 },                     -- 'o' semi-transparent
----})
----```
----@class GlyphEffect
----@field x_offset? number Horizontal pixel offset for this glyph. Default 0.
----@field y_offset? number Vertical pixel offset for this glyph. Default 0.
----@field scale? number Scale factor for this glyph. Default 1.
----@field angle? number Rotation angle in degrees for this glyph, around its center. Default 0.
----@field r? number Red channel for this glyph (0.0-1.0). Default 1.
----@field g? number Green channel for this glyph (0.0-1.0). Default 1.
----@field b? number Blue channel for this glyph (0.0-1.0). Default 1.
----@field alpha? number Opacity for this glyph (0.0-1.0). Default 1.
-
 ---@class Overlay
+---@field foreground string|nil Write-only. Assign a foreground name (matches `foregrounds/<name>.lua`) to show it; assign `nil` to hide the current foreground. Foregrounds are cached on first assignment and reused on subsequent ones, so `on_appear` and `on_disappear` fire each time the active foreground changes.
 local Overlay = {}
 
 ---Called every frame while this overlay is active (logic only, no rendering).
@@ -372,23 +365,18 @@ local Overlay = {}
 ---@param delta number Frame delta time in seconds.
 function Overlay.on_loop(self, delta) end
 
----Called every frame to render overlay elements. Use overlay:label() here.
+---Called every frame to render overlay elements.
 ---@param self Overlay The overlay table itself.
 function Overlay.on_paint(self) end
 
----Draw a text label at the given position using a preloaded font.
----Optionally accepts a table of per-glyph effects keyed by 1-based visible
----character index (newlines are not counted). Each entry is a GlyphEffect
----table that overrides position, scale, and color for that specific glyph.
----Indices without an entry render normally (white, no offset, scale 1).
----@param font string Font family name (must be declared in the overlay's fonts list).
----@param text string The text to render.
----@param x number X position in logical pixels.
----@param y number Y position in logical pixels.
----@param effects? table<integer, GlyphEffect> Per-glyph effects keyed by 1-based visible character index.
-function Overlay:label(font, text, x, y, effects) end
-
 ---Global overlay instance (nil when no overlay is active).
+---
+---Usage:
+---```lua
+---overlay.foreground = "inventory"  -- show
+---overlay.foreground = "dialog"      -- swap (on_disappear on previous, on_appear on new)
+---overlay.foreground = nil           -- hide (on_disappear; instance stays cached)
+---```
 ---@type Overlay|nil
 overlay = nil
 
