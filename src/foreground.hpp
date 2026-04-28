@@ -11,8 +11,6 @@ public:
 
   void draw();
 
-  void expose();
-
   void appear();
 
   void disappear();

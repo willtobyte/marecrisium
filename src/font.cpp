@@ -1,3 +1,109 @@
+static int font_label(lua_State *state) {
+  auto *self = *static_cast<font **>(luaL_checkudata(state, 1, "Font"));
+  std::size_t length{};
+  const auto *text = luaL_checklstring(state, 2, &length);
+  const auto x = static_cast<float>(luaL_checknumber(state, 3));
+  const auto y = static_cast<float>(luaL_checknumber(state, 4));
+
+  if (!lua_istable(state, 5)) [[likely]] {
+    self->draw({text, length}, x, y);
+    return 0;
+  }
+
+  std::array<glypheffect, 256> effects{};
+  auto count = 0uz;
+
+  lua_pushnil(state);
+  while (lua_next(state, 5) != 0) {
+    if (!lua_isnumber(state, -2) || !lua_istable(state, -1)) [[unlikely]] {
+      lua_pop(state, 1);
+      continue;
+    }
+
+    const auto index = static_cast<std::size_t>(lua_tointeger(state, -2)) - 1;
+
+    if (index >= effects.size()) {
+      lua_pop(state, 1);
+      continue;
+    }
+
+    auto &effect = effects[index];
+
+    lua_getfield(state, -1, "x_offset");
+    if (lua_isnumber(state, -1))
+      effect.x_offset = static_cast<float>(lua_tonumber(state, -1));
+    lua_pop(state, 1);
+
+    lua_getfield(state, -1, "y_offset");
+    if (lua_isnumber(state, -1))
+      effect.y_offset = static_cast<float>(lua_tonumber(state, -1));
+    lua_pop(state, 1);
+
+    lua_getfield(state, -1, "scale");
+    if (lua_isnumber(state, -1))
+      effect.scale = static_cast<float>(lua_tonumber(state, -1));
+    lua_pop(state, 1);
+
+    lua_getfield(state, -1, "angle");
+    if (lua_isnumber(state, -1))
+      effect.angle = static_cast<float>(lua_tonumber(state, -1));
+    lua_pop(state, 1);
+
+    lua_getfield(state, -1, "alpha");
+    if (lua_isnumber(state, -1))
+      effect.alpha = static_cast<float>(lua_tonumber(state, -1));
+    lua_pop(state, 1);
+
+    lua_getfield(state, -1, "r");
+    if (lua_isnumber(state, -1))
+      effect.r = static_cast<float>(lua_tonumber(state, -1));
+    lua_pop(state, 1);
+
+    lua_getfield(state, -1, "g");
+    if (lua_isnumber(state, -1))
+      effect.g = static_cast<float>(lua_tonumber(state, -1));
+    lua_pop(state, 1);
+
+    lua_getfield(state, -1, "b");
+    if (lua_isnumber(state, -1))
+      effect.b = static_cast<float>(lua_tonumber(state, -1));
+    lua_pop(state, 1);
+
+    if (index >= count) count = index + 1;
+
+    lua_pop(state, 1);
+  }
+
+  self->draw({text, length}, x, y, std::span{effects.data(), count});
+  return 0;
+}
+
+namespace {
+  namespace property {
+    constexpr auto label = "label"_hs;
+  }
+
+  int _label_ref = LUA_NOREF;
+}
+
+static int font_index(lua_State *state) {
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
+
+  if (id == property::label) [[likely]] {
+    lua_rawgeti(state, LUA_REGISTRYINDEX, _label_ref);
+    return 1;
+  }
+
+  return lua_pushnil(state), 1;
+}
+
+void font::wire() {
+  lua_pushcfunction(L, font_label);
+  _label_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  metatable(L, "Font", font_index);
+}
+
 static SDL_FPoint rotate(float x, float y, float middle_x, float middle_y, float cosine, float sine) {
   const auto dx = x - middle_x;
   const auto dy = y - middle_y;
@@ -5,7 +111,7 @@ static SDL_FPoint rotate(float x, float y, float middle_x, float middle_y, float
 }
 
 font::font(std::string_view family) {
-  const auto filename = std::format("overlay/fonts/{}.lua", family);
+  const auto filename = std::format("fonts/{}.lua", family);
   const auto meta = io::read(filename);
   const auto chunk = std::format("@{}", filename);
   compile(L, meta, chunk);
@@ -33,7 +139,7 @@ font::font(std::string_view family) {
 
   lua_pop(L, 1);
 
-  const auto buffer = io::read(std::format("blobs/overlay/fonts/{}.png", family));
+  const auto buffer = io::read(std::format("blobs/fonts/{}.png", family));
 
   auto spng = std::unique_ptr<spng_ctx, SPNG_Deleter>{spng_ctx_new(SPNG_CTX_IGNORE_ADLER32)};
 

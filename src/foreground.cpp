@@ -7,6 +7,8 @@ int _draw_ref = LUA_NOREF;
 
 static int foreground_draw(lua_State *state) {
   auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
+  if (!self->_texture) [[unlikely]]
+    return 0;
   luaL_checktype(state, 2, LUA_TTABLE);
   const auto count = static_cast<int>(luaL_checkinteger(state, 3));
 
@@ -124,7 +126,9 @@ foreground::foreground(std::string_view name) {
   _vertices.reserve(2048);
   _indices.reserve(3072);
 
-  _texture = depot->pixmap.get(std::format("foregrounds/{}/pixmap", name));
+  const auto pixmap_path = std::format("foregrounds/{}/pixmap", name);
+  if (io::exists(std::format("blobs/{}.png", pixmap_path)))
+    _texture = depot->pixmap.get(pixmap_path);
 
   const auto filename = std::format("foregrounds/{}.lua", name);
   const auto buffer = io::read(filename);
@@ -133,12 +137,38 @@ foreground::foreground(std::string_view name) {
 
   pcall(L, 0, 1);
 
-  lua_newtable(L);
-  lua_pushnumber(L, static_cast<lua_Number>(_texture->width()));
-  lua_setfield(L, -2, "width");
-  lua_pushnumber(L, static_cast<lua_Number>(_texture->height()));
-  lua_setfield(L, -2, "height");
-  lua_setfield(L, -2, "pixmap");
+  if (_texture) [[likely]] {
+    lua_newtable(L);
+    lua_pushnumber(L, static_cast<lua_Number>(_texture->width()));
+    lua_setfield(L, -2, "width");
+    lua_pushnumber(L, static_cast<lua_Number>(_texture->height()));
+    lua_setfield(L, -2, "height");
+    lua_setfield(L, -2, "pixmap");
+  }
+
+  lua_getfield(L, -1, "fonts");
+  if (lua_istable(L, -1)) {
+    const auto count = static_cast<int>(lua_objlen(L, -1));
+
+    for (int i = 1; i <= count; ++i) {
+      lua_rawgeti(L, -1, i);
+
+      if (lua_isstring(L, -1)) [[likely]] {
+        const auto *family = lua_tostring(L, -1);
+        auto *f = depot->font.get(family);
+
+        auto **m = static_cast<font **>(lua_newuserdata(L, sizeof(font *)));
+        *m = f;
+        luaL_getmetatable(L, "Font");
+        lua_setmetatable(L, -2);
+
+        lua_setfield(L, -4, family);
+      }
+
+      lua_pop(L, 1);
+    }
+  }
+  lua_pop(L, 1);
 
   _ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
@@ -181,11 +211,6 @@ void foreground::wire() {
   _draw_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Foreground", foreground_index);
-}
-
-void foreground::expose() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_ref);
-  lua_setglobal(L, "foreground");
 }
 
 void foreground::appear() {

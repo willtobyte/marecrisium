@@ -4,26 +4,23 @@ class foreground;
 
 class overlay final {
 public:
-  explicit overlay(std::string_view name);
+  overlay();
   ~overlay();
 
   static void wire();
+
+  void show(std::string_view name);
+
+  void hide(std::string_view name);
+
+  void clear();
 
   void update(float delta);
 
   void draw();
 
-  void expose();
-
-  void set_foreground(std::string_view name);
-
-  void dismiss();
-
 private:
-  foreground *_foreground{nullptr};
   ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<foreground>> _foregrounds;
+  std::vector<foreground *> _active;
   int _userdata_ref{LUA_NOREF};
-  int _ref{LUA_NOREF};
-  int _on_loop{LUA_NOREF};
-  int _on_paint{LUA_NOREF};
 };

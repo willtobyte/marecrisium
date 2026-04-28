@@ -47,23 +47,6 @@ void director::destroy(std::string_view name) {
   _stages.erase(it);
 }
 
-void director::set_overlay(std::string_view name) {
-  const auto key = entt::hashed_string{name.data(), name.size()};
-  const auto [it, inserted] = _overlays.try_emplace(key, nullptr);
-
-  if (inserted)
-    it->second = std::make_unique<overlay>(name);
-
-  _overlay = it->second.get();
-  _overlay->expose();
-}
-
-void director::clear_overlay() {
-  _overlay = nullptr;
-}
-
-
-
 void director::transition() {
   if (!_pending) [[likely]] {
     return;
@@ -71,7 +54,7 @@ void director::transition() {
 
   if (_current) [[likely]] {
     _current->on_leave();
-    clear_overlay();
+    _overlay.clear();
   }
 
   const auto key = entt::hashed_string{_pending->data(), _pending->size()};
@@ -83,12 +66,8 @@ void director::transition() {
   _current = it->second.get();
   _current->expose();
 
-  if (const auto& o = _current->_overlay; o) {
-    set_overlay(*o);
-
-    if (const auto& f = _current->_foreground; f)
-      _overlay->set_foreground(*f);
-  }
+  for (const auto &name : _current->_foregrounds)
+    _overlay.show(name);
 
   _current->on_enter();
 }
@@ -105,9 +84,7 @@ void director::update(float delta) {
     _current->update(delta);
   }
 
-  if (_overlay) {
-    _overlay->update(delta);
-  }
+  _overlay.update(delta);
 }
 
 void director::draw() {
@@ -115,7 +92,5 @@ void director::draw() {
     _current->draw();
   }
 
-  if (_overlay) {
-    _overlay->draw();
-  }
+  _overlay.draw();
 }

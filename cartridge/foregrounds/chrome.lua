@@ -50,7 +50,7 @@ return {
 		local minutes = floor(elapsed / 60)
 		local seconds = floor(elapsed % 60)
 
-		overlay:label("pixel", title, 3, 3, effects)
-		overlay:label("pixel", format("%02d:%02d", minutes, seconds), 3, 18)
+		self.pixel:label(title, 3, 3, effects)
+		self.pixel:label(format("%02d:%02d", minutes, seconds), 3, 18)
 	end,
 }

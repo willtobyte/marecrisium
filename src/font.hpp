@@ -29,6 +29,8 @@ public:
   font(font&&) = default;
   font& operator=(font&&) = default;
 
+  static void wire();
+
   void draw(std::string_view text, float x, float y);
 
   void draw(std::string_view text, float x, float y, std::span<const glypheffect> effects);

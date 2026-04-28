@@ -27,10 +27,6 @@ public:
       it->second = std::make_unique<stage>(std::forward<T>(name));
   }
 
-  void set_overlay(std::string_view name);
-
-  void clear_overlay();
-
   void transition();
 
   void on_tick(uint64_t tick);
@@ -41,10 +37,9 @@ public:
 
 private:
   stage *_current{nullptr};
-  overlay *_overlay{nullptr};
+  overlay _overlay{};
 
   std::optional<std::string> _pending;
 
   ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<stage>> _stages;
-  ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<overlay>> _overlays;
 };

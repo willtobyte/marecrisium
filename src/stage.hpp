@@ -50,8 +50,7 @@ public:
 private:
   entt::registry _registry{};
   std::string _name{};
-  std::optional<std::string> _overlay{};
-  std::optional<std::string> _foreground{};
+  std::vector<std::string> _foregrounds{};
 
   particlesystem _particlesystem{};
   tilemap _tilemap{};

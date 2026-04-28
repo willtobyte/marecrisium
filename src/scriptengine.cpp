@@ -24,6 +24,7 @@ void scriptengine::run() {
   binding::wire();
   achievement::wire();
   cassette::wire();
+  font::wire();
   foreground::wire();
   gamepad::wire();
   internet::wire();

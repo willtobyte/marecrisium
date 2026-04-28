@@ -209,9 +209,11 @@ cassette = {}
 ---@field y? number Initial Y position. Default 0.
 ---@field active? boolean Whether particles spawn immediately. Default true.
 
----@class StageOverlay
----@field widgets string Overlay name (matches `overlays/<name>.lua`).
----@field foreground? string Foreground name (matches `foregrounds/<name>.lua`). Loads a foreground layer drawn before overlay labels.
+---List of foreground names (each matching `foregrounds/<name>.lua`) to show
+---when the stage becomes active. Order is z-order: index 1 is the back layer,
+---last index is on top. All listed foregrounds are pre-loaded and made visible
+---on stage entry; they can be toggled at runtime via `foregrounds.<name> = true|false`.
+---On stage leave, every active foreground receives `on_disappear`.
 
 ---@class StageMinimap
 ---Minimap color configuration. Each field is an RGB triplet `{r, g, b}` (0-255).
@@ -228,7 +230,7 @@ cassette = {}
 ---@field objects StageObject[]|nil Objects to spawn when the stage is created.
 ---@field sounds StageSound[]|nil Sounds to preload. Each entry is `{ name = "foo", autoplay = true }`. Loads `sounds/<name>` and is accessible as `pool.<name>`.
 ---@field particles StageParticle[]|nil Particle emitters to create. Each entry spawns a particle system accessible as `pool.<name>`.
----@field overlay StageOverlay|nil Overlay configuration table with widgets and optional foreground.
+---@field foregrounds string[]|nil Foregrounds shown when this stage is active, in z-order (index 1 is back). All listed foregrounds are pre-loaded; toggle individually at runtime via `foregrounds.<name> = true|false`.
 ---@field tilemap string|nil Tilemap name. Loads `tilemaps/<name>.lua` and exposes a `tilemap` global in the stage environment.
 ---@field minimap StageMinimap|nil Minimap color palette. Only used when `tilemap` is also set.
 local Stage = {}
@@ -288,7 +290,7 @@ function Director.reset() end
 director = {}
 
 --------------------------------------------------------------------------------
--- Foreground (full-screen sprite layers drawn before overlay labels)
+-- Foreground (a single visible layer; many can be active simultaneously)
 --------------------------------------------------------------------------------
 
 ---@class ForegroundSprite
@@ -301,20 +303,62 @@ director = {}
 
 ---@class ForegroundConfig
 ---@field pixmaps string[] Pixmap names to preload from `blobs/foregrounds/<name>.png`.
+---@field fonts? string[] Font families to preload from `fonts/<name>.lua`. Each declared font is exposed on the foreground table by family name (e.g. `self.pixel`, `self.small`) as a `Font` instance.
+
+---Per-glyph visual effect applied to individual characters in a label.
+---Each field is optional; omitted fields use their default (no effect).
+---Newline characters do not count as glyphs for indexing purposes.
+---
+---Usage:
+---```lua
+---self.pixel:label("hello", 10, 20, {
+---  [1] = { r = 1, g = 0, b = 0 },           -- 'h' in red
+---  [3] = { y_offset = -2, scale = 1.5 },      -- first 'l' raised and scaled
+---  [5] = { alpha = 0.5 },                     -- 'o' semi-transparent
+---})
+---```
+---@class GlyphEffect
+---@field x_offset? number Horizontal pixel offset for this glyph. Default 0.
+---@field y_offset? number Vertical pixel offset for this glyph. Default 0.
+---@field scale? number Scale factor for this glyph. Default 1.
+---@field angle? number Rotation angle in degrees for this glyph, around its center. Default 0.
+---@field r? number Red channel for this glyph (0.0-1.0). Default 1.
+---@field g? number Green channel for this glyph (0.0-1.0). Default 1.
+---@field b? number Blue channel for this glyph (0.0-1.0). Default 1.
+---@field alpha? number Opacity for this glyph (0.0-1.0). Default 1.
+
+---@class Font
+---A font instance bound to a foreground. The same family across foregrounds
+---resolves to the same underlying texture and metrics (cached in the engine),
+---so declaring a font in multiple foregrounds is cheap.
+local Font = {}
+
+---Draw a text label at the given position using this font.
+---Optionally accepts a table of per-glyph effects keyed by 1-based visible
+---character index (newlines are not counted). Each entry is a GlyphEffect
+---table that overrides position, scale, color, and rotation for that specific
+---glyph. Indices without an entry render normally (white, no offset, scale 1).
+---Each call submits one batched draw to the GPU.
+---@param text string The text to render.
+---@param x number X position in logical pixels.
+---@param y number Y position in logical pixels.
+---@param effects? table<integer, GlyphEffect> Per-glyph effects keyed by 1-based visible character index.
+function Font:label(text, x, y, effects) end
 
 ---@class Foreground
 local Foreground = {}
 
 ---Called when the foreground becomes visible. Fires every time the foreground
----is activated via `overlay.foreground = "<name>"`, including subsequent
----activations after it was hidden. Foregrounds are cached, so the same
----instance receives `on_appear` again when it is shown after being hidden.
+---is activated via `foregrounds.<name> = true` or implicitly by entering a
+---stage that lists it, including subsequent activations after it was hidden.
+---Foregrounds are cached, so the same instance receives `on_appear` again
+---when it is shown after being hidden.
 ---@param self Foreground The foreground table itself.
 function Foreground.on_appear(self) end
 
 ---Called when the foreground stops being visible. Fires every time the
----foreground is hidden via `overlay.foreground = nil` or replaced via
----`overlay.foreground = "<other>"`. The instance stays cached and may
+---foreground is hidden via `foregrounds.<name> = false` (or `nil`), or when
+---the active stage transitions away. The instance stays cached and may
 ---receive `on_appear` again later.
 ---@param self Foreground The foreground table itself.
 function Foreground.on_disappear(self) end
@@ -326,8 +370,10 @@ function Foreground.on_disappear(self) end
 ---@param delta number Frame delta time in seconds.
 function Foreground.on_loop(self, delta) end
 
----Called every frame to render foreground elements. Use self:draw() here.
----Each call enqueues a draw into a batch that is flushed after on_paint returns.
+---Called every frame to render foreground elements. Use `self:draw()` for
+---batched sprite quads from the pixmap, and `self.<font>:label(...)` for text
+---using any font declared in this foreground's `fonts` list. Each call enqueues
+---a draw that is flushed after `on_paint` returns.
 ---@param self Foreground The foreground table itself.
 function Foreground.on_paint(self) end
 
@@ -342,43 +388,31 @@ function Foreground.on_paint(self) end
 function Foreground:draw(buffer, count) end
 
 ---Global foreground instance (nil when no foreground is active).
----Any script can call methods defined in the foreground Lua file via this global.
----For example, if `mist.lua` defines `on_damage`, any script can call `foreground:damage()`.
----The `__index` metamethod falls through to the foreground's Lua table,
----so any function defined there is accessible.
----@type Foreground|nil
-foreground = nil
-
 --------------------------------------------------------------------------------
--- Overlay (HUD / on-screen text)
+-- Foregrounds (the global container of active foreground layers)
 --------------------------------------------------------------------------------
 
----@class OverlayConfig
----@field fonts string[] Font families to preload from `overlay/fonts/`.
+---@class Foregrounds
+---Container for any number of simultaneously visible foregrounds. Assign
+---`true` to a foreground name to show it (loading and caching the instance
+---on first use); assign `false` or `nil` to hide it (the cached instance is
+---preserved for later reuse). Multiple foregrounds can be active at the same
+---time; they are drawn in the z-order defined by the active stage's
+---`foregrounds` list, with later entries on top.
+---@field [string] boolean Write-only. `foregrounds.<name> = true` shows the foreground; `false`/`nil` hides it.
+local Foregrounds = {}
 
----@class Overlay
----@field foreground string|nil Write-only. Assign a foreground name (matches `foregrounds/<name>.lua`) to show it; assign `nil` to hide the current foreground. Foregrounds are cached on first assignment and reused on subsequent ones, so `on_appear` and `on_disappear` fire each time the active foreground changes.
-local Overlay = {}
-
----Called every frame while this overlay is active (logic only, no rendering).
----@param self Overlay The overlay table itself.
----@param delta number Frame delta time in seconds.
-function Overlay.on_loop(self, delta) end
-
----Called every frame to render overlay elements.
----@param self Overlay The overlay table itself.
-function Overlay.on_paint(self) end
-
----Global overlay instance (nil when no overlay is active).
+---Global foregrounds container. Always present.
 ---
 ---Usage:
 ---```lua
----overlay.foreground = "inventory"  -- show
----overlay.foreground = "dialog"      -- swap (on_disappear on previous, on_appear on new)
----overlay.foreground = nil           -- hide (on_disappear; instance stays cached)
+---foregrounds.inventory = true    -- show on top of whatever is already visible
+---foregrounds.dialog    = true    -- show as well; both stay visible
+---foregrounds.inventory = false   -- hide just inventory; dialog remains
+---foregrounds.inventory = nil     -- same as false
 ---```
----@type Overlay|nil
-overlay = nil
+---@type Foregrounds
+foregrounds = {}
 
 --------------------------------------------------------------------------------
 -- Viewport

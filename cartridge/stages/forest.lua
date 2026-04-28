@@ -15,7 +15,7 @@ return scheduler.wrap({
 		entity = { 255, 220, 130 },
 	},
 
-	overlay = { widgets = "hud" }, --, foreground = "mist" },
+	foregrounds = { "chrome" },
 
 	particles = {
 		{ name = "smoke", kind = "smoke", x = 50, y = 100 },

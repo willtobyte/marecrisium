@@ -402,17 +402,17 @@ stage::stage(std::string name)
   }
   lua_pop(L, 1);
 
-  lua_getfield(L, -1, "overlay");
+  lua_getfield(L, -1, "foregrounds");
   if (lua_istable(L, -1)) {
-    lua_getfield(L, -1, "widgets");
-    if (lua_isstring(L, -1))
-      _overlay = lua_tostring(L, -1);
-    lua_pop(L, 1);
+    const auto count = static_cast<int>(lua_objlen(L, -1));
+    _foregrounds.reserve(static_cast<std::size_t>(count));
 
-    lua_getfield(L, -1, "foreground");
-    if (lua_isstring(L, -1))
-      _foreground = lua_tostring(L, -1);
-    lua_pop(L, 1);
+    for (int i = 1; i <= count; ++i) {
+      lua_rawgeti(L, -1, i);
+      if (lua_isstring(L, -1))
+        _foregrounds.emplace_back(lua_tostring(L, -1));
+      lua_pop(L, 1);
+    }
   }
   lua_pop(L, 1);
 
