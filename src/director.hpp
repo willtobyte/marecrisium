@@ -1,8 +1,7 @@
 #pragma once
 
-#include <concepts>
+#include "overlay.hpp"
 
-class overlay;
 class stage;
 
 class director final {
