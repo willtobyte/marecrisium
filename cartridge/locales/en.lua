@@ -1,3 +1,1 @@
-return {
-	nostalgia = "Henrique Delduca",
-}
+return {}
