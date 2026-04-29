@@ -62,10 +62,8 @@ void overlay::hide(std::string_view name) {
 }
 
 void overlay::clear() {
-  for (auto *fg : _active)
-    fg->disappear();
-
-  _active.clear();
+  for (auto *foreground : std::exchange(_active, {}))
+    foreground->disappear();
 }
 
 void overlay::update(float delta) {
