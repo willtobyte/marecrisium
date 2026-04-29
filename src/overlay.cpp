@@ -67,11 +67,11 @@ void overlay::clear() {
 }
 
 void overlay::update(float delta) {
-  for (auto *fg : _active)
-    fg->update(delta);
+  for (auto *foreground : auto(_active))
+    foreground->update(delta);
 }
 
 void overlay::draw() {
-  for (auto *fg : _active)
-    fg->draw();
+  for (auto *foreground : auto(_active))
+    foreground->draw();
 }
