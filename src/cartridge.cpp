@@ -114,7 +114,8 @@ void bank_destroy(PHYSFS_Io *io) {
 
 void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   uint8_t header[HEADER_SIZE];
-  assert(io->seek(io, 0));
+  [[maybe_unused]] const auto seeked = io->seek(io, 0);
+  assert(seeked);
   slurp(io, header, sizeof(header));
 
   *claimed = 1;
@@ -215,7 +216,8 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   };
 
   if (uncompressed > 0) [[likely]] {
-    assert(cartridge->io->seek(cartridge->io, found.data_offset));
+    [[maybe_unused]] const auto seeked = cartridge->io->seek(cartridge->io, found.data_offset);
+    assert(seeked);
 
     if (cartridge->compressed.size() < compressed)
       cartridge->compressed.resize(compressed);

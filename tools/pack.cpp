@@ -114,8 +114,8 @@ int main(int argc, char **argv) {
   dictionary_t dictionary(
     ZSTD_createCDict(trained.data(), trained.size(), LEVEL),
     ZSTD_freeCDict);
-  ZSTD_CCtx_refCDict(encoder.get(), dictionary.get());
   ZSTD_CCtx_setParameter(encoder.get(), ZSTD_c_nbWorkers, std::thread::hardware_concurrency());
+  ZSTD_CCtx_refCDict(encoder.get(), dictionary.get());
 
   std::vector<uint8_t> scratch;
   for (auto &current : sources) {
