@@ -149,11 +149,11 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
 PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname, PHYSFS_EnumerateCallback callback, const char *origdir, void *cbdata) {
   auto *cartridge = static_cast<archive *>(opaque);
 
-  const std::string_view raw{dirname};
+  const std::string_view dir{dirname};
   static std::array<char, 512> buffer;
-  if (raw.size() >= buffer.size()) [[unlikely]] return PHYSFS_ENUM_ERROR;
-  auto *end = std::ranges::copy(raw, buffer.data()).out;
-  if (raw.empty() || raw.back() != '/') [[likely]] *end++ = '/';
+  if (dir.size() >= buffer.size()) [[unlikely]] return PHYSFS_ENUM_ERROR;
+  auto *end = std::ranges::copy(dir, buffer.data()).out;
+  if (dir.empty() || dir.back() != '/') [[likely]] *end++ = '/';
   const std::string_view needle{buffer.data(), end};
 
   const auto &records = cartridge->records;
