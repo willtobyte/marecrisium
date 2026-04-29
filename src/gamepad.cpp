@@ -50,10 +50,14 @@ static std::atomic<SDL_Gamepad *> ptr{nullptr};
 
 static bool on_event(void *, SDL_Event *event) {
   switch (event->type) {
-    case SDL_EVENT_GAMEPAD_ADDED:
-      if (!ptr.load()) [[unlikely]]
-        ptr.store(SDL_OpenGamepad(event->gdevice.which));
-      break;
+    case SDL_EVENT_GAMEPAD_ADDED: {
+      if (!ptr.load()) [[unlikely]] {
+        auto *opened = SDL_OpenGamepad(event->gdevice.which);
+        SDL_Gamepad *expected = nullptr;
+        if (!ptr.compare_exchange_strong(expected, opened))
+          SDL_CloseGamepad(opened);
+      }
+    } break;
 
     case SDL_EVENT_GAMEPAD_REMOVED: {
       auto *const gamepad = ptr.load();
