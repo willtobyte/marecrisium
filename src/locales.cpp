@@ -31,8 +31,8 @@ void locales::wire() {
 
     if (io::exists(filename)) [[likely]] {
       compile(L, io::read(filename), std::format("@{}", filename));
-      pcall(L, 0, 1, fault::ignore);
-      lua_replace(L, -2);
+      if (pcall(L, 0, 1, fault::ignore)) [[likely]]
+        lua_replace(L, -2);
     }
   }
 
