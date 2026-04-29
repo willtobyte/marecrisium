@@ -5,30 +5,6 @@ namespace property {
 
 constexpr const char *FILENAME = "cassette.tape";
 
-constexpr std::string_view PROXY_SOURCE = R"lua(
-local cassette = ...
-
-local function wrap(data, root, origin)
-  if type(data) ~= "table" then
-    return data
-  end
-
-  origin = origin or data
-
-  return setmetatable({}, {
-    __index = function(_, k)
-      return wrap(rawget(data, k), root, origin)
-    end,
-    __newindex = function(_, k, v)
-      rawset(data, k, v)
-      cassette[root] = origin
-    end,
-  })
-end
-
-return wrap
-)lua";
-
 sqlite3 *database;
 sqlite3_stmt *stmt_select;
 sqlite3_stmt *stmt_upsert;
@@ -36,7 +12,6 @@ sqlite3_stmt *stmt_delete;
 sqlite3_stmt *stmt_clear;
 
 int _purge_ref = LUA_NOREF;
-int _wrap_ref = LUA_NOREF;
 
 ankerl::unordered_dense::map<std::string, int, transparent_hash, std::equal_to<>> cache;
 
@@ -47,21 +22,83 @@ static void execute(sqlite3_stmt *statement) {
   sqlite3_clear_bindings(statement);
 }
 
+static int proxy_newindex(lua_State *state) {
+  lua_pushvalue(state, lua_upvalueindex(1));
+  lua_pushvalue(state, 2);
+  lua_pushvalue(state, 3);
+  lua_rawset(state, -3);
+  lua_pop(state, 1);
+
+  lua_getglobal(state, "cassette");
+  lua_pushvalue(state, lua_upvalueindex(2));
+  lua_pushvalue(state, lua_upvalueindex(3));
+  lua_settable(state, -3);
+  lua_pop(state, 1);
+  return 0;
+}
+
+static int proxy_index(lua_State *state) {
+  lua_pushvalue(state, lua_upvalueindex(1));
+  lua_pushvalue(state, 2);
+  lua_rawget(state, -2);
+
+  if (lua_type(state, -1) != LUA_TTABLE) [[likely]]
+    return 1;
+
+  const auto index = lua_gettop(state);
+
+  lua_newtable(state);
+  lua_newtable(state);
+
+  lua_pushvalue(state, index);
+  lua_pushvalue(state, lua_upvalueindex(2));
+  lua_pushvalue(state, lua_upvalueindex(3));
+  lua_pushcclosure(state, proxy_index, 3);
+  lua_setfield(state, -2, "__index");
+
+  lua_pushvalue(state, index);
+  lua_pushvalue(state, lua_upvalueindex(2));
+  lua_pushvalue(state, lua_upvalueindex(3));
+  lua_pushcclosure(state, proxy_newindex, 3);
+  lua_setfield(state, -2, "__newindex");
+
+  lua_setmetatable(state, -2);
+  return 1;
+}
+
 static void proxify(lua_State *state, std::string_view key) {
   if (lua_type(state, -1) != LUA_TTABLE) [[likely]]
     return;
 
-  lua_rawgeti(state, LUA_REGISTRYINDEX, _wrap_ref);
-  lua_pushvalue(state, -2);
+  const auto data = lua_gettop(state);
   lua_pushlstring(state, key.data(), key.size());
-  pcall(state, 2, 1);
-  lua_replace(state, -2);
+  const auto root = data + 1;
+
+  lua_newtable(state);
+  lua_newtable(state);
+
+  lua_pushvalue(state, data);
+  lua_pushvalue(state, root);
+  lua_pushvalue(state, data);
+  lua_pushcclosure(state, proxy_index, 3);
+  lua_setfield(state, -2, "__index");
+
+  lua_pushvalue(state, data);
+  lua_pushvalue(state, root);
+  lua_pushvalue(state, data);
+  lua_pushcclosure(state, proxy_newindex, 3);
+  lua_setfield(state, -2, "__newindex");
+
+  lua_setmetatable(state, -2);
+
+  lua_replace(state, root);
+  lua_replace(state, data);
 }
 }
 
 static int cassette_clear(lua_State *state) {
-  for (const auto &[_, ref] : cache)
-    luaL_unref(state, LUA_REGISTRYINDEX, ref);
+  for (const auto &[_, reference] : cache)
+    luaL_unref(state, LUA_REGISTRYINDEX, reference);
 
   cache.clear();
   execute(stmt_clear);
@@ -182,9 +219,4 @@ void cassette::wire() {
 
   metatable(L, "Cassette", cassette_index, cassette_newindex);
   singleton(L, "Cassette", "cassette");
-
-  luaL_loadbuffer(L, PROXY_SOURCE.data(), PROXY_SOURCE.size(), "cassette_proxy");
-  lua_getglobal(L, "cassette");
-  pcall(L, 1, 1);
-  _wrap_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 }
