@@ -63,7 +63,7 @@ void slurp(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) noexcept {
   return static_cast<size_t>(it - records.begin());
 }
 
-PHYSFS_sint64 file_read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
+PHYSFS_sint64 bank_read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   auto *reader = static_cast<handle *>(io->opaque);
   const auto remaining = reader->size - reader->position;
   if (remaining == 0)
@@ -75,25 +75,25 @@ PHYSFS_sint64 file_read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   return static_cast<PHYSFS_sint64>(count);
 }
 
-PHYSFS_sint64 file_write(PHYSFS_Io *, const void *, PHYSFS_uint64) {
+PHYSFS_sint64 bank_write(PHYSFS_Io *, const void *, PHYSFS_uint64) {
   PHYSFS_setErrorCode(PHYSFS_ERR_READ_ONLY);
   return -1;
 }
 
-int file_seek(PHYSFS_Io *io, PHYSFS_uint64 offset) {
+int bank_seek(PHYSFS_Io *io, PHYSFS_uint64 offset) {
   static_cast<handle *>(io->opaque)->position = offset;
   return 1;
 }
 
-PHYSFS_sint64 file_tell(PHYSFS_Io *io) {
+PHYSFS_sint64 bank_tell(PHYSFS_Io *io) {
   return static_cast<PHYSFS_sint64>(static_cast<handle *>(io->opaque)->position);
 }
 
-PHYSFS_sint64 file_length(PHYSFS_Io *io) {
+PHYSFS_sint64 bank_length(PHYSFS_Io *io) {
   return static_cast<PHYSFS_sint64>(static_cast<handle *>(io->opaque)->size);
 }
 
-PHYSFS_Io *file_duplicate(PHYSFS_Io *io) {
+PHYSFS_Io *bank_duplicate(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
   auto *copy = static_cast<handle *>(::operator new(sizeof(handle) + reader->size));
   new (copy) handle{reader->io, reader->size, uint64_t{0}};
@@ -102,11 +102,11 @@ PHYSFS_Io *file_duplicate(PHYSFS_Io *io) {
   return &copy->io;
 }
 
-int file_flush(PHYSFS_Io *) {
+int bank_flush(PHYSFS_Io *) {
   return 1;
 }
 
-void file_destroy(PHYSFS_Io *io) {
+void bank_destroy(PHYSFS_Io *io) {
   auto *h = static_cast<handle *>(io->opaque);
   h->~handle();
   ::operator delete(h);
@@ -201,14 +201,14 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     PHYSFS_Io{
       .version = 0,
       .opaque = reader,
-      .read = file_read,
-      .write = file_write,
-      .seek = file_seek,
-      .tell = file_tell,
-      .length = file_length,
-      .duplicate = file_duplicate,
-      .flush = file_flush,
-      .destroy = file_destroy,
+      .read = bank_read,
+      .write = bank_write,
+      .seek = bank_seek,
+      .tell = bank_tell,
+      .length = bank_length,
+      .duplicate = bank_duplicate,
+      .flush = bank_flush,
+      .destroy = bank_destroy,
     },
     uncompressed,
     uint64_t{0},
