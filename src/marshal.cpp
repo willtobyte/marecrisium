@@ -10,6 +10,10 @@ static bool lua_table_is_array(lua_State *state, int index) {
   auto count = 0;
   lua_pushnil(state);
   while (lua_next(state, absolute) != 0) {
+    if (lua_type(state, -2) != LUA_TNUMBER) {
+      lua_pop(state, 2);
+      return false;
+    }
     lua_pop(state, 1);
     ++count;
   }
