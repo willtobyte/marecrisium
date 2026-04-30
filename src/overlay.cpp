@@ -54,11 +54,12 @@ void overlay::hide(std::string_view name) {
     return;
 
   auto *foreground = it->second.get();
-  if (std::ranges::find(_active, foreground) == _active.end())
+  const auto active = std::ranges::find(_active, foreground);
+  if (active == _active.end())
     return;
 
   foreground->disappear();
-  std::erase(_active, foreground);
+  _active.erase(active);
 }
 
 void overlay::clear() {
