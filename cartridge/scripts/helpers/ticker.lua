@@ -1,5 +1,3 @@
-local remove = table.remove
-
 local ticker = {}
 local timers = {}
 local n = 0
@@ -51,14 +49,16 @@ function ticker.wrap(stage)
 				break
 			end
 			if timer.cancelled then
-				remove(list, i)
+				list[i] = list[n]
+				list[n] = nil
 				n = n - 1
 			else
 				timer.current = timer.current + 1
 				if timer.current >= timer.target then
 					timer.callback()
 					if timer.once then
-						remove(list, i)
+						list[i] = list[n]
+						list[n] = nil
 						n = n - 1
 					else
 						timer.current = 0
