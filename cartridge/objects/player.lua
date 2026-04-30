@@ -3,6 +3,7 @@ local sqrt = math.sqrt
 
 local speed = 99
 local facing = "south"
+local idle = { south = "idle.south", north = "idle.north", east = "idle.east" }
 
 return {
 	body = "dynamic",
@@ -63,7 +64,7 @@ return {
 			facing = "east"
 		end
 
-		self.animation = (velocity_x ~= 0 or velocity_y ~= 0) and facing or ("idle." .. facing)
+		self.animation = (velocity_x ~= 0 or velocity_y ~= 0) and facing or idle[facing]
 
 		self.velocity_x, self.velocity_y = velocity_x, velocity_y
 	end,
