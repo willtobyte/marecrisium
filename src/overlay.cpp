@@ -68,11 +68,11 @@ void overlay::clear() {
 }
 
 void overlay::update(float delta) {
-  for (auto *foreground : auto(_active))
+  for (auto *foreground : decltype(_active){_active})
     foreground->update(delta);
 }
 
 void overlay::draw() {
-  for (auto *foreground : auto(_active))
+  for (auto *foreground : decltype(_active){_active})
     foreground->draw();
 }
