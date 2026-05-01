@@ -13,29 +13,27 @@ engine::engine() {
   pcall(L, 0, 1);
 
   lua_getfield(L, -1, "width");
-  const auto width = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 1920;
+  const auto width = static_cast<int>(lua_tonumber(L, -1));
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "height");
-  const auto height = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 1080;
+  const auto height = static_cast<int>(lua_tonumber(L, -1));
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "scale");
-  const auto scale = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : 1.f;
+  const auto scale = static_cast<float>(lua_tonumber(L, -1));
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "fullscreen");
-  const auto fullscreen = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : false;
+  const auto fullscreen = lua_toboolean(L, -1) != 0;
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "ticks");
-  const auto ticks = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 0;
+  _period = 1.f / static_cast<float>(lua_tonumber(L, -1));
   lua_pop(L, 1);
-  if (ticks > 0) [[likely]]
-    _tick_interval = 1.f / static_cast<float>(ticks);
 
   lua_getfield(L, -1, "title");
-  const std::string title = lua_isstring(L, -1) ? lua_tostring(L, -1) : "Untitled";
+  const std::string title = lua_tostring(L, -1);
   lua_pop(L, 1);
 
   static const auto window = SDL_CreateWindow(
@@ -79,7 +77,7 @@ engine::engine() {
 
 #ifndef DEBUG
   lua_getfield(L, -1, "sentry");
-  const std::string dsn = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+  const std::string dsn = lua_tostring(L, -1);
   lua_pop(L, 1);
 
   std::string version;
@@ -188,11 +186,11 @@ void engine::loop() {
 
   _director.transition();
 
-  if (_tick_interval > .0f) [[likely]] {
-    _tick_accumulator += delta;
+  if (_period > .0f) [[likely]] {
+    _accumulator += delta;
 
-    while (_tick_accumulator >= _tick_interval) {
-      _tick_accumulator -= _tick_interval;
+    while (_accumulator >= _period) {
+      _accumulator -= _period;
       _director.on_tick(++_tick);
     }
   }
