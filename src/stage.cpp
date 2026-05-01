@@ -216,6 +216,9 @@ stage::stage(std::string name)
   _registry.on_destroy<body>().connect<&on_object_destroy>();
   _registry.ctx().emplace<reorder>();
 
+  _vertices.reserve(4096);
+  _indices.reserve(6144);
+
   const auto filename = std::format("stages/{}.lua", _name);
   const auto buffer = io::read(filename);
   const auto chunk = std::format("@{}", filename);

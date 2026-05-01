@@ -193,6 +193,8 @@ void cassette::wire() {
   sqlite3_exec(database,
     "PRAGMA journal_mode=WAL;"
     "PRAGMA synchronous=NORMAL;"
+    "PRAGMA temp_store=MEMORY;"
+    "PRAGMA mmap_size=67108864;"
     "CREATE TABLE IF NOT EXISTS data("
       "key TEXT PRIMARY KEY,"
       "value JSONB NOT NULL"
