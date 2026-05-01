@@ -118,14 +118,6 @@ engine::engine() {
   }
 
   lua_pop(L, 1);
-
-  for (const auto type : {
-    SDL_EVENT_MOUSE_MOTION,
-    SDL_EVENT_MOUSE_BUTTON_DOWN,
-    SDL_EVENT_MOUSE_BUTTON_UP,
-    SDL_EVENT_MOUSE_WHEEL,
-  })
-    SDL_SetEventEnabled(type, false);
 }
 
 void engine::run() {
