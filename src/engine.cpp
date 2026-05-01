@@ -58,7 +58,6 @@ engine::engine() {
   SDL_SetRenderScale(renderer, scale, scale);
 
   SDL_RaiseWindow(window);
-  SDL_SetWindowMouseGrab(window, fullscreen);
 
   lua_getfield(L, -1, "splash");
   if (lua_isstring(L, -1)) [[likely]] {
