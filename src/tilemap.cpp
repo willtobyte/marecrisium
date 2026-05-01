@@ -86,6 +86,10 @@ static void unwrap(tilemap::layer& layer, float size, float inverse) {
   const auto htu = .5f / aw;
   const auto htv = .5f / ah;
 
+  assert(tpr > 0 && tpc > 0 && "unwrap: degenerate tile/atlas ratio");
+  [[assume(tpr > 0)]];
+  [[assume(tpc > 0)]];
+
   layer.uvs.resize(count);
   for (size_t id = 0; id < count; ++id) {
     const auto column = static_cast<float>(id % tpr);
@@ -103,9 +107,14 @@ static void buffers(tilemap::layer& layer, size_t capacity) {
   layer.vertices.reserve(capacity * 4);
   layer.indices.resize(capacity * 6);
 
+  auto* noalias indices = layer.indices.data();
+
+  [[assume(indices != nullptr)]];
+  [[assume(capacity > 0)]];
+
   for (size_t i = 0; i < capacity; ++i) {
     const auto base = static_cast<int32_t>(i * 4);
-    auto* ip = layer.indices.data() + i * 6;
+    auto* ip = indices + i * 6;
 
     *ip++ = base;
     *ip++ = base + 1;

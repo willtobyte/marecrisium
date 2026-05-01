@@ -23,6 +23,8 @@ static int foreground_draw(lua_State *state) {
 
   const auto quads = count / 6;
 
+  [[assume(quads > 0)]];
+
   for (auto q = 0; q < quads; ++q) {
     const auto index = q * 6;
 

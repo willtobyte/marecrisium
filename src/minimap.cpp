@@ -101,6 +101,9 @@ void minimap::draw() {
   auto *noalias pixels = _pixels.data();
   const auto* noalias coll = collision.data();
 
+  [[assume(pixels != nullptr)]];
+  [[assume(coll != nullptr)]];
+
   for (int32_t dy = -RADIUS; dy <= RADIUS; ++dy) {
     const auto ty = cy + dy;
     const auto row = static_cast<size_t>((dy + RADIUS) * SIDE);
