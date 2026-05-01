@@ -58,47 +58,46 @@ engine::engine() {
   SDL_SetRenderScale(renderer, scale, scale);
 
   lua_getfield(L, -1, "splash");
-  if (lua_isstring(L, -1)) [[likely]] {
-    const auto filename = std::format("blobs/splashes/{}.png", lua_tostring(L, -1));
-    const pixmap splash{filename};
-
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
-
-    splash.draw(
-      0, 0, splash.width(), splash.height(),
-      0, 0, width / scale, height / scale
-    );
-
-    SDL_RenderPresent(renderer);
-    SDL_PumpEvents();
-  }
+  const auto filename = std::format("blobs/splashes/{}.png", lua_tostring(L, -1));
   lua_pop(L, 1);
+
+  const pixmap splash{filename};
+
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+  SDL_RenderClear(renderer);
+
+  splash.draw(
+    0, 0, splash.width(), splash.height(),
+    0, 0, width / scale, height / scale
+  );
+
+  SDL_RenderPresent(renderer);
+  SDL_PumpEvents();
 
   SDL_RaiseWindow(window);
   SDL_FlashWindow(window, SDL_FLASH_UNTIL_FOCUSED);
 
-  #ifndef DEBUG
-    lua_getfield(L, -1, "sentry");
-    const std::string dsn = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
-    lua_pop(L, 1);
+#ifndef DEBUG
+  lua_getfield(L, -1, "sentry");
+  const std::string dsn = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+  lua_pop(L, 1);
 
-    std::string version;
-    std::getline(std::ifstream{"VERSION"}, version);
+  std::string version;
+  std::getline(std::ifstream{"VERSION"}, version);
 
-    auto *const options = sentry_options_new();
-    sentry_options_set_dsn(options, dsn.data());
-    sentry_options_set_database_path(options, ".sentry");
-    sentry_options_set_sample_rate(options, 1.);
-    sentry_options_set_release(options, version.c_str());
+  auto *const options = sentry_options_new();
+  sentry_options_set_dsn(options, dsn.data());
+  sentry_options_set_database_path(options, ".sentry");
+  sentry_options_set_sample_rate(options, 1.);
+  sentry_options_set_release(options, version.c_str());
 
-    sentry_options_add_attachment(options, "cassette.tape");
-    sentry_options_add_attachment(options, "stdout.txt");
-    sentry_options_add_attachment(options, "stderr.txt");
+  sentry_options_add_attachment(options, "cassette.tape");
+  sentry_options_add_attachment(options, "stdout.txt");
+  sentry_options_add_attachment(options, "stderr.txt");
 
-    sentry_init(options);
-    std::atexit(+[] { sentry_close(); });
-  #endif
+  sentry_init(options);
+  std::atexit(+[] { sentry_close(); });
+#endif
 
   viewport = {
     width / scale,
