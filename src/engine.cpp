@@ -56,7 +56,6 @@ engine::engine() {
 
   SDL_SetRenderLogicalPresentation(renderer, width, height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
   SDL_SetRenderScale(renderer, scale, scale);
-  SDL_RaiseWindow(window);
 
   lua_getfield(L, -1, "splash");
   if (lua_isstring(L, -1)) [[likely]] {
@@ -75,6 +74,9 @@ engine::engine() {
     SDL_PumpEvents();
   }
   lua_pop(L, 1);
+
+  SDL_RaiseWindow(window);
+  SDL_FlashWindow(window, SDL_FLASH_UNTIL_FOCUSED);
 
   #ifndef DEBUG
     lua_getfield(L, -1, "sentry");
