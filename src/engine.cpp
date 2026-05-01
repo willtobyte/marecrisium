@@ -1,11 +1,3 @@
-static constexpr std::array<SDL_EventType, 5> disabled_events{
-  SDL_EVENT_KEY_DOWN,
-  SDL_EVENT_MOUSE_MOTION,
-  SDL_EVENT_MOUSE_BUTTON_DOWN,
-  SDL_EVENT_MOUSE_BUTTON_UP,
-  SDL_EVENT_MOUSE_WHEEL,
-};
-
 engine::engine() {
   const auto buffer = io::read("scripts/main.lua");
   compile(L, buffer, "@main.lua");
@@ -127,7 +119,12 @@ engine::engine() {
 
   lua_pop(L, 1);
 
-  for (const auto type : disabled_events)
+  for (const auto type : {
+    SDL_EVENT_MOUSE_MOTION,
+    SDL_EVENT_MOUSE_BUTTON_DOWN,
+    SDL_EVENT_MOUSE_BUTTON_UP,
+    SDL_EVENT_MOUSE_WHEEL,
+  })
     SDL_SetEventEnabled(type, false);
 }
 
