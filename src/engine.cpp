@@ -56,7 +56,6 @@ engine::engine() {
 
   SDL_SetRenderLogicalPresentation(renderer, width, height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
   SDL_SetRenderScale(renderer, scale, scale);
-
   SDL_RaiseWindow(window);
 
   lua_getfield(L, -1, "splash");
