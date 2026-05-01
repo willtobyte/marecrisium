@@ -124,9 +124,7 @@ static void prepare(tilemap::layer& layer, std::string_view name, std::string_vi
   unwrap(layer, size, inverse);
 }
 
-static void pack(b2WorldId world,
-                                  const uint8_t* noalias collision,
-                                  int32_t width, int32_t height, float size) {
+static void pack(b2WorldId world, const uint8_t* noalias collision, int32_t width, int32_t height, float size) {
   [[assume(width > 0 && height > 0)]];
 
   const auto w = static_cast<size_t>(width);
@@ -185,8 +183,7 @@ static void pack(b2WorldId world,
   }
 }
 
-static void emit(lua_State* state, const std::vector<int32_t>& path,
-                             int32_t width, float size) {
+static void emit(lua_State* state, const std::vector<int32_t>& path, int32_t width, float size) {
   lua_newtable(state);
   int index = 1;
   for (const auto cell : path) {
