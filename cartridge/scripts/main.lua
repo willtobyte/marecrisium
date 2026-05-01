@@ -1,3 +1,5 @@
+jit.opt.start("maxtrace=8000", "maxrecord=16000", "maxmcode=16384", "sizemcode=128", "maxside=200")
+
 local clock = os.clock
 local format = string.format
 local getenv = os.getenv
