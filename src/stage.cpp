@@ -202,12 +202,10 @@ static int world_raycast(lua_State* state) {
 
 static int world_pathfind(lua_State* state) {
   auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  const auto x1 = static_cast<float>(luaL_checknumber(state, 1));
-  const auto y1 = static_cast<float>(luaL_checknumber(state, 2));
-  const auto x2 = static_cast<float>(luaL_checknumber(state, 3));
-  const auto y2 = static_cast<float>(luaL_checknumber(state, 4));
-  const auto r = static_cast<float>(luaL_checknumber(state, 5));
-  return self->pathfind(state, x1, y1, x2, y2, r);
+  const auto* caller = static_cast<proxy *>(luaL_checkudata(state, 1, "Object"));
+  const auto x2 = static_cast<float>(luaL_checknumber(state, 2));
+  const auto y2 = static_cast<float>(luaL_checknumber(state, 3));
+  return self->pathfind(state, caller->entity, x2, y2);
 }
 
 stage::stage(std::string name)
@@ -1276,8 +1274,23 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
   return 1;
 }
 
-int stage::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) {
-  return _tilemap.pathfind(state, x1, y1, x2, y2, radius);
+int stage::pathfind(lua_State* state, entt::entity caller, float x2, float y2) {
+  if (!_registry.valid(caller)) [[unlikely]] {
+    lua_newtable(state);
+    return 1;
+  }
+
+  const auto& tf = _registry.get<transform>(caller);
+  const auto* a = _registry.try_get<animation>(caller);
+  const auto* b = _registry.try_get<body>(caller);
+  const frame* fr = (a && a->playing && a->sheet->count > 0)
+    ? &a->sheet->frames[a->sheet->clips[a->active].offset + a->current]
+    : nullptr;
+
+  const auto origin = (b && fr) ? center_of(*b, tf, fr) : b2Vec2{tf.x, tf.y};
+  const auto radius = (b && alive(*b)) ? std::max(b->extent_x, b->extent_y) : .0f;
+
+  return _tilemap.pathfind(state, origin.x, origin.y, x2, y2, radius);
 }
 
 void stage::dispatch_collision(const scriptable& self, const scriptable* target, int callback_ref, const b2Vec2* normal) {

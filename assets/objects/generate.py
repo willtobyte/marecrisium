@@ -15,7 +15,7 @@ from jinja2 import Environment, FileSystemLoader
 import oxipng
 
 here = os.path.dirname(os.path.abspath(__file__))
-root = os.path.normpath(os.path.join(here, ".."))
+root = os.path.normpath(os.path.join(here, "..", ".."))
 
 
 def load(path):

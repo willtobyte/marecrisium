@@ -1,32 +1,81 @@
-static void ingest(tilemap::layer& layer, const char* field, size_t total) {
-  lua_getfield(L, -1, field);
-  if (!lua_istable(L, -1)) {
-    lua_pop(L, 1);
-    return;
-  }
-
-  layer.tiles.resize(total);
-  auto* noalias out = layer.tiles.data();
-
-  [[assume(out != nullptr)]];
-
-  for (size_t i = 0; i < total; ++i) {
-    lua_rawgeti(L, -1, static_cast<int>(i + 1));
-    out[i] = lua_isnumber(L, -1) ? static_cast<uint32_t>(lua_tonumber(L, -1)) : 0u;
-    lua_pop(L, 1);
-  }
-
-  lua_pop(L, 1);
-
-  if (std::ranges::none_of(layer.tiles, [](auto t) { return t != 0; }))
-    layer.tiles.clear();
+inline static constexpr int32_t index(int32_t row, int32_t col, int32_t width) noexcept {
+  return row * width + col;
 }
 
-static void prepare(tilemap::layer& layer, std::string_view name, std::string_view path, float size, float inverse) {
-  if (layer.tiles.empty())
-    return;
+inline static constexpr int32_t row(int32_t cell, int32_t width) noexcept {
+  return cell / width;
+}
 
-  layer.atlas = depot->pixmap.get(std::format("tilemaps/{}/{}", name, path));
+inline static constexpr int32_t col(int32_t cell, int32_t width) noexcept {
+  return cell % width;
+}
+
+inline static b2Vec2 center(int32_t cell, int32_t width, float size) noexcept {
+  const auto x = static_cast<float>(col(cell, width));
+  const auto y = static_cast<float>(row(cell, width));
+  const auto half = size * .5f;
+  return {x * size + half, y * size + half};
+}
+
+inline static float octile(int32_t c, int32_t r, int32_t goal_c, int32_t goal_r) noexcept {
+  static constexpr float SQRT2_MINUS_1 = .41421356f;
+  const auto dc = static_cast<float>(std::abs(c - goal_c));
+  const auto dr = static_cast<float>(std::abs(r - goal_r));
+  return dc > dr ? dc + SQRT2_MINUS_1 * dr : dr + SQRT2_MINUS_1 * dc;
+}
+
+inline static int32_t reach(int32_t d, int32_t step_dr, int32_t step_dc,
+                                            int32_t delta_r, int32_t delta_c) noexcept {
+  if (d < 4) {
+    if (step_dr == 0) {
+      if (delta_r == 0 && delta_c * step_dc > 0)
+        return std::abs(delta_c);
+    } else {
+      if (delta_c == 0 && delta_r * step_dr > 0)
+        return std::abs(delta_r);
+    }
+    return 0;
+  }
+  if (delta_r * step_dr > 0 && delta_c * step_dc > 0 && std::abs(delta_r) == std::abs(delta_c))
+    return std::abs(delta_c);
+  return 0;
+}
+
+static float hit(b2ShapeId, b2Vec2, b2Vec2, float, void* user_data) noexcept {
+  *static_cast<bool*>(user_data) = true;
+  return .0f;
+}
+
+static bool snap(int32_t& col, int32_t& row, int32_t width, int32_t height, const uint16_t* noalias components) noexcept {
+  const auto i = static_cast<size_t>(row * width + col);
+  if (components[i] != 0xFFFFu) return true;
+
+  static constexpr int32_t MAX_SNAP = 4;
+  for (int32_t r = 1; r <= MAX_SNAP; ++r) {
+    for (int32_t dr = -r; dr <= r; ++dr) {
+      for (int32_t dc = -r; dc <= r; ++dc) {
+        if (std::abs(dr) != r && std::abs(dc) != r) continue;
+        const auto nr = row + dr;
+        const auto nc = col + dc;
+        if (nr < 0 || nr >= height || nc < 0 || nc >= width) continue;
+        if (components[static_cast<size_t>(nr * width + nc)] != 0xFFFFu) {
+          col = nc;
+          row = nr;
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+static bool vacant(const std::vector<uint32_t>& tiles) noexcept {
+  for (const auto t : tiles)
+    if (t != 0) return false;
+  return true;
+}
+
+static void unwrap(tilemap::layer& layer, float size, float inverse) {
   const auto aw = static_cast<float>(layer.atlas->width());
   const auto ah = static_cast<float>(layer.atlas->height());
   const auto us = size / aw;
@@ -37,148 +86,205 @@ static void prepare(tilemap::layer& layer, std::string_view name, std::string_vi
   const auto htu = .5f / aw;
   const auto htv = .5f / ah;
 
-  layer.uvs.reserve(count);
-  std::generate_n(std::back_inserter(layer.uvs), count, [&, id = 0uz]() mutable {
+  layer.uvs.resize(count);
+  for (size_t id = 0; id < count; ++id) {
     const auto column = static_cast<float>(id % tpr);
     const auto row = static_cast<float>(id / tpr);
-    ++id;
-    return uv{column * us + htu, row * vs + htv, (column + 1.f) * us - htu, (row + 1.f) * vs - htv};
-  });
+    layer.uvs[id] = uv{
+      column * us + htu,
+      row * vs + htv,
+      (column + 1.f) * us - htu,
+      (row + 1.f) * vs - htv,
+    };
+  }
+}
+
+static void buffers(tilemap::layer& layer, size_t capacity) {
+  layer.vertices.reserve(capacity * 4);
+  layer.indices.resize(capacity * 6);
+
+  for (size_t i = 0; i < capacity; ++i) {
+    const auto base = static_cast<int32_t>(i * 4);
+    auto* ip = layer.indices.data() + i * 6;
+
+    *ip++ = base;
+    *ip++ = base + 1;
+    *ip++ = base + 2;
+    *ip++ = base;
+    *ip++ = base + 2;
+    *ip++ = base + 3;
+  }
+}
+
+static void prepare(tilemap::layer& layer, std::string_view name, std::string_view path, float size, float inverse) {
+  if (layer.tiles.empty())
+    return;
+
+  layer.atlas = depot->pixmap.get(std::format("tilemaps/{}/{}", name, path));
+  unwrap(layer, size, inverse);
+}
+
+static void pack(b2WorldId world,
+                                  const uint8_t* noalias collision,
+                                  int32_t width, int32_t height, float size) {
+  [[assume(width > 0 && height > 0)]];
+
+  const auto w = static_cast<size_t>(width);
+  const auto h = static_cast<size_t>(height);
+  const auto n = w * h;
+
+  std::vector<bool> seen(n, false);
+
+  for (size_t row = 0; row < h; ++row) {
+    const auto ro = row * w;
+
+    for (size_t column = 0; column < w; ++column) {
+      const auto index = ro + column;
+      if (collision[index] == 0 || seen[index]) [[unlikely]]
+        continue;
+
+      auto rw = size_t{1};
+      while (column + rw < w && collision[index + rw] != 0 && !seen[index + rw])
+        ++rw;
+
+      auto rh = size_t{1};
+      while (row + rh < h) {
+        const auto co = (row + rh) * w + column;
+        auto valid = true;
+
+        for (size_t dx = 0; dx < rw; ++dx) {
+          if (collision[co + dx] == 0 || seen[co + dx]) [[unlikely]] {
+            valid = false;
+            break;
+          }
+        }
+
+        if (!valid)
+          break;
+
+        ++rh;
+      }
+
+      for (size_t dy = 0; dy < rh; ++dy) {
+        const auto base = (row + dy) * w + column;
+        for (size_t dx = 0; dx < rw; ++dx)
+          seen[base + dx] = true;
+      }
+
+      const auto half = size * .5f;
+      const auto bhx = static_cast<float>(rw) * half;
+      const auto bhy = static_cast<float>(rh) * half;
+
+      auto bdef = b2DefaultBodyDef();
+      bdef.type = b2_staticBody;
+      bdef.position = {static_cast<float>(column) * size + bhx, static_cast<float>(row) * size + bhy};
+      const auto sdef = b2DefaultShapeDef();
+      const auto polygon = b2MakeBox(bhx, bhy);
+      b2CreatePolygonShape(b2CreateBody(world, &bdef), &sdef, &polygon);
+    }
+  }
+}
+
+static void emit(lua_State* state, const std::vector<int32_t>& path,
+                             int32_t width, float size) {
+  lua_newtable(state);
+  int index = 1;
+  for (const auto cell : path) {
+    const auto pos = center(cell, width, size);
+    lua_createtable(state, 2, 0);
+    lua_pushnumber(state, static_cast<lua_Number>(pos.x));
+    lua_rawseti(state, -2, 1);
+    lua_pushnumber(state, static_cast<lua_Number>(pos.y));
+    lua_rawseti(state, -2, 2);
+    lua_rawseti(state, -2, index++);
+  }
 }
 
 tilemap::tilemap(std::string_view name, b2WorldId world) {
-  const auto filename = std::format("tilemaps/{}.lua", name);
-  const auto buffer = io::read(filename);
-  const auto chunk = std::format("@{}", filename);
-  compile(L, buffer, chunk);
+  const auto blob = io::read(std::format("tilemaps/{}.map", name));
+  const auto* noalias bytes = blob.data();
+  const auto bytes_size = blob.size();
 
-  pcall(L, 0, 1);
+  struct header final {
+    uint32_t width;
+    uint32_t height;
+    float size;
+    uint32_t radius_tiles;
+    uint64_t source_hash;
+  };
+  static_assert(sizeof(header) == 24);
+  static_assert(alignof(header) == 8);
 
-  lua_getfield(L, -1, "size");
-  _size = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
-  lua_pop(L, 1);
+  static constexpr auto HEADER = sizeof(header);
+  static constexpr auto PER_CELL =
+    sizeof(uint32_t) +
+    sizeof(uint32_t) +
+    sizeof(uint8_t) +
+    sizeof(uint16_t) +
+    8 * sizeof(int16_t);
 
-  lua_getfield(L, -1, "width");
-  _width = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 0;
-  lua_pop(L, 1);
+  header h{};
+  std::memcpy(&h, bytes, HEADER);
 
-  lua_getfield(L, -1, "height");
-  _height = lua_isnumber(L, -1) ? static_cast<int>(lua_tonumber(L, -1)) : 0;
-  lua_pop(L, 1);
+  _width = static_cast<int32_t>(h.width);
+  _height = static_cast<int32_t>(h.height);
+  _size = h.size;
 
   assert(_size > 0.f && "tilemap: invalid tile size");
   _inverse = 1.f / _size;
 
-  const auto total = static_cast<size_t>(_width) * static_cast<size_t>(_height);
+  const auto n = static_cast<size_t>(_width) * static_cast<size_t>(_height);
 
-  ingest(_background, "background", total);
-  ingest(_foreground, "foreground", total);
+  [[assume(bytes_size == HEADER + PER_CELL * n)]];
 
-  {
-    _collision.resize(total);
+  auto offset = HEADER;
 
-    lua_getfield(L, -1, "collision");
-    if (lua_istable(L, -1)) {
-      for (size_t i = 0; i < total; ++i) {
-        lua_rawgeti(L, -1, static_cast<int>(i + 1));
-        const auto value = lua_isnumber(L, -1) ? static_cast<uint32_t>(lua_tonumber(L, -1)) : 0u;
-        lua_pop(L, 1);
-        _collision[i] = static_cast<uint8_t>(value);
-      }
-    }
-    lua_pop(L, 1);
+  _background.tiles.resize(n);
+  std::memcpy(_background.tiles.data(), bytes + offset, n * sizeof(uint32_t));
+  offset += n * sizeof(uint32_t);
 
-    const auto w = static_cast<size_t>(_width);
-    const auto h = static_cast<size_t>(_height);
+  _foreground.tiles.resize(n);
+  std::memcpy(_foreground.tiles.data(), bytes + offset, n * sizeof(uint32_t));
+  offset += n * sizeof(uint32_t);
 
-    std::vector<bool> seen(total, false);
-    const auto* noalias tiles = _collision.data();
+  _collision.resize(n);
+  std::memcpy(_collision.data(), bytes + offset, n * sizeof(uint8_t));
+  offset += n * sizeof(uint8_t);
 
-    for (size_t row = 0; row < h; ++row) {
-      const auto ro = row * w;
+  _components.resize(n);
+  std::memcpy(_components.data(), bytes + offset, n * sizeof(uint16_t));
+  offset += n * sizeof(uint16_t);
 
-      for (size_t column = 0; column < w; ++column) {
-        const auto index = ro + column;
-        if (tiles[index] == 0 || seen[index]) [[unlikely]]
-          continue;
-
-        auto rw = size_t{1};
-        while (column + rw < w && tiles[index + rw] != 0 && !seen[index + rw]) {
-          ++rw;
-        }
-
-        auto rh = size_t{1};
-        while (row + rh < h) {
-          const auto co = (row + rh) * w + column;
-          auto valid = true;
-
-          for (size_t dx = 0; dx < rw; ++dx) {
-            if (tiles[co + dx] == 0 || seen[co + dx]) [[unlikely]] {
-              valid = false;
-              break;
-            }
-          }
-
-          if (!valid)
-            break;
-
-          ++rh;
-        }
-
-        for (size_t dy = 0; dy < rh; ++dy) {
-          const auto base = (row + dy) * w + column;
-          for (size_t dx = 0; dx < rw; ++dx) seen[base + dx] = true;
-        }
-
-        const auto half = _size * .5f;
-        const auto bhx = static_cast<float>(rw)  * half;
-        const auto bhy = static_cast<float>(rh) * half;
-
-        auto bdef = b2DefaultBodyDef();
-        bdef.type = b2_staticBody;
-        bdef.position = {static_cast<float>(column) * _size + bhx, static_cast<float>(row)    * _size + bhy};
-        const auto sdef = b2DefaultShapeDef();
-        const auto polygon = b2MakeBox(bhx, bhy);
-        b2CreatePolygonShape(b2CreateBody(world, &bdef), &sdef, &polygon);
-      }
-    }
+  for (size_t d = 0; d < 8; ++d) {
+    _jump[d].resize(n);
+    std::memcpy(_jump[d].data(), bytes + offset, n * sizeof(int16_t));
+    offset += n * sizeof(int16_t);
   }
 
-  _world = world;
-  _pathfinder.g.resize(total);
-  _pathfinder.generation.resize(total, 0);
-  _pathfinder.parent.resize(total);
-  _pathfinder.heap.reserve(total);
+  if (vacant(_background.tiles))
+    _background.tiles.clear();
+  if (vacant(_foreground.tiles))
+    _foreground.tiles.clear();
 
-  lua_pop(L, 1);
+  pack(world, _collision.data(), _width, _height, _size);
+
+  _world = world;
+  _pathfinder.g.resize(n);
+  _pathfinder.generation.resize(n, 0);
+  _pathfinder.parent.resize(n);
+  _pathfinder.heap.reserve(n);
 
   prepare(_background, name, "background", _size, _inverse);
   prepare(_foreground, name, "foreground", _size, _inverse);
 
-  {
-    const auto tx = static_cast<size_t>(viewport.width * _inverse) + 2;
-    const auto ty = static_cast<size_t>(viewport.height * _inverse) + 2;
-    const auto capacity = tx * ty;
+  const auto tx = static_cast<size_t>(viewport.width * _inverse) + 2;
+  const auto ty = static_cast<size_t>(viewport.height * _inverse) + 2;
+  const auto capacity = tx * ty;
 
-    const auto allocate = [](layer& l, size_t capacity) {
-      l.vertices.reserve(capacity * 4);
-      l.indices.resize(capacity * 6);
-
-      for (auto i = 0uz; i < capacity; ++i) {
-        const auto base = static_cast<int32_t>(i * 4);
-
-        auto* ip = l.indices.data() + i * 6;
-
-        *ip++ = base; *ip++ = base + 1; *ip++ = base + 2;
-        *ip++ = base; *ip++ = base + 2; *ip++ = base + 3;
-      }
-    };
-
-    if (_background.atlas)
-      allocate(_background, capacity);
-    if (_foreground.atlas)
-      allocate(_foreground, capacity);
-  }
+  if (_background.atlas)
+    buffers(_background, capacity);
+  if (_foreground.atlas)
+    buffers(_foreground, capacity);
 }
 
 void tilemap::draw_background() {
@@ -228,23 +334,40 @@ void tilemap::draw_foreground() {
   );
 }
 
-int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float) {
-  if (_collision.empty() || _width == 0 || _height == 0) [[unlikely]] {
+bool tilemap::greater(const node& a, const node& b) noexcept {
+  if (a.f != b.f) return a.f > b.f;
+  return a.tiebreak > b.tiebreak;
+}
+
+int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, float radius) {
+  if (_components.empty() || _width == 0 || _height == 0) [[unlikely]] {
     lua_newtable(state);
     return 1;
   }
 
-  const auto sc = std::clamp(static_cast<int32_t>(x1 * _inverse), 0, _width - 1);
-  const auto sr = std::clamp(static_cast<int32_t>(y1 * _inverse), 0, _height - 1);
-  const auto ec = std::clamp(static_cast<int32_t>(x2 * _inverse), 0, _width - 1);
-  const auto er = std::clamp(static_cast<int32_t>(y2 * _inverse), 0, _height - 1);
+  [[assume(_width > 0 && _height > 0)]];
 
-  const auto start = sr * _width + sc;
-  const auto goal = er * _width + ec;
+  static constexpr int32_t DC[] = {1, -1, 0, 0, 1, 1, -1, -1};
+  static constexpr int32_t DR[] = {0, 0, 1, -1, 1, -1, 1, -1};
+  static constexpr float SQRT2 = 1.41421356f;
+
+  auto sc = std::clamp(static_cast<int32_t>(x1 * _inverse), 0, _width - 1);
+  auto sr = std::clamp(static_cast<int32_t>(y1 * _inverse), 0, _height - 1);
+  auto ec = std::clamp(static_cast<int32_t>(x2 * _inverse), 0, _width - 1);
+  auto er = std::clamp(static_cast<int32_t>(y2 * _inverse), 0, _height - 1);
+
+  const auto* noalias components = _components.data();
+
+  if (!snap(sc, sr, _width, _height, components) || !snap(ec, er, _width, _height, components)) [[unlikely]] {
+    lua_newtable(state);
+    return 1;
+  }
+
+  const auto start = index(sr, sc, _width);
+  const auto goal = index(er, ec, _width);
 
   if (start == goal ||
-      _collision[static_cast<size_t>(start)] != 0 ||
-      _collision[static_cast<size_t>(goal)] != 0) [[unlikely]] {
+      components[static_cast<size_t>(start)] != components[static_cast<size_t>(goal)]) [[unlikely]] {
     lua_newtable(state);
     return 1;
   }
@@ -256,80 +379,85 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   }
 
   const auto generation = _pathfinder.current_generation;
+
   auto* noalias costs = _pathfinder.g.data();
   auto* noalias generations = _pathfinder.generation.data();
   auto* noalias parents = _pathfinder.parent.data();
-  const auto* noalias collision = _collision.data();
+  const std::array<const int16_t* noalias, 8> jumps = {
+    _jump[0].data(), _jump[1].data(), _jump[2].data(), _jump[3].data(),
+    _jump[4].data(), _jump[5].data(), _jump[6].data(), _jump[7].data(),
+  };
 
   [[assume(costs != nullptr)]];
   [[assume(generations != nullptr)]];
   [[assume(parents != nullptr)]];
-  [[assume(collision != nullptr)]];
-
-  static constexpr int32_t DC[] = {1, -1, 0, 0, 1, 1, -1, -1};
-  static constexpr int32_t DR[] = {0, 0, 1, -1, 1, -1, 1, -1};
-  static constexpr float COST[] = {1.f, 1.f, 1.f, 1.f, 1.41421356f, 1.41421356f, 1.41421356f, 1.41421356f};
-  static constexpr auto SQRT2_MINUS_1 = .41421356f;
-
-  const auto octile = [ec, er](int32_t c, int32_t r) -> float {
-    const auto dc = static_cast<float>(std::abs(c - ec));
-    const auto dr = static_cast<float>(std::abs(r - er));
-    return dc > dr ? dc + SQRT2_MINUS_1 * dr : dr + SQRT2_MINUS_1 * dc;
-  };
-
-  const auto compare = [](const tilemap::node& a, const tilemap::node& b) {
-    return a.f > b.f;
-  };
 
   costs[static_cast<size_t>(start)] = .0f;
   generations[static_cast<size_t>(start)] = generation;
   parents[static_cast<size_t>(start)] = -1;
 
   _pathfinder.heap.clear();
-  _pathfinder.heap.emplace_back(octile(sc, sr), start);
-  std::ranges::push_heap(_pathfinder.heap, compare);
+  _pathfinder.heap.emplace_back(octile(sc, sr, ec, er), start, ++_pathfinder.tiebreak_counter);
+  std::ranges::push_heap(_pathfinder.heap, greater);
 
   while (!_pathfinder.heap.empty()) {
-    std::ranges::pop_heap(_pathfinder.heap, compare);
-    const auto [f, current] = _pathfinder.heap.back();
+    std::ranges::pop_heap(_pathfinder.heap, greater);
+    const auto top = _pathfinder.heap.back();
     _pathfinder.heap.pop_back();
 
+    const auto current = top.index;
     if (current == goal) break;
 
     const auto ci = static_cast<size_t>(current);
     const auto cg = costs[ci];
-    const auto cr = current / _width;
-    const auto cc = current % _width;
+    const auto cr = row(current, _width);
+    const auto cc_col = col(current, _width);
 
-    if (f > cg + octile(cc, cr) + .001f)
-      continue;
+    if (top.f > cg + octile(cc_col, cr, ec, er) + .001f) continue;
 
-    for (int d = 0; d < 8; ++d) {
-      const auto nc = cc + DC[d];
-      const auto nr = cr + DR[d];
+    const auto gr = row(goal, _width);
+    const auto gc_col = col(goal, _width);
+    const auto delta_r = gr - cr;
+    const auto delta_c = gc_col - cc_col;
 
-      if (static_cast<uint32_t>(nc) >= static_cast<uint32_t>(_width) ||
-          static_cast<uint32_t>(nr) >= static_cast<uint32_t>(_height))
+    for (size_t d = 0; d < 8; ++d) {
+      const auto k = static_cast<int32_t>(jumps[d][ci]);
+      if (k == 0) continue;
+
+      const auto step_dr = DR[d];
+      const auto step_dc = DC[d];
+      const auto max_steps = std::abs(k);
+      const auto step_cost = (d < 4) ? 1.f : SQRT2;
+
+      const auto goal_distance = reach(static_cast<int32_t>(d), step_dr, step_dc, delta_r, delta_c);
+
+      int32_t target;
+      float cost;
+      if (goal_distance > 0 && goal_distance <= max_steps) {
+        target = goal;
+        cost = step_cost * static_cast<float>(goal_distance);
+      } else if (k > 0) {
+        target = current + k * (step_dr * _width + step_dc);
+        cost = step_cost * static_cast<float>(k);
+      } else {
         continue;
+      }
 
-      const auto ni = static_cast<size_t>(nr * _width + nc);
-      if (collision[ni] != 0)
-        continue;
+      const auto ti = static_cast<size_t>(target);
+      const auto new_g = cg + cost;
+      if (generations[ti] == generation && new_g >= costs[ti]) continue;
 
-      const auto corner = collision[static_cast<size_t>(cr * _width + nc)];
-      const auto diagonal = collision[static_cast<size_t>(nr * _width + cc)];
-      if (d >= 4 && (corner != 0 || diagonal != 0))
-        continue;
-
-      const auto ng = cg + COST[d];
-      if (generations[ni] == generation && ng >= costs[ni])
-        continue;
-
-      costs[ni] = ng;
-      generations[ni] = generation;
-      parents[ni] = current;
-      _pathfinder.heap.emplace_back(ng + octile(nc, nr), static_cast<int32_t>(ni));
-      std::ranges::push_heap(_pathfinder.heap, compare);
+      costs[ti] = new_g;
+      generations[ti] = generation;
+      parents[ti] = current;
+      const auto target_r = row(target, _width);
+      const auto target_c = col(target, _width);
+      _pathfinder.heap.emplace_back(
+        new_g + octile(target_c, target_r, ec, er),
+        target,
+        ++_pathfinder.tiebreak_counter
+      );
+      std::ranges::push_heap(_pathfinder.heap, greater);
     }
   }
 
@@ -341,47 +469,29 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
     std::ranges::reverse(_pathfinder.path);
   }
 
-  const auto half = _size * .5f;
-  const auto to_world = [&](int32_t cell) -> b2Vec2 {
-    const auto col = static_cast<float>(cell % _width);
-    const auto row = static_cast<float>(cell / _width);
-    return {col * _size + half, row * _size + half};
-  };
-
   if (_pathfinder.path.size() > 2) {
     const auto filter = b2DefaultQueryFilter();
+    b2ShapeProxy proxy{};
+    proxy.count = 1;
+    proxy.radius = std::max(.0f, radius);
     size_t write = 1;
     for (size_t read = 1, end = _pathfinder.path.size() - 1; read < end; ++read) {
-      const auto a = to_world(_pathfinder.path[write - 1]);
-      const auto c = to_world(_pathfinder.path[read + 1]);
+      const auto a = center(_pathfinder.path[write - 1], _width, _size);
+      const auto c = center(_pathfinder.path[read + 1], _width, _size);
+      proxy.points[0] = a;
       const b2Vec2 translation = {c.x - a.x, c.y - a.y};
 
-      auto hit = false;
-      b2World_CastRay(_world, a, translation, filter,
-        +[](b2ShapeId, b2Vec2, b2Vec2, float, void* ud) -> float {
-          *static_cast<bool*>(ud) = true;
-          return .0f;
-        }, &hit);
+      auto blocked = false;
+      b2World_CastShape(_world, &proxy, translation, filter, hit, &blocked);
 
-      if (hit)
+      if (blocked)
         _pathfinder.path[write++] = _pathfinder.path[read];
     }
     _pathfinder.path[write++] = _pathfinder.path.back();
     _pathfinder.path.resize(write);
   }
 
-  lua_newtable(state);
-  int index = 1;
-  for (const auto cell : _pathfinder.path) {
-    const auto pos = to_world(cell);
-    lua_createtable(state, 2, 0);
-    lua_pushnumber(state, static_cast<lua_Number>(pos.x));
-    lua_rawseti(state, -2, 1);
-    lua_pushnumber(state, static_cast<lua_Number>(pos.y));
-    lua_rawseti(state, -2, 2);
-    lua_rawseti(state, -2, index++);
-  }
-
+  emit(state, _pathfinder.path, _width, _size);
   return 1;
 }
 

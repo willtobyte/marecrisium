@@ -35,7 +35,10 @@ private:
   struct node final {
     float f;
     int32_t index;
+    uint32_t tiebreak;
   };
+
+  static bool greater(const node& a, const node& b) noexcept;
 
   struct pathfinder final {
     std::vector<float> g;
@@ -44,9 +47,13 @@ private:
     std::vector<int32_t> path;
     std::vector<node> heap;
     uint32_t current_generation{};
+    uint32_t tiebreak_counter{};
   };
 
   std::vector<uint8_t> _collision;
+  std::vector<uint16_t> _components; // 0xFFFF == blocked
+  std::array<std::vector<int16_t>, 8> _jump; // 8 directions × cell, JPS+ jump table
+
   pathfinder _pathfinder;
   b2WorldId _world{};
 

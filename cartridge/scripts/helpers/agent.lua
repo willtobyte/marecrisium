@@ -1,3 +1,5 @@
+local steering = require("helpers/steering")
+
 local cos = math.cos
 local sin = math.sin
 local atan2 = math.atan2
@@ -7,10 +9,7 @@ local min = math.min
 
 local PI = math.pi
 local TWO_PI = 2 * PI
-local RTD = 180 / PI
-local DTR = PI / 180
 
-local PROBE_OFFSETS = { 45, -45, 90, -90, 135, -135, 180 }
 local RETRY_FAST = 5
 
 local DEFAULTS = {
@@ -23,7 +22,6 @@ local DEFAULTS = {
 	threshold = 10,
 	deadzone = 1,
 	blend = 0.35,
-	blockers = { tree = true },
 }
 
 local function normalize_angle(angle)
@@ -49,12 +47,6 @@ function agent.new(config)
 	end
 	self._radius_squared = self.radius * self.radius
 	self._reach_squared = self.reach * self.reach
-
-	local blockers = {}
-	for kind in pairs(self.blockers) do
-		blockers[kind] = true
-	end
-	self._blockers = blockers
 
 	return setmetatable(self, agent)
 end
@@ -98,7 +90,7 @@ function agent:chase(object, target, world)
 
 		local path
 		if horizontal * horizontal + vertical * vertical <= self._radius_squared then
-			path = world.pathfind(origin_x, origin_y, target_x, target_y, self.body_radius)
+			path = world.pathfind(object, target_x, target_y)
 		end
 
 		if path and #path > 0 then
@@ -199,28 +191,15 @@ function agent:chase(object, target, world)
 	object._last_y = origin_y
 
 	local desired = atan2(vertical, horizontal)
-	local degrees = desired * RTD
-	local blockers = self._blockers
-	local hit = world.raycast(object, origin_x, origin_y, degrees, self.probe)[1]
-
-	if hit and blockers[hit.kind] then
-		local chosen = nil
-		for _, offset in ipairs(PROBE_OFFSETS) do
-			local candidate = world.raycast(object, origin_x, origin_y, degrees + offset, self.probe)[1]
-			if not candidate or not blockers[candidate.kind] then
-				chosen = desired + offset * DTR
-				break
-			end
-		end
-		if chosen then
-			desired = chosen
-		else
-			object.velocity_x = 0
-			object.velocity_y = 0
-			object._angle = nil
-			object._timer = 0
-			return
-		end
+	local safe = steering.avoid(object, origin_x, origin_y, desired, self.probe)
+	if safe then
+		desired = safe
+	else
+		object.velocity_x = 0
+		object.velocity_y = 0
+		object._angle = nil
+		object._timer = 0
+		return
 	end
 
 	local angle

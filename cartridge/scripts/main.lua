@@ -25,8 +25,6 @@ return {
 		end
 		randomseed(seed)
 
-		mouse.shown = false
-
 		local before = clock()
 		director.enroll("forest")
 		-- director.enroll...

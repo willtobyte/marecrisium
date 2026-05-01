@@ -75,8 +75,8 @@ keyboard = {}
 --------------------------------------------------------------------------------
 
 ---@class Mouse
----@field x number Mouse X position in logical coordinates (read-only).
----@field y number Mouse Y position in logical coordinates (read-only).
+---@field x number Mouse X position in world coordinates (logical position plus viewport offset, read-only).
+---@field y number Mouse Y position in world coordinates (logical position plus viewport offset, read-only).
 ---@field button integer Currently pressed mouse button: 1 = left, 2 = middle, 3 = right, 0 = none (read-only).
 ---@field shown boolean Whether the mouse cursor is visible (read/write).
 local Mouse = {}
@@ -231,7 +231,7 @@ cassette = {}
 ---@field sounds StageSound[]|nil Sounds to preload. Each entry is `{ name = "foo", autoplay = true }`. Loads `sounds/<name>` and is accessible as `pool.<name>`.
 ---@field particles StageParticle[]|nil Particle emitters to create. Each entry spawns a particle system accessible as `pool.<name>`.
 ---@field foregrounds string[]|nil Foregrounds shown when this stage is active, in z-order (index 1 is back). All listed foregrounds are pre-loaded; toggle individually at runtime via `foregrounds.<name> = true|false`.
----@field tilemap string|nil Tilemap name. Loads `tilemaps/<name>.lua` and exposes a `tilemap` global in the stage environment.
+---@field tilemap string|nil Tilemap name. Loads the binary navmap `tilemaps/<name>.map` produced by `assets/tilemaps/generate.py` (background, foreground, collision, components, JPS+ jump tables).
 ---@field minimap StageMinimap|nil Minimap color palette. Only used when `tilemap` is also set.
 local Stage = {}
 
@@ -281,9 +281,6 @@ function Director.destroy(name) end
 ---Enroll a stage without navigating to it.
 ---@param name string Stage name.
 function Director.enroll(name) end
-
----Destroy all stages and clear all resource pools.
-function Director.reset() end
 
 ---Global stage director.
 ---@type Director
@@ -471,6 +468,7 @@ viewport = {}
 ---@field flip integer Flip mode for rendering. Use `flip.none`, `flip.horizontal`, `flip.vertical`, or `flip.both`.
 ---@field name string The object's name (read-only).
 ---@field kind string The kind/type string of this object (read-only).
+---@field z integer Render Z-order layer. Higher draws on top (read/write).
 ---@field alive boolean Whether the object is still alive (read-only).
 ---@field dormant boolean Whether this object is currently sleeping (read-only). Always false for non-sleepable objects.
 ---@field animation string|nil Currently playing animation clip name. Assign to switch clips.
@@ -595,20 +593,16 @@ function World.raycast(caller, x, y, angle, distance) end
 ---@return Object[] hits Array of objects within the area.
 function World.radar(caller, x, y, radius) end
 
----Find a path between two world positions avoiding solid tilemap tiles.
----Uses A* on the tilemap collision grid with corner-cutting prevention.
+---Find a path from the caller's current position to a world target,
+---avoiding solid tilemap tiles. Uses JPS+ on the precomputed navigation
+---grid baked into the tilemap. Origin and agent body radius are derived
+---from the caller's body and the current animation frame's collider.
 ---Returns an empty table when no path exists.
----
----`radius` inflates the collision check around each candidate tile: a tile is
----treated as blocked if any tile within `floor(radius / tile_size)` tiles of it
----is solid. Pass the caller's half-body size to keep the path clear of walls.
----@param x1 number Start X in world coordinates.
----@param y1 number Start Y in world coordinates.
----@param x2 number End X in world coordinates.
----@param y2 number End Y in world coordinates.
----@param radius? number Agent half-size in world units. Default 0.
+---@param caller Object The agent doing the pathfind. Origin and body radius come from its transform/body.
+---@param x number Target X in world coordinates.
+---@param y number Target Y in world coordinates.
 ---@return number[][] path Array of {x, y} waypoints in world coordinates (tile centers).
-function World.pathfind(x1, y1, x2, y2, radius) end
+function World.pathfind(caller, x, y) end
 
 ---Count objects of a given kind whose physics body overlaps the given rectangle.
 ---@param x number Left edge of the query region in world coordinates.
@@ -717,7 +711,6 @@ user = {}
 ---@field name string Operating system name, e.g. "macOS", "Windows", "Linux" (read-only).
 ---@field cores integer Number of logical CPU cores (read-only).
 ---@field memory integer System RAM in megabytes (read-only).
----@field locale string Preferred locale, e.g. "pt-BR" or "en" (read-only).
 ---@field clipboard string System clipboard text (read/write).
 
 ---Global platform information.
@@ -732,64 +725,6 @@ platform = {}
 ---@param url string The URL to open.
 ---@return boolean success Whether the operation succeeded.
 function openurl(url) end
-
---------------------------------------------------------------------------------
--- Opcode (WebSocket message type constants)
---------------------------------------------------------------------------------
-
----@class Opcode
----@field subscribe integer Subscribe to a topic (1).
----@field unsubscribe integer Unsubscribe from a topic (2).
----@field publish integer Publish to a topic (4).
-
----Global WebSocket opcode constants.
----@type Opcode
-opcode = {}
-
---------------------------------------------------------------------------------
--- WebSocket (WebSocket connection)
---------------------------------------------------------------------------------
-
----@class WebSocket
----A WebSocket connection. Supports pub/sub messaging with JSON payloads.
-local WebSocket = {}
-
----Subscribe to a topic. The callback receives decoded JSON data as a Lua value
----whenever a message arrives on this topic.
----@param topic integer The topic ID (0–65535) to subscribe to.
----@param callback fun(data: any) Called with the decoded message data.
----@return Subscription subscription Handle to publish or unsubscribe.
-function WebSocket:subscribe(topic, callback) end
-
----Set a callback invoked when the connection is established (including reconnects).
----@param callback fun() Called with no arguments.
-function WebSocket:on_connect(callback) end
-
----Set a callback invoked when the connection is closed or lost (including on GC).
----@param callback fun() Called with no arguments.
-function WebSocket:on_disconnect(callback) end
-
----@class Subscription
----A subscription to a topic on a WebSocket connection.
----Automatically unsubscribes on garbage collection.
-local Subscription = {}
-
----Publish a value as JSON to this subscription's topic.
----@param data any The data to send (encoded as JSON).
-function Subscription:publish(data) end
-
----Unsubscribe from this topic. Also called automatically on garbage collection.
-function Subscription:unsubscribe() end
-
----The topic ID of this subscription (read-only).
----@type integer
-Subscription.topic = 0
-
----Create a WebSocket connection to the given URL.
----Only one connection can exist at a time; calling again replaces the previous one.
----@param url string The host with optional port and path (e.g. "example.com/path" or "localhost:8080/path").
----@return WebSocket
-function WebSocket.new(url) end
 
 --------------------------------------------------------------------------------
 -- Localization
