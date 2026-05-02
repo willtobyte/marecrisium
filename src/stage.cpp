@@ -314,6 +314,8 @@ stage::stage(std::string name)
   }
   lua_pop(L, 1);
 
+  _pending.reserve(_registry.storage<sleepable>().size());
+
   lua_getfield(L, -1, "sounds");
   if (lua_istable(L, -1)) {
     const auto count = static_cast<int>(lua_objlen(L, -1));
@@ -502,8 +504,14 @@ stage::~stage() {
 
 void stage::update(float delta) {
   {
+    _pending.clear();
     for (auto&& [e, tf, an] : _registry.view<sleepable, transform, animation>(entt::exclude<dormant>).each()) {
-      if (!culled(tf, an, _sleep_margin))
+      if (culled(tf, an, _sleep_margin))
+        _pending.emplace_back(e);
+    }
+
+    for (const auto e : _pending) {
+      if (!_registry.valid(e)) [[unlikely]]
         continue;
 
       _registry.emplace<dormant>(e);
@@ -522,8 +530,14 @@ void stage::update(float delta) {
   }
 
   {
+    _pending.clear();
     for (auto&& [e, tf, an] : _registry.view<sleepable, dormant, transform, animation>().each()) {
-      if (culled(tf, an, _wake_margin))
+      if (!culled(tf, an, _wake_margin))
+        _pending.emplace_back(e);
+    }
+
+    for (const auto e : _pending) {
+      if (!_registry.valid(e)) [[unlikely]]
         continue;
 
       _registry.remove<dormant>(e);

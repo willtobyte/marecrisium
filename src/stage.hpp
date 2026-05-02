@@ -72,6 +72,7 @@ private:
   } _interpolation;
 
   std::vector<hit> _hits{};
+  std::vector<entt::entity> _pending{};
 
   std::vector<SDL_Vertex> _vertices{};
   std::vector<int> _indices{};
