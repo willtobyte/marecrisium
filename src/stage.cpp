@@ -581,7 +581,7 @@ void stage::update(float delta) {
 
     const auto& c = a->sheet->clips[a->active];
     const auto& fr = a->sheet->frames[c.offset + a->current];
-    if (c.count == 0 || fr.duration < .0f) [[unlikely]]
+    if (c.count == 0 || fr.duration <= .0f) [[unlikely]]
       continue;
 
     a->elapsed += delta;
