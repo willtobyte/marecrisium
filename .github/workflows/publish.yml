@@ -28,7 +28,7 @@ jobs:
           pkgconf/*: pkgconf/[*]
 
           [tool_requires]
-          !cmake/*: cmake/[>=3 <4]
+          !cmake/*: cmake/[>=4.2]
           EOF
 
       - name: Export local recipes
@@ -99,7 +99,7 @@ jobs:
           pkgconf/*: pkgconf/[*]
 
           [tool_requires]
-          !cmake/*: cmake/[>=3 <4]
+          !cmake/*: cmake/[>=4.2]
           EOF
 
       - name: Export local recipes
