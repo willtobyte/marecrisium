@@ -39,7 +39,7 @@ find_package(box2d CONFIG REQUIRED)
 find_package(enet CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
 find_package(PhysFS CONFIG REQUIRED)
-find_package(protobuf CONFIG REQUIRED)
+# find_package(protobuf CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(sentry CONFIG REQUIRED)
 find_package(SPNG CONFIG REQUIRED)
@@ -56,7 +56,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   enet::enet
   EnTT::EnTT
   physfs-static
-  protobuf::libprotobuf
+  # protobuf::libprotobuf
   SDL3::SDL3-static
   sentry-native::sentry-native
   spng::spng_static
