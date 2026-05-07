@@ -28,7 +28,7 @@ jobs:
           pkgconf/*: pkgconf/[*]
 
           [tool_requires]
-          !cmake/*: cmake/[>=4.2]
+          !cmake/*: cmake/[>=4 <5]
           EOF
 
       - name: Export local recipes
@@ -76,6 +76,9 @@ jobs:
   windows:
     runs-on: windows-latest
 
+    env:
+      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+
     defaults:
       run:
         shell: bash
@@ -99,7 +102,7 @@ jobs:
           pkgconf/*: pkgconf/[*]
 
           [tool_requires]
-          !cmake/*: cmake/[>=4.2]
+          !cmake/*: cmake/[>=4 <5]
           EOF
 
       - name: Export local recipes
