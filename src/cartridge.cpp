@@ -23,20 +23,25 @@ static_assert(sizeof(record) == RECORD);
 struct archive final {
   PHYSFS_Io *io{nullptr};
   decoder_t decoder{nullptr, ZSTD_freeDCtx};
+  std::vector<uint8_t> trained;
   dictionary_t dictionary{nullptr, ZSTD_freeDDict};
   std::vector<uint8_t> strings;
   std::vector<record> records;
-  std::vector<uint8_t> compressed;
+};
+
+struct backing final {
+  uint32_t refcount;
+  size_t size;
 };
 
 struct handle final {
   PHYSFS_Io io;
-  size_t size;
+  backing *shared;
   uint64_t position;
 };
 
-[[nodiscard]] inline uint8_t *tail(handle *h) noexcept {
-  return reinterpret_cast<uint8_t *>(h + 1);
+[[nodiscard]] inline uint8_t *data_of(backing *b) noexcept {
+  return reinterpret_cast<uint8_t *>(b + 1);
 }
 
 [[nodiscard]] inline std::string_view path_of(const archive *cartridge, const record &r) noexcept {
@@ -66,12 +71,13 @@ void slurp(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) noexcept {
 
 PHYSFS_sint64 bank_read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   auto *reader = static_cast<handle *>(io->opaque);
-  const auto remaining = reader->size - reader->position;
+  auto *shared = reader->shared;
+  const auto remaining = shared->size - reader->position;
   if (remaining == 0)
     return 0;
 
   const auto count = std::min(length, static_cast<PHYSFS_uint64>(remaining));
-  std::memcpy(buffer, tail(reader) + reader->position, static_cast<size_t>(count));
+  std::memcpy(buffer, data_of(shared) + reader->position, static_cast<size_t>(count));
   reader->position += count;
   return static_cast<PHYSFS_sint64>(count);
 }
@@ -91,15 +97,14 @@ PHYSFS_sint64 bank_tell(PHYSFS_Io *io) {
 }
 
 PHYSFS_sint64 bank_length(PHYSFS_Io *io) {
-  return static_cast<PHYSFS_sint64>(static_cast<handle *>(io->opaque)->size);
+  return static_cast<PHYSFS_sint64>(static_cast<handle *>(io->opaque)->shared->size);
 }
 
 PHYSFS_Io *bank_duplicate(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
-  auto *copy = static_cast<handle *>(::operator new(sizeof(handle) + reader->size));
-  new (copy) handle{reader->io, reader->size, uint64_t{0}};
+  ++reader->shared->refcount;
+  auto *copy = new handle{reader->io, reader->shared, uint64_t{0}};
   copy->io.opaque = copy;
-  std::memcpy(tail(copy), tail(reader), reader->size);
   return &copy->io;
 }
 
@@ -109,8 +114,11 @@ int bank_flush(PHYSFS_Io *) {
 
 void bank_destroy(PHYSFS_Io *io) {
   auto *h = static_cast<handle *>(io->opaque);
-  h->~handle();
-  ::operator delete(h);
+  if (--h->shared->refcount == 0) {
+    h->shared->~backing();
+    ::operator delete(h->shared);
+  }
+  delete h;
 }
 
 void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
@@ -128,8 +136,9 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   auto cartridge = std::make_unique<archive>();
   cartridge->io = io;
 
-  std::vector<uint8_t> trained(trainsize);
-  slurp(io, trained.data(), trainsize);
+  cartridge->trained.resize(trainsize);
+  if (trainsize > 0)
+    slurp(io, cartridge->trained.data(), trainsize);
 
   cartridge->strings.resize(stringsize);
   if (stringsize > 0)
@@ -140,7 +149,7 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
     slurp(io, cartridge->records.data(), static_cast<PHYSFS_uint64>(count) * RECORD);
 
   cartridge->decoder.reset(ZSTD_createDCtx());
-  cartridge->dictionary.reset(ZSTD_createDDict(trained.data(), trainsize));
+  cartridge->dictionary.reset(ZSTD_createDDict_byReference(cartridge->trained.data(), trainsize));
   assert(cartridge->decoder);
   assert(cartridge->dictionary);
 
@@ -198,11 +207,34 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
   const auto compressed = static_cast<size_t>(found.compressed);
 
-  auto *reader = static_cast<handle *>(::operator new(sizeof(handle) + uncompressed));
-  new (reader) handle{
+  auto *shared = static_cast<backing *>(::operator new(sizeof(backing) + uncompressed));
+  new (shared) backing{1u, uncompressed};
+
+  if (uncompressed > 0) [[likely]] {
+    [[maybe_unused]] const auto seeked = cartridge->io->seek(cartridge->io, found.data_offset);
+    assert(seeked);
+
+    if ((found.flags & UNCOMPRESSED) != 0) {
+      slurp(cartridge->io, data_of(shared), uncompressed);
+    } else {
+      std::vector<uint8_t> buffer(compressed);
+      slurp(cartridge->io, buffer.data(), compressed);
+
+      const auto result = ZSTD_decompress_usingDDict(
+        cartridge->decoder.get(),
+        data_of(shared), uncompressed,
+        buffer.data(), compressed,
+        cartridge->dictionary.get()
+      );
+
+      assert(result == uncompressed);
+    }
+  }
+
+  auto *reader = new handle{
     PHYSFS_Io{
       .version = 0,
-      .opaque = reader,
+      .opaque = nullptr,
       .read = bank_read,
       .write = bank_write,
       .seek = bank_seek,
@@ -212,33 +244,10 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
       .flush = bank_flush,
       .destroy = bank_destroy,
     },
-    uncompressed,
+    shared,
     uint64_t{0},
   };
-
-  if (uncompressed > 0) [[likely]] {
-    [[maybe_unused]] const auto seeked = cartridge->io->seek(cartridge->io, found.data_offset);
-    assert(seeked);
-
-    if ((found.flags & UNCOMPRESSED) != 0) {
-      slurp(cartridge->io, tail(reader), uncompressed);
-    } else {
-      if (cartridge->compressed.size() < compressed)
-        cartridge->compressed.resize(compressed);
-
-      slurp(cartridge->io, cartridge->compressed.data(), compressed);
-
-      const auto result = ZSTD_decompress_usingDDict(
-        cartridge->decoder.get(),
-        tail(reader), uncompressed,
-        cartridge->compressed.data(), compressed,
-        cartridge->dictionary.get()
-      );
-
-      assert(result == uncompressed);
-    }
-  }
-
+  reader->io.opaque = reader;
   return &reader->io;
 }
 
