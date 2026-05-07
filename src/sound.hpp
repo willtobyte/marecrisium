@@ -2,6 +2,11 @@
 
 class sound final {
 public:
+  struct stream final {
+    ma_data_source_base base{};
+    OggOpusFile* file{nullptr};
+  };
+
   sound() = delete;
   explicit sound(std::string_view filename);
   ~sound();
@@ -31,7 +36,7 @@ public:
 
 private:
   std::atomic<bool> _ended{false};
-  ma_audio_buffer _buffer{};
+  blob _encoded{};
+  stream _stream{};
   ma_sound _sound{};
-  std::unique_ptr<float[]> _samples;
 };

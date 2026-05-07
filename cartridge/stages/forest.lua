@@ -22,7 +22,7 @@ return scheduler.wrap({
 	},
 
 	sounds = {
-		-- { name = "theme1", loop = true },
+		{ name = "theme1", loop = true },
 	},
 
 	objects = {
@@ -58,11 +58,11 @@ return scheduler.wrap({
 	end,
 
 	on_enter = function(self)
-		-- pool.theme1:fade(0, 1, 700)
-		-- pool.theme1:play()
+		pool.theme1:fade(0, 1, 700)
+		pool.theme1:play()
 	end,
 
 	on_leave = function(self)
-		-- pool.theme1:stop()
+		pool.theme1:stop()
 	end,
 })

@@ -10,9 +10,10 @@
 #include <zstd.h>
 
 namespace {
-constexpr uint8_t FLAG_DIRECTORY = 1;
-constexpr size_t HEADER_SIZE = 16;
-constexpr size_t RECORD_SIZE = 32;
+constexpr uint8_t DIRECTORY = 1;
+constexpr uint8_t UNCOMPRESSED = 2;
+constexpr size_t HEADER = 16;
+constexpr size_t RECORD = 32;
 
 using decoder_t = std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)>;
 
@@ -28,7 +29,7 @@ struct record final {
   uint8_t padding;
 };
 
-static_assert(sizeof(record) == RECORD_SIZE);
+static_assert(sizeof(record) == RECORD);
 
 template <std::integral Integer>
 Integer read(const uint8_t *pointer) noexcept {
@@ -46,22 +47,22 @@ int main() {
   input.read(reinterpret_cast<char *>(rom.data()), static_cast<std::streamsize>(size));
 
   const auto count = read<uint32_t>(rom.data() + 4);
-  const auto string_bytes = read<uint32_t>(rom.data() + 8);
-  const auto dictionary_bytes = read<uint32_t>(rom.data() + 12);
+  const auto stringsize = read<uint32_t>(rom.data() + 8);
+  const auto trainsize = read<uint32_t>(rom.data() + 12);
 
-  const auto *dictionary_data = rom.data() + HEADER_SIZE;
-  const auto *strings = dictionary_data + dictionary_bytes;
-  const auto *records = strings + string_bytes;
+  const auto *trained = rom.data() + HEADER;
+  const auto *strings = trained + trainsize;
+  const auto *records = strings + stringsize;
 
   decoder_t decoder(ZSTD_createDCtx(), ZSTD_freeDCtx);
-  dictionary_t dictionary(ZSTD_createDDict(dictionary_data, dictionary_bytes), ZSTD_freeDDict);
+  dictionary_t dictionary(ZSTD_createDDict(trained, trainsize), ZSTD_freeDDict);
 
   const std::filesystem::path root = "cartridge";
   std::vector<uint8_t> decompressed;
 
   for (uint32_t index = 0; index < count; ++index) {
     record entry;
-    std::memcpy(&entry, records + index * RECORD_SIZE, RECORD_SIZE);
+    std::memcpy(&entry, records + index * RECORD, RECORD);
 
     const std::string_view path{
       reinterpret_cast<const char *>(strings + entry.path_offset),
@@ -70,30 +71,39 @@ int main() {
 
     const auto destination = root / path;
 
-    if (entry.flags & FLAG_DIRECTORY) {
+    if (entry.flags & DIRECTORY) {
       std::filesystem::create_directories(destination);
       continue;
     }
 
     std::filesystem::create_directories(destination.parent_path());
 
+    std::ofstream output(destination, std::ios::binary);
+    if (entry.uncompressed == 0)
+      continue;
+
+    if ((entry.flags & UNCOMPRESSED) != 0) {
+      output.write(
+        reinterpret_cast<const char *>(rom.data() + entry.data_offset),
+        static_cast<std::streamsize>(entry.uncompressed)
+      );
+      continue;
+    }
+
     if (decompressed.size() < entry.uncompressed)
       decompressed.resize(entry.uncompressed);
 
-    if (entry.uncompressed > 0)
-      ZSTD_decompress_usingDDict(
-        decoder.get(),
-        decompressed.data(), entry.uncompressed,
-        rom.data() + entry.data_offset, entry.compressed,
-        dictionary.get()
-      );
+    ZSTD_decompress_usingDDict(
+      decoder.get(),
+      decompressed.data(), entry.uncompressed,
+      rom.data() + entry.data_offset, entry.compressed,
+      dictionary.get()
+    );
 
-    std::ofstream output(destination, std::ios::binary);
-    if (entry.uncompressed > 0)
-      output.write(
-        reinterpret_cast<const char *>(decompressed.data()),
-        static_cast<std::streamsize>(entry.uncompressed)
-      );
+    output.write(
+      reinterpret_cast<const char *>(decompressed.data()),
+      static_cast<std::streamsize>(entry.uncompressed)
+    );
   }
 
   std::cout << "extracted " << count << " entries to cartridge/\n";

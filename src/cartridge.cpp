@@ -1,7 +1,8 @@
 namespace {
-constexpr uint8_t FLAG_DIRECTORY = 1;
-constexpr size_t HEADER_SIZE = 16;
-constexpr size_t RECORD_SIZE = 32;
+constexpr uint8_t DIRECTORY = 1;
+constexpr uint8_t UNCOMPRESSED = 2;
+constexpr size_t HEADER = 16;
+constexpr size_t RECORD = 32;
 
 using decoder_t = std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)>;
 
@@ -17,7 +18,7 @@ struct record final {
   uint8_t padding;
 };
 
-static_assert(sizeof(record) == RECORD_SIZE);
+static_assert(sizeof(record) == RECORD);
 
 struct archive final {
   PHYSFS_Io *io{nullptr};
@@ -113,7 +114,7 @@ void bank_destroy(PHYSFS_Io *io) {
 }
 
 void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
-  uint8_t header[HEADER_SIZE];
+  uint8_t header[HEADER];
   [[maybe_unused]] const auto seeked = io->seek(io, 0);
   assert(seeked);
   slurp(io, header, sizeof(header));
@@ -121,25 +122,25 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   *claimed = 1;
 
   const auto count = read<uint32_t>(header + 4);
-  const auto string_bytes = read<uint32_t>(header + 8);
-  const auto dictionary_bytes = read<uint32_t>(header + 12);
+  const auto stringsize = read<uint32_t>(header + 8);
+  const auto trainsize = read<uint32_t>(header + 12);
 
   auto cartridge = std::make_unique<archive>();
   cartridge->io = io;
 
-  std::vector<uint8_t> trained(dictionary_bytes);
-  slurp(io, trained.data(), dictionary_bytes);
+  std::vector<uint8_t> trained(trainsize);
+  slurp(io, trained.data(), trainsize);
 
-  cartridge->strings.resize(string_bytes);
-  if (string_bytes > 0)
-    slurp(io, cartridge->strings.data(), string_bytes);
+  cartridge->strings.resize(stringsize);
+  if (stringsize > 0)
+    slurp(io, cartridge->strings.data(), stringsize);
 
   cartridge->records.resize(count);
   if (count > 0)
-    slurp(io, cartridge->records.data(), static_cast<PHYSFS_uint64>(count) * RECORD_SIZE);
+    slurp(io, cartridge->records.data(), static_cast<PHYSFS_uint64>(count) * RECORD);
 
   cartridge->decoder.reset(ZSTD_createDCtx());
-  cartridge->dictionary.reset(ZSTD_createDDict(trained.data(), dictionary_bytes));
+  cartridge->dictionary.reset(ZSTD_createDDict(trained.data(), trainsize));
   assert(cartridge->decoder);
   assert(cartridge->dictionary);
 
@@ -192,7 +193,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   }
 
   const auto &found = cartridge->records[index];
-  assert((found.flags & FLAG_DIRECTORY) == 0);
+  assert((found.flags & DIRECTORY) == 0);
 
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
   const auto compressed = static_cast<size_t>(found.compressed);
@@ -219,19 +220,23 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     [[maybe_unused]] const auto seeked = cartridge->io->seek(cartridge->io, found.data_offset);
     assert(seeked);
 
-    if (cartridge->compressed.size() < compressed)
-      cartridge->compressed.resize(compressed);
+    if ((found.flags & UNCOMPRESSED) != 0) {
+      slurp(cartridge->io, tail(reader), uncompressed);
+    } else {
+      if (cartridge->compressed.size() < compressed)
+        cartridge->compressed.resize(compressed);
 
-    slurp(cartridge->io, cartridge->compressed.data(), compressed);
+      slurp(cartridge->io, cartridge->compressed.data(), compressed);
 
-    const auto result = ZSTD_decompress_usingDDict(
-      cartridge->decoder.get(),
-      tail(reader), uncompressed,
-      cartridge->compressed.data(), compressed,
-      cartridge->dictionary.get()
-    );
+      const auto result = ZSTD_decompress_usingDDict(
+        cartridge->decoder.get(),
+        tail(reader), uncompressed,
+        cartridge->compressed.data(), compressed,
+        cartridge->dictionary.get()
+      );
 
-    assert(result == uncompressed);
+      assert(result == uncompressed);
+    }
   }
 
   return &reader->io;
@@ -267,7 +272,7 @@ int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
   }
 
   const auto &current = cartridge->records[index];
-  const auto directory = (current.flags & FLAG_DIRECTORY) != 0;
+  const auto directory = (current.flags & DIRECTORY) != 0;
   stat->filesize = directory ? -1 : static_cast<PHYSFS_sint64>(current.uncompressed);
   stat->modtime = -1;
   stat->createtime = -1;

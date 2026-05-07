@@ -19,10 +19,15 @@
 namespace {
 constexpr uint32_t MAGIC = 0x43524F4D;
 constexpr uint8_t DIRECTORY = 1;
+constexpr uint8_t UNCOMPRESSED = 2;
 constexpr size_t HEADER = 16;
 constexpr size_t RECORD = 32;
 constexpr size_t CAPACITY = 2048;
 constexpr int LEVEL = 22;
+
+[[nodiscard]] bool skip(std::string_view path) {
+  return path.ends_with(".opus") || path.ends_with(".png");
+}
 
 using encoder_t = std::unique_ptr<ZSTD_CCtx, decltype(&ZSTD_freeCCtx)>;
 
@@ -33,6 +38,7 @@ struct source final {
   std::vector<uint8_t> data;
   std::vector<uint8_t> blob;
   bool directory{};
+  bool uncompressed{};
 };
 
 struct record final {
@@ -74,7 +80,7 @@ int main(int argc, char **argv) {
       continue;
 
     if (it.is_directory()) {
-      sources.emplace_back(std::move(relative), std::vector<uint8_t>{}, std::vector<uint8_t>{}, true);
+      sources.emplace_back(std::move(relative), std::vector<uint8_t>{}, std::vector<uint8_t>{}, true, false);
       continue;
     }
 
@@ -85,7 +91,8 @@ int main(int argc, char **argv) {
     std::vector<uint8_t> data(size);
     std::ifstream input(it.path(), std::ios::binary);
     input.read(reinterpret_cast<char *>(data.data()), static_cast<std::streamsize>(size));
-    sources.emplace_back(std::move(relative), std::move(data), std::vector<uint8_t>{}, false);
+    const bool uncompressed = skip(relative);
+    sources.emplace_back(std::move(relative), std::move(data), std::vector<uint8_t>{}, false, uncompressed);
   }
 
   std::ranges::sort(sources, {}, &source::path);
@@ -93,7 +100,7 @@ int main(int argc, char **argv) {
   std::vector<uint8_t> training;
   std::vector<size_t> samples;
   for (const auto &current : sources) {
-    if (current.directory || current.data.empty() || !current.path.ends_with(".lua"))
+    if (current.directory || current.uncompressed || current.data.empty() || !current.path.ends_with(".lua"))
       continue;
     training.insert(training.end(), current.data.begin(), current.data.end());
     samples.push_back(current.data.size());
@@ -104,11 +111,11 @@ int main(int argc, char **argv) {
   parameters.nbThreads = std::thread::hardware_concurrency();
   parameters.splitPoint = 1.0;
   parameters.zParams.compressionLevel = LEVEL;
-  const auto trained_size = ZDICT_optimizeTrainFromBuffer_fastCover(
+  const auto bytes = ZDICT_optimizeTrainFromBuffer_fastCover(
     trained.data(), trained.size(),
     training.data(), samples.data(), static_cast<unsigned>(samples.size()),
     &parameters);
-  trained.resize(trained_size);
+  trained.resize(bytes);
 
   encoder_t encoder(ZSTD_createCCtx(), ZSTD_freeCCtx);
   dictionary_t dictionary(
@@ -121,6 +128,11 @@ int main(int argc, char **argv) {
   for (auto &current : sources) {
     if (current.directory)
       continue;
+    if (current.uncompressed) {
+      current.blob = current.data;
+      continue;
+    }
+
     scratch.resize(ZSTD_compressBound(current.data.size()));
     const auto result = ZSTD_compress2(
       encoder.get(), scratch.data(), scratch.size(),
@@ -129,38 +141,42 @@ int main(int argc, char **argv) {
   }
 
   std::vector<uint8_t> strings;
-  std::vector<uint32_t> string_offsets;
-  string_offsets.reserve(sources.size());
+  std::vector<uint32_t> offsets;
+  offsets.reserve(sources.size());
   for (const auto &current : sources) {
-    string_offsets.push_back(static_cast<uint32_t>(strings.size()));
+    offsets.push_back(static_cast<uint32_t>(strings.size()));
     strings.insert(strings.end(), current.path.begin(), current.path.end());
   }
 
   const auto count = static_cast<uint32_t>(sources.size());
-  const auto string_table_bytes = static_cast<uint32_t>(strings.size());
-  const auto dictionary_bytes = static_cast<uint32_t>(trained.size());
-  const uint64_t payload_base = HEADER + dictionary_bytes + string_table_bytes + static_cast<uint64_t>(count) * RECORD;
+  const auto stringsize = static_cast<uint32_t>(strings.size());
+  const auto trainsize = static_cast<uint32_t>(trained.size());
+  const uint64_t base = HEADER + trainsize + stringsize + static_cast<uint64_t>(count) * RECORD;
 
   std::vector<uint8_t> blob;
-  blob.reserve(payload_base);
+  blob.reserve(base);
 
   put(blob, MAGIC);
   put(blob, count);
-  put(blob, string_table_bytes);
-  put(blob, dictionary_bytes);
+  put(blob, stringsize);
+  put(blob, trainsize);
   put(blob, std::span<const uint8_t>(trained));
   put(blob, std::span<const uint8_t>(strings));
 
   uint64_t cursor = 0;
   for (uint32_t index = 0; index < count; ++index) {
     const auto &current = sources[index];
+    const auto flags = static_cast<uint8_t>(
+      (current.directory ? DIRECTORY : 0) |
+      (current.uncompressed ? UNCOMPRESSED : 0)
+    );
     record entry{
-      current.directory ? 0 : payload_base + cursor,
+      current.directory ? 0 : base + cursor,
       static_cast<uint64_t>(current.blob.size()),
       static_cast<uint64_t>(current.data.size()),
-      string_offsets[index],
+      offsets[index],
       static_cast<uint16_t>(current.path.size()),
-      static_cast<uint8_t>(current.directory ? DIRECTORY : 0),
+      flags,
       0,
     };
     const auto offset = blob.size();
