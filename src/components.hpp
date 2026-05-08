@@ -23,7 +23,7 @@ struct transform final {
   mirror flip{mirror::none};
 };
 
-static_assert(std::is_trivially_copyable_v<transform>);
+static_assert(std::is_trivially_copyable_v<transform>, "transform must be trivially copyable");
 
 struct frame final {
   float x{};
@@ -42,7 +42,7 @@ struct frame final {
   bool collidable{};
 };
 
-static_assert(std::is_trivially_copyable_v<frame>);
+static_assert(std::is_trivially_copyable_v<frame>, "frame must be trivially copyable");
 
 struct clip final {
   struct {
@@ -54,7 +54,7 @@ struct clip final {
   sound* effect{};
 };
 
-static_assert(std::is_trivially_copyable_v<clip>);
+static_assert(std::is_trivially_copyable_v<clip>, "clip must be trivially copyable");
 
 struct animation final {
   const spritesheet* sheet{};
@@ -64,7 +64,7 @@ struct animation final {
   bool playing{};
 };
 
-static_assert(std::is_trivially_copyable_v<animation>);
+static_assert(std::is_trivially_copyable_v<animation>, "animation must be trivially copyable");
 
 enum class body_type : uint8_t {
   kinematic,
@@ -82,7 +82,7 @@ struct body final {
   body_type type{body_type::kinematic};
 };
 
-static_assert(std::is_trivially_copyable_v<body>);
+static_assert(std::is_trivially_copyable_v<body>, "body must be trivially copyable");
 
 inline bool alive(const body& b) {
   return b2Body_IsValid(b.id);
@@ -113,29 +113,29 @@ struct boundary final {
   static constexpr uint8_t bottom = 1 << 3;
 };
 
-static_assert(std::is_trivially_copyable_v<boundary>);
+static_assert(std::is_trivially_copyable_v<boundary>, "boundary must be trivially copyable");
 
 struct sleepable final {
   static constexpr auto in_place_delete = true;
 };
 
-static_assert(std::is_trivially_copyable_v<sleepable>);
+static_assert(std::is_trivially_copyable_v<sleepable>, "sleepable must be trivially copyable");
 
 struct dormant final {
   static constexpr auto in_place_delete = true;
 };
 
-static_assert(std::is_trivially_copyable_v<dormant>);
+static_assert(std::is_trivially_copyable_v<dormant>, "dormant must be trivially copyable");
 
 
 struct renderable final {
   int z{};
 };
 
-static_assert(std::is_trivially_copyable_v<renderable>);
+static_assert(std::is_trivially_copyable_v<renderable>, "renderable must be trivially copyable");
 
 struct reorder final {
   bool dirty{true};
 };
 
-static_assert(std::is_trivially_copyable_v<reorder>);
+static_assert(std::is_trivially_copyable_v<reorder>, "reorder must be trivially copyable");

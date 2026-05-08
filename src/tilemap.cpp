@@ -218,8 +218,8 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
     uint32_t radius_tiles;
     uint64_t source_hash;
   };
-  static_assert(sizeof(header) == 24);
-  static_assert(alignof(header) == 8);
+  static_assert(sizeof(header) == 24, "tilemap header layout must match on-disk size");
+  static_assert(alignof(header) == 8, "tilemap header must be 8-byte aligned");
 
   static constexpr auto HEADER = sizeof(header);
   static constexpr auto PER_CELL =

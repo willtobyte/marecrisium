@@ -5,7 +5,7 @@ struct proxy final {
   entt::entity entity{entt::null};
 };
 
-static_assert(std::is_trivially_copyable_v<proxy>);
+static_assert(std::is_trivially_copyable_v<proxy>, "proxy must be trivially copyable");
 
 struct scriptable final {
   static constexpr auto in_place_delete = true;
@@ -29,7 +29,7 @@ struct scriptable final {
   int on_spawn{LUA_NOREF};
 };
 
-static_assert(std::is_trivially_copyable_v<scriptable>);
+static_assert(std::is_trivially_copyable_v<scriptable>, "scriptable must be trivially copyable");
 
 namespace object {
   void wire();

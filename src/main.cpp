@@ -1,6 +1,6 @@
 #include <SDL3/SDL_main.h>
 
-static_assert(std::endian::native == std::endian::little);
+static_assert(std::endian::native == std::endian::little, "this engine targets little-endian platforms only");
 
 int main(int argc, char** argv) {
 #ifndef DEBUG

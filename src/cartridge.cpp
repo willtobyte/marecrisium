@@ -18,7 +18,7 @@ struct record final {
   uint8_t padding;
 };
 
-static_assert(sizeof(record) == RECORD);
+static_assert(sizeof(record) == RECORD, "record layout must match on-disk size");
 
 struct archive final {
   PHYSFS_Io *source{nullptr};
@@ -139,14 +139,14 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
     return nullptr;
 
   const auto *p = cartridge->manifest.data();
-  assert(reinterpret_cast<uintptr_t>(p) % alignof(record) == 0);
+  assert(reinterpret_cast<uintptr_t>(p) % alignof(record) == 0 && "manifest base pointer is not aligned for record access");
   cartridge->records = std::span<const record>{reinterpret_cast<const record *>(p + HEADER), count};
   cartridge->strings = HEADER + static_cast<size_t>(count) * RECORD;
 
   cartridge->decoder.reset(ZSTD_createDCtx());
   cartridge->dictionary.reset(ZSTD_createDDict_byReference(p + cartridge->strings + stringsize, trainsize));
-  assert(cartridge->decoder);
-  assert(cartridge->dictionary);
+  assert(cartridge->decoder && "failed to create zstd decompression context");
+  assert(cartridge->dictionary && "failed to create zstd decompression dictionary");
 
   cartridge->source = io;
   return cartridge.release();
@@ -198,7 +198,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   }
 
   const auto &found = cartridge->records[index];
-  assert((found.flags & DIRECTORY) == 0);
+  assert((found.flags & DIRECTORY) == 0 && "cannot open a directory entry as a file");
 
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
   const auto compressed = static_cast<size_t>(found.compressed);
@@ -211,15 +211,15 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   if (uncompressed > 0) [[likely]] {
     auto *source = cartridge->source;
     [[maybe_unused]] const auto seeked = source->seek(source, found.position);
-    assert(seeked);
+    assert(seeked && "failed to seek to record position in cartridge source");
 
     if ((found.flags & UNCOMPRESSED) != 0) {
       [[maybe_unused]] const auto bytes = source->read(source, tail, uncompressed);
-      assert(bytes == static_cast<PHYSFS_sint64>(uncompressed));
+      assert(bytes == static_cast<PHYSFS_sint64>(uncompressed) && "short read for uncompressed record payload");
     } else {
       std::vector<uint8_t> scratch(compressed);
       [[maybe_unused]] const auto bytes = source->read(source, scratch.data(), compressed);
-      assert(bytes == static_cast<PHYSFS_sint64>(compressed));
+      assert(bytes == static_cast<PHYSFS_sint64>(compressed) && "short read for compressed record payload");
 
       [[maybe_unused]] const auto result = ZSTD_decompress_usingDDict(
         cartridge->decoder.get(),
@@ -227,7 +227,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
         scratch.data(), compressed,
         cartridge->dictionary.get());
 
-      assert(result == uncompressed);
+      assert(result == uncompressed && "zstd decompressed size does not match expected record size");
     }
   }
 

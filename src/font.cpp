@@ -178,7 +178,7 @@ font::font(std::string_view family) {
       ++x;
     }
 
-    assert(x < width);
+    assert(x < width && "ran past atlas width while scanning for next glyph");
 
     auto w = 0;
     while (x + w < width && pixels[y * width + x + w] != separator) {

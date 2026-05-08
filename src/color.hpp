@@ -11,4 +11,4 @@ struct color final {
   }
 };
 
-static_assert(std::is_trivially_copyable_v<color>);
+static_assert(std::is_trivially_copyable_v<color>, "color must be trivially copyable");

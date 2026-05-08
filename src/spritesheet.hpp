@@ -11,4 +11,4 @@ struct spritesheet final {
   bool collidable{};
 };
 
-static_assert(std::is_trivially_copyable_v<spritesheet>);
+static_assert(std::is_trivially_copyable_v<spritesheet>, "spritesheet must be trivially copyable");
