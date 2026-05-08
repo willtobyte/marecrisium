@@ -21,7 +21,8 @@ struct record final {
 static_assert(sizeof(record) == RECORD);
 
 struct archive final {
-  std::vector<uint8_t> image;
+  PHYSFS_Io *source{nullptr};
+  std::vector<uint8_t> manifest;
   decoder_t decoder{nullptr, ZSTD_freeDCtx};
   dictionary_t dictionary{nullptr, ZSTD_freeDDict};
   std::span<const record> records;
@@ -32,7 +33,6 @@ struct backing final {
   const uint8_t *data;
   size_t size;
   uint32_t count;
-  bool owned;
 };
 
 struct handle final {
@@ -42,7 +42,7 @@ struct handle final {
 };
 
 [[nodiscard]] inline std::string_view path_of(const archive *cartridge, const record &r) noexcept {
-  return {reinterpret_cast<const char *>(cartridge->image.data() + cartridge->strings_offset + r.path_offset), r.path_length};
+  return {reinterpret_cast<const char *>(cartridge->manifest.data() + cartridge->strings_offset + r.path_offset), r.path_length};
 }
 
 template <std::integral Integer>
@@ -107,12 +107,8 @@ int bank_flush(PHYSFS_Io *) {
 void bank_destroy(PHYSFS_Io *io) {
   auto *h = static_cast<handle *>(io->opaque);
   if (--h->shared->count == 0) {
-    if (h->shared->owned) {
-      h->shared->~backing();
-      ::operator delete(h->shared);
-    } else {
-      delete h->shared;
-    }
+    h->shared->~backing();
+    ::operator delete(h->shared);
   }
 
   delete h;
@@ -121,21 +117,28 @@ void bank_destroy(PHYSFS_Io *io) {
 void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   *claimed = 1;
 
-  [[maybe_unused]] const auto seeked = io->seek(io, 0);
-  assert(seeked);
-  const auto length = static_cast<size_t>(io->length(io));
+  if (!io->seek(io, 0)) [[unlikely]]
+    return nullptr;
+
+  uint8_t header[HEADER];
+  if (io->read(io, header, HEADER) != static_cast<PHYSFS_sint64>(HEADER)) [[unlikely]]
+    return nullptr;
+
+  const auto count = read<uint32_t>(header + 4);
+  const auto stringsize = read<uint32_t>(header + 8);
+  const auto trainsize = read<uint32_t>(header + 12);
+
+  const auto size = HEADER + static_cast<size_t>(count) * RECORD + stringsize + trainsize;
 
   auto cartridge = std::make_unique<archive>();
-  cartridge->image.resize(length);
-  [[maybe_unused]] const auto got = io->read(io, cartridge->image.data(), length);
-  assert(got == static_cast<PHYSFS_sint64>(length));
-  io->destroy(io);
+  cartridge->manifest.resize(size);
+  std::memcpy(cartridge->manifest.data(), header, HEADER);
 
-  const auto *p = cartridge->image.data();
-  const auto count = read<uint32_t>(p + 4);
-  const auto stringsize = read<uint32_t>(p + 8);
-  const auto trainsize = read<uint32_t>(p + 12);
+  const auto remainder = size - HEADER;
+  if (io->read(io, cartridge->manifest.data() + HEADER, remainder) != static_cast<PHYSFS_sint64>(remainder)) [[unlikely]]
+    return nullptr;
 
+  const auto *p = cartridge->manifest.data();
   assert(reinterpret_cast<uintptr_t>(p) % alignof(record) == 0);
   cartridge->records = std::span<const record>{reinterpret_cast<const record *>(p + HEADER), count};
   cartridge->strings_offset = HEADER + static_cast<size_t>(count) * RECORD;
@@ -145,6 +148,7 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   assert(cartridge->decoder);
   assert(cartridge->dictionary);
 
+  cartridge->source = io;
   return cartridge.release();
 }
 
@@ -198,21 +202,29 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
   const auto compressed = static_cast<size_t>(found.compressed);
-  const uint8_t* const source = cartridge->image.data() + found.data_offset;
 
-  backing *shared;
-  if ((found.flags & UNCOMPRESSED) != 0) {
-    shared = new backing{source, uncompressed, 1u, false};
-  } else {
-    const auto block = sizeof(backing) + uncompressed;
-    shared = static_cast<backing *>(::operator new(block));
-    auto *tail = reinterpret_cast<uint8_t *>(shared + 1);
-    new (shared) backing{tail, uncompressed, 1u, true};
-    if (uncompressed > 0) [[likely]] {
+  const auto block = sizeof(backing) + uncompressed;
+  auto *shared = static_cast<backing *>(::operator new(block));
+  auto *tail = reinterpret_cast<uint8_t *>(shared + 1);
+  new (shared) backing{tail, uncompressed, 1u};
+
+  if (uncompressed > 0) [[likely]] {
+    auto *source = cartridge->source;
+    [[maybe_unused]] const auto seeked = source->seek(source, found.data_offset);
+    assert(seeked);
+
+    if ((found.flags & UNCOMPRESSED) != 0) {
+      [[maybe_unused]] const auto got = source->read(source, tail, uncompressed);
+      assert(got == static_cast<PHYSFS_sint64>(uncompressed));
+    } else {
+      std::vector<uint8_t> scratch(compressed);
+      [[maybe_unused]] const auto got = source->read(source, scratch.data(), compressed);
+      assert(got == static_cast<PHYSFS_sint64>(compressed));
+
       [[maybe_unused]] const auto result = ZSTD_decompress_usingDDict(
         cartridge->decoder.get(),
         tail, uncompressed,
-        source, compressed,
+        scratch.data(), compressed,
         cartridge->dictionary.get());
 
       assert(result == uncompressed);
@@ -282,7 +294,11 @@ int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
 }
 
 void crom_close_archive(void *opaque) {
-  delete static_cast<archive *>(opaque);
+  auto *cartridge = static_cast<archive *>(opaque);
+  if (cartridge->source) [[likely]]
+    cartridge->source->destroy(cartridge->source);
+
+  delete cartridge;
 }
 }
 
