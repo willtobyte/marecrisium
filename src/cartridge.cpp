@@ -214,12 +214,12 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     assert(seeked);
 
     if ((found.flags & UNCOMPRESSED) != 0) {
-      [[maybe_unused]] const auto got = source->read(source, tail, uncompressed);
-      assert(got == static_cast<PHYSFS_sint64>(uncompressed));
+      [[maybe_unused]] const auto bytes = source->read(source, tail, uncompressed);
+      assert(bytes == static_cast<PHYSFS_sint64>(uncompressed));
     } else {
       std::vector<uint8_t> scratch(compressed);
-      [[maybe_unused]] const auto got = source->read(source, scratch.data(), compressed);
-      assert(got == static_cast<PHYSFS_sint64>(compressed));
+      [[maybe_unused]] const auto bytes = source->read(source, scratch.data(), compressed);
+      assert(bytes == static_cast<PHYSFS_sint64>(compressed));
 
       [[maybe_unused]] const auto result = ZSTD_decompress_usingDDict(
         cartridge->decoder.get(),
