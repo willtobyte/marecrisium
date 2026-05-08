@@ -198,11 +198,11 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
   const auto compressed = static_cast<size_t>(found.compressed);
-  const uint8_t* const src = cartridge->image.data() + found.data_offset;
+  const uint8_t* const source = cartridge->image.data() + found.data_offset;
 
   backing *shared;
   if ((found.flags & UNCOMPRESSED) != 0) {
-    shared = new backing{src, uncompressed, 1u, false};
+    shared = new backing{source, uncompressed, 1u, false};
   } else {
     const auto block = sizeof(backing) + uncompressed;
     shared = static_cast<backing *>(::operator new(block));
@@ -212,7 +212,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
       [[maybe_unused]] const auto result = ZSTD_decompress_usingDDict(
         cartridge->decoder.get(),
         tail, uncompressed,
-        src, compressed,
+        source, compressed,
         cartridge->dictionary.get());
 
       assert(result == uncompressed);
