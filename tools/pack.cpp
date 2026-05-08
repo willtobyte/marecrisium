@@ -22,7 +22,7 @@ constexpr uint8_t DIRECTORY = 1;
 constexpr uint8_t UNCOMPRESSED = 2;
 constexpr size_t HEADER = 16;
 constexpr size_t RECORD = 32;
-constexpr size_t CAPACITY = 2048;
+constexpr size_t CAPACITY = 131072;
 constexpr int LEVEL = 22;
 
 [[nodiscard]] bool skip(std::string_view path) {
@@ -74,22 +74,29 @@ int main(int argc, char **argv) {
   const std::filesystem::path root = argv[1];
 
   std::vector<source> sources;
-  for (const auto &it : std::filesystem::recursive_directory_iterator(root)) {
-    auto relative = std::filesystem::relative(it.path(), root).generic_string();
+  for (auto it = std::filesystem::recursive_directory_iterator(root);
+       it != std::filesystem::recursive_directory_iterator{}; ++it) {
+    auto relative = std::filesystem::relative(it->path(), root).generic_string();
     if (relative.empty() || relative == ".")
       continue;
 
-    if (it.is_directory()) {
+    if (it->path().filename().string().starts_with('.')) {
+      if (it->is_directory())
+        it.disable_recursion_pending();
+      continue;
+    }
+
+    if (it->is_directory()) {
       sources.emplace_back(std::move(relative), std::vector<uint8_t>{}, std::vector<uint8_t>{}, true, false);
       continue;
     }
 
-    if (!it.is_regular_file())
+    if (!it->is_regular_file())
       continue;
 
-    const auto size = static_cast<size_t>(std::filesystem::file_size(it.path()));
+    const auto size = static_cast<size_t>(std::filesystem::file_size(it->path()));
     std::vector<uint8_t> data(size);
-    std::ifstream input(it.path(), std::ios::binary);
+    std::ifstream input(it->path(), std::ios::binary);
     input.read(reinterpret_cast<char *>(data.data()), static_cast<std::streamsize>(size));
     const bool uncompressed = skip(relative);
     sources.emplace_back(std::move(relative), std::move(data), std::vector<uint8_t>{}, false, uncompressed);
@@ -100,7 +107,7 @@ int main(int argc, char **argv) {
   std::vector<uint8_t> training;
   std::vector<size_t> samples;
   for (const auto &current : sources) {
-    if (current.directory || current.uncompressed || current.data.empty() || !current.path.ends_with(".lua"))
+    if (current.directory || current.uncompressed || current.data.empty())
       continue;
     training.insert(training.end(), current.data.begin(), current.data.end());
     samples.push_back(current.data.size());

@@ -3,7 +3,7 @@
 struct xorshift128 final {
   uint32_t state[4];
 
-  xorshift128() = default;
+  xorshift128() { seed(std::random_device{}()); }
 
   void seed(uint32_t value);
 
