@@ -9,7 +9,7 @@ using decoder_t = std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)>;
 using dictionary_t = std::unique_ptr<ZSTD_DDict, decltype(&ZSTD_freeDDict)>;
 
 struct record final {
-  uint64_t data_offset;
+  uint64_t position;
   uint64_t compressed;
   uint64_t uncompressed;
   uint32_t path_offset;
@@ -26,7 +26,7 @@ struct archive final {
   decoder_t decoder{nullptr, ZSTD_freeDCtx};
   dictionary_t dictionary{nullptr, ZSTD_freeDDict};
   std::span<const record> records;
-  size_t strings_offset{};
+  size_t strings{};
 };
 
 struct backing final {
@@ -42,7 +42,7 @@ struct handle final {
 };
 
 [[nodiscard]] inline std::string_view path_of(const archive *cartridge, const record &r) noexcept {
-  return {reinterpret_cast<const char *>(cartridge->manifest.data() + cartridge->strings_offset + r.path_offset), r.path_length};
+  return {reinterpret_cast<const char *>(cartridge->manifest.data() + cartridge->strings + r.path_offset), r.path_length};
 }
 
 template <std::integral Integer>
@@ -141,10 +141,10 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   const auto *p = cartridge->manifest.data();
   assert(reinterpret_cast<uintptr_t>(p) % alignof(record) == 0);
   cartridge->records = std::span<const record>{reinterpret_cast<const record *>(p + HEADER), count};
-  cartridge->strings_offset = HEADER + static_cast<size_t>(count) * RECORD;
+  cartridge->strings = HEADER + static_cast<size_t>(count) * RECORD;
 
   cartridge->decoder.reset(ZSTD_createDCtx());
-  cartridge->dictionary.reset(ZSTD_createDDict_byReference(p + cartridge->strings_offset + stringsize, trainsize));
+  cartridge->dictionary.reset(ZSTD_createDDict_byReference(p + cartridge->strings + stringsize, trainsize));
   assert(cartridge->decoder);
   assert(cartridge->dictionary);
 
@@ -210,7 +210,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
   if (uncompressed > 0) [[likely]] {
     auto *source = cartridge->source;
-    [[maybe_unused]] const auto seeked = source->seek(source, found.data_offset);
+    [[maybe_unused]] const auto seeked = source->seek(source, found.position);
     assert(seeked);
 
     if ((found.flags & UNCOMPRESSED) != 0) {
