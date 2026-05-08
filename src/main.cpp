@@ -1,5 +1,7 @@
 #include <SDL3/SDL_main.h>
 
+static_assert(std::endian::native == std::endian::little);
+
 int main(int argc, char** argv) {
 #ifndef DEBUG
   if (auto* out = std::freopen("stdout.txt", "w", stdout)) {

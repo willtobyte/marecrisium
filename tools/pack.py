@@ -106,12 +106,10 @@ def main() -> int:
     count = len(sources)
     stringsize = len(strings)
     trainsize = len(trained)
-    base = HEADER + trainsize + stringsize + count * RECORD
+    base = HEADER + count * RECORD + stringsize + trainsize
 
     blob = bytearray()
     blob.extend(struct.pack("<IIII", MAGIC, count, stringsize, trainsize))
-    blob.extend(trained)
-    blob.extend(strings)
 
     cursor = 0
     for index, current in enumerate(sources):
@@ -132,6 +130,9 @@ def main() -> int:
             )
         )
         cursor += len(current["blob"])
+
+    blob.extend(strings)
+    blob.extend(trained)
 
     for current in sources:
         blob.extend(current["blob"])
