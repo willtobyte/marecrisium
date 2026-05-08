@@ -403,7 +403,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
   parents[static_cast<size_t>(start)] = -1;
 
   _pathfinder.heap.clear();
-  _pathfinder.heap.emplace_back(octile(sc, sr, ec, er), start, ++_pathfinder.tiebreak_counter);
+  _pathfinder.heap.emplace_back(octile(sc, sr, ec, er), start, ++_pathfinder.tiebreak);
   std::ranges::push_heap(_pathfinder.heap, greater);
 
   while (!_pathfinder.heap.empty()) {
@@ -461,7 +461,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
       _pathfinder.heap.emplace_back(
         new_g + octile(target_c, target_r, ec, er),
         target,
-        ++_pathfinder.tiebreak_counter
+        ++_pathfinder.tiebreak
       );
       std::ranges::push_heap(_pathfinder.heap, greater);
     }

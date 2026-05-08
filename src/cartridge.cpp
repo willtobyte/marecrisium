@@ -102,8 +102,8 @@ PHYSFS_sint64 bank_length(PHYSFS_Io *io) {
 
 PHYSFS_Io *bank_duplicate(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
-  ++reader->shared->refcount;
   auto *copy = new handle{reader->io, reader->shared, uint64_t{0}};
+  ++reader->shared->refcount;
   copy->io.opaque = copy;
   return &copy->io;
 }

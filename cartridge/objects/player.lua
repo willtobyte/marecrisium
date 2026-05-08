@@ -50,8 +50,8 @@ return {
 		local velocity_x = control_x * speed
 		local velocity_y = control_y * speed
 		if velocity_x ~= 0 and velocity_y ~= 0 then
-			local inverse_magnitude = speed / sqrt(velocity_x * velocity_x + velocity_y * velocity_y)
-			velocity_x, velocity_y = velocity_x * inverse_magnitude, velocity_y * inverse_magnitude
+			local inverse = speed / sqrt(velocity_x * velocity_x + velocity_y * velocity_y)
+			velocity_x, velocity_y = velocity_x * inverse, velocity_y * inverse
 		end
 
 		if velocity_x ~= 0 then

@@ -47,7 +47,7 @@ private:
     std::vector<int32_t> path;
     std::vector<node> heap;
     uint32_t current_generation{};
-    uint32_t tiebreak_counter{};
+    uint32_t tiebreak{};
   };
 
   std::vector<uint8_t> _collision;
