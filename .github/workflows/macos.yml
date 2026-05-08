@@ -59,24 +59,19 @@ jobs:
           cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release --verbose
 
-      - name: Build tools
-        working-directory: tools
-        run: |
-          cmake -Bbuild \
-            -DCMAKE_TOOLCHAIN_FILE=../build/conan_toolchain.cmake \
-            -DCMAKE_BUILD_TYPE=Release
-          cmake --build build
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
 
       - name: Package cartridge
-        run: ./tools/build/pack cartridge
+        run: uv run tools/pack.py cartridge
 
       - name: Collect artifacts
         run: |
           mkdir -p artifact
           cp build/carimbo artifact/
           cp cartridge.rom artifact/
-          cp tools/build/pack artifact/
-          cp tools/build/unpack artifact/
+          cp tools/pack.py artifact/
+          cp tools/unpack.py artifact/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
