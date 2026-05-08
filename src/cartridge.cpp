@@ -202,11 +202,11 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
   const auto compressed = static_cast<size_t>(found.compressed);
-
   const auto block = sizeof(backing) + uncompressed;
-  auto *shared = static_cast<backing *>(::operator new(block));
-  auto *tail = reinterpret_cast<uint8_t *>(shared + 1);
-  new (shared) backing{tail, uncompressed, 1u};
+
+  auto *storage = static_cast<backing *>(::operator new(block));
+  auto *tail = reinterpret_cast<uint8_t *>(storage + 1);
+  new (storage) backing{tail, uncompressed, 1u};
 
   if (uncompressed > 0) [[likely]] {
     auto *source = cartridge->source;
@@ -244,7 +244,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
       .flush = bank_flush,
       .destroy = bank_destroy,
     },
-    shared,
+    storage,
     uint64_t{0},
   };
 
