@@ -43,8 +43,6 @@ public:
 
   int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
 
-  int pathfind(lua_State* state, entt::entity caller, float x2, float y2);
-
   void dispatch_collision(const scriptable& self, const scriptable* target, int callback_ref, const b2Vec2* normal = nullptr);
 
 private:

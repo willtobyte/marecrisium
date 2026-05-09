@@ -577,12 +577,15 @@ function World.destroy(object) end
 
 ---Cast a ray and return all hits sorted by distance.
 ---Tilemap solid tiles have no user data and are skipped; only Object entities are returned.
+---Cast a ray from (x, y) in the given direction up to ``distance``. The ray
+---stops at the first solid tilemap tile (line of sight is blocked by walls).
+---Returns the entities hit along the way, sorted by distance.
 ---@param caller Object The object casting the ray (excluded from results).
 ---@param x number Ray origin X.
 ---@param y number Ray origin Y.
 ---@param angle number Ray angle in degrees.
 ---@param distance number Maximum ray distance.
----@return Object[] hits Sorted array of hit objects.
+---@return Object[] hits Sorted array of hit objects (in front of the first wall, if any).
 function World.raycast(caller, x, y, angle, distance) end
 
 ---Return all objects within a circular area, excluding the caller.
@@ -592,17 +595,6 @@ function World.raycast(caller, x, y, angle, distance) end
 ---@param radius number Circle radius.
 ---@return Object[] hits Array of objects within the area.
 function World.radar(caller, x, y, radius) end
-
----Find a path from the caller's current position to a world target,
----avoiding solid tilemap tiles. Uses JPS+ on the precomputed navigation
----grid baked into the tilemap. Origin and agent body radius are derived
----from the caller's body and the current animation frame's collider.
----Returns an empty table when no path exists.
----@param caller Object The agent doing the pathfind. Origin and body radius come from its transform/body.
----@param x number Target X in world coordinates.
----@param y number Target Y in world coordinates.
----@return number[][] path Array of {x, y} waypoints in world coordinates (tile centers).
-function World.pathfind(caller, x, y) end
 
 ---Count objects of a given kind whose physics body overlaps the given rectangle.
 ---@param x number Left edge of the query region in world coordinates.

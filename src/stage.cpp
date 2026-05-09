@@ -200,14 +200,6 @@ static int world_raycast(lua_State* state) {
   return self->raycast(state, caller->entity, x, y, angle, distance);
 }
 
-static int world_pathfind(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  const auto* caller = static_cast<proxy *>(luaL_checkudata(state, 1, "Object"));
-  const auto x2 = static_cast<float>(luaL_checknumber(state, 2));
-  const auto y2 = static_cast<float>(luaL_checknumber(state, 3));
-  return self->pathfind(state, caller->entity, x2, y2);
-}
-
 stage::stage(std::string name)
     : _name(std::move(name)) {
   _registry.on_destroy<scriptable>().connect<&on_scriptable_destroy>();
@@ -251,10 +243,6 @@ stage::stage(std::string name)
   lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, world_raycast, 1);
   lua_setfield(L, -2, "raycast");
-
-  lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, world_pathfind, 1);
-  lua_setfield(L, -2, "pathfind");
 
   _world_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
@@ -929,28 +917,6 @@ void stage::draw() {
     return true;
   }, nullptr);
 
-  SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-
-  {
-    const auto count = _tilemap._pathfinder.path.size();
-    if (count >= 2) {
-      static std::vector<SDL_FPoint> points;
-      points.resize(count);
-      const auto half = _tilemap._size * .5f;
-      const auto width = _tilemap._width;
-      const auto size = _tilemap._size;
-      for (size_t i = 0; i < count; ++i) {
-        const auto cell = _tilemap._pathfinder.path[i];
-        const auto column = static_cast<float>(cell % width);
-        const auto row = static_cast<float>(cell / width);
-        points[i].x = column * size + half - viewport.x;
-        points[i].y = row * size + half - viewport.y;
-      }
-
-      SDL_RenderLines(renderer, points.data(), static_cast<int>(count));
-    }
-  }
-
   SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 
   if (_origin.x != _target.x || _origin.y != _target.y) {
@@ -1251,60 +1217,49 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
 #endif
 
   _hits.clear();
+  struct tally final {
+    std::vector<hit>* hits;
+    float clip;
+  } gather{&_hits, 1.f};
+
   b2World_CastRay(
     _world,
     origin,
     translation,
     filter,
     +[](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void *userdata) -> float {
-      const auto *ud = b2Shape_GetUserData(shape);
-      if (!ud) [[unlikely]]
-        return 1.f;
+      auto *gather = static_cast<tally *>(userdata);
+      const auto *data = b2Shape_GetUserData(shape);
+      if (!data) [[unlikely]] {
+        gather->clip = fraction;
+        return fraction;
+      }
 
-      auto *hits = static_cast<std::vector<hit> *>(userdata);
-      hits->emplace_back(to_entity(ud), fraction);
+      gather->hits->emplace_back(to_entity(data), fraction);
       return 1.f;
     },
-    &_hits
+    &gather
   );
 
+  std::erase_if(_hits, [clip = gather.clip](const hit& entry) { return entry.fraction > clip; });
   std::ranges::sort(_hits, {}, &hit::fraction);
 
   lua_createtable(state, static_cast<int>(_hits.size()), 0);
   int index = 1;
 
   for (const auto& [entity, fraction] : _hits) {
-    if (entity == caller)
+    if (entity == caller) [[unlikely]]
       continue;
 
-    const auto* op = scriptable_of(_registry, entity);
-    if (!op)
+    const auto* object = scriptable_of(_registry, entity);
+    if (!object) [[unlikely]]
       continue;
 
-    lua_rawgeti(state, LUA_REGISTRYINDEX, op->handle);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, object->handle);
     lua_rawseti(state, -2, index++);
   }
 
   return 1;
-}
-
-int stage::pathfind(lua_State* state, entt::entity caller, float x2, float y2) {
-  if (!_registry.valid(caller)) [[unlikely]] {
-    lua_newtable(state);
-    return 1;
-  }
-
-  const auto& tf = _registry.get<transform>(caller);
-  const auto* a = _registry.try_get<animation>(caller);
-  const auto* b = _registry.try_get<body>(caller);
-  const frame* fr = (a && a->playing && a->sheet->count > 0)
-    ? &a->sheet->frames[a->sheet->clips[a->active].offset + a->current]
-    : nullptr;
-
-  const auto origin = (b && fr) ? center_of(*b, tf, fr) : b2Vec2{tf.x, tf.y};
-  const auto radius = (b && alive(*b)) ? std::max(b->extent_x, b->extent_y) : .0f;
-
-  return _tilemap.pathfind(state, origin.x, origin.y, x2, y2, radius);
 }
 
 void stage::dispatch_collision(const scriptable& self, const scriptable* target, int callback_ref, const b2Vec2* normal) {
