@@ -42,11 +42,11 @@ private:
 
   struct pathfinder final {
     std::vector<float> g;
-    std::vector<uint32_t> generation;
+    std::vector<uint32_t> generations;
     std::vector<int32_t> parent;
     std::vector<int32_t> path;
     std::vector<node> heap;
-    uint32_t current_generation{};
+    uint32_t generation{};
     uint32_t tiebreak{};
   };
 
@@ -62,7 +62,7 @@ private:
 
   float _size{};
   float _inverse{};
-  struct viewport _viewport_snapshot{};
+  struct viewport _snapshot{};
 
   int32_t _width{};
   int32_t _height{};
