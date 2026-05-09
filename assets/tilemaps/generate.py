@@ -257,30 +257,36 @@ def _diagonal_safe(blocked: np.ndarray, r: int, c: int, dr: int, dc: int) -> boo
 def _is_cardinal_jump_point(blocked: np.ndarray, r: int, c: int, d: int) -> bool:
     """A walkable cell (r,c) reached by moving in cardinal direction d is a
     primary jump point if it has a forced neighbor on either perpendicular
-    side. The parent is at (r - DR[d], c - DC[d])."""
+    side. The parent is at (r - DR[d], c - DC[d]). No-corner-cutting rule:
+    the forced neighbor is the perpendicular cardinal of self (reachable
+    only through self when the parent's perpendicular cardinal is blocked)."""
     height, width = blocked.shape
     pr, pc = r - DR[d], c - DC[d]
     if d in (0, 1):
-        # Cardinal East/West: perpendicular axis is row.
         for dr in (-1, 1):
             par_perp_r, par_perp_c = pr + dr, pc
-            forward_r, forward_c = r + dr, c + DC[d]
+            self_perp_r, self_perp_c = r + dr, c
             if not (0 <= par_perp_r < height and 0 <= par_perp_c < width):
                 continue
-            if not (0 <= forward_r < height and 0 <= forward_c < width):
+            if not (0 <= self_perp_r < height and 0 <= self_perp_c < width):
                 continue
-            if blocked[par_perp_r, par_perp_c] and not blocked[forward_r, forward_c]:
+            if (
+                blocked[par_perp_r, par_perp_c]
+                and not blocked[self_perp_r, self_perp_c]
+            ):
                 return True
     else:
-        # Cardinal North/South: perpendicular axis is column.
         for dc in (-1, 1):
             par_perp_r, par_perp_c = pr, pc + dc
-            forward_r, forward_c = r + DR[d], c + dc
+            self_perp_r, self_perp_c = r, c + dc
             if not (0 <= par_perp_r < height and 0 <= par_perp_c < width):
                 continue
-            if not (0 <= forward_r < height and 0 <= forward_c < width):
+            if not (0 <= self_perp_r < height and 0 <= self_perp_c < width):
                 continue
-            if blocked[par_perp_r, par_perp_c] and not blocked[forward_r, forward_c]:
+            if (
+                blocked[par_perp_r, par_perp_c]
+                and not blocked[self_perp_r, self_perp_c]
+            ):
                 return True
     return False
 

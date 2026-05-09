@@ -31,17 +31,17 @@ static float hit(b2ShapeId, b2Vec2, b2Vec2, float, void* userdata) noexcept {
 
 static bool snap(int32_t& column, int32_t& row, int32_t width, int32_t height, const uint16_t* noalias components) noexcept {
   const auto i = static_cast<size_t>(row * width + column);
-  if (components[i] != 0xFFFFu) return true;
+  if (components[i] != 0xFFFFu) [[likely]] return true;
 
   static constexpr auto MAXSNAP = 4;
   for (int32_t r = 1; r <= MAXSNAP; ++r) {
     for (int32_t dr = -r; dr <= r; ++dr) {
       for (int32_t dc = -r; dc <= r; ++dc) {
-        if (std::abs(dr) != r && std::abs(dc) != r) continue;
+        if (std::abs(dr) != r && std::abs(dc) != r) [[likely]] continue;
         const auto nr = row + dr;
         const auto nc = column + dc;
-        if (nr < 0 || nr >= height || nc < 0 || nc >= width) continue;
-        if (components[static_cast<size_t>(nr * width + nc)] != 0xFFFFu) {
+        if (nr < 0 || nr >= height || nc < 0 || nc >= width) [[unlikely]] continue;
+        if (components[static_cast<size_t>(nr * width + nc)] != 0xFFFFu) [[likely]] {
           column = nc;
           row = nr;
 
@@ -56,7 +56,7 @@ static bool snap(int32_t& column, int32_t& row, int32_t width, int32_t height, c
 
 static bool vacant(const std::vector<uint32_t>& tiles) noexcept {
   for (const auto t : tiles)
-    if (t != 0) return false;
+    if (t != 0) [[likely]] return false;
 
   return true;
 }
@@ -84,7 +84,7 @@ static void buffers(tilemap::layer& layer, size_t capacity) {
 }
 
 static void prepare(tilemap::layer& layer, std::string_view name, std::string_view path, float size, float inverse) {
-  if (layer.tiles.empty())
+  if (layer.tiles.empty()) [[unlikely]]
     return;
 
   layer.atlas = depot->pixmap.get(std::format("tilemaps/{}/{}", name, path));
@@ -177,9 +177,9 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
     offset += n * sizeof(int16_t);
   }
 
-  if (vacant(_background.tiles))
+  if (vacant(_background.tiles)) [[unlikely]]
     _background.tiles.clear();
-  if (vacant(_foreground.tiles))
+  if (vacant(_foreground.tiles)) [[unlikely]]
     _foreground.tiles.clear();
 
   {
@@ -215,7 +215,7 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
             }
           }
 
-          if (!valid)
+          if (!valid) [[unlikely]]
             break;
 
           ++rh;
@@ -254,9 +254,9 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   const auto ty = static_cast<size_t>(viewport.height * _inverse) + 2;
   const auto capacity = tx * ty;
 
-  if (_background.atlas)
+  if (_background.atlas) [[likely]]
     buffers(_background, capacity);
-  if (_foreground.atlas)
+  if (_foreground.atlas) [[likely]]
     buffers(_foreground, capacity);
 }
 
@@ -267,7 +267,7 @@ void tilemap::draw_background() {
   if (_snapshot != viewport) [[unlikely]]
     _dirty = true;
 
-  if (_dirty)
+  if (_dirty) [[unlikely]]
     tessellate(_background);
 
   const auto nv = static_cast<int>(_background.vertices.size());
@@ -280,7 +280,7 @@ void tilemap::draw_background() {
     nv / 4 * 6
   );
 
-  if (!_foreground.atlas) {
+  if (!_foreground.atlas) [[unlikely]] {
     _snapshot = viewport;
     _dirty = false;
   }
@@ -290,7 +290,7 @@ void tilemap::draw_foreground() {
   if (!_foreground.atlas) [[unlikely]]
     return;
 
-  if (_dirty)
+  if (_dirty) [[unlikely]]
     tessellate(_foreground);
 
   _snapshot = viewport;
@@ -308,7 +308,7 @@ void tilemap::draw_foreground() {
 }
 
 bool tilemap::greater(const node& a, const node& b) noexcept {
-  if (a.f != b.f) return a.f > b.f;
+  if (a.f != b.f) [[likely]] return a.f > b.f;
   return a.tiebreak > b.tiebreak;
 }
 
@@ -379,14 +379,14 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
     _pathfinder.heap.pop_back();
 
     const auto current = top.index;
-    if (current == goal) break;
+    if (current == goal) [[unlikely]] break;
 
     const auto ci = static_cast<size_t>(current);
     const auto cg = costs[ci];
     const auto cr = row(current, _width);
     const auto cc = column(current, _width);
 
-    if (top.f > cg + octile(cc, cr, ec, er) + .001f) continue;
+    if (top.f > cg + octile(cc, cr, ec, er) + .001f) [[unlikely]] continue;
 
     const auto gr = row(goal, _width);
     const auto gc = column(goal, _width);
@@ -397,7 +397,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
 
     for (size_t d = 0; d < 8; ++d) {
       const auto k = static_cast<int32_t>(jumps[d][ci]);
-      if (k == 0) continue;
+      if (k == 0) [[unlikely]] continue;
 
       const auto sdr = DR[d];
       const auto sdc = DC[d];
@@ -410,10 +410,10 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
 
       int32_t target;
       float cost;
-      if (distance > 0 && distance <= maxsteps) {
+      if (distance > 0 && distance <= maxsteps) [[unlikely]] {
         target = goal;
         cost = stepcost * static_cast<float>(distance);
-      } else if (k > 0) {
+      } else if (k > 0) [[likely]] {
         target = current + k * (sdr * _width + sdc);
         cost = stepcost * static_cast<float>(k);
       } else {
@@ -422,7 +422,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
 
       const auto ti = static_cast<size_t>(target);
       const auto newg = cg + cost;
-      if (generations[ti] == generation && newg >= costs[ti]) continue;
+      if (generations[ti] == generation && newg >= costs[ti]) [[unlikely]] continue;
 
       costs[ti] = newg;
       generations[ti] = generation;
@@ -443,10 +443,11 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
       parents[static_cast<size_t>(goal)] != -1) [[likely]] {
     for (auto current = goal; current != -1; current = parents[static_cast<size_t>(current)])
       _pathfinder.path.emplace_back(current);
+
     std::ranges::reverse(_pathfinder.path);
   }
 
-  if (_pathfinder.path.size() > 2) {
+  if (_pathfinder.path.size() > 2) [[likely]] {
     const auto filter = b2DefaultQueryFilter();
     b2ShapeProxy proxy{};
     proxy.count = 1;
@@ -461,7 +462,7 @@ int tilemap::pathfind(lua_State* state, float x1, float y1, float x2, float y2, 
       auto blocked = false;
       b2World_CastShape(_world, &proxy, translation, filter, hit, &blocked);
 
-      if (blocked)
+      if (blocked) [[unlikely]]
         _pathfinder.path[write++] = _pathfinder.path[read];
     }
     _pathfinder.path[write++] = _pathfinder.path.back();
