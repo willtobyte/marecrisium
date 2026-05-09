@@ -128,10 +128,6 @@ foreground::foreground(std::string_view name) {
   _vertices.reserve(2048);
   _indices.reserve(3072);
 
-  const auto pixmap_path = std::format("foregrounds/{}/pixmap", name);
-  if (io::exists(std::format("blobs/{}.png", pixmap_path)))
-    _texture = depot->pixmap.get(pixmap_path);
-
   const auto filename = std::format("foregrounds/{}.lua", name);
   const auto buffer = io::read(filename);
   const auto chunk = std::format("@{}", filename);
@@ -139,7 +135,10 @@ foreground::foreground(std::string_view name) {
 
   pcall(L, 0, 1);
 
-  if (_texture) [[likely]] {
+  const auto pp = std::format("foregrounds/{}/pixmap", name);
+  if (io::exists(std::format("blobs/{}.png", pp))) {
+    _texture = depot->pixmap.get(pp);
+
     lua_newtable(L);
     lua_pushnumber(L, static_cast<lua_Number>(_texture->width()));
     lua_setfield(L, -2, "width");
