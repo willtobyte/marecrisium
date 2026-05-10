@@ -1,17 +1,13 @@
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <format>
 #include <print>
-#include <string_view>
-#include <vector>
 
 #include <enet/enet.h>
 #include <flatbuffers/flatbuffers.h>
 #include <rpc_generated.h>
 
 int main() {
-  std::setvbuf(stdout, nullptr, _IOLBF, 0);
+  std::setvbuf(stdout, nullptr, _IONBF, 0);
 
   enet_initialize();
   std::atexit([]{ enet_deinitialize(); });
@@ -27,6 +23,31 @@ int main() {
   for (;;) {
     ENetEvent event;
     while (enet_host_service(host, &event, 100) > 0) {
+      switch (event.type) {
+        case ENET_EVENT_TYPE_CONNECT:
+          std::println("connect from {}.{}.{}.{}:{}",
+            (event.peer->address.host)       & 0xffu,
+            (event.peer->address.host >>  8) & 0xffu,
+            (event.peer->address.host >> 16) & 0xffu,
+            (event.peer->address.host >> 24) & 0xffu,
+            event.peer->address.port);
+          break;
+
+        case ENET_EVENT_TYPE_DISCONNECT:
+          std::println("disconnect");
+          event.peer->data = nullptr;
+          break;
+
+        case ENET_EVENT_TYPE_RECEIVE:
+          std::println("receive {} bytes on channel {}",
+            event.packet->dataLength,
+            static_cast<unsigned>(event.channelID));
+          enet_packet_destroy(event.packet);
+          break;
+
+        case ENET_EVENT_TYPE_NONE:
+          break;
+      }
     }
   }
 

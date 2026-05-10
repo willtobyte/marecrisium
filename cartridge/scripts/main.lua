@@ -32,10 +32,12 @@ return {
 
 		print(format("[director] enrolled all scenes in %.2f ms", elapsed))
 
-		-- internet.connect("127.0.0.1", 7777)
-		-- internet.greet("World", function(result) print(result) end)
-		-- internet.watch("countdown", 5, function(value) print("[countdown]", value) end)
-		-- internet.subscribe("tick", function(n) print("[tick]", n) end)
+		print(
+			"[client] connect accepted:",
+			internet.connect("127.0.0.1", 7777, function(ok)
+				print("[client] connect callback:", ok)
+			end)
+		)
 
 		director.navigate("forest")
 	end,
