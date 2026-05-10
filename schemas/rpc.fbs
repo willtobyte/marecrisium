@@ -1,0 +1,21 @@
+namespace game;
+
+table boolean { x: bool; }
+table integer { x: int64; }
+table real { x: double; }
+table text { x: string; }
+
+union value { boolean, integer, real, text }
+
+table request {
+  id: uint64;
+  method: string;
+  args: [value];
+}
+
+table reply {
+  id: uint64;
+  method: string;
+  results: [value];
+  done: bool;
+}
