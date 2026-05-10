@@ -60,7 +60,7 @@ jobs:
           cmake --build build --config Release --verbose
 
       - name: Setup uv
-        uses: astral-sh/setup-uv
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: Package cartridge
         run: uv run tools/pack.py cartridge
