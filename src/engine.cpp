@@ -173,7 +173,7 @@ void engine::loop() {
 
   lua_gc(L, LUA_GCSTEP, lua_gc(L, LUA_GCCOUNT, 0) > 4096 ? 240 : 80);
 
-  internet::tick();
+  // internet::tick();
 
   _director.transition();
 
@@ -186,12 +186,12 @@ void engine::loop() {
     }
   }
 
-  _director.update(delta);
+  // _director.update(delta);
 
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_RenderClear(renderer);
 
-  _director.draw();
+  // _director.draw();
 
   SDL_RenderPresent(renderer);
 
