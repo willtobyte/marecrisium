@@ -5,15 +5,6 @@ namespace {
   static int disconnect_ref = LUA_NOREF;
   static bool connected = false;
 
-  static void release() noexcept {
-    if (peer) {
-      enet_peer_reset(peer);
-      peer = nullptr;
-    }
-
-    connected = false;
-  }
-
   static void fire(int &reference, bool argument, bool include) noexcept {
     if (reference == LUA_NOREF) [[likely]] return;
     lua_rawgeti(L, LUA_REGISTRYINDEX, reference);
@@ -33,23 +24,6 @@ namespace {
     const auto *target = luaL_checkstring(state, 1);
     const auto port = static_cast<enet_uint16>(luaL_checkinteger(state, 2));
     const auto has_callback = lua_isfunction(state, 3);
-
-    if (!host) {
-      host = enet_host_create(nullptr, 1, 1, 0, 0);
-      if (!host) [[unlikely]] {
-        lua_pushboolean(state, 0);
-        return 1;
-      }
-
-      std::atexit([]{
-        release();
-
-        if (host) {
-          enet_host_destroy(host);
-          host = nullptr;
-        }
-      });
-    }
 
     ENetAddress address{};
     if (enet_address_set_host(&address, target) != 0) [[unlikely]] {
@@ -102,6 +76,17 @@ namespace {
 }
 
 void internet::wire() {
+  host = enet_host_create(nullptr, 1, 1, 0, 0);
+  [[assume(host != nullptr)]];
+
+  std::atexit([]{
+    if (peer) {
+      enet_peer_reset(peer);
+    }
+
+    enet_host_destroy(host);
+  });
+
   lua_newtable(L);
 
   lua_pushcfunction(L, connect);
@@ -117,8 +102,6 @@ void internet::wire() {
 }
 
 void internet::tick() {
-  if (!host) return;
-
   ENetEvent event;
   while (enet_host_service(host, &event, 0) > 0) {
     switch (event.type) {
