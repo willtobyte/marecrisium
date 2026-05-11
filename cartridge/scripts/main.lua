@@ -32,6 +32,13 @@ return {
 
 		print(format("[director] enrolled all scenes in %.2f ms", elapsed))
 
+		print(
+			"[client] connect accepted:",
+			internet.connect("127.0.0.1", 7777, function(ok)
+				print("[client] connect callback:", ok)
+			end)
+		)
+
 		director.navigate("forest")
 	end,
 }

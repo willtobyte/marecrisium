@@ -715,7 +715,6 @@ platform = {}
 
 ---Open a URL in the system's default browser or handler.
 ---@param url string The URL to open.
----@return boolean success Whether the operation succeeded.
 function openurl(url) end
 
 --------------------------------------------------------------------------------
@@ -725,21 +724,20 @@ function openurl(url) end
 ---@class Internet
 internet = {}
 
----Initiates an asynchronous connection to a server. Returns false if a
----connection is already active or if the address could not be resolved.
----The optional callback fires once with true on a successful CONNECT event,
----or with false if the attempt fails before completing.
+---Initiates an asynchronous connection to a server. The optional callback
+---fires once with true on a successful CONNECT event, or with false if the
+---attempt fails before completing. The call is silently ignored when a
+---connection is already active or when the address cannot be resolved.
 ---@param host string Hostname or IP address.
 ---@param port integer TCP/UDP port (1-65535).
 ---@param callback fun(ok: boolean)?
----@return boolean accepted Whether the attempt was scheduled.
 function internet.connect(host, port, callback) end
 
----Initiates a graceful disconnect from the current peer. Returns false if
----no connection is active. The optional callback fires once after the
----DISCONNECT event drains, regardless of cause (graceful or timeout).
+---Initiates a graceful disconnect from the current peer. The optional
+---callback fires once after the DISCONNECT event drains, regardless of
+---cause (graceful or timeout). The call is silently ignored when no
+---connection is active.
 ---@param callback fun()?
----@return boolean accepted Whether the request was scheduled.
 function internet.disconnect(callback) end
 
 --------------------------------------------------------------------------------

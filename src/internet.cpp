@@ -16,46 +16,28 @@ namespace {
   }
 
   static int connect(lua_State *state) {
-    if (connected || peer) {
-      lua_pushboolean(state, 0);
-      return 1;
-    }
+    if (connected || peer) return 0;
 
     const auto *target = luaL_checkstring(state, 1);
     const auto port = static_cast<enet_uint16>(luaL_checkinteger(state, 2));
-    const auto has_callback = lua_isfunction(state, 3);
 
     ENetAddress address{};
-    if (enet_address_set_host(&address, target) != 0) [[unlikely]] {
-      lua_pushboolean(state, 0);
-      return 1;
-    }
+    if (enet_address_set_host(&address, target) != 0) [[unlikely]] return 0;
     address.port = port;
 
     peer = enet_host_connect(host, &address, 1, 0);
-    if (!peer) [[unlikely]] {
-      lua_pushboolean(state, 0);
-      return 1;
-    }
+    if (!peer) [[unlikely]] return 0;
 
-    if (connect_ref != LUA_NOREF) {
-      luaL_unref(state, LUA_REGISTRYINDEX, connect_ref);
-      connect_ref = LUA_NOREF;
-    }
-    if (has_callback) {
+    if (lua_isfunction(state, 3)) {
       lua_pushvalue(state, 3);
       connect_ref = luaL_ref(state, LUA_REGISTRYINDEX);
     }
 
-    lua_pushboolean(state, 1);
-    return 1;
+    return 0;
   }
 
   static int disconnect(lua_State *state) {
-    if (!peer) {
-      lua_pushboolean(state, 0);
-      return 1;
-    }
+    if (!peer) return 0;
 
     if (lua_isfunction(state, 1)) {
       if (disconnect_ref != LUA_NOREF) luaL_unref(state, LUA_REGISTRYINDEX, disconnect_ref);
@@ -64,14 +46,13 @@ namespace {
     }
 
     enet_peer_disconnect(peer, 0);
-    lua_pushboolean(state, 1);
-    return 1;
+    return 0;
   }
 
   static int openurl(lua_State *state) {
     const auto *url = luaL_checkstring(state, 1);
-    lua_pushboolean(state, SDL_OpenURL(url) ? 1 : 0);
-    return 1;
+    SDL_OpenURL(url);
+    return 0;
   }
 }
 
