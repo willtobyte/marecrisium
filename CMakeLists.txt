@@ -50,6 +50,7 @@ find_package(SQLite3 CONFIG REQUIRED)
 find_package(unordered_dense CONFIG REQUIRED)
 find_package(yyjson CONFIG REQUIRED)
 find_package(zstd CONFIG REQUIRED)
+find_package(mimalloc CONFIG REQUIRED)
 
 set(GENERATED "${CMAKE_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${GENERATED}")
@@ -68,6 +69,7 @@ add_dependencies(${PROJECT_NAME} schemas)
 target_include_directories(${PROJECT_NAME} PRIVATE "${GENERATED}")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
+  $<$<NOT:$<CONFIG:Debug>>:mimalloc-static>
   box2d::box2d
   enet::enet
   EnTT::EnTT

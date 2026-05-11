@@ -13,6 +13,7 @@ class Carimbo(ConanFile):
             "entt/3.16.0",
             "flatbuffers/25.9.23",
             "miniaudio/0.11.22",
+            "mimalloc/3.2.8",
             "physfs/3.2.0",
             "libspng/0.7.4",
             "sdl/3.4.0",
@@ -30,6 +31,13 @@ class Carimbo(ConanFile):
         self.options["miniaudio"].header_only = True
         self.options["sentry-native"].backend = "inproc"
         self.options["sentry-native"].shared = False
+
+        self.options["mimalloc"].shared = False
+        self.options["mimalloc"].secure = False
+        self.options["mimalloc"].override = True
+        if self.settings.os != "Windows":
+            self.options["mimalloc"].single_object = True
+            self.options["mimalloc"].inject = False
 
     def generate(self):
         license_output = Path(self.build_folder) / "LICENSES"
