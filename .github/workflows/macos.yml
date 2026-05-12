@@ -18,6 +18,10 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+
+    env:
+      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -37,7 +41,7 @@ jobs:
           pkgconf/*: pkgconf/[*]
 
           [tool_requires]
-          !cmake/*: cmake/[>=3 <4]
+          !cmake/*: cmake/[>=4 <5]
           EOF
 
       - name: Cache Conan packages

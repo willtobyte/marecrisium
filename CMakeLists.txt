@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 4.0)
 project(carimbo LANGUAGES C CXX)
 
 set(CMAKE_CXX_EXTENSIONS ON)
@@ -69,7 +69,7 @@ add_dependencies(${PROJECT_NAME} schemas)
 target_include_directories(${PROJECT_NAME} PRIVATE "${GENERATED}")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-  $<$<NOT:$<CONFIG:Debug>>:mimalloc-static>
+  $<$<NOT:$<CONFIG:Debug>>:$<LINK_LIBRARY:WHOLE_ARCHIVE,mimalloc-static>>
   box2d::box2d
   enet::enet
   EnTT::EnTT
