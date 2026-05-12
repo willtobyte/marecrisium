@@ -32,7 +32,9 @@ jobs:
           EOF
 
       - name: Export local recipes
-        run: conan export recipes/luajit --version=2.1-20260330
+        run: |
+          conan export recipes/luajit --version=2.1-20260330
+          conan export recipes/mimalloc --version=3.3.2
 
       - name: Restore Conan cache
         uses: actions/cache/restore@v5
@@ -43,7 +45,7 @@ jobs:
             conan-${{ runner.os }}-
 
       - name: Install dependencies
-        run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release
+        run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release --settings compiler.runtime=static
 
       - name: Build
         run: |
@@ -106,7 +108,9 @@ jobs:
           EOF
 
       - name: Export local recipes
-        run: conan export recipes/luajit --version=2.1-20260330
+        run: |
+          conan export recipes/luajit --version=2.1-20260330
+          conan export recipes/mimalloc --version=3.3.2
 
       - name: Restore Conan cache
         uses: actions/cache/restore@v5
@@ -117,7 +121,7 @@ jobs:
             conan-${{ runner.os }}-
 
       - name: Install dependencies
-        run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release
+        run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release --settings compiler.runtime=static
 
       - name: Build
         env:

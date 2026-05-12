@@ -87,10 +87,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   zstd::libzstd_static
 )
 
-target_link_options(${PROJECT_NAME} PRIVATE
-  $<$<AND:$<NOT:$<CONFIG:Debug>>,$<CXX_COMPILER_ID:MSVC>>:/WHOLEARCHIVE:mimalloc.lib>
-)
-
 target_precompile_headers(${PROJECT_NAME} PRIVATE ${HEADER_FILES})
 
 add_executable(server server/main.cpp)

@@ -13,7 +13,7 @@ class Carimbo(ConanFile):
             "entt/3.16.0",
             "flatbuffers/25.9.23",
             "miniaudio/0.11.22",
-            "mimalloc/3.2.8",
+            "mimalloc/3.3.2",
             "physfs/3.2.0",
             "libspng/0.7.4",
             "sdl/3.4.0",
