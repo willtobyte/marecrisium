@@ -69,7 +69,7 @@ add_dependencies(${PROJECT_NAME} schemas)
 target_include_directories(${PROJECT_NAME} PRIVATE "${GENERATED}")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-  $<$<NOT:$<CONFIG:Debug>>:$<LINK_LIBRARY:WHOLE_ARCHIVE,mimalloc-static>>
+  $<$<NOT:$<CONFIG:Debug>>:mimalloc-static>
   box2d::box2d
   enet::enet
   EnTT::EnTT
@@ -85,6 +85,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   unordered_dense::unordered_dense
   yyjson::yyjson
   zstd::libzstd_static
+)
+
+target_link_options(${PROJECT_NAME} PRIVATE
+  $<$<AND:$<NOT:$<CONFIG:Debug>>,$<CXX_COMPILER_ID:MSVC>>:/WHOLEARCHIVE:mimalloc.lib>
 )
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE ${HEADER_FILES})
