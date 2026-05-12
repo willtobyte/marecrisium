@@ -180,6 +180,8 @@ jobs:
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.1.0
+        with:
+          cache-dependency-glob: tools/pack.py
 
       - name: Package cartridge
         run: uv run tools/pack.py cartridge
