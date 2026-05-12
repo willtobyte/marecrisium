@@ -35,9 +35,7 @@ class Carimbo(ConanFile):
         self.options["mimalloc"].shared = False
         self.options["mimalloc"].secure = False
         self.options["mimalloc"].override = True
-        if self.settings.os != "Windows":
-            self.options["mimalloc"].single_object = True
-            self.options["mimalloc"].inject = False
+        self.options["mimalloc"].single_object = self.settings.os != "Windows"
 
     def generate(self):
         license_output = Path(self.build_folder) / "LICENSES"
