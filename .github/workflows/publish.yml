@@ -45,7 +45,7 @@ jobs:
             conan-${{ runner.os }}-
 
       - name: Install dependencies
-        run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release --settings compiler.runtime=static
+        run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release
 
       - name: Build
         run: |
