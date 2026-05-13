@@ -66,6 +66,9 @@ build: ## Builds the project
 		--verbose
 
 run: build ## Builds and runs the project
+	pkill -f 'build/server/server' 2>/dev/null || true; \
+	./build/server/server & PID=$$!; \
+	trap "kill $$PID 2>/dev/null || true" EXIT; \
 	CARTRIDGE=$(CARTRIDGE) WINDOWED=1 lldb -o run -- ./build/carimbo
 
 help:

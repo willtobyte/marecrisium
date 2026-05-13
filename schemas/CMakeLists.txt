@@ -12,9 +12,9 @@ add_custom_command(
   VERBATIM
 )
 
-add_custom_target(codegen DEPENDS "${GENERATED}/rpc_generated.h")
+add_custom_target(rpc_codegen DEPENDS "${GENERATED}/rpc_generated.h")
 
 add_library(rpc INTERFACE)
-add_dependencies(rpc codegen)
+add_dependencies(rpc rpc_codegen)
 target_include_directories(rpc INTERFACE "${GENERATED}")
 target_link_libraries(rpc INTERFACE flatbuffers::flatbuffers)
