@@ -55,7 +55,6 @@ jobs:
       - name: Export local recipes
         run: |
           conan export recipes/luajit --version=2.1-20260330
-          conan export recipes/mimalloc --version=3.3.2
 
       - name: Install dependencies
         run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release

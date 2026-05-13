@@ -34,7 +34,6 @@ jobs:
       - name: Export local recipes
         run: |
           conan export recipes/luajit --version=2.1-20260330
-          conan export recipes/mimalloc --version=3.3.2
 
       - name: Restore Conan cache
         uses: actions/cache/restore@v5
@@ -110,7 +109,6 @@ jobs:
       - name: Export local recipes
         run: |
           conan export recipes/luajit --version=2.1-20260330
-          conan export recipes/mimalloc --version=3.3.2
 
       - name: Restore Conan cache
         uses: actions/cache/restore@v5
