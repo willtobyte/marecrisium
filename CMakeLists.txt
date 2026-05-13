@@ -38,7 +38,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 find_package(box2d CONFIG REQUIRED)
 find_package(enet CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
-find_package(flatbuffers CONFIG REQUIRED)
 find_package(PhysFS CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(sentry CONFIG REQUIRED)
@@ -52,28 +51,13 @@ find_package(yyjson CONFIG REQUIRED)
 find_package(zstd CONFIG REQUIRED)
 find_package(mimalloc CONFIG REQUIRED)
 
-set(GENERATED "${CMAKE_BINARY_DIR}/generated")
-file(MAKE_DIRECTORY "${GENERATED}")
-
-set(SCHEMA "${CMAKE_SOURCE_DIR}/schemas/rpc.fbs")
-
-add_custom_command(
-  OUTPUT  "${GENERATED}/rpc_generated.h"
-  COMMAND $<TARGET_FILE:flatbuffers::flatc> --cpp -o "${GENERATED}" "${SCHEMA}"
-  DEPENDS "${SCHEMA}" flatbuffers::flatc
-  VERBATIM
-)
-
-add_custom_target(schemas DEPENDS "${GENERATED}/rpc_generated.h")
-add_dependencies(${PROJECT_NAME} schemas)
-target_include_directories(${PROJECT_NAME} PRIVATE "${GENERATED}")
+add_subdirectory(schemas)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
   $<$<NOT:$<CONFIG:Debug>>:mimalloc-static>
   box2d::box2d
   enet::enet
   EnTT::EnTT
-  flatbuffers::flatbuffers
   physfs-static
   SDL3::SDL3-static
   sentry-native::sentry-native
@@ -85,15 +69,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   unordered_dense::unordered_dense
   yyjson::yyjson
   zstd::libzstd_static
+  rpc
 )
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE ${HEADER_FILES})
-
-add_executable(server server/main.cpp)
-add_dependencies(server schemas)
-target_include_directories(server PRIVATE "${GENERATED}")
-target_link_libraries(server PRIVATE
-  enet::enet
-  flatbuffers::flatbuffers
-  unordered_dense::unordered_dense
-)

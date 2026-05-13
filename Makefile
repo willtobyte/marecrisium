@@ -53,6 +53,17 @@ build: ## Builds the project
 		--parallel $(NCPUS) \
 		--config $(BUILDTYPE) \
 		--verbose
+	cmake -S server -B build/server \
+		-DCMAKE_TOOLCHAIN_FILE=$(CURDIR)/build/conan_toolchain.cmake \
+		-DCMAKE_BUILD_TYPE=$(BUILDTYPE) \
+		-DCMAKE_C_FLAGS_DEBUG="$(DEBUG_CFLAGS)" \
+		-DCMAKE_CXX_FLAGS_DEBUG="$(DEBUG_CFLAGS)" \
+		-DCMAKE_EXE_LINKER_FLAGS_DEBUG="$(DEBUG_LDFLAGS)" \
+		$(EXTRA_FLAGS)
+	cmake --build build/server \
+		--parallel $(NCPUS) \
+		--config $(BUILDTYPE) \
+		--verbose
 
 run: build ## Builds and runs the project
 	CARTRIDGE=$(CARTRIDGE) WINDOWED=1 lldb -o run -- ./build/carimbo
