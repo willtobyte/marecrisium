@@ -17,7 +17,7 @@ on:
 
 jobs:
   build:
-    runs-on: depot-windows-latest
+    runs-on: warp-windows-latest-x64-8x
 
     env:
       CMAKE_POLICY_VERSION_MINIMUM: "3.5"
