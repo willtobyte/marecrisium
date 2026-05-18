@@ -75,7 +75,7 @@ jobs:
           path: artifact/
 
   windows:
-    runs-on: depot-windows-2022
+    runs-on: depot-windows-latest
 
     env:
       CMAKE_POLICY_VERSION_MINIMUM: "3.5"
@@ -147,7 +147,7 @@ jobs:
           path: artifact/
 
   publish:
-    runs-on: depot-ubuntu-24.04
+    runs-on: depot-ubuntu-latest
     needs: [macos, windows]
 
     env:
