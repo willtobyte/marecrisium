@@ -7,7 +7,7 @@ on:
 
 jobs:
   macos:
-    runs-on: macos-latest
+    runs-on: depot-macos-latest
 
     steps:
       - name: Checkout
@@ -75,7 +75,7 @@ jobs:
           path: artifact/
 
   windows:
-    runs-on: windows-latest
+    runs-on: depot-windows-2022
 
     env:
       CMAKE_POLICY_VERSION_MINIMUM: "3.5"
@@ -147,7 +147,7 @@ jobs:
           path: artifact/
 
   publish:
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04
     needs: [macos, windows]
 
     env:
