@@ -15,7 +15,7 @@ DIRECTORY = 1
 ALGO_RAW = 0
 ALGO_ZSTD_DICT = 1
 HEADER = 36
-RECORD = 24
+RECORD = 20
 CAPACITY = 131072
 LEVEL = 22
 TEST_LEVEL = 9
@@ -166,11 +166,6 @@ def main() -> int:
     prepared = [prepare(p) for p in encoded]
     seed, slots, buckets = build_perfect(prepared)
 
-    hashes = []
-    for p in prepared:
-        h = hashfn(p, seed)
-        hashes.append((h ^ (h >> 32)) & 0xFFFFFFFF)
-
     plain = zstandard.ZstdCompressor(level=LEVEL, threads=-1)
     buckets = plain.compress(struct.pack(f"<{slots}I", *buckets))
     strings = plain.compress(bytes(strings))
@@ -199,7 +194,7 @@ def main() -> int:
         data_offset = 0 if current["directory"] else base + cursor
         blob.extend(
             struct.pack(
-                "<IIIIHBBI",
+                "<IIIIHBB",
                 data_offset,
                 len(current["blob"]),
                 len(current["data"]),
@@ -207,7 +202,6 @@ def main() -> int:
                 len(encoded[index]),
                 flags,
                 current["algorithm"],
-                hashes[index],
             )
         )
         cursor += len(current["blob"])

@@ -3,7 +3,7 @@ constexpr uint8_t DIRECTORY = 1;
 constexpr uint8_t ALGO_RAW = 0;
 constexpr uint8_t ALGO_ZSTD_DICT = 1;
 constexpr size_t HEADER = 36;
-constexpr size_t RECORD = 24;
+constexpr size_t RECORD = 20;
 constexpr uint32_t EMPTY = UINT32_MAX;
 constexpr uint64_t PRIME = 0x9e3779b97f4a7c15ull;
 
@@ -19,7 +19,6 @@ struct record final {
   uint16_t length;
   uint8_t flags;
   uint8_t algorithm;
-  uint32_t hash;
 };
 
 static_assert(sizeof(record) == RECORD, "record layout must match on-disk size");
@@ -78,8 +77,6 @@ struct handle final {
   const auto slot = static_cast<size_t>(h) & (cartridge->buckets.size() - 1);
   const auto index = cartridge->buckets[slot];
   if (index == EMPTY) [[unlikely]]
-    return SIZE_MAX;
-  if (cartridge->records[index].hash != static_cast<uint32_t>(h ^ (h >> 32))) [[unlikely]]
     return SIZE_MAX;
 
   return index;
