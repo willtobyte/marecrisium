@@ -14,11 +14,22 @@ MAGIC = 0x4D4F5243
 DIRECTORY = 1
 ALGO_RAW = 0
 ALGO_ZSTD_DICT = 1
-HEADER = 16
+HEADER = 24
 RECORD = 32
 CAPACITY = 131072
 LEVEL = 22
 TEST_LEVEL = 9
+EMPTY = 0xFFFFFFFF
+FNV_PRIME = 0x100000001B3
+MASK64 = 0xFFFFFFFFFFFFFFFF
+SEED_BUDGET = 1 << 20
+
+
+def hashfn(data: bytes, seed: int) -> int:
+    h = seed
+    for b in data:
+        h = ((h ^ b) * FNV_PRIME) & MASK64
+    return h
 
 
 def main() -> int:
@@ -108,10 +119,45 @@ def main() -> int:
     count = len(sources)
     stringsize = len(strings)
     trainsize = len(trained)
-    base = HEADER + count * RECORD + stringsize + trainsize
+
+    slots = (
+        1 << max(2, (max(count * 2, count * count // 4) - 1).bit_length())
+        if count
+        else 4
+    )
+    seed = 0
+    if count:
+        while True:
+            mask = slots - 1
+            found = None
+            for candidate in range(SEED_BUDGET):
+                occupied = [False] * slots
+                ok = True
+                for path in encoded:
+                    slot = hashfn(path, candidate) & mask
+                    if occupied[slot]:
+                        ok = False
+                        break
+                    occupied[slot] = True
+                if ok:
+                    found = candidate
+                    break
+            if found is not None:
+                seed = found
+                break
+            slots *= 2
+
+    mask = slots - 1
+    buckets = [EMPTY] * slots
+    for index, path in enumerate(encoded):
+        buckets[hashfn(path, seed) & mask] = index
+
+    base = HEADER + count * RECORD + slots * 4 + stringsize + trainsize
 
     blob = bytearray()
-    blob.extend(struct.pack("<IIII", MAGIC, count, stringsize, trainsize))
+    blob.extend(
+        struct.pack("<IIIIII", MAGIC, count, stringsize, trainsize, slots, seed)
+    )
 
     cursor = 0
     for index, current in enumerate(sources):
@@ -131,6 +177,7 @@ def main() -> int:
         )
         cursor += len(current["blob"])
 
+    blob.extend(struct.pack(f"<{slots}I", *buckets))
     blob.extend(strings)
     blob.extend(trained)
 

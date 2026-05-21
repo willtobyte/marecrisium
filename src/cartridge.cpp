@@ -2,8 +2,10 @@ namespace {
 constexpr uint8_t DIRECTORY = 1;
 constexpr uint8_t ALGO_RAW = 0;
 constexpr uint8_t ALGO_ZSTD_DICT = 1;
-constexpr size_t HEADER = 16;
+constexpr size_t HEADER = 24;
 constexpr size_t RECORD = 32;
+constexpr uint32_t EMPTY = UINT32_MAX;
+constexpr uint64_t FNV_PRIME = 0x100000001b3ull;
 
 using decoder_t = std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)>;
 
@@ -27,6 +29,8 @@ struct archive final {
   decoder_t decoder{nullptr, ZSTD_freeDCtx};
   dictionary_t dictionary{nullptr, ZSTD_freeDDict};
   std::span<const record> records;
+  std::span<const uint32_t> buckets;
+  uint32_t seed{};
   size_t strings{};
 };
 
@@ -46,20 +50,25 @@ struct handle final {
   return {reinterpret_cast<const char *>(cartridge->manifest.data() + cartridge->strings + r.path_offset), r.path_length};
 }
 
-template <std::integral Integer>
-[[nodiscard]] Integer read(const uint8_t *pointer) noexcept {
-  Integer value;
-  std::memcpy(&value, pointer, sizeof(Integer));
-  return value;
+[[nodiscard]] constexpr uint64_t hashfn(std::string_view name, uint64_t seed) noexcept {
+  uint64_t h = seed;
+  for (const auto c : name) {
+    h ^= static_cast<uint8_t>(c);
+    h *= FNV_PRIME;
+  }
+
+  return h;
 }
 
 [[nodiscard]] size_t locate(const archive *cartridge, std::string_view name) noexcept {
-  const auto &records = cartridge->records;
-  const auto it = std::ranges::lower_bound(records, name, {}, [&](const record &r) { return path_of(cartridge, r); });
-  if (it == records.end() || path_of(cartridge, *it) != name) [[unlikely]]
+  const auto slot = static_cast<size_t>(hashfn(name, cartridge->seed)) & (cartridge->buckets.size() - 1);
+  const auto index = cartridge->buckets[slot];
+  if (index == EMPTY) [[unlikely]]
+    return SIZE_MAX;
+  if (path_of(cartridge, cartridge->records[index]) != name) [[unlikely]]
     return SIZE_MAX;
 
-  return static_cast<size_t>(it - records.begin());
+  return index;
 }
 
 PHYSFS_sint64 bank_read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
@@ -121,15 +130,18 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   if (!io->seek(io, 0)) [[unlikely]]
     return nullptr;
 
-  uint8_t header[HEADER];
+  alignas(uint64_t) uint8_t header[HEADER];
   if (io->read(io, header, HEADER) != static_cast<PHYSFS_sint64>(HEADER)) [[unlikely]]
     return nullptr;
 
-  const auto count = read<uint32_t>(header + 4);
-  const auto stringsize = read<uint32_t>(header + 8);
-  const auto trainsize = read<uint32_t>(header + 12);
+  const auto *fields = reinterpret_cast<const uint32_t *>(header);
+  const auto count = fields[1];
+  const auto stringsize = fields[2];
+  const auto trainsize = fields[3];
+  const auto slots = fields[4];
+  const auto seed = fields[5];
 
-  const auto size = HEADER + static_cast<size_t>(count) * RECORD + stringsize + trainsize;
+  const auto size = HEADER + static_cast<size_t>(count) * RECORD + static_cast<size_t>(slots) * sizeof(uint32_t) + stringsize + trainsize;
 
   auto cartridge = std::make_unique<archive>();
   cartridge->manifest.resize(size);
@@ -142,7 +154,10 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   const auto *p = cartridge->manifest.data();
   assert(reinterpret_cast<uintptr_t>(p) % alignof(record) == 0 && "manifest base pointer is not aligned for record access");
   cartridge->records = std::span<const record>{reinterpret_cast<const record *>(p + HEADER), count};
-  cartridge->strings = HEADER + static_cast<size_t>(count) * RECORD;
+  const auto offset = HEADER + static_cast<size_t>(count) * RECORD;
+  cartridge->buckets = std::span<const uint32_t>{reinterpret_cast<const uint32_t *>(p + offset), slots};
+  cartridge->seed = seed;
+  cartridge->strings = offset + static_cast<size_t>(slots) * sizeof(uint32_t);
 
   cartridge->decoder.reset(ZSTD_createDCtx());
   cartridge->dictionary.reset(ZSTD_createDDict_byReference(p + cartridge->strings + stringsize, trainsize));
