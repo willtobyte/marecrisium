@@ -59,8 +59,7 @@ struct handle final {
   while (n >= 8) {
     uint64_t chunk;
     std::memcpy(&chunk, p, 8);
-    const auto r = static_cast<__uint128_t>(h ^ chunk) * PRIME;
-    h = static_cast<uint64_t>(r) ^ static_cast<uint64_t>(r >> 64);
+    h = mix(h ^ chunk, PRIME);
     p += 8;
     n -= 8;
   }
@@ -68,8 +67,7 @@ struct handle final {
   if (n > 0) {
     uint64_t tail = 0;
     std::memcpy(&tail, p, n);
-    const auto r = static_cast<__uint128_t>(h ^ tail) * PRIME;
-    h = static_cast<uint64_t>(r) ^ static_cast<uint64_t>(r >> 64);
+    h = mix(h ^ tail, PRIME);
   }
 
   return h;
