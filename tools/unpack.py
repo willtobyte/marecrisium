@@ -11,7 +11,7 @@ from pathlib import Path
 import zstandard
 
 DIRECTORY = 1
-UNCOMPRESSED = 2
+ALGO_RAW = 0
 HEADER = 16
 RECORD = 32
 
@@ -35,9 +35,15 @@ def main() -> int:
 
     for index in range(count):
         offset = index * RECORD
-        data_offset, compressed, uncompressed, path_offset, path_length, flags, _ = (
-            struct.unpack_from("<QQQIHBB", records, offset)
-        )
+        (
+            data_offset,
+            compressed,
+            uncompressed,
+            path_offset,
+            path_length,
+            flags,
+            algorithm,
+        ) = struct.unpack_from("<QQQIHBB", records, offset)
 
         path = strings[path_offset : path_offset + path_length].decode("utf-8")
         destination = root / path
@@ -52,7 +58,7 @@ def main() -> int:
             destination.write_bytes(b"")
             continue
 
-        if flags & UNCOMPRESSED:
+        if algorithm == ALGO_RAW:
             destination.write_bytes(rom[data_offset : data_offset + uncompressed])
             continue
 

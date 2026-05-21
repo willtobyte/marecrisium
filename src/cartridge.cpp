@@ -1,6 +1,7 @@
 namespace {
 constexpr uint8_t DIRECTORY = 1;
-constexpr uint8_t UNCOMPRESSED = 2;
+constexpr uint8_t ALGO_RAW = 0;
+constexpr uint8_t ALGO_ZSTD_DICT = 1;
 constexpr size_t HEADER = 16;
 constexpr size_t RECORD = 32;
 
@@ -15,7 +16,7 @@ struct record final {
   uint32_t path_offset;
   uint16_t path_length;
   uint8_t flags;
-  uint8_t padding;
+  uint8_t algorithm;
 };
 
 static_assert(sizeof(record) == RECORD, "record layout must match on-disk size");
@@ -213,21 +214,28 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     [[maybe_unused]] const auto seeked = source->seek(source, found.position);
     assert(seeked && "failed to seek to record position in cartridge source");
 
-    if ((found.flags & UNCOMPRESSED) != 0) {
-      [[maybe_unused]] const auto bytes = source->read(source, tail, uncompressed);
-      assert(bytes == static_cast<PHYSFS_sint64>(uncompressed) && "short read for uncompressed record payload");
-    } else {
-      std::vector<uint8_t> scratch(compressed);
-      [[maybe_unused]] const auto bytes = source->read(source, scratch.data(), compressed);
-      assert(bytes == static_cast<PHYSFS_sint64>(compressed) && "short read for compressed record payload");
+    switch (found.algorithm) {
+      case ALGO_RAW: {
+        [[maybe_unused]] const auto bytes = source->read(source, tail, uncompressed);
+        assert(bytes == static_cast<PHYSFS_sint64>(uncompressed) && "short read for raw record payload");
+        break;
+      }
+      case ALGO_ZSTD_DICT: {
+        std::vector<uint8_t> scratch(compressed);
+        [[maybe_unused]] const auto bytes = source->read(source, scratch.data(), compressed);
+        assert(bytes == static_cast<PHYSFS_sint64>(compressed) && "short read for compressed record payload");
 
-      [[maybe_unused]] const auto result = ZSTD_decompress_usingDDict(
-        cartridge->decoder.get(),
-        tail, uncompressed,
-        scratch.data(), compressed,
-        cartridge->dictionary.get());
+        [[maybe_unused]] const auto result = ZSTD_decompress_usingDDict(
+          cartridge->decoder.get(),
+          tail, uncompressed,
+          scratch.data(), compressed,
+          cartridge->dictionary.get());
 
-      assert(result == uncompressed && "zstd decompressed size does not match expected record size");
+        assert(result == uncompressed && "zstd decompressed size does not match expected record size");
+        break;
+      }
+      default:
+        assert(false && "unknown record algorithm");
     }
   }
 

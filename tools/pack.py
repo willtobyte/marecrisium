@@ -10,17 +10,15 @@ from pathlib import Path
 
 import zstandard
 
-MAGIC = 0x43524F4D
+MAGIC = 0x4D4F5243
 DIRECTORY = 1
-UNCOMPRESSED = 2
+ALGO_RAW = 0
+ALGO_ZSTD_DICT = 1
 HEADER = 16
 RECORD = 32
 CAPACITY = 131072
 LEVEL = 22
-
-
-def skip(path: str) -> bool:
-    return path.endswith(".opus") or path.endswith(".png")
+TEST_LEVEL = 9
 
 
 def main() -> int:
@@ -47,7 +45,7 @@ def main() -> int:
                     "data": b"",
                     "blob": b"",
                     "directory": True,
-                    "uncompressed": False,
+                    "algorithm": ALGO_RAW,
                 }
             )
             continue
@@ -62,16 +60,20 @@ def main() -> int:
                 "data": data,
                 "blob": b"",
                 "directory": False,
-                "uncompressed": skip(path),
+                "algorithm": ALGO_ZSTD_DICT,
             }
         )
 
     sources.sort(key=lambda current: current["path"])
 
+    probe = zstandard.ZstdCompressor(level=TEST_LEVEL, threads=-1)
+
     samples = [
         current["data"]
         for current in sources
-        if not current["directory"] and not current["uncompressed"] and current["data"]
+        if not current["directory"]
+        and current["data"]
+        and len(probe.compress(current["data"])) < len(current["data"])
     ]
 
     dictionary = zstandard.train_dictionary(
@@ -87,10 +89,12 @@ def main() -> int:
     for current in sources:
         if current["directory"]:
             continue
-        if current["uncompressed"]:
+        compressed = encoder.compress(current["data"])
+        if len(compressed) < len(current["data"]):
+            current["blob"] = compressed
+        else:
             current["blob"] = current["data"]
-            continue
-        current["blob"] = encoder.compress(current["data"])
+            current["algorithm"] = ALGO_RAW
 
     strings = bytearray()
     offsets: list[int] = []
@@ -111,9 +115,7 @@ def main() -> int:
 
     cursor = 0
     for index, current in enumerate(sources):
-        flags = (DIRECTORY if current["directory"] else 0) | (
-            UNCOMPRESSED if current["uncompressed"] else 0
-        )
+        flags = DIRECTORY if current["directory"] else 0
         data_offset = 0 if current["directory"] else base + cursor
         blob.extend(
             struct.pack(
@@ -124,7 +126,7 @@ def main() -> int:
                 offsets[index],
                 len(encoded[index]),
                 flags,
-                0,
+                current["algorithm"],
             )
         )
         cursor += len(current["blob"])

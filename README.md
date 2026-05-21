@@ -3,11 +3,6 @@
 [![macOS](https://github.com/willtobyte/frenesi/actions/workflows/macos.yml/badge.svg)](https://github.com/willtobyte/frenesi/actions/workflows/macos.yml)
 [![Windows](https://github.com/willtobyte/frenesi/actions/workflows/windows.yml/badge.svg)](https://github.com/willtobyte/frenesi/actions/workflows/windows.yml)
 
-> - From where comes all this disbelief? It looks like a revolt... Against who?
-> - You have too much to learn, Antônio. I can't have disbelief if I never had belief...
-> To believe in what? In a symbol? In an absent force created by ignorance?
-> Yes, I'm a rebel... Against the fools like you!
-
 ## Engine
 
 Carimbo is an engine written in modern C++, using Box2D, EnTT,
