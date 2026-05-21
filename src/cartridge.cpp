@@ -4,6 +4,7 @@ constexpr uint8_t ALGO_RAW = 0;
 constexpr uint8_t ALGO_ZSTD_DICT = 1;
 constexpr size_t HEADER = 36;
 constexpr size_t RECORD = 20;
+constexpr size_t SCRATCH = 16uz * 1024 * 1024;
 constexpr uint32_t EMPTY = UINT32_MAX;
 constexpr uint64_t PRIME = 0x9e3779b97f4a7c15ull;
 
@@ -28,6 +29,7 @@ struct archive final {
   std::vector<uint8_t> manifest;
   std::vector<uint32_t> storage;
   std::vector<uint8_t> strings;
+  std::vector<uint8_t> scratch;
   decoder_t decoder{nullptr, ZSTD_freeDCtx};
   dictionary_t dictionary{nullptr, ZSTD_freeDDict};
   std::span<const record> records;
@@ -157,6 +159,7 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   const auto size = HEADER + static_cast<size_t>(count) * RECORD + buckets + strings + trainsize;
 
   auto cartridge = std::make_unique<archive>();
+  cartridge->scratch.reserve(SCRATCH);
   cartridge->manifest.resize(size);
   std::memcpy(cartridge->manifest.data(), header, HEADER);
 
@@ -259,14 +262,14 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
       }
 
       case ALGO_ZSTD_DICT: {
-        std::vector<uint8_t> scratch(compressed);
-        const auto bytes = source->read(source, scratch.data(), compressed);
+        cartridge->scratch.resize(std::max(cartridge->scratch.size(), compressed));
+        const auto bytes = source->read(source, cartridge->scratch.data(), compressed);
         [[assume(bytes == static_cast<PHYSFS_sint64>(compressed))]];
 
         const auto result = ZSTD_decompress_usingDDict(
           cartridge->decoder.get(),
           tail, uncompressed,
-          scratch.data(), compressed,
+          cartridge->scratch.data(), compressed,
           cartridge->dictionary.get());
 
         [[assume(result == uncompressed)]];
