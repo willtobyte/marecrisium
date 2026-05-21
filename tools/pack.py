@@ -14,22 +14,64 @@ MAGIC = 0x4D4F5243
 DIRECTORY = 1
 ALGO_RAW = 0
 ALGO_ZSTD_DICT = 1
-HEADER = 24
-RECORD = 32
+HEADER = 36
+RECORD = 24
 CAPACITY = 131072
 LEVEL = 22
 TEST_LEVEL = 9
 EMPTY = 0xFFFFFFFF
-FNV_PRIME = 0x100000001B3
+PRIME = 0x9E3779B97F4A7C15
 MASK64 = 0xFFFFFFFFFFFFFFFF
-SEED_BUDGET = 1 << 20
+SEED_BUDGET = 4096
 
 
-def hashfn(data: bytes, seed: int) -> int:
-    h = seed
-    for b in data:
-        h = ((h ^ b) * FNV_PRIME) & MASK64
+def prepare(data: bytes) -> tuple[tuple[int, ...], int, int]:
+    n = len(data)
+    head = n & ~7
+    chunks = struct.unpack(f"<{head >> 3}Q", data[:head]) if head else ()
+    tail = int.from_bytes(data[head:], "little") if head < n else 0
+    return chunks, tail, n
+
+
+def hashfn(prepared: tuple[tuple[int, ...], int, int], seed: int) -> int:
+    chunks, tail, n = prepared
+    h = seed ^ n
+    for chunk in chunks:
+        r = (h ^ chunk) * PRIME
+        h = (r & MASK64) ^ (r >> 64)
+    if n & 7:
+        r = (h ^ tail) * PRIME
+        h = (r & MASK64) ^ (r >> 64)
     return h
+
+
+def build_perfect(
+    prepared: list[tuple[tuple[int, ...], bytes]],
+) -> tuple[int, int, list[int]]:
+    count = len(prepared)
+    if not count:
+        return 0, 4, [EMPTY] * 4
+
+    slots = 1 << max(2, (count * count // 4 - 1).bit_length())
+    while True:
+        mask = slots - 1
+        buckets = [EMPTY] * slots
+        touched: list[int] = []
+        for seed in range(SEED_BUDGET):
+            ok = True
+            for index, p in enumerate(prepared):
+                slot = hashfn(p, seed) & mask
+                if buckets[slot] != EMPTY:
+                    ok = False
+                    break
+                buckets[slot] = index
+                touched.append(slot)
+            if ok:
+                return seed, slots, buckets
+            for s in touched:
+                buckets[s] = EMPTY
+            touched.clear()
+        slots *= 2
 
 
 def main() -> int:
@@ -120,43 +162,34 @@ def main() -> int:
     stringsize = len(strings)
     trainsize = len(trained)
 
-    slots = (
-        1 << max(2, (max(count * 2, count * count // 4) - 1).bit_length())
-        if count
-        else 4
-    )
-    seed = 0
-    if count:
-        while True:
-            mask = slots - 1
-            found = None
-            for candidate in range(SEED_BUDGET):
-                occupied = [False] * slots
-                ok = True
-                for path in encoded:
-                    slot = hashfn(path, candidate) & mask
-                    if occupied[slot]:
-                        ok = False
-                        break
-                    occupied[slot] = True
-                if ok:
-                    found = candidate
-                    break
-            if found is not None:
-                seed = found
-                break
-            slots *= 2
+    prepared = [prepare(p) for p in encoded]
+    seed, slots, buckets = build_perfect(prepared)
 
-    mask = slots - 1
-    buckets = [EMPTY] * slots
-    for index, path in enumerate(encoded):
-        buckets[hashfn(path, seed) & mask] = index
+    hashes = []
+    for p in prepared:
+        h = hashfn(p, seed)
+        hashes.append((h ^ (h >> 32)) & 0xFFFFFFFF)
 
-    base = HEADER + count * RECORD + slots * 4 + stringsize + trainsize
+    plain = zstandard.ZstdCompressor(level=LEVEL, threads=-1)
+    buckets = plain.compress(struct.pack(f"<{slots}I", *buckets))
+    strings = plain.compress(bytes(strings))
+
+    base = HEADER + count * RECORD + len(buckets) + len(strings) + trainsize
 
     blob = bytearray()
     blob.extend(
-        struct.pack("<IIIIII", MAGIC, count, stringsize, trainsize, slots, seed)
+        struct.pack(
+            "<IIIIIIIII",
+            MAGIC,
+            count,
+            stringsize,
+            len(strings),
+            trainsize,
+            slots,
+            seed,
+            len(buckets),
+            0,
+        )
     )
 
     cursor = 0
@@ -165,7 +198,7 @@ def main() -> int:
         data_offset = 0 if current["directory"] else base + cursor
         blob.extend(
             struct.pack(
-                "<QQQIHBB",
+                "<IIIIHBBI",
                 data_offset,
                 len(current["blob"]),
                 len(current["data"]),
@@ -173,11 +206,12 @@ def main() -> int:
                 len(encoded[index]),
                 flags,
                 current["algorithm"],
+                hashes[index],
             )
         )
         cursor += len(current["blob"])
 
-    blob.extend(struct.pack(f"<{slots}I", *buckets))
+    blob.extend(buckets)
     blob.extend(strings)
     blob.extend(trained)
 

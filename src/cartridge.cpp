@@ -2,23 +2,24 @@ namespace {
 constexpr uint8_t DIRECTORY = 1;
 constexpr uint8_t ALGO_RAW = 0;
 constexpr uint8_t ALGO_ZSTD_DICT = 1;
-constexpr size_t HEADER = 24;
-constexpr size_t RECORD = 32;
+constexpr size_t HEADER = 36;
+constexpr size_t RECORD = 24;
 constexpr uint32_t EMPTY = UINT32_MAX;
-constexpr uint64_t FNV_PRIME = 0x100000001b3ull;
+constexpr uint64_t PRIME = 0x9e3779b97f4a7c15ull;
 
 using decoder_t = std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)>;
 
 using dictionary_t = std::unique_ptr<ZSTD_DDict, decltype(&ZSTD_freeDDict)>;
 
 struct record final {
-  uint64_t position;
-  uint64_t compressed;
-  uint64_t uncompressed;
-  uint32_t path_offset;
-  uint16_t path_length;
+  uint32_t position;
+  uint32_t compressed;
+  uint32_t uncompressed;
+  uint32_t offset;
+  uint16_t length;
   uint8_t flags;
   uint8_t algorithm;
+  uint32_t hash;
 };
 
 static_assert(sizeof(record) == RECORD, "record layout must match on-disk size");
@@ -26,12 +27,13 @@ static_assert(sizeof(record) == RECORD, "record layout must match on-disk size")
 struct archive final {
   PHYSFS_Io *source{nullptr};
   std::vector<uint8_t> manifest;
+  std::vector<uint32_t> storage;
+  std::vector<uint8_t> strings;
   decoder_t decoder{nullptr, ZSTD_freeDCtx};
   dictionary_t dictionary{nullptr, ZSTD_freeDDict};
   std::span<const record> records;
   std::span<const uint32_t> buckets;
   uint32_t seed{};
-  size_t strings{};
 };
 
 struct backing final {
@@ -47,31 +49,45 @@ struct handle final {
 };
 
 [[nodiscard]] inline std::string_view path_of(const archive *cartridge, const record &r) noexcept {
-  return {reinterpret_cast<const char *>(cartridge->manifest.data() + cartridge->strings + r.path_offset), r.path_length};
+  return {reinterpret_cast<const char *>(cartridge->strings.data() + r.offset), r.length};
 }
 
-[[nodiscard]] constexpr uint64_t hashfn(std::string_view name, uint64_t seed) noexcept {
-  uint64_t h = seed;
-  for (const auto c : name) {
-    h ^= static_cast<uint8_t>(c);
-    h *= FNV_PRIME;
+[[nodiscard]] inline uint64_t hashfn(std::string_view name, uint64_t seed) noexcept {
+  const auto *p = reinterpret_cast<const uint8_t *>(name.data());
+  auto n = name.size();
+  uint64_t h = seed ^ n;
+  while (n >= 8) {
+    uint64_t chunk;
+    std::memcpy(&chunk, p, 8);
+    const auto r = static_cast<__uint128_t>(h ^ chunk) * PRIME;
+    h = static_cast<uint64_t>(r) ^ static_cast<uint64_t>(r >> 64);
+    p += 8;
+    n -= 8;
+  }
+
+  if (n > 0) {
+    uint64_t tail = 0;
+    std::memcpy(&tail, p, n);
+    const auto r = static_cast<__uint128_t>(h ^ tail) * PRIME;
+    h = static_cast<uint64_t>(r) ^ static_cast<uint64_t>(r >> 64);
   }
 
   return h;
 }
 
 [[nodiscard]] size_t locate(const archive *cartridge, std::string_view name) noexcept {
-  const auto slot = static_cast<size_t>(hashfn(name, cartridge->seed)) & (cartridge->buckets.size() - 1);
+  const auto h = hashfn(name, cartridge->seed);
+  const auto slot = static_cast<size_t>(h) & (cartridge->buckets.size() - 1);
   const auto index = cartridge->buckets[slot];
   if (index == EMPTY) [[unlikely]]
     return SIZE_MAX;
-  if (path_of(cartridge, cartridge->records[index]) != name) [[unlikely]]
+  if (cartridge->records[index].hash != static_cast<uint32_t>(h ^ (h >> 32))) [[unlikely]]
     return SIZE_MAX;
 
   return index;
 }
 
-PHYSFS_sint64 bank_read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
+PHYSFS_sint64 _read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   auto *reader = static_cast<handle *>(io->opaque);
   auto *shared = reader->shared;
   const auto remaining = shared->size - reader->position;
@@ -84,25 +100,25 @@ PHYSFS_sint64 bank_read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   return static_cast<PHYSFS_sint64>(count);
 }
 
-PHYSFS_sint64 bank_write(PHYSFS_Io *, const void *, PHYSFS_uint64) {
+PHYSFS_sint64 _write(PHYSFS_Io *, const void *, PHYSFS_uint64) {
   PHYSFS_setErrorCode(PHYSFS_ERR_READ_ONLY);
   return -1;
 }
 
-int bank_seek(PHYSFS_Io *io, PHYSFS_uint64 offset) {
+int _seek(PHYSFS_Io *io, PHYSFS_uint64 offset) {
   static_cast<handle *>(io->opaque)->position = offset;
   return 1;
 }
 
-PHYSFS_sint64 bank_tell(PHYSFS_Io *io) {
+PHYSFS_sint64 _tell(PHYSFS_Io *io) {
   return static_cast<PHYSFS_sint64>(static_cast<handle *>(io->opaque)->position);
 }
 
-PHYSFS_sint64 bank_length(PHYSFS_Io *io) {
+PHYSFS_sint64 _length(PHYSFS_Io *io) {
   return static_cast<PHYSFS_sint64>(static_cast<handle *>(io->opaque)->shared->size);
 }
 
-PHYSFS_Io *bank_duplicate(PHYSFS_Io *io) {
+PHYSFS_Io *_duplicate(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
   auto *copy = new handle{reader->io, reader->shared, uint64_t{0}};
   ++reader->shared->count;
@@ -110,11 +126,11 @@ PHYSFS_Io *bank_duplicate(PHYSFS_Io *io) {
   return &copy->io;
 }
 
-int bank_flush(PHYSFS_Io *) {
+int _flush(PHYSFS_Io *) {
   return 1;
 }
 
-void bank_destroy(PHYSFS_Io *io) {
+void _destroy(PHYSFS_Io *io) {
   auto *h = static_cast<handle *>(io->opaque);
   if (--h->shared->count == 0) {
     h->shared->~backing();
@@ -137,11 +153,13 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   const auto *fields = reinterpret_cast<const uint32_t *>(header);
   const auto count = fields[1];
   const auto stringsize = fields[2];
-  const auto trainsize = fields[3];
-  const auto slots = fields[4];
-  const auto seed = fields[5];
+  const auto strings = fields[3];
+  const auto trainsize = fields[4];
+  const auto slots = fields[5];
+  const auto seed = fields[6];
+  const auto buckets = fields[7];
 
-  const auto size = HEADER + static_cast<size_t>(count) * RECORD + static_cast<size_t>(slots) * sizeof(uint32_t) + stringsize + trainsize;
+  const auto size = HEADER + static_cast<size_t>(count) * RECORD + buckets + strings + trainsize;
 
   auto cartridge = std::make_unique<archive>();
   cartridge->manifest.resize(size);
@@ -152,17 +170,26 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
     return nullptr;
 
   const auto *p = cartridge->manifest.data();
-  assert(reinterpret_cast<uintptr_t>(p) % alignof(record) == 0 && "manifest base pointer is not aligned for record access");
+  [[assume(reinterpret_cast<uintptr_t>(p) % alignof(record) == 0)]];
   cartridge->records = std::span<const record>{reinterpret_cast<const record *>(p + HEADER), count};
-  const auto offset = HEADER + static_cast<size_t>(count) * RECORD;
-  cartridge->buckets = std::span<const uint32_t>{reinterpret_cast<const uint32_t *>(p + offset), slots};
+  auto cursor = HEADER + static_cast<size_t>(count) * RECORD;
   cartridge->seed = seed;
-  cartridge->strings = offset + static_cast<size_t>(slots) * sizeof(uint32_t);
+
+  cartridge->storage.resize(slots);
+  const auto bytes = ZSTD_decompress(
+    cartridge->storage.data(), static_cast<size_t>(slots) * sizeof(uint32_t), p + cursor, buckets);
+  [[assume(bytes == static_cast<size_t>(slots) * sizeof(uint32_t))]];
+  cartridge->buckets = std::span<const uint32_t>{cartridge->storage};
+  cursor += buckets;
+
+  cartridge->strings.resize(stringsize);
+  const auto written = ZSTD_decompress(
+    cartridge->strings.data(), stringsize, p + cursor, strings);
+  [[assume(written == stringsize)]];
+  cursor += strings;
 
   cartridge->decoder.reset(ZSTD_createDCtx());
-  cartridge->dictionary.reset(ZSTD_createDDict_byReference(p + cartridge->strings + stringsize, trainsize));
-  assert(cartridge->decoder && "failed to create zstd decompression context");
-  assert(cartridge->dictionary && "failed to create zstd decompression dictionary");
+  cartridge->dictionary.reset(ZSTD_createDDict_byReference(p + cursor, trainsize));
 
   cartridge->source = io;
   return cartridge.release();
@@ -214,7 +241,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   }
 
   const auto &found = cartridge->records[index];
-  assert((found.flags & DIRECTORY) == 0 && "cannot open a directory entry as a file");
+  [[assume((found.flags & DIRECTORY) == 0)]];
 
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
   const auto compressed = static_cast<size_t>(found.compressed);
@@ -226,31 +253,33 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
   if (uncompressed > 0) [[likely]] {
     auto *source = cartridge->source;
-    [[maybe_unused]] const auto seeked = source->seek(source, found.position);
-    assert(seeked && "failed to seek to record position in cartridge source");
+    const auto seeked = source->seek(source, found.position);
+    [[assume(seeked != 0)]];
 
     switch (found.algorithm) {
       case ALGO_RAW: {
-        [[maybe_unused]] const auto bytes = source->read(source, tail, uncompressed);
-        assert(bytes == static_cast<PHYSFS_sint64>(uncompressed) && "short read for raw record payload");
+        const auto bytes = source->read(source, tail, uncompressed);
+        [[assume(bytes == static_cast<PHYSFS_sint64>(uncompressed))]];
         break;
       }
+
       case ALGO_ZSTD_DICT: {
         std::vector<uint8_t> scratch(compressed);
-        [[maybe_unused]] const auto bytes = source->read(source, scratch.data(), compressed);
-        assert(bytes == static_cast<PHYSFS_sint64>(compressed) && "short read for compressed record payload");
+        const auto bytes = source->read(source, scratch.data(), compressed);
+        [[assume(bytes == static_cast<PHYSFS_sint64>(compressed))]];
 
-        [[maybe_unused]] const auto result = ZSTD_decompress_usingDDict(
+        const auto result = ZSTD_decompress_usingDDict(
           cartridge->decoder.get(),
           tail, uncompressed,
           scratch.data(), compressed,
           cartridge->dictionary.get());
 
-        assert(result == uncompressed && "zstd decompressed size does not match expected record size");
+        [[assume(result == uncompressed)]];
         break;
       }
+
       default:
-        assert(false && "unknown record algorithm");
+        std::unreachable();
     }
   }
 
@@ -258,14 +287,14 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     PHYSFS_Io{
       .version = 0,
       .opaque = nullptr,
-      .read = bank_read,
-      .write = bank_write,
-      .seek = bank_seek,
-      .tell = bank_tell,
-      .length = bank_length,
-      .duplicate = bank_duplicate,
-      .flush = bank_flush,
-      .destroy = bank_destroy,
+      .read = _read,
+      .write = _write,
+      .seek = _seek,
+      .tell = _tell,
+      .length = _length,
+      .duplicate = _duplicate,
+      .flush = _flush,
+      .destroy = _destroy,
     },
     storage,
     uint64_t{0},

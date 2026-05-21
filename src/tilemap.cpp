@@ -43,7 +43,6 @@ static void prepare(tilemap::layer& layer, std::string_view name, std::string_vi
   const auto htu = .5f / aw;
   const auto htv = .5f / ah;
 
-  assert(tpr > 0 && tpc > 0 && "prepare: degenerate tile/atlas ratio");
   [[assume(tpr > 0)]];
   [[assume(tpc > 0)]];
 
