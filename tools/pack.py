@@ -136,6 +136,7 @@ def main() -> int:
         level=LEVEL,
         threads=-1,
     )
+
     trained = dictionary.as_bytes()
 
     encoder = zstandard.ZstdCompressor(level=LEVEL, dict_data=dictionary, threads=-1)
