@@ -53,6 +53,7 @@ using namespace entt::literals;
 
 #include "compat.hpp"
 #include "deleter.hpp"
+#include "math.hpp"
 
 extern lua_State* L;
 extern SDL_Renderer* renderer;
