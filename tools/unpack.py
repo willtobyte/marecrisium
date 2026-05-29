@@ -10,23 +10,44 @@ from pathlib import Path
 
 import zstandard
 
+MAGIC = 0x4D4F5243
 DIRECTORY = 1
 ALGO_RAW = 0
-HEADER = 16
-RECORD = 32
+ALGO_ZSTD_DICT = 1
+HEADER = 36
+RECORD = 20
 
 
 def main() -> int:
     rom = Path("cartridge.rom").read_bytes()
 
-    _, count, stringsize, trainsize = struct.unpack_from("<IIII", rom, 0)
+    (
+        magic,
+        count,
+        stringsize,
+        strings_compressed,
+        trainsize,
+        _slots,
+        _seed,
+        buckets_compressed,
+        _reserved,
+    ) = struct.unpack_from("<IIIIIIIII", rom, 0)
+
+    if magic != MAGIC:
+        print("not a cartridge.rom", file=sys.stderr)
+        return 1
 
     cursor = HEADER
-    trained = bytes(rom[cursor : cursor + trainsize])
-    cursor += trainsize
-    strings = rom[cursor : cursor + stringsize]
-    cursor += stringsize
     records = rom[cursor : cursor + count * RECORD]
+    cursor += count * RECORD
+    cursor += buckets_compressed
+    strings_blob = rom[cursor : cursor + strings_compressed]
+    cursor += strings_compressed
+    trained = bytes(rom[cursor : cursor + trainsize])
+
+    strings = zstandard.ZstdDecompressor().decompress(
+        strings_blob, max_output_size=stringsize
+    )
 
     dictionary = zstandard.ZstdCompressionDict(trained)
     decoder = zstandard.ZstdDecompressor(dict_data=dictionary)
@@ -34,18 +55,17 @@ def main() -> int:
     root = Path("cartridge")
 
     for index in range(count):
-        offset = index * RECORD
         (
-            data_offset,
+            position,
             compressed,
             uncompressed,
-            path_offset,
-            path_length,
+            offset,
+            length,
             flags,
             algorithm,
-        ) = struct.unpack_from("<QQQIHBB", records, offset)
+        ) = struct.unpack_from("<IIIIHBB", records, index * RECORD)
 
-        path = strings[path_offset : path_offset + path_length].decode("utf-8")
+        path = strings[offset : offset + length].decode("utf-8")
         destination = root / path
 
         if flags & DIRECTORY:
@@ -59,10 +79,10 @@ def main() -> int:
             continue
 
         if algorithm == ALGO_RAW:
-            destination.write_bytes(rom[data_offset : data_offset + uncompressed])
+            destination.write_bytes(rom[position : position + uncompressed])
             continue
 
-        payload = bytes(rom[data_offset : data_offset + compressed])
+        payload = bytes(rom[position : position + compressed])
         destination.write_bytes(
             decoder.decompress(payload, max_output_size=uncompressed)
         )
