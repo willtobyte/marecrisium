@@ -200,7 +200,7 @@ PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname,
   static std::array<char, 512> buffer;
   if (dir.size() >= buffer.size()) [[unlikely]] return PHYSFS_ENUM_ERROR;
   auto *end = std::ranges::copy(dir, buffer.data()).out;
-  if (dir.empty() || dir.back() != '/') [[likely]] *end++ = '/';
+  if (!dir.empty() && dir.back() != '/') [[likely]] *end++ = '/';
   const std::string_view needle{buffer.data(), end};
 
   const auto &records = cartridge->records;
@@ -324,6 +324,17 @@ int crom_mkdir(void *, const char *) {
 
 int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
   auto *cartridge = static_cast<archive *>(opaque);
+
+  const std::string_view path{name};
+  if (path.empty() || path == "/") {
+    stat->filesize = -1;
+    stat->modtime = -1;
+    stat->createtime = -1;
+    stat->accesstime = -1;
+    stat->filetype = PHYSFS_FILETYPE_DIRECTORY;
+    stat->readonly = 1;
+    return 1;
+  }
 
   const auto index = locate(cartridge, name);
   if (index == SIZE_MAX) [[unlikely]] {
