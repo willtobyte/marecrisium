@@ -231,7 +231,7 @@ cassette = {}
 ---@field sounds StageSound[]|nil Sounds to preload. Each entry is `{ name = "foo", autoplay = true }`. Loads `sounds/<name>` and is accessible as `pool.<name>`.
 ---@field particles StageParticle[]|nil Particle emitters to create. Each entry spawns a particle system accessible as `pool.<name>`.
 ---@field foregrounds string[]|nil Foregrounds shown when this stage is active, in z-order (index 1 is back). All listed foregrounds are pre-loaded; toggle individually at runtime via `foregrounds.<name> = true|false`.
----@field tilemap string|nil Tilemap name. Loads the binary navmap `tilemaps/<name>.map` produced by `assets/tilemaps/generate.py` (background, foreground, collision, components, JPS+ jump tables).
+---@field tilemap string|nil Tilemap name. Loads the binary navmap `tilemaps/<name>.bmap` produced by `assets/tilemaps/generate.py` (background, foreground, collision, components, JPS+ jump tables).
 ---@field minimap StageMinimap|nil Minimap color palette. Only used when `tilemap` is also set.
 local Stage = {}
 

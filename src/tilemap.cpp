@@ -60,7 +60,7 @@ static void prepare(tilemap::layer& layer, std::string_view name, std::string_vi
 }
 
 tilemap::tilemap(std::string_view name, b2WorldId world) {
-  const auto blob = io::read(std::format("tilemaps/{}.map", name));
+  const auto blob = io::read(std::format("tilemaps/{}.bmap", name));
   const auto* noalias bytes = blob.data();
   const auto length = blob.size();
 
