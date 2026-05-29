@@ -115,14 +115,6 @@ struct PHYSFS_Deleter final {
   }
 };
 
-struct transparent_hash final {
-  using is_transparent = void;
-  using is_avalanching = void;
-  auto operator()(std::string_view sv) const {
-    return ankerl::unordered_dense::hash<std::string_view>{}(sv);
-  }
-};
-
 template <typename T>
 [[nodiscard("Angle conversion has no side effects")]]
 constexpr T to_radians(T degrees) {

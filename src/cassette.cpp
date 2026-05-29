@@ -13,6 +13,14 @@ sqlite3_stmt *stmt_clear;
 
 int _purge_ref = LUA_NOREF;
 
+struct transparent_hash final {
+  using is_transparent = void;
+  using is_avalanching = void;
+  auto operator()(std::string_view sv) const {
+    return ankerl::unordered_dense::hash<std::string_view>{}(sv);
+  }
+};
+
 ankerl::unordered_dense::map<std::string, int, transparent_hash, std::equal_to<>> cache;
 
 static void execute(sqlite3_stmt *statement) {
