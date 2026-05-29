@@ -57,8 +57,8 @@ engine::engine() {
   SDL_RenderClear(renderer);
 
   splash.draw(
-    0, 0, splash.width(), splash.height(),
-    0, 0, width / scale, height / scale
+    0, 0, static_cast<float>(splash.width()), static_cast<float>(splash.height()),
+    0, 0, static_cast<float>(width) / scale, static_cast<float>(height) / scale
   );
 
   SDL_RenderPresent(renderer);
@@ -90,8 +90,8 @@ engine::engine() {
 #endif
 
   viewport = {
-    width / scale,
-    height / scale,
+    static_cast<float>(width) / scale,
+    static_cast<float>(height) / scale,
     scale,
     .0f,
     .0f
