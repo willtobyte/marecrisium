@@ -45,6 +45,20 @@ public:
 
   void dispatch_collision(const scriptable& self, const scriptable* target, int callback_ref, const b2Vec2* normal = nullptr);
 
+  [[nodiscard]] uint8_t pick_at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
+
+  [[nodiscard]] entt::entity find_topmost(std::span<const entt::entity> hits) const noexcept;
+
+  void dispatch_press(float x, float y, const char* button);
+
+  void dispatch_release(float x, float y, const char* button);
+
+  void dispatch_hover(float x, float y);
+
+  void dispatch_unhover(std::span<const entt::entity> current);
+
+  void dispatch_miss(int callback_ref, float x, float y, const char* button);
+
 private:
   entt::registry _registry{};
   std::string _name{};
@@ -88,6 +102,11 @@ private:
   int _on_tick{LUA_NOREF};
   int _on_enter{LUA_NOREF};
   int _on_leave{LUA_NOREF};
+  int _on_press{LUA_NOREF};
+  int _on_release{LUA_NOREF};
+
+  std::vector<entt::entity> _hovering{};
+  uint32_t _mouse_previous_buttons{};
 
 #ifdef DEBUG
   b2Vec2 _origin{};

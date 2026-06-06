@@ -27,6 +27,10 @@ struct scriptable final {
   int on_screen_exit{LUA_NOREF};
   int on_screen_enter{LUA_NOREF};
   int on_spawn{LUA_NOREF};
+  int on_press{LUA_NOREF};
+  int on_release{LUA_NOREF};
+  int on_hover{LUA_NOREF};
+  int on_unhover{LUA_NOREF};
 };
 
 static_assert(std::is_trivially_copyable_v<scriptable>, "scriptable must be trivially copyable");

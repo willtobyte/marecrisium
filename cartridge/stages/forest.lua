@@ -40,6 +40,14 @@ return scheduler.wrap({
 		{ name = "tree8", kind = "tree", x = 450, y = 320 },
 	},
 
+	on_press = function(self, x, y, button)
+		print(string.format("[mouse] press   %-6s on STAGE  at %.1f,%.1f (miss)", button, x, y))
+	end,
+
+	on_release = function(self, x, y, button)
+		print(string.format("[mouse] release %-6s on STAGE  at %.1f,%.1f (miss)", button, x, y))
+	end,
+
 	on_loop = function(self, delta)
 		local down = controls.minimap
 		if down and not pressed then

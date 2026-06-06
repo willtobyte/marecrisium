@@ -262,6 +262,20 @@ function Stage.on_loop(self, delta) end
 ---@return number|nil camera_y Camera Y offset for rendering.
 function Stage.on_camera(self) end
 
+---Called when a mouse button is pressed while the cursor is over no object (miss fallback).
+---@param self table The stage table itself.
+---@param x number Cursor X in world coordinates.
+---@param y number Cursor Y in world coordinates.
+---@param button "left"|"middle"|"right" The mouse button pressed.
+function Stage.on_press(self, x, y, button) end
+
+---Called when a mouse button is released while the cursor is over no object (miss fallback).
+---@param self table The stage table itself.
+---@param x number Cursor X in world coordinates.
+---@param y number Cursor Y in world coordinates.
+---@param button "left"|"middle"|"right" The mouse button released.
+function Stage.on_release(self, x, y, button) end
+
 --------------------------------------------------------------------------------
 -- Director (stage navigation)
 --------------------------------------------------------------------------------
@@ -448,6 +462,10 @@ viewport = {}
 ---@field on_collision_end? fun(self: Object, name: string, kind: string) Called on physics contact end. `name` and `kind` refer to the other object involved in the collision.
 ---@field on_animation_end? fun(self: Object, clip_name: string) Called when an animation clip finishes or is replaced.
 ---@field on_animation_begin? fun(self: Object, clip_name: string) Called when a new animation clip starts playing.
+---@field on_press? fun(self: Object, x: number, y: number, button: "left"|"middle"|"right") Called when a mouse button is pressed over the topmost visible object under the cursor. `x`/`y` are world coordinates.
+---@field on_release? fun(self: Object, x: number, y: number, button: "left"|"middle"|"right") Called when a mouse button is released over the topmost visible object under the cursor. `x`/`y` are world coordinates.
+---@field on_hover? fun(self: Object) Called the first frame the cursor moves over the object.
+---@field on_unhover? fun(self: Object) Called the first frame the cursor leaves the object.
 ---@field [string] any Custom properties accessible via the object instance.
 
 --------------------------------------------------------------------------------
@@ -514,6 +532,28 @@ function Object.on_animation_end(self, clip_name) end
 ---@param self Object
 ---@param clip_name string Name of the clip that started.
 function Object.on_animation_begin(self, clip_name) end
+
+---Called when a mouse button is pressed and this object is the topmost visible object under the cursor.
+---@param self Object
+---@param x number Cursor X in world coordinates.
+---@param y number Cursor Y in world coordinates.
+---@param button "left"|"middle"|"right" The mouse button pressed.
+function Object.on_press(self, x, y, button) end
+
+---Called when a mouse button is released and this object is the topmost visible object under the cursor.
+---@param self Object
+---@param x number Cursor X in world coordinates.
+---@param y number Cursor Y in world coordinates.
+---@param button "left"|"middle"|"right" The mouse button released.
+function Object.on_release(self, x, y, button) end
+
+---Called the first frame the cursor moves over this object.
+---@param self Object
+function Object.on_hover(self) end
+
+---Called the first frame the cursor leaves this object.
+---@param self Object
+function Object.on_unhover(self) end
 
 --------------------------------------------------------------------------------
 -- Sound (audio handle userdata, available in `pool`)

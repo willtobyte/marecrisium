@@ -39,6 +39,10 @@ namespace {
     int on_screen_exit{LUA_NOREF};
     int on_screen_enter{LUA_NOREF};
     int on_spawn{LUA_NOREF};
+    int on_press{LUA_NOREF};
+    int on_release{LUA_NOREF};
+    int on_hover{LUA_NOREF};
+    int on_unhover{LUA_NOREF};
   };
 
   ankerl::unordered_dense::map<entt::id_type, prototype> prototypes;
@@ -376,6 +380,10 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
     component.on_screen_exit = blueprint.on_screen_exit;
     component.on_screen_enter = blueprint.on_screen_enter;
     component.on_spawn = blueprint.on_spawn;
+    component.on_press = blueprint.on_press;
+    component.on_release = blueprint.on_release;
+    component.on_hover = blueprint.on_hover;
+    component.on_unhover = blueprint.on_unhover;
 
     return commit(registry, entity, component);
   }
@@ -416,6 +424,18 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
   lua_getfield(L, -1, "on_spawn");
   component.on_spawn = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
+  lua_getfield(L, -1, "on_press");
+  component.on_press = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+
+  lua_getfield(L, -1, "on_release");
+  component.on_release = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+
+  lua_getfield(L, -1, "on_hover");
+  component.on_hover = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+
+  lua_getfield(L, -1, "on_unhover");
+  component.on_unhover = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+
   lua_pop(L, 1);
 
   prototypes.emplace(identity, prototype{
@@ -430,6 +450,10 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
     component.on_screen_exit,
     component.on_screen_enter,
     component.on_spawn,
+    component.on_press,
+    component.on_release,
+    component.on_hover,
+    component.on_unhover,
   });
 
   commit(registry, entity, component);

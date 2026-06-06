@@ -472,10 +472,18 @@ stage::stage(std::string name)
   lua_getfield(L, -1, "on_leave");
   _on_leave = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
+  lua_getfield(L, -1, "on_press");
+  _on_press = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+
+  lua_getfield(L, -1, "on_release");
+  _on_release = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+
   lua_pop(L, 1);
 }
 
 stage::~stage() {
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_release);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_press);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_leave);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_enter);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_tick);
@@ -542,6 +550,32 @@ void stage::update(float delta) {
       }
     }
   }
+
+  float mx, my;
+  const auto buttons = SDL_GetMouseState(&mx, &my);
+  SDL_RenderCoordinatesFromWindow(renderer, mx, my, &mx, &my);
+  mx += viewport.x;
+  my += viewport.y;
+
+  const auto pressed = buttons & ~_mouse_previous_buttons;
+  const auto released = _mouse_previous_buttons & ~buttons;
+  _mouse_previous_buttons = buttons;
+
+  if (pressed & SDL_BUTTON_LMASK) [[unlikely]]
+    dispatch_press(mx, my, "left");
+  else if (pressed & SDL_BUTTON_MMASK) [[unlikely]]
+    dispatch_press(mx, my, "middle");
+  else if (pressed & SDL_BUTTON_RMASK) [[unlikely]]
+    dispatch_press(mx, my, "right");
+
+  if (released & SDL_BUTTON_LMASK) [[unlikely]]
+    dispatch_release(mx, my, "left");
+  else if (released & SDL_BUTTON_MMASK) [[unlikely]]
+    dispatch_release(mx, my, "middle");
+  else if (released & SDL_BUTTON_RMASK) [[unlikely]]
+    dispatch_release(mx, my, "right");
+
+  dispatch_hover(mx, my);
 
   if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
@@ -1281,4 +1315,164 @@ void stage::dispatch_collision(const scriptable& self, const scriptable* target,
   lua_pushnumber(L, static_cast<lua_Number>(normal->x));
   lua_pushnumber(L, static_cast<lua_Number>(normal->y));
   pcall(L, 5, 0);
+}
+
+uint8_t stage::pick_at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept {
+  constexpr auto half = .5f;
+  const b2AABB aabb = {{x - half, y - half}, {x + half, y + half}};
+
+  struct context {
+    entt::entity* hits;
+    uint8_t capacity;
+    uint8_t count;
+  };
+
+  context ctx{buffer, capacity, 0};
+
+  b2World_OverlapAABB(
+    _world, aabb, filter,
+    [](b2ShapeId shape, void* userdata) -> bool {
+      auto* ctx = static_cast<context*>(userdata);
+      if (ctx->count >= ctx->capacity) [[unlikely]]
+        return false;
+
+      const auto* ud = b2Shape_GetUserData(shape);
+      if (!ud) [[unlikely]]
+        return true;
+
+      ctx->hits[ctx->count++] = to_entity(ud);
+      return true;
+    },
+    &ctx);
+
+  return ctx.count;
+}
+
+entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexcept {
+  if (hits.empty()) [[unlikely]]
+    return entt::null;
+
+  entt::entity topmost = entt::null;
+
+  for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
+    if (!tf.shown || tf.alpha <= .0f) [[unlikely]]
+      continue;
+
+    for (const auto hit : hits) {
+      if (hit == entity) {
+        topmost = entity;
+        break;
+      }
+    }
+  }
+
+  return topmost;
+}
+
+void stage::dispatch_miss(int callback_ref, float x, float y, const char* button) {
+  if (callback_ref == LUA_NOREF) [[likely]]
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, callback_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
+  lua_pushnumber(L, static_cast<lua_Number>(x));
+  lua_pushnumber(L, static_cast<lua_Number>(y));
+  lua_pushstring(L, button);
+  pcall(L, 4, 0);
+}
+
+void stage::dispatch_press(float x, float y, const char* button) {
+  static std::array<entt::entity, 16> buffer{};
+  const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
+
+  if (count == 0) [[likely]] {
+    dispatch_miss(_on_press, x, y, button);
+    return;
+  }
+
+  const auto topmost = find_topmost(std::span(buffer.data(), count));
+  if (topmost == entt::null) [[unlikely]]
+    return;
+
+  const auto* proxy = _registry.try_get<scriptable>(topmost);
+  if (!proxy || proxy->handle == LUA_NOREF || proxy->on_press == LUA_NOREF) [[unlikely]]
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->on_press);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
+  lua_pushnumber(L, static_cast<lua_Number>(x));
+  lua_pushnumber(L, static_cast<lua_Number>(y));
+  lua_pushstring(L, button);
+  pcall(L, 4, 0);
+}
+
+void stage::dispatch_release(float x, float y, const char* button) {
+  static std::array<entt::entity, 16> buffer{};
+  const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
+
+  if (count == 0) [[likely]] {
+    dispatch_miss(_on_release, x, y, button);
+    return;
+  }
+
+  const auto topmost = find_topmost(std::span(buffer.data(), count));
+  if (topmost == entt::null) [[unlikely]]
+    return;
+
+  const auto* proxy = _registry.try_get<scriptable>(topmost);
+  if (!proxy || proxy->handle == LUA_NOREF || proxy->on_release == LUA_NOREF) [[unlikely]]
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->on_release);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
+  lua_pushnumber(L, static_cast<lua_Number>(x));
+  lua_pushnumber(L, static_cast<lua_Number>(y));
+  lua_pushstring(L, button);
+  pcall(L, 4, 0);
+}
+
+void stage::dispatch_hover(float x, float y) {
+  static std::array<entt::entity, 16> buffer{};
+  const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
+
+  const auto hits = std::span(buffer.data(), count);
+  std::ranges::sort(hits);
+
+  dispatch_unhover(hits);
+
+  for (const auto entity : hits) {
+    if (std::ranges::binary_search(_hovering, entity))
+      continue;
+
+    if (!_registry.valid(entity)) [[unlikely]]
+      continue;
+
+    const auto* proxy = _registry.try_get<scriptable>(entity);
+    if (!proxy || proxy->handle == LUA_NOREF || proxy->on_hover == LUA_NOREF)
+      continue;
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->on_hover);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
+    pcall(L, 1, 0);
+  }
+
+  _hovering.assign(hits.begin(), hits.end());
+}
+
+void stage::dispatch_unhover(std::span<const entt::entity> current) {
+  for (const auto entity : _hovering) {
+    if (std::ranges::binary_search(current, entity))
+      continue;
+
+    if (!_registry.valid(entity)) [[unlikely]]
+      continue;
+
+    const auto* proxy = _registry.try_get<scriptable>(entity);
+    if (!proxy || proxy->handle == LUA_NOREF || proxy->on_unhover == LUA_NOREF)
+      continue;
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->on_unhover);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
+    pcall(L, 1, 0);
+  }
 }
