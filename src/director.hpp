@@ -11,9 +11,7 @@ public:
 
   void wire();
 
-  template<typename T>
-    requires std::convertible_to<T, std::string>
-  void navigate(T&& name) { _pending = std::forward<T>(name); }
+  void navigate(std::string_view name);
 
   void destroy(std::string_view name);
 

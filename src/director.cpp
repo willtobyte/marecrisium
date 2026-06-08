@@ -37,6 +37,11 @@ void director::wire() {
   lua_setglobal(L, "director");
 }
 
+
+void director::navigate(std::string_view name) {
+  _pending = name;
+}
+
 void director::destroy(std::string_view name) {
   const auto key = entt::hashed_string{name.data(), name.size()};
   auto it = _stages.find(key);
