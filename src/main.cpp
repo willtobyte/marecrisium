@@ -16,9 +16,6 @@ int main(int argc, char** argv) {
   SDL_Init(SDL_INIT_GAMEPAD | SDL_INIT_VIDEO);
   std::atexit([]{ SDL_Quit(); });
 
-  enet_initialize();
-  std::atexit([]{ enet_deinitialize(); });
-
   PHYSFS_init(argv[0]);
   PHYSFS_registerArchiver(&archiver);
   std::atexit([]{ PHYSFS_deinit(); });

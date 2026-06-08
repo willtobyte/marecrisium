@@ -173,8 +173,6 @@ void engine::loop() {
 
   lua_gc(L, LUA_GCSTEP, lua_gc(L, LUA_GCCOUNT, 0) > 4096 ? 240 : 80);
 
-  // internet::tick();
-
   _director.transition();
 
   if (_period > .0f) [[likely]] {

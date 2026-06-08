@@ -758,29 +758,6 @@ platform = {}
 function openurl(url) end
 
 --------------------------------------------------------------------------------
--- Internet
---------------------------------------------------------------------------------
-
----@class Internet
-internet = {}
-
----Initiates an asynchronous connection to a server. The optional callback
----fires once with true on a successful CONNECT event, or with false if the
----attempt fails before completing. The call is silently ignored when a
----connection is already active or when the address cannot be resolved.
----@param host string Hostname or IP address.
----@param port integer TCP/UDP port (1-65535).
----@param callback fun(ok: boolean)?
-function internet.connect(host, port, callback) end
-
----Initiates a graceful disconnect from the current peer. The optional
----callback fires once after the DISCONNECT event drains, regardless of
----cause (graceful or timeout). The call is silently ignored when no
----connection is active.
----@param callback fun()?
-function internet.disconnect(callback) end
-
---------------------------------------------------------------------------------
 -- Localization
 --------------------------------------------------------------------------------
 

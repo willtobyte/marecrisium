@@ -36,7 +36,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 find_package(box2d CONFIG REQUIRED)
-find_package(enet CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
 find_package(PhysFS CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
@@ -51,12 +50,9 @@ find_package(yyjson CONFIG REQUIRED)
 find_package(zstd CONFIG REQUIRED)
 find_package(mimalloc CONFIG REQUIRED)
 
-add_subdirectory(schemas)
-
 target_link_libraries(${PROJECT_NAME} PRIVATE
   $<$<NOT:$<CONFIG:Debug>>:mimalloc-static>
   box2d::box2d
-  enet::enet
   EnTT::EnTT
   physfs-static
   SDL3::SDL3-static
@@ -69,7 +65,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   unordered_dense::unordered_dense
   yyjson::yyjson
   zstd::libzstd_static
-  rpc
 )
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE ${HEADER_FILES})

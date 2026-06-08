@@ -27,7 +27,6 @@ void scriptengine::run() {
   font::wire();
   foreground::wire();
   gamepad::wire();
-  internet::wire();
   keyboard::wire();
   locales::wire();
   minimap::wire();
