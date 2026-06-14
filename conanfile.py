@@ -17,7 +17,7 @@ class Carimbo(ConanFile):
             "sdl/3.4.0",
             "sentry-native/0.12.6",
             "sqlite3/3.51.0",
-            "luajit/2.1-20260330",
+            "luajit/2.1-20260613",
             "opusfile/0.12",
             "unordered_dense/4.8.1",
             "yyjson/0.12.0",

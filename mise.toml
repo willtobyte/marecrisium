@@ -1,3 +1,4 @@
 [tools]
 cmake = "latest"
 conan = "latest"
+pre-commit = "latest"
