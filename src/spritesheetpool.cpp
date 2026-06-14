@@ -30,11 +30,6 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       const std::string label = lua_tostring(state, -1);
       lua_pop(state, 1);
 
-      if (label == "default" || label == "sound") [[unlikely]] {
-        lua_pop(state, 1);
-        continue;
-      }
-
       const auto id = depot->string.get(label);
 
       auto& c = s->clips.emplace_back();
