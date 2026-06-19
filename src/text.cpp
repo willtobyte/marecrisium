@@ -23,7 +23,10 @@ static int text_on(lua_State *state) {
   lua_pushvalue(state, 1);
   _callback = luaL_ref(state, LUA_REGISTRYINDEX);
 
-  SDL_StartTextInput(SDL_GetRenderWindow(renderer));
+  const auto properties = SDL_CreateProperties();
+  SDL_SetBooleanProperty(properties, SDL_PROP_TEXTINPUT_AUTOCORRECT_BOOLEAN, false);
+  SDL_StartTextInputWithProperties(SDL_GetRenderWindow(renderer), properties);
+  SDL_DestroyProperties(properties);
 
   return 0;
 }
@@ -34,7 +37,6 @@ static int text_index(lua_State *state) {
 }
 
 void text::wire() {
-  SDL_SetHint(SDL_HINT_MAC_PRESS_AND_HOLD, "0");
   SDL_AddEventWatch(on_event, nullptr);
 
   metatable(L, "Text", text_index);
