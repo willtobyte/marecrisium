@@ -86,6 +86,23 @@ local Mouse = {}
 mouse = {}
 
 --------------------------------------------------------------------------------
+-- Text (typed input)
+--------------------------------------------------------------------------------
+
+---@class Text
+local Text = {}
+
+---Register the callback invoked whenever the user types text.
+---Fires for committed UTF-8 input (respects keyboard layout and IME), not raw key codes.
+---Calling this again replaces the previously registered callback.
+---@param callback fun(text: string) Receives the UTF-8 text that was input.
+function Text.on(callback) end
+
+---Global typed-text input.
+---@type Text
+text = {}
+
+--------------------------------------------------------------------------------
 -- Gamepad
 --------------------------------------------------------------------------------
 
