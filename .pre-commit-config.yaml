@@ -13,29 +13,29 @@ repos:
       - id: check-symlinks
 
   - repo: https://github.com/JohnnyMorganz/StyLua
-    rev: v2.4.0
+    rev: v2.5.2
     hooks:
       - id: stylua-github
 
   - repo: https://github.com/biomejs/pre-commit
-    rev: v0.6.1
+    rev: v2.5.0
     hooks:
       - id: biome-format
         types: [json]
 
   - repo: https://github.com/rvben/rumdl-pre-commit
-    rev: v0.1.59
+    rev: v0.2.20
     hooks:
       - id: rumdl-fmt
 
   - repo: https://github.com/oxipng/oxipng
-    rev: v10.1.0
+    rev: v10.1.1
     hooks:
       - id: oxipng
         args: ["--opt", "max", "--strip", "safe", "-Z"]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.7
+    rev: v0.15.18
     hooks:
       - id: ruff-check
       - id: ruff-format
