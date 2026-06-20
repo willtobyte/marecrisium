@@ -36,7 +36,7 @@ public:
 
 private:
   std::atomic<bool> _ended{false};
-  blob _encoded{};
+  std::unique_ptr<PHYSFS_File, PHYSFS_Deleter> _file{};
   stream _stream{};
   ma_sound _sound{};
 };

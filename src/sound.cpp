@@ -209,12 +209,46 @@ namespace {
     nullptr,
     0,
   };
+
+  int physfs_read(void* source, unsigned char* output, int bytes) {
+    return static_cast<int>(PHYSFS_readBytes(static_cast<PHYSFS_File*>(source), output, static_cast<PHYSFS_uint64>(bytes)));
+  }
+
+  int physfs_seek(void* source, opus_int64 offset, int whence) {
+    auto* file = static_cast<PHYSFS_File*>(source);
+
+    PHYSFS_sint64 base = 0;
+    switch (whence) {
+      case SEEK_SET: base = 0; break;
+      case SEEK_CUR: base = PHYSFS_tell(file); break;
+      case SEEK_END: base = PHYSFS_fileLength(file); break;
+      default: return -1;
+    }
+
+    if (base < 0) [[unlikely]] return -1;
+
+    const auto target = base + offset;
+    if (target < 0) [[unlikely]] return -1;
+
+    return PHYSFS_seek(file, static_cast<PHYSFS_uint64>(target)) != 0 ? 0 : -1;
+  }
+
+  opus_int64 physfs_tell(void* source) {
+    return PHYSFS_tell(static_cast<PHYSFS_File*>(source));
+  }
+
+  constexpr OpusFileCallbacks opus_callbacks = {
+    physfs_read,
+    physfs_seek,
+    physfs_tell,
+    nullptr,
+  };
 }
 
 sound::sound(std::string_view filename) {
-  _encoded = io::read(filename);
+  _file = std::unique_ptr<PHYSFS_File, PHYSFS_Deleter>{PHYSFS_openRead(filename.data())};
 
-  _stream.file = op_open_memory(_encoded.data(), _encoded.size(), nullptr);
+  _stream.file = op_open_callbacks(_file.get(), &opus_callbacks, nullptr, 0, nullptr);
 
   auto config = ma_data_source_config_init();
   config.vtable = &vtable;
