@@ -12,6 +12,8 @@ static int loader(lua_State *state) {
 }
 
 void scriptengine::run() {
+  binding::wire();
+
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "loaders");
 
@@ -21,7 +23,6 @@ void scriptengine::run() {
 
   lua_pop(L, 2);
 
-  binding::wire();
   achievement::wire();
   cassette::wire();
   font::wire();
