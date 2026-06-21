@@ -17,15 +17,15 @@ overlay::overlay() {
   *instance = this;
   luaL_getmetatable(L, "Foregrounds");
   lua_setmetatable(L, -2);
-  _userdata_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _userdata_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_reference);
   lua_setglobal(L, "foregrounds");
 }
 
 overlay::~overlay() {
   clear();
-  luaL_unref(L, LUA_REGISTRYINDEX, _userdata_ref);
+  luaL_unref(L, LUA_REGISTRYINDEX, _userdata_reference);
 }
 
 void overlay::wire() {

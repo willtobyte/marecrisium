@@ -166,11 +166,11 @@ namespace {
         return 1;
 
       case property::name:
-        lua_rawgeti(state, LUA_REGISTRYINDEX, op.name_ref);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, op.name_reference);
         return 1;
 
       case property::kind:
-        lua_rawgeti(state, LUA_REGISTRYINDEX, op.kind_ref);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, op.kind_reference);
         return 1;
 
       default: {
@@ -358,10 +358,10 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
   depot->source.insert(kind);
 
   lua_pushlstring(L, name.data(), name.size());
-  component.name_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  component.name_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_pushlstring(L, kind.data(), kind.size());
-  component.kind_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  component.kind_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   const auto identity = entt::hashed_string{kind.data(), kind.size()};
 

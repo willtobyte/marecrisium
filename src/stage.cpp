@@ -125,8 +125,8 @@ static bool resolve(b2ShapeId a, b2ShapeId b, entt::entity &ea, entt::entity &eb
 static void on_scriptable_destroy(entt::registry& registry, entt::entity entity) {
   auto& op = registry.get<scriptable>(entity);
 
-  luaL_unref(L, LUA_REGISTRYINDEX, op.kind_ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, op.name_ref);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.kind_reference);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.name_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, op.handle);
 }
 
@@ -216,7 +216,7 @@ stage::stage(std::string name)
   compile(L, buffer, chunk);
 
   lua_newtable(L);
-  _pool_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _pool_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_newtable(L);
 
@@ -244,7 +244,7 @@ stage::stage(std::string name)
   lua_pushcclosure(L, world_raycast, 1);
   lua_setfield(L, -2, "raycast");
 
-  _world_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _world_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   pcall(L, 0, 1);
 
@@ -332,7 +332,7 @@ stage::stage(std::string name)
       luaL_getmetatable(L, "Sound");
       lua_setmetatable(L, -2);
 
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
       lua_pushvalue(L, -2);
       lua_setfield(L, -2, label.c_str());
       lua_pop(L, 1);
@@ -384,7 +384,7 @@ stage::stage(std::string name)
     luaL_getmetatable(L, "Minimap");
     lua_setmetatable(L, -2);
 
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
     lua_pushvalue(L, -2);
     lua_setfield(L, -2, "minimap");
     lua_pop(L, 1);
@@ -443,7 +443,7 @@ stage::stage(std::string name)
       luaL_getmetatable(L, "Particle");
       lua_setmetatable(L, -2);
 
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
       lua_pushvalue(L, -2);
       lua_setfield(L, -2, label.c_str());
       lua_pop(L, 1);
@@ -453,9 +453,9 @@ stage::stage(std::string name)
   }
   lua_pop(L, 1);
 
-  _ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
   lua_getfield(L, -1, "on_loop");
   _on_loop = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
@@ -489,9 +489,9 @@ stage::~stage() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_tick);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_camera);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
-  luaL_unref(L, LUA_REGISTRYINDEX, _world_ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, _pool_ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, _ref);
+  luaL_unref(L, LUA_REGISTRYINDEX, _world_reference);
+  luaL_unref(L, LUA_REGISTRYINDEX, _pool_reference);
+  luaL_unref(L, LUA_REGISTRYINDEX, _reference);
 
   _registry.on_destroy<body>().disconnect<&on_object_destroy>();
   _registry.clear();
@@ -579,7 +579,7 @@ void stage::update(float delta) {
 
   if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
     pcall(L, 2, 0);
   }
@@ -692,7 +692,7 @@ void stage::update(float delta) {
 
   if (_on_camera != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
     pcall(L, 1, 2);
 
@@ -992,14 +992,14 @@ void stage::on_enter() {
     return;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _on_enter);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   pcall(L, 1, 0);
 }
 
 void stage::on_leave() {
   if (_on_leave != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_leave);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     pcall(L, 1, 0);
   }
 
@@ -1007,9 +1007,9 @@ void stage::on_leave() {
 }
 
 void stage::expose() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
   lua_setglobal(L, "pool");
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _world_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _world_reference);
   lua_setglobal(L, "world");
 }
 
@@ -1025,7 +1025,7 @@ void stage::on_tick(uint64_t tick) {
     return;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _on_tick);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_pushinteger(L, static_cast<lua_Integer>(tick));
   pcall(L, 2, 0);
 }
@@ -1115,7 +1115,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
     return 1;
   }
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
   lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
   lua_setfield(L, -2, name.data());
   lua_pop(L, 1);
@@ -1143,7 +1143,7 @@ int stage::destroy(lua_State* state) {
   const auto& op = _registry.get<scriptable>(self->entity);
   const auto* label = depot->string.get(op.name);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
   lua_pushnil(L);
   lua_setfield(L, -2, label);
   lua_pop(L, 1);
@@ -1296,17 +1296,17 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
   return 1;
 }
 
-void stage::dispatch_collision(const scriptable& self, const scriptable* target, int callback_ref, const b2Vec2* normal) {
-  if (callback_ref == LUA_NOREF) [[likely]]
+void stage::dispatch_collision(const scriptable& self, const scriptable* target, int callback_reference, const b2Vec2* normal) {
+  if (callback_reference == LUA_NOREF) [[likely]]
     return;
 
   if (self.handle == LUA_NOREF || !target) [[unlikely]]
     return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, callback_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, callback_reference);
   lua_rawgeti(L, LUA_REGISTRYINDEX, self.handle);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, target->name_ref);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, target->kind_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, target->name_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, target->kind_reference);
   if (!normal) {
     pcall(L, 3, 0);
     return;
@@ -1369,12 +1369,12 @@ entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexc
   return topmost;
 }
 
-void stage::dispatch_miss(int callback_ref, float x, float y, const char* button) {
-  if (callback_ref == LUA_NOREF) [[likely]]
+void stage::dispatch_miss(int callback_reference, float x, float y, const char* button) {
+  if (callback_reference == LUA_NOREF) [[likely]]
     return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, callback_ref);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, callback_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_pushnumber(L, static_cast<lua_Number>(x));
   lua_pushnumber(L, static_cast<lua_Number>(y));
   lua_pushstring(L, button);

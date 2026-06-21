@@ -83,14 +83,14 @@ namespace {
     constexpr auto label = "label"_hs;
   }
 
-  int _label_ref = LUA_NOREF;
+  int _label_reference = LUA_NOREF;
 }
 
 static int font_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id == property::label) [[likely]] {
-    lua_rawgeti(state, LUA_REGISTRYINDEX, _label_ref);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, _label_reference);
     return 1;
   }
 
@@ -99,7 +99,7 @@ static int font_index(lua_State *state) {
 
 void font::wire() {
   lua_pushcfunction(L, font_label);
-  _label_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _label_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Font", font_index);
 }

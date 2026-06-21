@@ -3,7 +3,7 @@ namespace property {
   constexpr auto draw = "draw"_hs;
 }
 
-int _draw_ref = LUA_NOREF;
+int _draw_reference = LUA_NOREF;
 
 static int foreground_draw(lua_State *state) {
   auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
@@ -94,11 +94,11 @@ static int foreground_index(lua_State *state) {
   const auto id = entt::hashed_string{key.data(), key.size()};
 
   if (id == property::draw) {
-    lua_rawgeti(state, LUA_REGISTRYINDEX, _draw_ref);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, _draw_reference);
     return 1;
   }
 
-  lua_rawgeti(state, LUA_REGISTRYINDEX, self->_ref);
+  lua_rawgeti(state, LUA_REGISTRYINDEX, self->_reference);
   lua_getfield(state, -1, key.data());
   if (!lua_isnil(state, -1)) [[likely]] {
     lua_remove(state, -2);
@@ -171,9 +171,9 @@ foreground::foreground(std::string_view name) {
   }
   lua_pop(L, 1);
 
-  _ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
   lua_getfield(L, -1, "on_appear");
   _on_appear = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
@@ -193,7 +193,7 @@ foreground::foreground(std::string_view name) {
   *m = this;
   luaL_getmetatable(L, "Foreground");
   lua_setmetatable(L, -2);
-  _userdata_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _userdata_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 }
 
 foreground::~foreground() {
@@ -203,13 +203,13 @@ foreground::~foreground() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_disappear);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_appear);
-  luaL_unref(L, LUA_REGISTRYINDEX, _ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, _userdata_ref);
+  luaL_unref(L, LUA_REGISTRYINDEX, _reference);
+  luaL_unref(L, LUA_REGISTRYINDEX, _userdata_reference);
 }
 
 void foreground::wire() {
   lua_pushcfunction(L, foreground_draw);
-  _draw_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _draw_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Foreground", foreground_index);
 }
@@ -220,7 +220,7 @@ void foreground::appear() {
 
   if (_on_appear != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_appear);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     pcall(L, 1, 0);
   }
 
@@ -233,7 +233,7 @@ void foreground::disappear() {
 
   if (_on_disappear != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disappear);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     pcall(L, 1, 0, fault::ignore);
   }
 
@@ -243,7 +243,7 @@ void foreground::disappear() {
 void foreground::update(float delta) {
   if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _ref);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
     pcall(L, 2, 0);
   }
@@ -252,7 +252,7 @@ void foreground::update(float delta) {
 void foreground::draw() {
   if (_on_paint != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_ref);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_reference);
     pcall(L, 1, 0);
   }
 }

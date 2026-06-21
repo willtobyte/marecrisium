@@ -11,7 +11,7 @@ sqlite3_stmt *stmt_upsert;
 sqlite3_stmt *stmt_delete;
 sqlite3_stmt *stmt_clear;
 
-int _purge_ref = LUA_NOREF;
+int _purge_reference = LUA_NOREF;
 
 struct transparent_hash final {
   using is_transparent = void;
@@ -118,7 +118,7 @@ static int cassette_index(lua_State *state) {
   const auto id = entt::hashed_string{key.data(), key.size()};
 
   if (id == property::purge) [[unlikely]]
-    return lua_rawgeti(state, LUA_REGISTRYINDEX, _purge_ref), 1;
+    return lua_rawgeti(state, LUA_REGISTRYINDEX, _purge_reference), 1;
 
   if (const auto it = cache.find(key); it != cache.end()) [[likely]] {
     if (it->second == LUA_NOREF) [[unlikely]]
@@ -225,7 +225,7 @@ void cassette::wire() {
   cache.reserve(1024);
 
   lua_pushcfunction(L, cassette_clear);
-  _purge_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _purge_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Cassette", cassette_index, cassette_newindex);
   singleton(L, "Cassette", "cassette");

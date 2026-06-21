@@ -121,8 +121,8 @@ static int push_gamepad_button(lua_State *state, SDL_GamepadButton button, SDL_G
   return 1;
 }
 
-static int _rumble_ref = LUA_NOREF;
-static int _led_ref = LUA_NOREF;
+static int _rumble_reference = LUA_NOREF;
+static int _led_reference = LUA_NOREF;
 
 static int gamepad_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
@@ -140,11 +140,11 @@ static int gamepad_index(lua_State *state) {
       return 1;
 
     case property::rumble:
-      lua_rawgeti(state, LUA_REGISTRYINDEX, _rumble_ref);
+      lua_rawgeti(state, LUA_REGISTRYINDEX, _rumble_reference);
       return 1;
 
     case property::led:
-      lua_rawgeti(state, LUA_REGISTRYINDEX, _led_ref);
+      lua_rawgeti(state, LUA_REGISTRYINDEX, _led_reference);
       return 1;
 
     case property::name:
@@ -167,9 +167,9 @@ void gamepad::wire() {
   }
 
   lua_pushcfunction(L, gamepad_rumble);
-  _rumble_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _rumble_reference = luaL_ref(L, LUA_REGISTRYINDEX);
   lua_pushcfunction(L, gamepad_led);
-  _led_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _led_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Gamepad", gamepad_index);
 

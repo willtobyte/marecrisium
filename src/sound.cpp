@@ -56,11 +56,11 @@ namespace {
     return 0;
   }
 
-  int _play_ref = LUA_NOREF;
-  int _stop_ref = LUA_NOREF;
-  int _fade_ref = LUA_NOREF;
-  int _on_begin_ref = LUA_NOREF;
-  int _on_end_ref = LUA_NOREF;
+  int _play_reference = LUA_NOREF;
+  int _stop_reference = LUA_NOREF;
+  int _fade_reference = LUA_NOREF;
+  int _on_begin_reference = LUA_NOREF;
+  int _on_end_reference = LUA_NOREF;
 
   static int sound_index(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
@@ -84,23 +84,23 @@ namespace {
         return 1;
 
       case property::play:
-        lua_rawgeti(state, LUA_REGISTRYINDEX, _play_ref);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, _play_reference);
         return 1;
 
       case property::stop:
-        lua_rawgeti(state, LUA_REGISTRYINDEX, _stop_ref);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, _stop_reference);
         return 1;
 
       case property::fade:
-        lua_rawgeti(state, LUA_REGISTRYINDEX, _fade_ref);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, _fade_reference);
         return 1;
 
       case property::on_begin:
-        lua_rawgeti(state, LUA_REGISTRYINDEX, _on_begin_ref);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, _on_begin_reference);
         return 1;
 
       case property::on_end:
-        lua_rawgeti(state, LUA_REGISTRYINDEX, _on_end_ref);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, _on_end_reference);
         return 1;
 
       default:
@@ -331,15 +331,15 @@ void sound::poll() {
 
 void sound::wire() {
   lua_pushcfunction(L, sound_play);
-  _play_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _play_reference = luaL_ref(L, LUA_REGISTRYINDEX);
   lua_pushcfunction(L, sound_stop);
-  _stop_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _stop_reference = luaL_ref(L, LUA_REGISTRYINDEX);
   lua_pushcfunction(L, sound_fade);
-  _fade_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _fade_reference = luaL_ref(L, LUA_REGISTRYINDEX);
   lua_pushcfunction(L, sound_on_begin);
-  _on_begin_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _on_begin_reference = luaL_ref(L, LUA_REGISTRYINDEX);
   lua_pushcfunction(L, sound_on_end);
-  _on_end_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _on_end_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Sound", sound_index, sound_newindex);
 }

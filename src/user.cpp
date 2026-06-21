@@ -7,8 +7,8 @@ namespace {
   }
 }
 
-static int _persona_ref = LUA_NOREF;
-static int _friends_ref = LUA_NOREF;
+static int _persona_reference = LUA_NOREF;
+static int _friends_reference = LUA_NOREF;
 
 static int friend_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
@@ -36,11 +36,11 @@ static int user_index(lua_State *state) {
 
   switch (id) {
     case property::persona:
-      lua_rawgeti(state, LUA_REGISTRYINDEX, _persona_ref);
+      lua_rawgeti(state, LUA_REGISTRYINDEX, _persona_reference);
       return 1;
 
     case property::friends:
-      lua_rawgeti(state, LUA_REGISTRYINDEX, _friends_ref);
+      lua_rawgeti(state, LUA_REGISTRYINDEX, _friends_reference);
       return 1;
 
     default:
@@ -52,7 +52,7 @@ void user::wire() {
   metatable(L, "Friend", friend_index);
 
   lua_pushstring(L, GetPersonaName());
-  _persona_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _persona_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   const auto count = GetFriendCount();
   lua_newtable(L);
@@ -81,7 +81,7 @@ void user::wire() {
     lua_rawseti(L, -2, index++);
   }
 
-  _friends_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _friends_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "User", user_index);
 
