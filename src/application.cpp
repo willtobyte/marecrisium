@@ -8,20 +8,20 @@ int application::run() {
     scriptengine se;
     se.run();
   } catch (const std::exception& exc) {
-    const auto* const error = exc.what();
+    const auto message = std::format("{}: {}", typeid(exc).name(), exc.what());
 
-    std::println(stderr, "{}", error);
+    std::println(stderr, "{}", message);
 
 #ifndef DEBUG
     const auto event = sentry_value_new_event();
-    const auto exception = sentry_value_new_exception("exception", error);
+    const auto exception = sentry_value_new_exception(typeid(exc).name(), exc.what());
     sentry_value_set_stacktrace(exception, nullptr, 0);
     sentry_event_add_exception(event, exception);
     sentry_capture_event(event);
     sentry_flush(3000);
 #endif
 
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Ink Spill Disaster", error, nullptr);
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Ink Spill Disaster", message.c_str(), nullptr);
 
     return 1;
   }
