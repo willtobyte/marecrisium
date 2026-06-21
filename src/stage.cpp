@@ -1021,7 +1021,7 @@ void stage::conceal() {
 }
 
 void stage::on_tick(uint64_t tick) {
-  if (_on_tick == LUA_NOREF) [[unlikely]]
+  if (_on_tick == LUA_NOREF) [[likely]]
     return;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _on_tick);
