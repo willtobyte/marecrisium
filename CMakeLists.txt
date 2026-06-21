@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.0)
-project(carimbo LANGUAGES C CXX)
+project(marecrisium LANGUAGES C CXX)
 
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD 23)

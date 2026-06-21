@@ -367,8 +367,8 @@ const PHYSFS_Archiver archiver = {
   0,
   {
     "ROM",
-    "Carimbo ROM archive",
-    "Carimbo",
+    "Mare Crisium ROM archive",
+    "Mare Crisium",
     "https://willtobyte.net",
     0,
   },

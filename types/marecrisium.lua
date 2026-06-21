@@ -1,6 +1,6 @@
 ---@meta
 
--- Carimbo Engine API definitions
+-- Mare Crisium API definitions
 -- Auto-generated EmmyLua annotations for the Lua Language Server
 
 --------------------------------------------------------------------------------
