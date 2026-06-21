@@ -1047,9 +1047,6 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   const auto handle = op.handle;
   const auto on_spawn = op.on_spawn;
 
-  depot->string.get(name);
-  depot->string.get(kind);
-
   lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
   lua_getfield(L, -1, "animation");
 
@@ -1141,12 +1138,13 @@ int stage::destroy(lua_State* state) {
     return 0;
 
   const auto& op = _registry.get<scriptable>(self->entity);
-  const auto* label = depot->string.get(op.name);
 
+  lua_rawgeti(L, LUA_REGISTRYINDEX, op.name_reference);
+  const auto* label = lua_tostring(L, -1);
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
   lua_pushnil(L);
   lua_setfield(L, -2, label);
-  lua_pop(L, 1);
+  lua_pop(L, 2);
 
   _registry.destroy(self->entity);
   return 0;
