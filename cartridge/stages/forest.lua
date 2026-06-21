@@ -53,6 +53,7 @@ return scheduler.wrap({
 		if down and not pressed then
 			pool.minimap.visible = not pool.minimap.visible
 		end
+
 		pressed = down
 	end,
 
