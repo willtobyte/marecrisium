@@ -208,7 +208,7 @@ foreground::~foreground() {
 }
 
 void foreground::wire() {
-  lua_pushcfunction(L, foreground_draw);
+  cfunction(L, foreground_draw);
   _draw_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Foreground", foreground_index);

@@ -166,9 +166,9 @@ void gamepad::wire() {
     ptr.store(SDL_OpenGamepad(gamepads[0]));
   }
 
-  lua_pushcfunction(L, gamepad_rumble);
+  cfunction(L, gamepad_rumble);
   _rumble_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-  lua_pushcfunction(L, gamepad_led);
+  cfunction(L, gamepad_led);
   _led_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Gamepad", gamepad_index);

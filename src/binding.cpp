@@ -206,21 +206,45 @@ void singleton(lua_State *state, const char *metatable, const char *global) {
   lua_setglobal(state, global);
 }
 
+static int trampoline(lua_State *state) {
+  const auto nargs = lua_gettop(state);
+  lua_pushvalue(state, lua_upvalueindex(1));
+  lua_insert(state, 1);
+
+  try {
+    lua_call(state, nargs, LUA_MULTRET);
+  } catch (const std::exception &e) {
+    return luaL_error(state, "%s", e.what());
+  }
+
+  return lua_gettop(state);
+}
+
+void cfunction(lua_State *state, lua_CFunction fn) {
+  lua_pushcfunction(state, fn);
+  lua_pushcclosure(state, trampoline, 1);
+}
+
+void cclosure(lua_State *state, lua_CFunction fn, int nup) {
+  lua_pushcclosure(state, fn, nup);
+  lua_pushcclosure(state, trampoline, 1);
+}
+
 void metatable(lua_State *state, const char *name, lua_CFunction index, lua_CFunction newindex, lua_CFunction gc) {
   luaL_newmetatable(state, name);
 
   if (index) {
-    lua_pushcfunction(state, index);
+    cfunction(state, index);
     lua_setfield(state, -2, "__index");
   }
 
   if (newindex) {
-    lua_pushcfunction(state, newindex);
+    cfunction(state, newindex);
     lua_setfield(state, -2, "__newindex");
   }
 
   if (gc) {
-    lua_pushcfunction(state, gc);
+    cfunction(state, gc);
     lua_setfield(state, -2, "__gc");
   }
 

@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -41,7 +41,7 @@ jobs:
 
       - name: Export local recipes
         run: |
-          conan export recipes/luajit --version=2.1-20260613
+          conan export recipes/luajit --version=2.1-20260616
 
       - name: Install dependencies
         run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release
@@ -86,7 +86,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -116,7 +116,7 @@ jobs:
 
       - name: Export local recipes
         run: |
-          conan export recipes/luajit --version=2.1-20260613
+          conan export recipes/luajit --version=2.1-20260616
 
       - name: Install dependencies
         run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release --settings compiler.runtime=static
@@ -155,7 +155,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -177,7 +177,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v8.1.0
+        uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: false
 

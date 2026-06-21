@@ -16,7 +16,7 @@ void scriptengine::run() {
   lua_getfield(L, -1, "loaders");
 
   const auto length = static_cast<int>(lua_objlen(L, -1));
-  lua_pushcfunction(L, loader);
+  cfunction(L, loader);
   lua_rawseti(L, -2, length + 1);
 
   lua_pop(L, 2);

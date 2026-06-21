@@ -40,6 +40,6 @@ void locales::wire() {
   lua_getfield(L, -1, "format");
   lua_remove(L, -2);
 
-  lua_pushcclosure(L, translate, 2);
+  cclosure(L, translate, 2);
   lua_setglobal(L, "_");
 }

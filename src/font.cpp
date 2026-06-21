@@ -98,7 +98,7 @@ static int font_index(lua_State *state) {
 }
 
 void font::wire() {
-  lua_pushcfunction(L, font_label);
+  cfunction(L, font_label);
   _label_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Font", font_index);

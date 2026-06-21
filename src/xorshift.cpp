@@ -84,9 +84,9 @@ void xorshift128::seed(uint32_t value) {
 
 void xorshift128::wire() {
   lua_getglobal(L, "math");
-  lua_pushcfunction(L, math_random);
+  cfunction(L, math_random);
   lua_setfield(L, -2, "random");
-  lua_pushcfunction(L, math_randomseed);
+  cfunction(L, math_randomseed);
   lua_setfield(L, -2, "randomseed");
   lua_pop(L, 1);
 }

@@ -32,7 +32,7 @@ static int text_on(lua_State *state) {
 }
 
 static int text_index(lua_State *state) {
-  lua_pushcfunction(state, text_on);
+  cfunction(state, text_on);
   return 1;
 }
 

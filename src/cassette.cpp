@@ -61,13 +61,13 @@ static int proxy_index(lua_State *state) {
   lua_pushvalue(state, index);
   lua_pushvalue(state, lua_upvalueindex(2));
   lua_pushvalue(state, lua_upvalueindex(3));
-  lua_pushcclosure(state, proxy_index, 3);
+  cclosure(state, proxy_index, 3);
   lua_setfield(state, -2, "__index");
 
   lua_pushvalue(state, index);
   lua_pushvalue(state, lua_upvalueindex(2));
   lua_pushvalue(state, lua_upvalueindex(3));
-  lua_pushcclosure(state, proxy_newindex, 3);
+  cclosure(state, proxy_newindex, 3);
   lua_setfield(state, -2, "__newindex");
 
   lua_setmetatable(state, -2);
@@ -88,13 +88,13 @@ static void proxify(lua_State *state, std::string_view key) {
   lua_pushvalue(state, data);
   lua_pushvalue(state, root);
   lua_pushvalue(state, data);
-  lua_pushcclosure(state, proxy_index, 3);
+  cclosure(state, proxy_index, 3);
   lua_setfield(state, -2, "__index");
 
   lua_pushvalue(state, data);
   lua_pushvalue(state, root);
   lua_pushvalue(state, data);
-  lua_pushcclosure(state, proxy_newindex, 3);
+  cclosure(state, proxy_newindex, 3);
   lua_setfield(state, -2, "__newindex");
 
   lua_setmetatable(state, -2);
@@ -224,7 +224,7 @@ void cassette::wire() {
 
   cache.reserve(1024);
 
-  lua_pushcfunction(L, cassette_clear);
+  cfunction(L, cassette_clear);
   _purge_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Cassette", cassette_index, cassette_newindex);

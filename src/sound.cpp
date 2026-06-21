@@ -330,15 +330,15 @@ void sound::poll() {
 }
 
 void sound::wire() {
-  lua_pushcfunction(L, sound_play);
+  cfunction(L, sound_play);
   _play_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-  lua_pushcfunction(L, sound_stop);
+  cfunction(L, sound_stop);
   _stop_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-  lua_pushcfunction(L, sound_fade);
+  cfunction(L, sound_fade);
   _fade_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-  lua_pushcfunction(L, sound_on_begin);
+  cfunction(L, sound_on_begin);
   _on_begin_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-  lua_pushcfunction(L, sound_on_end);
+  cfunction(L, sound_on_end);
   _on_end_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   metatable(L, "Sound", sound_index, sound_newindex);
