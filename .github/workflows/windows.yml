@@ -15,9 +15,6 @@ on:
       - "src/**"
       - "tools/**"
 
-env:
-  MSYS_NO_PATHCONV: 1
-
 jobs:
   build:
     runs-on: windows-latest
