@@ -201,7 +201,6 @@ cassette = {}
 ---@field scale number Render scale factor.
 ---@field fullscreen boolean Whether to start in fullscreen mode.
 ---@field ticks integer|nil Fixed tick rate (ticks per second). Default is 0 (disabled). Set to e.g. 10 for 10 ticks/second.
----@field sentry? string Sentry DSN for crash reporting. Only active in non-debug builds. Omit or set empty to disable.
 ---@field on_begin fun() Called once after the engine is fully initialized.
 
 --------------------------------------------------------------------------------

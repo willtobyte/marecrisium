@@ -15,7 +15,6 @@ class Game(ConanFile):
             "physfs/3.2.0",
             "libspng/0.7.4",
             "sdl/3.4.8",
-            "sentry-native/0.14.2",
             "sqlite3/3.53.2",
             "luajit/2.1-20260616",
             "opusfile/0.12",
@@ -27,8 +26,6 @@ class Game(ConanFile):
 
     def configure(self):
         self.options["miniaudio"].header_only = True
-        self.options["sentry-native"].backend = "inproc"
-        self.options["sentry-native"].shared = False
 
         self.options["mimalloc"].shared = False
         self.options["mimalloc"].secure = False

@@ -41,7 +41,6 @@ using namespace entt::literals;
 #include <opusfile.h>
 #include <physfs.h>
 #include <SDL3/SDL.h>
-#include <sentry.h>
 #include <spng.h>
 #include <sqlite3.h>
 #include <yyjson.h>

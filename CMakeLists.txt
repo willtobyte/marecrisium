@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.0)
-project(marecrisium LANGUAGES C CXX)
+project(carimbo LANGUAGES C CXX)
 
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD 23)
@@ -39,7 +39,6 @@ find_package(box2d CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
 find_package(PhysFS CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
-find_package(sentry CONFIG REQUIRED)
 find_package(SPNG CONFIG REQUIRED)
 find_package(luajit CONFIG REQUIRED)
 find_package(miniaudio CONFIG REQUIRED)
@@ -56,7 +55,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   EnTT::EnTT
   physfs-static
   SDL3::SDL3-static
-  sentry-native::sentry-native
   spng::spng_static
   miniaudio::miniaudio
   opusfile::opusfile

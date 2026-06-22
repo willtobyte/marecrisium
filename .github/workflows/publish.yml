@@ -51,12 +51,9 @@ jobs:
           cmake -Bbuild \
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG -g3" \
-            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -g3"
+            -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG"
           cmake --build build --config Release --verbose
-
-      - name: Generate dSYM
-        run: dsymutil build/carimbo -o build/carimbo.dSYM
 
       - name: Strip binary
         run: strip build/carimbo
@@ -65,7 +62,6 @@ jobs:
         run: |
           mkdir -p artifact
           cp build/carimbo artifact/
-          cp -r build/carimbo.dSYM artifact/
           cp build/LICENSES artifact/
 
       - name: Upload artifact
@@ -128,16 +124,15 @@ jobs:
           cmake -Bbuild \
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_FLAGS_RELEASE="/O2 /DNDEBUG /Zi" \
-            -DCMAKE_CXX_FLAGS_RELEASE="/O2 /DNDEBUG /Zi" \
-            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG:FULL /OPT:REF /OPT:ICF"
+            -DCMAKE_C_FLAGS_RELEASE="/O2 /DNDEBUG" \
+            -DCMAKE_CXX_FLAGS_RELEASE="/O2 /DNDEBUG" \
+            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/OPT:REF /OPT:ICF"
           cmake --build build --config Release --verbose
 
       - name: Collect artifacts
         run: |
           mkdir -p artifact
           cp build/Release/carimbo.exe artifact/
-          cp build/Release/carimbo.pdb artifact/
           cp build/LICENSES artifact/
 
       - name: Upload artifact
@@ -212,23 +207,3 @@ jobs:
           depot2Path: windows
           depot3Path: macos
           releaseBranch: alpha
-
-      - name: Upload debug symbols to Sentry
-        run: |
-          npx @sentry/cli debug-files upload macos-build/carimbo.dSYM
-          npx @sentry/cli debug-files upload windows-build/carimbo.pdb
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: willtobyte
-          SENTRY_PROJECT: marecrisium
-
-      - name: Create Sentry release
-        run: |
-          npx @sentry/cli releases new "$VERSION"
-          npx @sentry/cli releases set-commits "$VERSION" --auto
-          npx @sentry/cli releases deploys "$VERSION" new -e production
-          npx @sentry/cli releases finalize "$VERSION"
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: willtobyte
-          SENTRY_PROJECT: marecrisium
