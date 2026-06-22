@@ -15,6 +15,9 @@ on:
       - "src/**"
       - "tools/**"
 
+env:
+  MSYS_NO_PATHCONV: 1
+
 jobs:
   build:
     runs-on: windows-latest
@@ -67,10 +70,8 @@ jobs:
         run: uv tool run conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release --settings compiler.runtime=static
 
       - name: Build
-        env:
-          MSYS_NO_PATHCONV: 1
         run: |
-          cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="/MP" -DCMAKE_CXX_FLAGS="/MP"
+          cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release --verbose
 
       - name: Package cartridge
