@@ -21,7 +21,6 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.2.0
         with:
-          python-version: "3.14"
           cache-dependency-glob: tools/pack.py
 
       - name: Setup Conan
@@ -98,7 +97,6 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.2.0
         with:
-          python-version: "3.14"
           cache-dependency-glob: tools/pack.py
 
       - name: Setup Conan
@@ -187,7 +185,6 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.2.0
         with:
-          python-version: "3.14"
           cache-dependency-glob: tools/pack.py
 
       - name: Package cartridge
