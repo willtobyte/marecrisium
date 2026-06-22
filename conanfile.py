@@ -32,6 +32,8 @@ class Game(ConanFile):
         self.options["mimalloc"].override = True
         self.options["mimalloc"].single_object = self.settings.os != "Windows"
 
+        self.options["opusfile"].http = False
+
     def generate(self):
         license_output = Path(self.build_folder) / "LICENSES"
         with license_output.open("w", encoding="utf-8") as out:
