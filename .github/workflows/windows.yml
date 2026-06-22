@@ -32,9 +32,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: false
+
       - name: Setup Conan
         run: |
-          pip install conan
+          uv pip install --system conan
           conan profile detect --force
 
       - name: Configure tools & CMake
@@ -65,13 +70,8 @@ jobs:
 
       - name: Build
         run: |
-          cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+          cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="/MP" -DCMAKE_CXX_FLAGS="/MP"
           cmake --build build --config Release --verbose
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v8.2.0
-        with:
-          enable-cache: false
 
       - name: Package cartridge
         run: uv run tools/pack.py cartridge
