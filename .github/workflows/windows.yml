@@ -36,7 +36,7 @@ jobs:
         uses: astral-sh/setup-uv@v8.2.0
         with:
           python-version: "3.14"
-          cache-python: true
+          cache-dependency-glob: tools/pack.py
 
       - name: Setup Conan
         run: |
