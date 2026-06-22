@@ -20,6 +20,9 @@ jobs:
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14"
+          cache-python: true
 
       - name: Setup Conan
         run: |
@@ -94,6 +97,9 @@ jobs:
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14"
+          cache-python: true
 
       - name: Setup Conan
         run: |
@@ -180,6 +186,9 @@ jobs:
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14"
+          cache-python: true
 
       - name: Package cartridge
         run: uv run tools/pack.py cartridge
