@@ -34,13 +34,11 @@ jobs:
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.2.0
-        with:
-          enable-cache: false
 
       - name: Setup Conan
         run: |
-          uv pip install --system conan
-          conan profile detect --force
+          uv tool install conan
+          uv tool run conan profile detect --force
 
       - name: Configure tools & CMake
         run: |
@@ -63,12 +61,14 @@ jobs:
 
       - name: Export local recipes
         run: |
-          conan export recipes/luajit --version=2.1-20260616
+          uv tool run conan export recipes/luajit --version=2.1-20260616
 
       - name: Install dependencies
-        run: conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release --settings compiler.runtime=static
+        run: uv tool run conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release --settings compiler.runtime=static
 
       - name: Build
+        env:
+          MSYS_NO_PATHCONV: 1
         run: |
           cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="/MP" -DCMAKE_CXX_FLAGS="/MP"
           cmake --build build --config Release --verbose
