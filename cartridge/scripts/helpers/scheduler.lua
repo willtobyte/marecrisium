@@ -8,12 +8,12 @@ local list = {}
 local n = 0
 local tick = 0
 
-function scheduler.run(f)
+function scheduler.run(fun)
 	n = n + 1
 
 	local entry = {
 		routine = create(function()
-			f(function(ticks)
+			fun(function(ticks)
 				return yield(ticks)
 			end)
 		end),
@@ -30,7 +30,9 @@ end
 
 function scheduler.advance(current)
 	tick = current
+
 	local i = 1
+
 	while i <= n do
 		local entry = list[i]
 		if entry.cancelled then
@@ -39,6 +41,7 @@ function scheduler.advance(current)
 			n = n - 1
 		elseif current >= entry.resume_at then
 			local success, result = resume(entry.routine)
+
 			if success and result then
 				entry.resume_at = current + result
 				i = i + 1
@@ -46,6 +49,7 @@ function scheduler.advance(current)
 				if not success then
 					print("[scheduler] " .. tostring(result))
 				end
+
 				list[i] = list[n]
 				list[n] = nil
 				n = n - 1
