@@ -32,12 +32,15 @@ static color unpack(lua_State *state, int index) {
   lua_rawgeti(state, index, 1);
   const auto r = static_cast<uint8_t>(lua_tonumber(state, -1));
   lua_pop(state, 1);
+
   lua_rawgeti(state, index, 2);
   const auto g = static_cast<uint8_t>(lua_tonumber(state, -1));
   lua_pop(state, 1);
+
   lua_rawgeti(state, index, 3);
   const auto b = static_cast<uint8_t>(lua_tonumber(state, -1));
   lua_pop(state, 1);
+
   return {r, g, b};
 }
 
