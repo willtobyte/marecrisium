@@ -799,55 +799,6 @@ function _(key, ...) end
 function moment() end
 
 --------------------------------------------------------------------------------
--- Ticker (Lua-side tick-based timer system)
---------------------------------------------------------------------------------
-
----@class Ticker
----Pure Lua timer system driven by the engine's fixed tick rate.
----Require via `require("helpers/ticker")`.
----
----Usage:
----```lua
----local ticker = require("helpers/ticker")
----
------ One-shot: fire after 30 ticks
----ticker.after(30, function() print("done") end)
----
------ Repeating: fire every 10 ticks
----local timer = ticker.every(10, function() print("tick") end)
----ticker.cancel(timer)
----
------ Wrap a stage to auto-advance and auto-clear on leave
----ticker.wrap(stage)
----```
-local Ticker = {}
-
----Schedule a one-shot callback after a number of ticks.
----@param ticks integer Number of ticks to wait.
----@param callback fun() Function to call when ticks elapse.
----@return table timer Timer handle for cancellation.
-function Ticker.after(ticks, callback) end
-
----Schedule a repeating callback every N ticks.
----@param ticks integer Interval in ticks.
----@param callback fun() Function to call each interval.
----@return table timer Timer handle for cancellation.
-function Ticker.every(ticks, callback) end
-
----Cancel a timer by its handle.
----@param timer table The handle returned by `after` or `every`.
-function Ticker.cancel(timer) end
-
----Cancel all active timers.
-function Ticker.clear() end
-
----Decorate a stage table to auto-advance timers on `on_tick`
----and auto-clear on `on_leave`. Chains with existing callbacks.
----@param stage Stage The stage table to wrap.
----@return Stage stage The same table, modified in place.
-function Ticker.wrap(stage) end
-
---------------------------------------------------------------------------------
 -- Controls (unified keyboard + gamepad abstraction)
 --------------------------------------------------------------------------------
 
@@ -918,14 +869,18 @@ function math.random(minimum, maximum) end
 ---```lua
 ---local scheduler = require("helpers/scheduler")
 ---
----scheduler.spawn(function()
+---local stop = scheduler.run(function(wait)
 ---    while self.alive do
 ---        self.direction = 1
----        scheduler.wait(20)
+---        wait(20)
 ---        self.direction = -1
----        scheduler.wait(20)
+---        wait(20)
 ---    end
 ---end)
+---
+----- Cancel early (e.g. when the entity dies). Idempotent: safe to
+----- call again after the routine has already finished.
+---stop()
 ---
 ---return scheduler.wrap({
 ---    ...
@@ -934,14 +889,13 @@ function math.random(minimum, maximum) end
 local Scheduler = {}
 
 ---Launch a function as a managed coroutine.
+---`f` receives a `wait` function; call `wait(n)` to pause N ticks.
 ---Begins executing on the next scheduler advance.
----@param fn fun() The function to run as a coroutine.
-function Scheduler.spawn(fn) end
-
----Suspend the current coroutine for N ticks.
----Must be called from inside a coroutine managed by this scheduler.
----@param ticks? integer Number of ticks to wait. Defaults to 1.
-function Scheduler.wait(ticks) end
+---Returns a `stop` closure that cancels the routine: once called, the
+---coroutine is never resumed again and is removed on the next advance.
+---@param fn fun(wait: fun(ticks: integer)) The function to run.
+---@return fun() stop Cancel closure; idempotent; safe after completion.
+function Scheduler.run(fn) end
 
 ---Advance all ready coroutines. Called internally by `wrap`.
 ---@param current_tick integer The current tick counter.
