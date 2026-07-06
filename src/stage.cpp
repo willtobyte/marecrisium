@@ -94,7 +94,9 @@ static bool ensure_shape(body &b, const frame &fr, entt::entity entity, const tr
       b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
       return true;
     }
+
     b2Body_SetTransform(b.id, center, b2Rot_identity);
+
     return true;
   }
 
