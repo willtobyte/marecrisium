@@ -50,7 +50,9 @@ static bool culled(const transform &tf, const animation &an, float margin) {
   const auto height = fr.height * tf.scale;
   const auto screen_x = tf.x - viewport.x;
   const auto screen_y = tf.y - viewport.y;
-  return screen_x + width  < -margin ||
+
+  return
+    screen_x + width  < -margin ||
     screen_x >  viewport.width  + margin ||
     screen_y + height < -margin ||
     screen_y >  viewport.height + margin;
