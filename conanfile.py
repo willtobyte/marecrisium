@@ -1,3 +1,5 @@
+# pyright: reportAttributeAccessIssue=false, reportMissingImports=false
+
 from conan import ConanFile
 from conan.tools.cmake import CMakeDeps, CMakeToolchain
 from pathlib import Path
@@ -15,8 +17,8 @@ class Game(ConanFile):
             "physfs/3.2.0",
             "libspng/0.7.4",
             "sdl/3.4.8",
-            "sqlite3/3.53.2",
-            "luajit/2.1-20260616",
+            "sqlite3/3.53.3",
+            "luajit/2.1-20260720",
             "opusfile/0.12",
             "unordered_dense/4.8.1",
             "yyjson/0.12.0",

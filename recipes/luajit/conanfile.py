@@ -1,3 +1,5 @@
+# pyright: reportAttributeAccessIssue=false, reportMissingImports=false
+
 from conan import ConanFile
 from conan.tools.scm import Version
 from conan.tools.files import get, chdir, replace_in_file, copy, rmdir
