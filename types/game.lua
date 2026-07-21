@@ -98,6 +98,10 @@ local Text = {}
 ---@param callback fun(text: string) Receives the UTF-8 text that was input.
 function Text.on(callback) end
 
+---Unregister the text callback and stop text input.
+---Call this when the callback's owner, such as a stage, is no longer active.
+function Text.off() end
+
 ---Global typed-text input.
 ---@type Text
 text = {}

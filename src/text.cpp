@@ -1,4 +1,12 @@
+#include "binding.hpp"
+#include "text.hpp"
+
 namespace {
+namespace property {
+  constexpr auto on = "on"_hs;
+  constexpr auto off = "off"_hs;
+}
+
 auto _callback = LUA_NOREF;
 }
 
@@ -31,9 +39,28 @@ static int text_on(lua_State *state) {
   return 0;
 }
 
+static int text_off(lua_State *state) {
+  luaL_unref(state, LUA_REGISTRYINDEX, _callback);
+  _callback = LUA_NOREF;
+  SDL_StopTextInput(SDL_GetRenderWindow(renderer));
+  return 0;
+}
+
 static int text_index(lua_State *state) {
-  cfunction(state, text_on);
-  return 1;
+  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
+
+  switch (id) {
+    case property::on:
+      cfunction(state, text_on);
+      return 1;
+
+    case property::off:
+      cfunction(state, text_off);
+      return 1;
+
+    default:
+      return lua_pushnil(state), 1;
+  }
 }
 
 void text::wire() {
