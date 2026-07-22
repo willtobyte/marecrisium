@@ -127,6 +127,12 @@ struct dormant final {
 
 static_assert(std::is_trivially_copyable_v<dormant>, "dormant must be trivially copyable");
 
+struct dormancy final {
+  struct viewport viewport{};
+  bool dirty{true};
+};
+
+static_assert(std::is_trivially_copyable_v<dormancy>, "dormancy must be trivially copyable");
 
 struct renderable final {
   int z{};

@@ -221,7 +221,11 @@ namespace {
     switch (id) {
       case lookup::x: {
         auto& tf = registry.get<transform>(entity);
-        tf.previous_x = tf.x = static_cast<float>(luaL_checknumber(state, 3));
+        const auto value = static_cast<float>(luaL_checknumber(state, 3));
+        const auto changed = tf.x != value;
+        tf.previous_x = tf.x = value;
+        if (changed && registry.all_of<dormant>(entity))
+          registry.ctx().get<dormancy>().dirty = true;
 
         auto* b = registry.try_get<body>(entity);
         if (b && anchored(*b)) [[likely]]
@@ -232,7 +236,11 @@ namespace {
 
       case lookup::y: {
         auto& tf = registry.get<transform>(entity);
-        tf.previous_y = tf.y = static_cast<float>(luaL_checknumber(state, 3));
+        const auto value = static_cast<float>(luaL_checknumber(state, 3));
+        const auto changed = tf.y != value;
+        tf.previous_y = tf.y = value;
+        if (changed && registry.all_of<dormant>(entity))
+          registry.ctx().get<dormancy>().dirty = true;
 
         auto* b = registry.try_get<body>(entity);
         if (b && anchored(*b)) [[likely]]
@@ -298,6 +306,8 @@ namespace {
           a->current = 0;
           a->elapsed = .0f;
           a->playing = true;
+          if (registry.all_of<dormant>(entity))
+            registry.ctx().get<dormancy>().dirty = true;
 
           if (a->sheet->clips[i].effect)
             a->sheet->clips[i].effect->play();
@@ -327,9 +337,14 @@ namespace {
         return 0;
       }
 
-      case lookup::scale:
-        registry.get<transform>(entity).scale = static_cast<float>(luaL_checknumber(state, 3));
+      case lookup::scale: {
+        auto& tf = registry.get<transform>(entity);
+        const auto value = static_cast<float>(luaL_checknumber(state, 3));
+        if (tf.scale != value && registry.all_of<dormant>(entity))
+          registry.ctx().get<dormancy>().dirty = true;
+        tf.scale = value;
         return 0;
+      }
 
       case lookup::angle:
         registry.get<transform>(entity).angle = static_cast<float>(luaL_checknumber(state, 3));

@@ -212,6 +212,7 @@ stage::stage(std::string name)
   _registry.on_destroy<scriptable>().connect<&on_scriptable_destroy>();
   _registry.on_destroy<body>().connect<&on_object_destroy>();
   _registry.ctx().emplace<reorder>();
+  _registry.ctx().emplace<dormancy>();
 
   _vertices.reserve(4096);
   _indices.reserve(6144);
@@ -533,27 +534,33 @@ void stage::update(float delta) {
   }
 
   {
-    _pending.clear();
-    for (auto&& [e, tf, an] : _registry.view<sleepable, dormant, transform, animation>().each()) {
-      if (!culled(tf, an, _wake_margin))
-        _pending.emplace_back(e);
-    }
+    auto& sleep = _registry.ctx().get<dormancy>();
+    if (sleep.dirty || sleep.viewport != viewport) {
+      sleep.viewport = viewport;
+      sleep.dirty = false;
 
-    for (const auto e : _pending) {
-      if (!_registry.valid(e)) [[unlikely]]
-        continue;
+      _pending.clear();
+      for (auto&& [e, tf, an] : _registry.view<sleepable, dormant, transform, animation>().each()) {
+        if (!culled(tf, an, _wake_margin))
+          _pending.emplace_back(e);
+      }
 
-      _registry.remove<dormant>(e);
+      for (const auto e : _pending) {
+        if (!_registry.valid(e)) [[unlikely]]
+          continue;
 
-      if (auto* b = _registry.try_get<body>(e);
-          b && alive(*b))
-        b2Body_Enable(b->id);
+        _registry.remove<dormant>(e);
 
-      const auto& op = _registry.get<scriptable>(e);
-      if (op.on_wake != LUA_NOREF) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_wake);
-        lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-        pcall(L, 1, 0);
+        if (auto* b = _registry.try_get<body>(e);
+            b && alive(*b))
+          b2Body_Enable(b->id);
+
+        const auto& op = _registry.get<scriptable>(e);
+        if (op.on_wake != LUA_NOREF) {
+          lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_wake);
+          lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+          pcall(L, 1, 0);
+        }
       }
     }
   }
