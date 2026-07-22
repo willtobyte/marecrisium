@@ -13,15 +13,7 @@ sqlite3_stmt *stmt_clear;
 
 int _purge_reference = LUA_NOREF;
 
-struct transparent_hash final {
-  using is_transparent = void;
-  using is_avalanching = void;
-  auto operator()(std::string_view sv) const {
-    return ankerl::unordered_dense::hash<std::string_view>{}(sv);
-  }
-};
-
-ankerl::unordered_dense::map<std::string, int, transparent_hash, std::equal_to<>> cache;
+char holder;
 
 static void execute(sqlite3_stmt *statement) {
   [[maybe_unused]] const auto result = sqlite3_step(statement);
@@ -58,6 +50,10 @@ static int proxy_index(lua_State *state) {
   lua_newtable(state);
   lua_newtable(state);
 
+  lua_pushlightuserdata(state, &holder);
+  lua_pushvalue(state, index);
+  lua_rawset(state, -3);
+
   lua_pushvalue(state, index);
   lua_pushvalue(state, lua_upvalueindex(2));
   lua_pushvalue(state, lua_upvalueindex(3));
@@ -85,6 +81,10 @@ static void proxify(lua_State *state, std::string_view key) {
   lua_newtable(state);
   lua_newtable(state);
 
+  lua_pushlightuserdata(state, &holder);
+  lua_pushvalue(state, data);
+  lua_rawset(state, -3);
+
   lua_pushvalue(state, data);
   lua_pushvalue(state, root);
   lua_pushvalue(state, data);
@@ -105,10 +105,6 @@ static void proxify(lua_State *state, std::string_view key) {
 }
 
 static int cassette_clear(lua_State *state) {
-  for (const auto &[_, reference] : cache)
-    luaL_unref(state, LUA_REGISTRYINDEX, reference);
-
-  cache.clear();
   execute(stmt_clear);
   return 0;
 }
@@ -119,15 +115,6 @@ static int cassette_index(lua_State *state) {
 
   if (id == lookup::purge) [[unlikely]]
     return lua_rawgeti(state, LUA_REGISTRYINDEX, _purge_reference), 1;
-
-  if (const auto it = cache.find(key); it != cache.end()) [[likely]] {
-    if (it->second == LUA_NOREF) [[unlikely]]
-      return lua_pushnil(state), 1;
-
-    lua_rawgeti(state, LUA_REGISTRYINDEX, it->second);
-    proxify(state, key);
-    return 1;
-  }
 
   sqlite3_bind_text(stmt_select, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
 
@@ -142,18 +129,11 @@ static int cassette_index(lua_State *state) {
   sqlite3_reset(stmt_select);
   sqlite3_clear_bindings(stmt_select);
 
-  if (!document) [[unlikely]] {
-    if (!found)
-      cache.emplace(key, LUA_NOREF);
-
+  if (!document) [[unlikely]]
     return lua_pushnil(state), 1;
-  }
 
   json_to_lua(state, yyjson_doc_get_root(document));
   yyjson_doc_free(document);
-
-  lua_pushvalue(state, -1);
-  cache.emplace(key, luaL_ref(state, LUA_REGISTRYINDEX));
 
   proxify(state, key);
   return 1;
@@ -167,23 +147,25 @@ static int cassette_newindex(lua_State *state) {
     return 0;
 
   if (lua_isnil(state, 3)) [[unlikely]] {
-    if (const auto it = cache.find(key); it != cache.end()) [[likely]] {
-      luaL_unref(state, LUA_REGISTRYINDEX, it->second);
-      cache.erase(it);
-    }
-
     sqlite3_bind_text(stmt_delete, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
     execute(stmt_delete);
     return 0;
   }
 
-  if (const auto it = cache.find(key); it != cache.end()) {
-    luaL_unref(state, LUA_REGISTRYINDEX, it->second);
-    cache.erase(it);
+  auto value = 3;
+  if (lua_getmetatable(state, value)) {
+    lua_pushlightuserdata(state, &holder);
+    lua_rawget(state, -2);
+    lua_remove(state, -2);
+
+    if (lua_istable(state, -1))
+      value = lua_gettop(state);
+    else
+      lua_pop(state, 1);
   }
 
   auto *document = yyjson_mut_doc_new(nullptr);
-  auto *root = lua_to_json(state, 3, document);
+  auto *root = lua_to_json(state, value, document);
   yyjson_mut_doc_set_root(document, root);
 
   auto length = 0uz;
@@ -221,8 +203,6 @@ void cassette::wire() {
     sqlite3_finalize(stmt_clear);
     sqlite3_close(database);
   });
-
-  cache.reserve(1024);
 
   cfunction(L, cassette_clear);
   _purge_reference = luaL_ref(L, LUA_REGISTRYINDEX);
