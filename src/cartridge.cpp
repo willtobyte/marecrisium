@@ -4,7 +4,7 @@ constexpr uint8_t ALGO_RAW = 0;
 constexpr uint8_t ALGO_ZSTD_DICT = 1;
 constexpr size_t HEADER = 36;
 constexpr size_t RECORD = 20;
-constexpr size_t SCRATCH = 16uz * 1024 * 1024;
+constexpr size_t SCRATCH = 6uz * 1024 * 1024;
 constexpr uint32_t EMPTY = UINT32_MAX;
 constexpr uint64_t PRIME = 0x9e3779b97f4a7c15ull;
 
