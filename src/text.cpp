@@ -1,5 +1,4 @@
 #include "binding.hpp"
-#include "text.hpp"
 
 namespace {
 namespace property {
