@@ -184,7 +184,10 @@ namespace {
         }
         lua_pop(state, 1);
 
-        std::array<char, 64> buffer;
+        assert(std::strlen(key) <= 60 &&
+               "key is too long and would be truncated to 60 characters.");
+
+        static std::array<char, 64> buffer;
         const auto length = std::min(std::strlen(key), std::size_t{60});
         buffer[0] = 'o';
         buffer[1] = 'n';
