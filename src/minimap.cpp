@@ -1,5 +1,5 @@
 namespace {
-namespace property {
+namespace lookup {
   constexpr auto visible = "visible"_hs;
 }
 }
@@ -8,7 +8,7 @@ static int minimap_index(lua_State *state) {
   auto *self = *static_cast<minimap **>(luaL_checkudata(state, 1, "Minimap"));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
-  if (id == property::visible) {
+  if (id == lookup::visible) {
     lua_pushboolean(state, self->_visible ? 1 : 0);
     return 1;
   }
@@ -20,7 +20,7 @@ static int minimap_newindex(lua_State *state) {
   auto *self = *static_cast<minimap **>(luaL_checkudata(state, 1, "Minimap"));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
-  if (id == property::visible)
+  if (id == lookup::visible)
     self->_visible = lua_toboolean(state, 3) != 0;
 
   return 0;

@@ -1,5 +1,5 @@
 namespace {
-  namespace property {
+  namespace lookup {
     constexpr auto connected = "connected"_hs;
     constexpr auto rumble = "rumble"_hs;
     constexpr auto led = "led"_hs;
@@ -135,19 +135,19 @@ static int gamepad_index(lua_State *state) {
     return push_gamepad_button(state, it->second, gamepad);
 
   switch (id) {
-    case property::connected:
+    case lookup::connected:
       lua_pushboolean(state, gamepad ? 1 : 0);
       return 1;
 
-    case property::rumble:
+    case lookup::rumble:
       lua_rawgeti(state, LUA_REGISTRYINDEX, _rumble_reference);
       return 1;
 
-    case property::led:
+    case lookup::led:
       lua_rawgeti(state, LUA_REGISTRYINDEX, _led_reference);
       return 1;
 
-    case property::name:
+    case lookup::name:
       lua_pushstring(state, gamepad ? SDL_GetGamepadName(gamepad) : "");
       return 1;
 

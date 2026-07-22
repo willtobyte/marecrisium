@@ -1,5 +1,5 @@
 namespace {
-namespace property {
+namespace lookup {
   constexpr auto purge = "purge"_hs;
 }
 
@@ -117,7 +117,7 @@ static int cassette_index(lua_State *state) {
   const auto key = std::string_view{luaL_checkstring(state, 2)};
   const auto id = entt::hashed_string{key.data(), key.size()};
 
-  if (id == property::purge) [[unlikely]]
+  if (id == lookup::purge) [[unlikely]]
     return lua_rawgeti(state, LUA_REGISTRYINDEX, _purge_reference), 1;
 
   if (const auto it = cache.find(key); it != cache.end()) [[likely]] {
@@ -163,7 +163,7 @@ static int cassette_newindex(lua_State *state) {
   const auto key = std::string_view{luaL_checkstring(state, 2)};
   const auto id = entt::hashed_string{key.data(), key.size()};
 
-  if (id == property::purge) [[unlikely]]
+  if (id == lookup::purge) [[unlikely]]
     return 0;
 
   if (lua_isnil(state, 3)) [[unlikely]] {

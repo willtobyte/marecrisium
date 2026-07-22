@@ -1,5 +1,5 @@
 namespace {
-namespace property {
+namespace lookup {
   constexpr auto x = "x"_hs;
   constexpr auto y = "y"_hs;
   constexpr auto button = "button"_hs;
@@ -10,7 +10,7 @@ namespace property {
 static int mouse_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
-  if (id == property::shown) {
+  if (id == lookup::shown) {
     lua_pushboolean(state, SDL_CursorVisible() ? 1 : 0);
     return 1;
   }
@@ -22,15 +22,15 @@ static int mouse_index(lua_State *state) {
   y += viewport.y;
 
   switch (id) {
-    case property::x:
+    case lookup::x:
       lua_pushnumber(state, static_cast<lua_Number>(x));
       return 1;
 
-    case property::y:
+    case lookup::y:
       lua_pushnumber(state, static_cast<lua_Number>(y));
       return 1;
 
-    case property::button:
+    case lookup::button:
       if (button & SDL_BUTTON_MASK(SDL_BUTTON_LEFT)) {
         lua_pushinteger(state, static_cast<lua_Integer>(SDL_BUTTON_LEFT));
         return 1;
@@ -57,7 +57,7 @@ static int mouse_index(lua_State *state) {
 static int mouse_newindex(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
-  if (id != property::shown || !lua_isboolean(state, 3))
+  if (id != lookup::shown || !lua_isboolean(state, 3))
     return 0;
 
   if (lua_toboolean(state, 3))

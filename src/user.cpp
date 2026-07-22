@@ -1,5 +1,5 @@
 namespace {
-  namespace property {
+  namespace lookup {
     constexpr auto id = "id"_hs;
     constexpr auto name = "name"_hs;
     constexpr auto persona = "persona"_hs;
@@ -14,13 +14,13 @@ static int friend_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {
-    case property::id:
+    case lookup::id:
       lua_getfenv(state, 1);
       lua_getfield(state, -1, "id");
       lua_remove(state, -2);
       return 1;
 
-    case property::name:
+    case lookup::name:
       lua_getfenv(state, 1);
       lua_getfield(state, -1, "name");
       lua_remove(state, -2);
@@ -35,11 +35,11 @@ static int user_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {
-    case property::persona:
+    case lookup::persona:
       lua_rawgeti(state, LUA_REGISTRYINDEX, _persona_reference);
       return 1;
 
-    case property::friends:
+    case lookup::friends:
       lua_rawgeti(state, LUA_REGISTRYINDEX, _friends_reference);
       return 1;
 

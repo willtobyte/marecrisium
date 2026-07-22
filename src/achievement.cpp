@@ -1,5 +1,5 @@
 namespace {
-  namespace property {
+  namespace lookup {
     constexpr auto unlock = "unlock"_hs;
   }
 }
@@ -29,7 +29,7 @@ static int _unlock_reference = LUA_NOREF;
 static int achievement_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
-  if (id == property::unlock)
+  if (id == lookup::unlock)
     return lua_rawgeti(state, LUA_REGISTRYINDEX, _unlock_reference), 1;
 
   return lua_pushnil(state), 1;

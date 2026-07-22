@@ -1,5 +1,5 @@
 namespace {
-namespace property {
+namespace lookup {
   constexpr auto active = "active"_hs;
   constexpr auto x = "x"_hs;
   constexpr auto y = "y"_hs;
@@ -10,15 +10,15 @@ static int particle_index(lua_State* state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {
-    case property::active:
+    case lookup::active:
       lua_pushboolean(state, self->active() ? 1 : 0);
       return 1;
 
-    case property::x:
+    case lookup::x:
       lua_pushnumber(state, static_cast<lua_Number>(self->x()));
       return 1;
 
-    case property::y:
+    case lookup::y:
       lua_pushnumber(state, static_cast<lua_Number>(self->y()));
       return 1;
 
@@ -32,15 +32,15 @@ static int particle_newindex(lua_State* state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {
-    case property::active:
+    case lookup::active:
       self->set_active(lua_toboolean(state, 3) != 0);
       return 0;
 
-    case property::x:
+    case lookup::x:
       self->set_x(static_cast<float>(luaL_checknumber(state, 3)));
       return 0;
 
-    case property::y:
+    case lookup::y:
       self->set_y(static_cast<float>(luaL_checknumber(state, 3)));
       return 0;
 

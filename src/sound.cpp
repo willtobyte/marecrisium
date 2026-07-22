@@ -1,5 +1,5 @@
 namespace {
-  namespace property {
+  namespace lookup {
     constexpr auto volume = "volume"_hs;
     constexpr auto pan = "pan"_hs;
     constexpr auto loop = "loop"_hs;
@@ -67,39 +67,39 @@ namespace {
     const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
     switch (id) {
-      case property::volume:
+      case lookup::volume:
         lua_pushnumber(state, static_cast<lua_Number>(instance->volume()));
         return 1;
 
-      case property::pan:
+      case lookup::pan:
         lua_pushnumber(state, static_cast<lua_Number>(instance->pan()));
         return 1;
 
-      case property::loop:
+      case lookup::loop:
         lua_pushboolean(state, instance->loop() ? 1 : 0);
         return 1;
 
-      case property::playing:
+      case lookup::playing:
         lua_pushboolean(state, instance->playing() ? 1 : 0);
         return 1;
 
-      case property::play:
+      case lookup::play:
         lua_rawgeti(state, LUA_REGISTRYINDEX, _play_reference);
         return 1;
 
-      case property::stop:
+      case lookup::stop:
         lua_rawgeti(state, LUA_REGISTRYINDEX, _stop_reference);
         return 1;
 
-      case property::fade:
+      case lookup::fade:
         lua_rawgeti(state, LUA_REGISTRYINDEX, _fade_reference);
         return 1;
 
-      case property::on_begin:
+      case lookup::on_begin:
         lua_rawgeti(state, LUA_REGISTRYINDEX, _on_begin_reference);
         return 1;
 
-      case property::on_end:
+      case lookup::on_end:
         lua_rawgeti(state, LUA_REGISTRYINDEX, _on_end_reference);
         return 1;
 
@@ -113,15 +113,15 @@ namespace {
     const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
     switch (id) {
-      case property::volume:
+      case lookup::volume:
         instance->set_volume(static_cast<float>(luaL_checknumber(state, 3)));
         return 0;
 
-      case property::pan:
+      case lookup::pan:
         instance->set_pan(static_cast<float>(luaL_checknumber(state, 3)));
         return 0;
 
-      case property::loop:
+      case lookup::loop:
         instance->set_loop(lua_toboolean(state, 3) != 0);
         return 0;
 

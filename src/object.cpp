@@ -1,5 +1,5 @@
 namespace {
-  namespace property {
+  namespace lookup {
     constexpr auto alive = "alive"_hs;
     constexpr auto x = "x"_hs;
     constexpr auto y = "y"_hs;
@@ -63,7 +63,7 @@ namespace {
     const auto* key = luaL_checkstring(state, 2);
     const auto id = entt::hashed_string{key};
 
-    if (id == property::alive) {
+    if (id == lookup::alive) {
       lua_pushboolean(state, self->registry->valid(self->entity) ? 1 : 0);
       return 1;
     }
@@ -76,15 +76,15 @@ namespace {
     const auto& op = registry.get<scriptable>(entity);
 
     switch (id) {
-      case property::x:
+      case lookup::x:
         lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).x));
         return 1;
 
-      case property::y:
+      case lookup::y:
         lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).y));
         return 1;
 
-      case property::center_x: {
+      case lookup::center_x: {
         const auto& tf = registry.get<transform>(entity);
         const auto* a = registry.try_get<animation>(entity);
         const auto* b = registry.try_get<body>(entity);
@@ -96,7 +96,7 @@ namespace {
         return 1;
       }
 
-      case property::center_y: {
+      case lookup::center_y: {
         const auto& tf = registry.get<transform>(entity);
         const auto* a = registry.try_get<animation>(entity);
         const auto* b = registry.try_get<body>(entity);
@@ -108,11 +108,11 @@ namespace {
         return 1;
       }
 
-      case property::z:
+      case lookup::z:
         lua_pushinteger(state, static_cast<lua_Integer>(registry.get<renderable>(entity).z));
         return 1;
 
-      case property::velocity_x: {
+      case lookup::velocity_x: {
         const auto* b = registry.try_get<body>(entity);
         if (b && alive(*b)) [[likely]] {
           lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(b->id).x));
@@ -122,7 +122,7 @@ namespace {
         return 1;
       }
 
-      case property::velocity_y: {
+      case lookup::velocity_y: {
         const auto* b = registry.try_get<body>(entity);
         if (b && alive(*b)) [[likely]] {
           lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(b->id).y));
@@ -132,15 +132,15 @@ namespace {
         return 1;
       }
 
-      case property::flip:
+      case lookup::flip:
         lua_pushinteger(state, static_cast<lua_Integer>(registry.get<transform>(entity).flip));
         return 1;
 
-      case property::dormant:
+      case lookup::dormant:
         lua_pushboolean(state, registry.all_of<dormant>(entity) ? 1 : 0);
         return 1;
 
-      case property::animation: {
+      case lookup::animation: {
         const auto* a = registry.try_get<animation>(entity);
         if (!a || !a->playing || a->sheet->count == 0) [[unlikely]]
           return lua_pushnil(state), 1;
@@ -149,27 +149,27 @@ namespace {
         return 1;
       }
 
-      case property::shown:
+      case lookup::shown:
         lua_pushboolean(state, registry.get<transform>(entity).shown ? 1 : 0);
         return 1;
 
-      case property::scale:
+      case lookup::scale:
         lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).scale));
         return 1;
 
-      case property::angle:
+      case lookup::angle:
         lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).angle));
         return 1;
 
-      case property::alpha:
+      case lookup::alpha:
         lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).alpha));
         return 1;
 
-      case property::name:
+      case lookup::name:
         lua_rawgeti(state, LUA_REGISTRYINDEX, op.name_reference);
         return 1;
 
-      case property::kind:
+      case lookup::kind:
         lua_rawgeti(state, LUA_REGISTRYINDEX, op.kind_reference);
         return 1;
 
@@ -216,7 +216,7 @@ namespace {
     const auto& op = registry.get<scriptable>(entity);
 
     switch (id) {
-      case property::x: {
+      case lookup::x: {
         auto& tf = registry.get<transform>(entity);
         tf.previous_x = tf.x = static_cast<float>(luaL_checknumber(state, 3));
 
@@ -227,7 +227,7 @@ namespace {
         return 0;
       }
 
-      case property::y: {
+      case lookup::y: {
         auto& tf = registry.get<transform>(entity);
         tf.previous_y = tf.y = static_cast<float>(luaL_checknumber(state, 3));
 
@@ -238,7 +238,7 @@ namespace {
         return 0;
       }
 
-      case property::z: {
+      case lookup::z: {
         auto& r = registry.get<renderable>(entity);
         const auto value = static_cast<int>(luaL_checkinteger(state, 3));
         r.z = value;
@@ -247,7 +247,7 @@ namespace {
         return 0;
       }
 
-      case property::velocity_x: {
+      case lookup::velocity_x: {
         auto* b = registry.try_get<body>(entity);
         if (b && propelled(*b)) [[likely]] {
           const auto current = b2Body_GetLinearVelocity(b->id);
@@ -257,7 +257,7 @@ namespace {
         return 0;
       }
 
-      case property::velocity_y: {
+      case lookup::velocity_y: {
         auto* b = registry.try_get<body>(entity);
         if (b && propelled(*b)) [[likely]] {
           const auto current = b2Body_GetLinearVelocity(b->id);
@@ -267,7 +267,7 @@ namespace {
         return 0;
       }
 
-      case property::flip: {
+      case lookup::flip: {
         const auto value = static_cast<uint8_t>(luaL_checkinteger(state, 3));
         if (value > 3) [[unlikely]]
           return luaL_error(state, "invalid flip value: %d", value);
@@ -275,7 +275,7 @@ namespace {
         return 0;
       }
 
-      case property::animation: {
+      case lookup::animation: {
         auto* a = registry.try_get<animation>(entity);
         if (!a) [[unlikely]]
           return 0;
@@ -324,20 +324,20 @@ namespace {
         return 0;
       }
 
-      case property::scale:
+      case lookup::scale:
         registry.get<transform>(entity).scale = static_cast<float>(luaL_checknumber(state, 3));
         return 0;
 
-      case property::angle:
+      case lookup::angle:
         registry.get<transform>(entity).angle = static_cast<float>(luaL_checknumber(state, 3));
         return 0;
 
-      case property::alpha:
+      case lookup::alpha:
         registry.get<transform>(entity).alpha =
           std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 255.0f);
         return 0;
 
-      case property::shown:
+      case lookup::shown:
         registry.get<transform>(entity).shown = lua_toboolean(state, 3) != 0;
         return 0;
 

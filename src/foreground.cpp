@@ -1,5 +1,5 @@
 namespace {
-namespace property {
+namespace lookup {
   constexpr auto draw = "draw"_hs;
 }
 
@@ -93,7 +93,7 @@ static int foreground_index(lua_State *state) {
   const std::string_view key = luaL_checkstring(state, 2);
   const auto id = entt::hashed_string{key.data(), key.size()};
 
-  if (id == property::draw) {
+  if (id == lookup::draw) {
     lua_rawgeti(state, LUA_REGISTRYINDEX, _draw_reference);
     return 1;
   }

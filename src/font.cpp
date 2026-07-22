@@ -79,7 +79,7 @@ static int font_label(lua_State *state) {
 }
 
 namespace {
-  namespace property {
+  namespace lookup {
     constexpr auto label = "label"_hs;
   }
 
@@ -89,7 +89,7 @@ namespace {
 static int font_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
-  if (id == property::label) [[likely]] {
+  if (id == lookup::label) [[likely]] {
     lua_rawgeti(state, LUA_REGISTRYINDEX, _label_reference);
     return 1;
   }

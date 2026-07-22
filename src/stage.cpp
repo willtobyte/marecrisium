@@ -1,5 +1,5 @@
 namespace {
-  namespace property {
+  namespace lookup {
     constexpr auto dynamic_bodytype = "dynamic"_hs;
     constexpr auto static_bodytype = "static"_hs;
   }
@@ -61,8 +61,8 @@ static bool culled(const transform &tf, const animation &an, float margin) {
 static constexpr auto mapping(const char *s) -> std::pair<body_type, b2BodyType> {
   const auto id = entt::hashed_string{s};
   switch (id) {
-    case property::dynamic_bodytype: return {body_type::dynamic, b2_dynamicBody};
-    case property::static_bodytype: return {body_type::stationary, b2_staticBody};
+    case lookup::dynamic_bodytype: return {body_type::dynamic, b2_dynamicBody};
+    case lookup::static_bodytype: return {body_type::stationary, b2_staticBody};
     default: return {body_type::kinematic, b2_kinematicBody};
   }
 }

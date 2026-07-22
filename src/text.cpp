@@ -1,7 +1,7 @@
 #include "binding.hpp"
 
 namespace {
-namespace property {
+namespace lookup {
   constexpr auto on = "on"_hs;
   constexpr auto off = "off"_hs;
 }
@@ -49,11 +49,11 @@ static int text_index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {
-    case property::on:
+    case lookup::on:
       cfunction(state, text_on);
       return 1;
 
-    case property::off:
+    case lookup::off:
       cfunction(state, text_off);
       return 1;
 
