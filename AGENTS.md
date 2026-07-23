@@ -16,3 +16,4 @@
 * Always benchmark performance before and after your changes to avoid regressions. Never compare performance in Debug mode. Always benchmark using Release builds only.
 * Code must be portable across ARM64 and x86-64, as well as Windows and macOS. Most best-practice compiler warnings and checks should be enabled during development.
 * Any changes to the Lua API exposed by C++ must be documented in `types/game.lua`.
+* Use unit tests only to validate the correctness and efficiency of the code. Always measure performance, memory usage, and allocations, aiming for the fewest allocations, the lowest memory usage, and the highest possible performance and efficiency. For most changes, a smoke test is also required. Test everything thoroughly, then remove the tests afterward. Neither unit tests nor smoke tests should be committed or versioned.
