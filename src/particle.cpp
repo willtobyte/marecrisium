@@ -246,5 +246,5 @@ void particle::draw() {
 }
 
 void particle::wire() {
-  metatable(L, "Particle", particle_index, particle_newindex);
+  binding::metatable(L, "Particle", particle_index, particle_newindex);
 }

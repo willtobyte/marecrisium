@@ -4,6 +4,6 @@ static int runtime_moment(lua_State *state) {
 }
 
 void runtime::wire() {
-  cfunction(L, runtime_moment);
+  binding::callback(L, runtime_moment);
   lua_setglobal(L, "moment");
 }

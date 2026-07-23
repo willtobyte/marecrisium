@@ -19,7 +19,7 @@ void sourcepool::insert(std::string_view name) {
   auto chunk = std::format("@{}", filename);
 
   const auto buffer = io::read(filename);
-  compile(L, buffer, chunk);
+  binding::load(L, buffer, chunk);
 
   std::vector<uint8_t> bytecode;
   bytecode.reserve(8192);

@@ -131,9 +131,9 @@ foreground::foreground(std::string_view name) {
   const auto filename = std::format("foregrounds/{}.lua", name);
   const auto buffer = io::read(filename);
   const auto chunk = std::format("@{}", filename);
-  compile(L, buffer, chunk);
+  binding::load(L, buffer, chunk);
 
-  pcall(L, 0, 1);
+  binding::call(L, 0, 1);
 
   const auto pp = std::format("foregrounds/{}/pixmap", name);
   if (io::exists(std::format("blobs/{}.png", pp))) {
@@ -208,10 +208,10 @@ foreground::~foreground() {
 }
 
 void foreground::wire() {
-  cfunction(L, foreground_draw);
+  binding::callback(L, foreground_draw);
   _draw_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  metatable(L, "Foreground", foreground_index);
+  binding::metatable(L, "Foreground", foreground_index);
 }
 
 void foreground::appear() {
@@ -221,7 +221,7 @@ void foreground::appear() {
   if (_on_appear != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_appear);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    pcall(L, 1, 0);
+    binding::call(L, 1, 0);
   }
 
   _visible = true;
@@ -234,7 +234,7 @@ void foreground::disappear() {
   if (_on_disappear != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disappear);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    pcall(L, 1, 0, fault::ignore);
+    binding::call(L, 1, 0, binding::fault::ignore);
   }
 
   _visible = false;
@@ -245,7 +245,7 @@ void foreground::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
-    pcall(L, 2, 0);
+    binding::call(L, 2, 0);
   }
 }
 
@@ -253,6 +253,6 @@ void foreground::draw() {
   if (_on_paint != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_reference);
-    pcall(L, 1, 0);
+    binding::call(L, 1, 0);
   }
 }

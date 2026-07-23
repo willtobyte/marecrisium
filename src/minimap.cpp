@@ -141,5 +141,5 @@ void minimap::draw() {
 }
 
 void minimap::wire() {
-  metatable(L, "Minimap", minimap_index, minimap_newindex);
+  binding::metatable(L, "Minimap", minimap_index, minimap_newindex);
 }

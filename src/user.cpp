@@ -49,7 +49,7 @@ static int user_index(lua_State *state) {
 }
 
 void user::wire() {
-  metatable(L, "Friend", friend_index);
+  binding::metatable(L, "Friend", friend_index);
 
   lua_pushstring(L, GetPersonaName());
   _persona_reference = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -83,7 +83,7 @@ void user::wire() {
 
   _friends_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  metatable(L, "User", user_index);
+  binding::metatable(L, "User", user_index);
 
-  singleton(L, "User", "user");
+  binding::singleton(L, "User", "user");
 }

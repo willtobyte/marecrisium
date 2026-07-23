@@ -16,7 +16,7 @@ namespace {
     instance->play();
     if (instance->on_begin != LUA_NOREF) {
       lua_rawgeti(state, LUA_REGISTRYINDEX, instance->on_begin);
-      pcall(state, 0, 0);
+      binding::call(state, 0, 0);
     }
 
     return 0;
@@ -326,20 +326,20 @@ void sound::poll() {
     return;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, on_end);
-  pcall(L, 0, 0);
+  binding::call(L, 0, 0);
 }
 
 void sound::wire() {
-  cfunction(L, sound_play);
+  binding::callback(L, sound_play);
   _play_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-  cfunction(L, sound_stop);
+  binding::callback(L, sound_stop);
   _stop_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-  cfunction(L, sound_fade);
+  binding::callback(L, sound_fade);
   _fade_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-  cfunction(L, sound_on_begin);
+  binding::callback(L, sound_on_begin);
   _on_begin_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-  cfunction(L, sound_on_end);
+  binding::callback(L, sound_on_end);
   _on_end_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  metatable(L, "Sound", sound_index, sound_newindex);
+  binding::metatable(L, "Sound", sound_index, sound_newindex);
 }

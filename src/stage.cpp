@@ -229,7 +229,7 @@ stage::stage(std::string name)
   const auto buffer = io::read(filename);
   const auto chunk = std::format("@{}", filename);
 
-  compile(L, buffer, chunk);
+  binding::load(L, buffer, chunk);
 
   lua_newtable(L);
   _pool_reference = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -237,32 +237,32 @@ stage::stage(std::string name)
   lua_newtable(L);
 
   lua_pushlightuserdata(L, this);
-  cclosure(L, world_spawn, 1);
+  binding::closure(L, world_spawn, 1);
   lua_setfield(L, -2, "spawn");
 
   lua_pushlightuserdata(L, this);
-  cclosure(L, world_destroy, 1);
+  binding::closure(L, world_destroy, 1);
   lua_setfield(L, -2, "destroy");
 
   lua_pushlightuserdata(L, this);
-  cclosure(L, world_count, 1);
+  binding::closure(L, world_count, 1);
   lua_setfield(L, -2, "count");
 
   lua_pushlightuserdata(L, this);
-  cclosure(L, world_find, 1);
+  binding::closure(L, world_find, 1);
   lua_setfield(L, -2, "find");
 
   lua_pushlightuserdata(L, this);
-  cclosure(L, world_radar, 1);
+  binding::closure(L, world_radar, 1);
   lua_setfield(L, -2, "radar");
 
   lua_pushlightuserdata(L, this);
-  cclosure(L, world_raycast, 1);
+  binding::closure(L, world_raycast, 1);
   lua_setfield(L, -2, "raycast");
 
   _world_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  pcall(L, 0, 1);
+  binding::call(L, 0, 1);
 
   b2Vec2 gravity{.0f, .0f};
 
@@ -542,7 +542,7 @@ void stage::update(float delta) {
       if (op.on_sleep != LUA_NOREF) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_sleep);
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-        pcall(L, 1, 0);
+        binding::call(L, 1, 0);
       }
     }
   }
@@ -573,7 +573,7 @@ void stage::update(float delta) {
         if (op.on_wake != LUA_NOREF) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_wake);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-          pcall(L, 1, 0);
+          binding::call(L, 1, 0);
         }
       }
     }
@@ -609,7 +609,7 @@ void stage::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
-    pcall(L, 2, 0);
+    binding::call(L, 2, 0);
   }
 
   for (auto&& [e, op] : _registry.view<scriptable>(entt::exclude<dormant>).each()) {
@@ -620,7 +620,7 @@ void stage::update(float delta) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_loop);
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
       lua_pushnumber(L, static_cast<lua_Number>(delta));
-      pcall(L, 2, 0);
+      binding::call(L, 2, 0);
     }
 
     if (!_registry.valid(e)) continue;
@@ -647,7 +647,7 @@ void stage::update(float delta) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_animation_end);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
           lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
-          pcall(L, 2, 0);
+          binding::call(L, 2, 0);
         }
 
         if (!_registry.valid(e)) continue;
@@ -656,7 +656,7 @@ void stage::update(float delta) {
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_animation_begin);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
           lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
-          pcall(L, 2, 0);
+          binding::call(L, 2, 0);
         }
       }
     }
@@ -722,7 +722,7 @@ void stage::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
 
-    pcall(L, 1, 2);
+    binding::call(L, 1, 2);
 
     if (lua_isnumber(L, -2))
       _interpolation.current.x = static_cast<float>(lua_tonumber(L, -2));
@@ -785,7 +785,7 @@ void stage::update(float delta) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_screen_exit);
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
         lua_rawgeti(L, LUA_REGISTRYINDEX, _bearings[bit]);
-        pcall(L, 2, 0);
+        binding::call(L, 2, 0);
 
         if (!_registry.valid(e)) break;
       }
@@ -794,7 +794,7 @@ void stage::update(float delta) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_screen_enter);
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
         lua_rawgeti(L, LUA_REGISTRYINDEX, _bearings[bit]);
-        pcall(L, 2, 0);
+        binding::call(L, 2, 0);
 
         if (!_registry.valid(e)) break;
       }
@@ -1030,7 +1030,7 @@ void stage::on_enter() {
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _on_enter);
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  pcall(L, 1, 0);
+  binding::call(L, 1, 0);
 }
 
 void stage::on_leave() {
@@ -1040,7 +1040,7 @@ void stage::on_leave() {
   if (_on_leave != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_leave);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    pcall(L, 1, 0);
+    binding::call(L, 1, 0);
   }
 
   conceal();
@@ -1067,7 +1067,7 @@ void stage::on_tick(uint64_t tick) {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _on_tick);
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_pushinteger(L, static_cast<lua_Integer>(tick));
-  pcall(L, 2, 0);
+  binding::call(L, 2, 0);
 }
 
 void stage::on_text(std::string_view text) {
@@ -1077,7 +1077,7 @@ void stage::on_text(std::string_view text) {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _on_text);
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_pushlstring(L, text.data(), text.size());
-  pcall(L, 2, 0);
+  binding::call(L, 2, 0);
 }
 
 int stage::spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y) {
@@ -1154,7 +1154,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   if (on_spawn != LUA_NOREF) [[unlikely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, on_spawn);
     lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
-    pcall(L, 1, 0);
+    binding::call(L, 1, 0);
   }
 
   if (!_registry.valid(entity)) [[unlikely]] {
@@ -1356,13 +1356,13 @@ void stage::dispatch_collision(const scriptable& self, const scriptable* target,
   lua_rawgeti(L, LUA_REGISTRYINDEX, target->name_reference);
   lua_rawgeti(L, LUA_REGISTRYINDEX, target->kind_reference);
   if (!normal) {
-    pcall(L, 3, 0);
+    binding::call(L, 3, 0);
     return;
   }
 
   lua_pushnumber(L, static_cast<lua_Number>(normal->x));
   lua_pushnumber(L, static_cast<lua_Number>(normal->y));
-  pcall(L, 5, 0);
+  binding::call(L, 5, 0);
 }
 
 uint8_t stage::pick_at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept {
@@ -1426,7 +1426,7 @@ void stage::dispatch_miss(int callback_reference, float x, float y, const char* 
   lua_pushnumber(L, static_cast<lua_Number>(x));
   lua_pushnumber(L, static_cast<lua_Number>(y));
   lua_pushstring(L, button);
-  pcall(L, 4, 0);
+  binding::call(L, 4, 0);
 }
 
 void stage::dispatch_press(float x, float y, const char* button) {
@@ -1451,7 +1451,7 @@ void stage::dispatch_press(float x, float y, const char* button) {
   lua_pushnumber(L, static_cast<lua_Number>(x));
   lua_pushnumber(L, static_cast<lua_Number>(y));
   lua_pushstring(L, button);
-  pcall(L, 4, 0);
+  binding::call(L, 4, 0);
 }
 
 void stage::dispatch_release(float x, float y, const char* button) {
@@ -1476,7 +1476,7 @@ void stage::dispatch_release(float x, float y, const char* button) {
   lua_pushnumber(L, static_cast<lua_Number>(x));
   lua_pushnumber(L, static_cast<lua_Number>(y));
   lua_pushstring(L, button);
-  pcall(L, 4, 0);
+  binding::call(L, 4, 0);
 }
 
 void stage::dispatch_hover(float x, float y) {
@@ -1501,7 +1501,7 @@ void stage::dispatch_hover(float x, float y) {
 
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->on_hover);
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
-    pcall(L, 1, 0);
+    binding::call(L, 1, 0);
   }
 
   _hovering.assign(hits.begin(), hits.end());
@@ -1521,6 +1521,6 @@ void stage::dispatch_unhover(std::span<const entt::entity> current) {
 
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->on_unhover);
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
-    pcall(L, 1, 0);
+    binding::call(L, 1, 0);
   }
 }

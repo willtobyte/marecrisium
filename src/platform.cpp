@@ -46,7 +46,7 @@ static int platform_newindex(lua_State *state) {
 }
 
 void platform::wire() {
-  metatable(L, "Platform", platform_index, platform_newindex);
+  binding::metatable(L, "Platform", platform_index, platform_newindex);
 
-  singleton(L, "Platform", "platform");
+  binding::singleton(L, "Platform", "platform");
 }

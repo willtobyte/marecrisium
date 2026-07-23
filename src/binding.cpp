@@ -1,31 +1,33 @@
-constexpr int MAX_DEPTH = 6;
-constexpr int MAX_ENTRIES = 10;
+namespace {
+constexpr auto max_depth = 6uz;
+constexpr auto max_entries = 10;
 
-static int _traceback = LUA_NOREF;
+int traceback_reference{};
 
 struct breadcrumbs final {
-  std::array<const void *, MAX_DEPTH> _data{};
-  int _size{0};
+  std::array<const void *, max_depth> data{};
+  size_t size{};
 
-  bool contains(const void *ptr) const {
-    for (int i = 0; i < _size; ++i)
-      if (_data[static_cast<size_t>(i)] == ptr) [[unlikely]]
+  [[nodiscard]] bool contains(const void *ptr) const noexcept {
+    for (size_t i = 0; i < size; ++i)
+      if (data[i] == ptr) [[unlikely]]
         return true;
+
     return false;
   }
 
-  bool push(const void *ptr) {
-    if (_size >= MAX_DEPTH) [[unlikely]]
+  [[nodiscard]] bool push(const void *ptr) noexcept {
+    if (size == data.size()) [[unlikely]]
       return false;
 
-    _data[static_cast<size_t>(_size++)] = ptr;
+    data[size++] = ptr;
     return true;
   }
 
-  void pop() { --_size; }
+  void pop() noexcept { --size; }
 };
 
-static void pretty(lua_State *state, std::string &output, int index, int depth, breadcrumbs &visited) {
+void pretty(lua_State *state, std::string &output, int index, breadcrumbs &visited) {
   const auto type = lua_type(state, index);
   auto out = std::back_inserter(output);
 
@@ -63,7 +65,7 @@ static void pretty(lua_State *state, std::string &output, int index, int depth, 
     lua_pushnil(state);
     auto count = 0;
     while (lua_next(state, abs) != 0) {
-      if (count >= MAX_ENTRIES) [[unlikely]] {
+      if (count >= max_entries) [[unlikely]] {
         std::format_to(out, "... ");
         lua_pop(state, 2);
         break;
@@ -72,13 +74,14 @@ static void pretty(lua_State *state, std::string &output, int index, int depth, 
       if (count > 0) [[likely]]
         std::format_to(out, ", ");
 
-      if (lua_type(state, -2) == LUA_TSTRING) [[likely]] {
+      const auto key = lua_type(state, -2);
+      if (key == LUA_TSTRING) [[likely]] {
         std::format_to(out, "{} = ", lua_tostring(state, -2));
-      } else if (lua_type(state, -2) == LUA_TNUMBER) {
+      } else if (key == LUA_TNUMBER) {
         std::format_to(out, "[{:.14g}] = ", lua_tonumber(state, -2));
       }
 
-      pretty(state, output, lua_gettop(state), depth + 1, visited);
+      pretty(state, output, -1, visited);
       lua_pop(state, 1);
       ++count;
     }
@@ -93,7 +96,8 @@ static void pretty(lua_State *state, std::string &output, int index, int depth, 
       break;
     }
 
-    lua_getfield(state, -1, "__name");
+    lua_pushliteral(state, "__name");
+    lua_rawget(state, -2);
     if (!lua_isstring(state, -1)) [[unlikely]] {
       std::format_to(out, "(userdata)");
       lua_pop(state, 2);
@@ -104,9 +108,9 @@ static void pretty(lua_State *state, std::string &output, int index, int depth, 
     lua_pop(state, 2);
   } break;
 
-  case LUA_TLIGHTUSERDATA: {
+  case LUA_TLIGHTUSERDATA:
     std::format_to(out, "(lightuserdata: {})", lua_topointer(state, index));
-  } break;
+    break;
 
   default:
     std::format_to(out, "({})", lua_typename(state, type));
@@ -114,7 +118,7 @@ static void pretty(lua_State *state, std::string &output, int index, int depth, 
   }
 }
 
-static int traceback(lua_State *state) {
+int traceback(lua_State *state) {
   luaL_traceback(state, state, lua_tostring(state, 1), 1);
 
   std::string result = lua_tostring(state, -1);
@@ -123,13 +127,12 @@ static int traceback(lua_State *state) {
 
   breadcrumbs visited;
   auto out = std::back_inserter(result);
-
   lua_Debug debug;
   for (int level = 1; lua_getstack(state, level, &debug); ++level) {
     lua_getinfo(state, "Sl", &debug);
-    const auto *source = static_cast<const char *>(debug.short_src);
+    const auto *source = debug.short_src;
 
-    bool has_locals = false;
+    auto has_locals = false;
     for (int i = 1;; ++i) {
       const auto *name = lua_getlocal(state, &debug, i);
       if (!name)
@@ -147,7 +150,7 @@ static int traceback(lua_State *state) {
 
       std::format_to(out, "\n      {} = ", name);
 
-      pretty(state, result, -1, 0, visited);
+      pretty(state, result, -1, visited);
       lua_pop(state, 1);
     }
   }
@@ -156,46 +159,82 @@ static int traceback(lua_State *state) {
   return 1;
 }
 
-[[noreturn]] static void raise(lua_State *state) {
-  const char *message = lua_tostring(state, -1);
-  std::string error{message ? message : "unknown lua error"};
+[[noreturn]] void raise(lua_State *state) {
+  const auto *message = lua_tostring(state, -1);
+  auto error = std::runtime_error{message ? message : "unknown lua error"};
   lua_pop(state, 1);
-  throw std::runtime_error{std::move(error)};
+  throw error;
 }
 
-void binding::wire() {
-  lua_atpanic(L, +[](lua_State *state) -> int {
-    raise(state);
-  });
+#ifdef _MSC_VER
+__declspec(noinline)
+#else
+__attribute__((noinline))
+#endif
+void prepare(lua_State *state) {
+  if (traceback_reference == 0) [[unlikely]] {
+    lua_atpanic(state, [](lua_State *error) -> int {
+      raise(error);
+    });
 
-  lua_pushcfunction(L, traceback);
-  _traceback = luaL_ref(L, LUA_REGISTRYINDEX);
-}
-
-bool pcall(lua_State *state, int nargs, int nresults, fault mode) {
-  const auto handler = lua_gettop(state) - nargs;
-  lua_rawgeti(state, LUA_REGISTRYINDEX, _traceback);
-  lua_insert(state, handler);
-
-  const auto result = lua_pcall(state, nargs, nresults, handler);
-  lua_remove(state, handler);
-
-  if (result == LUA_OK) [[likely]]
-    return true;
-
-  if (mode == fault::ignore) {
-    lua_pop(state, 1);
-    return false;
+    lua_pushcfunction(state, traceback);
+    traceback_reference = luaL_ref(state, LUA_REGISTRYINDEX);
   }
+
+}
+
+int trampoline(lua_State *state) {
+  const auto arguments = lua_gettop(state);
+  lua_pushvalue(state, lua_upvalueindex(1));
+  lua_insert(state, 1);
+
+  try {
+    lua_call(state, arguments, LUA_MULTRET);
+  } catch (const std::exception &error) {
+    return luaL_error(state, "%s", error.what());
+  }
+
+  return lua_gettop(state);
+}
+
+bool invoke(lua_State *state, int arguments, int results) {
+  assert(traceback_reference != 0);
+  const auto position = lua_gettop(state) - arguments;
+  lua_rawgeti(state, LUA_REGISTRYINDEX, traceback_reference);
+  lua_insert(state, position);
+
+  const auto status = lua_pcall(state, arguments, results, position);
+  lua_remove(state, position);
+
+  if (status == LUA_OK) [[likely]]
+    return true;
 
   raise(state);
 }
+}
 
-void compile(lua_State *state, std::span<const uint8_t> buffer, std::string_view chunk) {
+namespace binding {
+bool call(lua_State *state, int arguments, int results) {
+  return invoke(state, arguments, results);
+}
+
+bool call(lua_State *state, int arguments, int results, fault mode) {
+  if (mode == fault::fatal)
+    return invoke(state, arguments, results);
+
+  const auto status = lua_pcall(state, arguments, results, 0);
+  if (status == LUA_OK) [[likely]]
+    return true;
+
+  lua_pop(state, 1);
+  return false;
+}
+
+void load(lua_State *state, std::span<const uint8_t> buffer, const char *chunk) {
+  prepare(state);
   const auto *data = reinterpret_cast<const char *>(buffer.data());
-  const auto size = buffer.size();
 
-  if (luaL_loadbuffer(state, data, size, chunk.data())) [[unlikely]]
+  if (luaL_loadbuffer(state, data, buffer.size(), chunk) != LUA_OK) [[unlikely]]
     raise(state);
 }
 
@@ -206,47 +245,44 @@ void singleton(lua_State *state, const char *metatable, const char *global) {
   lua_setglobal(state, global);
 }
 
-static int trampoline(lua_State *state) {
-  const auto nargs = lua_gettop(state);
-  lua_pushvalue(state, lua_upvalueindex(1));
-  lua_insert(state, 1);
+void callback(lua_State *state, lua_CFunction native) {
+  prepare(state);
+  lua_pushcfunction(state, native);
+  lua_pushcclosure(state, trampoline, 1);
+}
 
-  try {
-    lua_call(state, nargs, LUA_MULTRET);
-  } catch (const std::exception &e) {
-    return luaL_error(state, "%s", e.what());
+void closure(lua_State *state, lua_CFunction native, int upvalues) {
+  prepare(state);
+  lua_pushcclosure(state, native, upvalues);
+  lua_pushcclosure(state, trampoline, 1);
+}
+
+#ifdef _MSC_VER
+__declspec(noinline)
+#else
+__attribute__((noinline))
+#endif
+void metatable(lua_State *state, const char *name, lua_CFunction index, lua_CFunction newindex, lua_CFunction gc) {
+  if (luaL_newmetatable(state, name)) {
+    lua_pushstring(state, name);
+    lua_setfield(state, -2, "__name");
   }
 
-  return lua_gettop(state);
-}
-
-void cfunction(lua_State *state, lua_CFunction fn) {
-  lua_pushcfunction(state, fn);
-  lua_pushcclosure(state, trampoline, 1);
-}
-
-void cclosure(lua_State *state, lua_CFunction fn, int nup) {
-  lua_pushcclosure(state, fn, nup);
-  lua_pushcclosure(state, trampoline, 1);
-}
-
-void metatable(lua_State *state, const char *name, lua_CFunction index, lua_CFunction newindex, lua_CFunction gc) {
-  luaL_newmetatable(state, name);
-
   if (index) {
-    cfunction(state, index);
+    callback(state, index);
     lua_setfield(state, -2, "__index");
   }
 
   if (newindex) {
-    cfunction(state, newindex);
+    callback(state, newindex);
     lua_setfield(state, -2, "__newindex");
   }
 
   if (gc) {
-    cfunction(state, gc);
+    callback(state, gc);
     lua_setfield(state, -2, "__gc");
   }
 
   lua_pop(state, 1);
+}
 }

@@ -166,12 +166,12 @@ void gamepad::wire() {
     ptr.store(SDL_OpenGamepad(gamepads[0]));
   }
 
-  cfunction(L, gamepad_rumble);
+  binding::callback(L, gamepad_rumble);
   _rumble_reference = luaL_ref(L, LUA_REGISTRYINDEX);
-  cfunction(L, gamepad_led);
+  binding::callback(L, gamepad_led);
   _led_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  metatable(L, "Gamepad", gamepad_index);
+  binding::metatable(L, "Gamepad", gamepad_index);
 
-  singleton(L, "Gamepad", "gamepad");
+  binding::singleton(L, "Gamepad", "gamepad");
 }

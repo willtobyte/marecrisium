@@ -12,13 +12,11 @@ static int loader(lua_State *state) {
 }
 
 void scriptengine::run() {
-  binding::wire();
-
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "loaders");
 
   const auto length = static_cast<int>(lua_objlen(L, -1));
-  cfunction(L, loader);
+  binding::callback(L, loader);
   lua_rawseti(L, -2, length + 1);
 
   lua_pop(L, 2);

@@ -69,7 +69,7 @@ static int mouse_newindex(lua_State *state) {
 }
 
 void mouse::wire() {
-  metatable(L, "Mouse", mouse_index, mouse_newindex);
+  binding::metatable(L, "Mouse", mouse_index, mouse_newindex);
 
-  singleton(L, "Mouse", "mouse");
+  binding::singleton(L, "Mouse", "mouse");
 }

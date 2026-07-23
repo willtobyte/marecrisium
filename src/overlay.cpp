@@ -29,7 +29,7 @@ overlay::~overlay() {
 }
 
 void overlay::wire() {
-  metatable(L, "Foregrounds", nullptr, overlay_newindex);
+  binding::metatable(L, "Foregrounds", nullptr, overlay_newindex);
 }
 
 void overlay::show(std::string_view name) {

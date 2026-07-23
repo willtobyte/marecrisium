@@ -36,10 +36,10 @@ static int achievement_index(lua_State *state) {
 }
 
 void achievement::wire() {
-  cfunction(L, achievement_unlock);
+  binding::callback(L, achievement_unlock);
   _unlock_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  metatable(L, "Achievement", achievement_index);
+  binding::metatable(L, "Achievement", achievement_index);
 
-  singleton(L, "Achievement", "achievement");
+  binding::singleton(L, "Achievement", "achievement");
 }

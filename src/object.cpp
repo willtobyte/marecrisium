@@ -319,7 +319,7 @@ namespace {
             lua_rawgeti(state, LUA_REGISTRYINDEX, op.on_animation_end);
             lua_rawgeti(state, LUA_REGISTRYINDEX, op.handle);
             lua_rawgeti(state, LUA_REGISTRYINDEX, callback);
-            pcall(state, 2, 0);
+            binding::call(state, 2, 0);
           }
 
           if (!registry.valid(entity)) return 0;
@@ -328,7 +328,7 @@ namespace {
             lua_rawgeti(state, LUA_REGISTRYINDEX, op.on_animation_begin);
             lua_rawgeti(state, LUA_REGISTRYINDEX, op.handle);
             lua_rawgeti(state, LUA_REGISTRYINDEX, a->sheet->clips[i].identity.reference);
-            pcall(state, 2, 0);
+            binding::call(state, 2, 0);
           }
 
           return 0;
@@ -406,7 +406,7 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
     return commit(registry, entity, component);
   }
 
-  pcall(L, 0, 1);
+  binding::call(L, 0, 1);
 
   component.prototype = luaL_ref(L, LUA_REGISTRYINDEX);
 
@@ -478,7 +478,7 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
 }
 
 void object::wire() {
-  metatable(L, "Object", object_index, object_newindex);
+  binding::metatable(L, "Object", object_index, object_newindex);
 
   lua_createtable(L, 0, 4);
   lua_pushinteger(L, static_cast<lua_Integer>(mirror::none));

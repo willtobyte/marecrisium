@@ -157,7 +157,7 @@ static int pairs(lua_State *state) {
   lua_remove(state, -2);
   lua_pushvalue(state, -1);
   lua_pushboolean(state, false);
-  cclosure(state, iterate, 2);
+  binding::closure(state, iterate, 2);
   lua_pushvalue(state, 1);
   lua_pushnil(state);
   return 3;
@@ -170,7 +170,7 @@ static int ipairs(lua_State *state) {
   lua_remove(state, -2);
   lua_pushvalue(state, -1);
   lua_pushboolean(state, true);
-  cclosure(state, iterate, 2);
+  binding::closure(state, iterate, 2);
   lua_pushvalue(state, 1);
   lua_pushinteger(state, 0);
   return 3;
@@ -202,13 +202,13 @@ static void proxify(lua_State *state, int data, int key, int root) {
   lua_pushvalue(state, data);
   lua_pushvalue(state, key);
   lua_pushvalue(state, root);
-  cclosure(state, proxy_index, 3);
+  binding::closure(state, proxy_index, 3);
   lua_setfield(state, -2, "__index");
 
   lua_pushvalue(state, data);
   lua_pushvalue(state, key);
   lua_pushvalue(state, root);
-  cclosure(state, proxy_newindex, 3);
+  binding::closure(state, proxy_newindex, 3);
   lua_setfield(state, -2, "__newindex");
 
   lua_pushcfunction(state, length);
@@ -324,9 +324,9 @@ void cassette::wire() {
     database.reset();
   });
 
-  cfunction(L, cassette_clear);
+  binding::callback(L, cassette_clear);
   _purge_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  metatable(L, "Cassette", cassette_index, cassette_newindex);
-  singleton(L, "Cassette", "cassette");
+  binding::metatable(L, "Cassette", cassette_index, cassette_newindex);
+  binding::singleton(L, "Cassette", "cassette");
 }

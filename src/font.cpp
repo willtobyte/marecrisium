@@ -98,10 +98,10 @@ static int font_index(lua_State *state) {
 }
 
 void font::wire() {
-  cfunction(L, font_label);
+  binding::callback(L, font_label);
   _label_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  metatable(L, "Font", font_index);
+  binding::metatable(L, "Font", font_index);
 }
 
 static SDL_FPoint rotate(float x, float y, float middle_x, float middle_y, float cosine, float sine) {
@@ -114,9 +114,9 @@ font::font(std::string_view family) {
   const auto filename = std::format("fonts/{}.lua", family);
   const auto meta = io::read(filename);
   const auto chunk = std::format("@{}", filename);
-  compile(L, meta, chunk);
+  binding::load(L, meta, chunk);
 
-  pcall(L, 0, 1);
+  binding::call(L, 0, 1);
 
   lua_getfield(L, -1, "glyphs");
   _glyphs = lua_isstring(L, -1) ? lua_tostring(L, -1) : std::string{};

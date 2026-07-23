@@ -1,8 +1,8 @@
 engine::engine() {
   const auto buffer = io::read("scripts/main.lua");
-  compile(L, buffer, "@main.lua");
+  binding::load(L, buffer, "@main.lua");
 
-  pcall(L, 0, 1);
+  binding::call(L, 0, 1);
 
   lua_getfield(L, -1, "width");
   const auto width = static_cast<int>(lua_tonumber(L, -1));
@@ -92,7 +92,7 @@ engine::engine() {
   if (lua_isnoneornil(L, -1)) {
     lua_pop(L, 1);
   } else {
-    pcall(L, 0, 0);
+    binding::call(L, 0, 0);
   }
 
   lua_pop(L, 1);

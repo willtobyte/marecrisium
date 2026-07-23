@@ -24,9 +24,9 @@ config* particlepool::get(std::string_view kind) {
     const auto filename = std::format("particles/{}.lua", kind);
     const auto buffer = io::read(filename);
     const auto chunk = std::format("@{}", filename);
-    compile(L, buffer, chunk);
+    binding::load(L, buffer, chunk);
 
-    pcall(L, 0, 1);
+    binding::call(L, 0, 1);
 
     lua_getfield(L, -1, "count");
     config->count = lua_isnumber(L, -1) ? static_cast<size_t>(lua_tonumber(L, -1)) : 0uz;

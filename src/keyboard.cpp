@@ -32,7 +32,7 @@ static int keyboard_index(lua_State *state) {
 }
 
 void keyboard::wire() {
-  metatable(L, "Keyboard", keyboard_index);
+  binding::metatable(L, "Keyboard", keyboard_index);
 
-  singleton(L, "Keyboard", "keyboard");
+  binding::singleton(L, "Keyboard", "keyboard");
 }
