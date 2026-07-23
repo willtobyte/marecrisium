@@ -53,9 +53,9 @@ struct handle final {
   return {reinterpret_cast<const char *>(cartridge->strings.data() + r.offset), r.length};
 }
 
-[[nodiscard]] inline uint64_t hashfn(std::string_view name, uint64_t seed) noexcept {
-  const auto *p = reinterpret_cast<const uint8_t *>(name.data());
-  auto n = name.size();
+[[nodiscard]] inline uint64_t hashfn(const char *name, uint64_t seed) noexcept {
+  const auto *p = reinterpret_cast<const uint8_t *>(name);
+  auto n = std::strlen(name);
   uint64_t h = seed ^ n;
   while (n >= 8) {
     uint64_t chunk;
@@ -65,16 +65,14 @@ struct handle final {
     n -= 8;
   }
 
-  if (n > 0) {
-    uint64_t tail = 0;
-    std::memcpy(&tail, p, n);
-    h = mix(h ^ tail, PRIME);
-  }
+  uint64_t tail = 0;
+  for (unsigned shift = 0; n > 0; shift += 8, --n)
+    tail |= static_cast<uint64_t>(*p++) << shift;
 
-  return h;
+  return tail == 0 ? h : mix(h ^ tail, PRIME);
 }
 
-[[nodiscard]] size_t locate(const archive *cartridge, std::string_view name) noexcept {
+[[nodiscard]] size_t locate(const archive *cartridge, const char *name) noexcept {
   const auto h = hashfn(name, cartridge->seed);
   const auto slot = static_cast<size_t>(h) & (cartridge->buckets.size() - 1);
   const auto index = cartridge->buckets[slot];

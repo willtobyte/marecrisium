@@ -46,7 +46,7 @@ def hashfn(prepared: tuple[tuple[int, ...], int, int], seed: int) -> int:
 
 
 def build_perfect(
-    prepared: list[tuple[tuple[int, ...], bytes]],
+    prepared: list[tuple[tuple[int, ...], int, int]],
 ) -> tuple[int, int, list[int]]:
     count = len(prepared)
     if not count:
