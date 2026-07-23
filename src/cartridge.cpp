@@ -8,6 +8,8 @@ constexpr size_t SCRATCH = 6uz * 1024 * 1024;
 constexpr uint32_t EMPTY = UINT32_MAX;
 constexpr uint64_t PRIME = 0x9e3779b97f4a7c15ull;
 
+capture *active{};
+
 using decoder_t = std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)>;
 
 using dictionary_t = std::unique_ptr<ZSTD_DDict, decltype(&ZSTD_freeDDict)>;
@@ -37,15 +39,9 @@ struct archive final {
   uint32_t seed{};
 };
 
-struct backing final {
-  const uint8_t *data;
-  size_t size;
-  uint32_t count;
-};
-
 struct handle final {
   PHYSFS_Io io;
-  backing *shared;
+  std::unique_ptr<backing, releaser> storage;
   uint64_t position;
 };
 
@@ -84,13 +80,12 @@ struct handle final {
 
 PHYSFS_sint64 _read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   auto *reader = static_cast<handle *>(io->opaque);
-  auto *shared = reader->shared;
-  const auto remaining = shared->size - reader->position;
+  const auto remaining = reader->storage->length - reader->position;
   if (remaining == 0)
     return 0;
 
   const auto count = std::min(length, static_cast<PHYSFS_uint64>(remaining));
-  std::memcpy(buffer, shared->data + reader->position, static_cast<size_t>(count));
+  std::memcpy(buffer, reader->storage->data() + reader->position, static_cast<size_t>(count));
   reader->position += count;
   return static_cast<PHYSFS_sint64>(count);
 }
@@ -110,13 +105,14 @@ PHYSFS_sint64 _tell(PHYSFS_Io *io) {
 }
 
 PHYSFS_sint64 _length(PHYSFS_Io *io) {
-  return static_cast<PHYSFS_sint64>(static_cast<handle *>(io->opaque)->shared->size);
+  return static_cast<PHYSFS_sint64>(static_cast<handle *>(io->opaque)->storage->length);
 }
 
 PHYSFS_Io *_duplicate(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
-  auto *copy = new handle{reader->io, reader->shared, uint64_t{0}};
-  ++reader->shared->count;
+  auto storage = std::unique_ptr<backing, releaser>{reader->storage.get()};
+  ++storage->count;
+  auto *copy = new handle{reader->io, std::move(storage), uint64_t{0}};
   copy->io.opaque = copy;
   return &copy->io;
 }
@@ -126,13 +122,7 @@ int _flush(PHYSFS_Io *) {
 }
 
 void _destroy(PHYSFS_Io *io) {
-  auto *h = static_cast<handle *>(io->opaque);
-  if (--h->shared->count == 0) {
-    h->shared->~backing();
-    ::operator delete(h->shared);
-  }
-
-  delete h;
+  delete static_cast<handle *>(io->opaque);
 }
 
 void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
@@ -241,11 +231,9 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
   const auto compressed = static_cast<size_t>(found.compressed);
-  const auto block = sizeof(backing) + uncompressed;
-
-  auto *storage = static_cast<backing *>(::operator new(block));
-  auto *tail = reinterpret_cast<uint8_t *>(storage + 1);
-  new (storage) backing{tail, uncompressed, 1u};
+  auto *storage = static_cast<backing *>(::operator new(sizeof(backing) + uncompressed));
+  auto content = std::unique_ptr<backing, releaser>{std::construct_at(storage, uncompressed, 1u)};
+  auto *data = storage->data();
 
   if (uncompressed > 0) [[likely]] {
     auto *source = cartridge->source;
@@ -254,7 +242,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
     switch (found.algorithm) {
       case ALGO_RAW: {
-        const auto bytes = source->read(source, tail, uncompressed);
+        const auto bytes = source->read(source, data, uncompressed);
         [[assume(bytes == static_cast<PHYSFS_sint64>(uncompressed))]];
         break;
       }
@@ -266,7 +254,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
 
         const auto result = ZSTD_decompress_usingDDict(
           cartridge->decoder.get(),
-          tail, uncompressed,
+          data, uncompressed,
           cartridge->scratch.data(), compressed,
           cartridge->dictionary.get());
 
@@ -292,11 +280,14 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
       .flush = _flush,
       .destroy = _destroy,
     },
-    storage,
+    std::move(content),
     uint64_t{0},
   };
 
   reader->io.opaque = reader;
+  if (active)
+    active->store(storage);
+
   return &reader->io;
 }
 
@@ -359,6 +350,26 @@ void crom_close_archive(void *opaque) {
 
   delete cartridge;
 }
+}
+
+capture::capture() noexcept {
+  assert(active == nullptr);
+  active = this;
+}
+
+capture::~capture() {
+  if (active == this)
+    active = nullptr;
+}
+
+blob capture::finish() noexcept {
+  active = nullptr;
+  return std::move(content);
+}
+
+void capture::store(backing *storage) noexcept {
+  ++storage->count;
+  content = blob{std::unique_ptr<backing, releaser>{storage}};
 }
 
 const PHYSFS_Archiver archiver = {

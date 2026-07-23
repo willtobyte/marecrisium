@@ -164,20 +164,22 @@ gamepad = {}
 ---Persistent save-data store. Read/write arbitrary keys.
 ---
 ---Supported value types: `boolean`, `number`, `string`, `table`.
----Assign `nil` to delete a key. All writes persist immediately.
+---Assign `nil` to delete a key. Accepted writes persist immediately.
 ---Tables are serialized as JSON and stored as JSONB in SQLite.
----Reads are cached. Tables are returned as reactive proxies:
----mutating any nested field automatically re-persists the root key.
+---Each root-key read loads the latest persisted value. Tables are returned
+---as reactive proxies: mutating any nested field automatically re-persists
+---the root key. Writes through a stale proxy are ignored after the same
+---root key changes.
 ---
----**Proxy limitation (LuaJIT 5.1):** `#`, `pairs()`, and `ipairs()`
----do not work on proxied tables. Use indexed access (`proxy[1]`,
----`proxy.key`) for reads and writes instead.
+---Proxied tables support indexed access, `#`, `pairs()`, and `ipairs()`.
 ---
 ---Usage:
 ---```lua
 ---cassette.score = 100
 ---local s = cassette.score
 ---cassette.inventory = { "sword", "shield" }
+---local count = #cassette.inventory
+---for index, item in ipairs(cassette.inventory) do print(index, item) end
 ---cassette.progress = { level = 3, stars = 2 }
 ---cassette.progress.stars = 5       -- persists automatically
 ---cassette.score = nil              -- delete
