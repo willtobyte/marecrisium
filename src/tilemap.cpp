@@ -1,33 +1,65 @@
-static bool vacant(const std::vector<uint32_t>& tiles) noexcept {
-  for (const auto t : tiles)
-    if (t != 0) [[likely]] return false;
+namespace {
+constexpr auto axes = 2uz;
+constexpr auto header = axes * sizeof(uint32_t) + sizeof(float) + sizeof(uint64_t);
+constexpr auto cellsize = sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint8_t);
+constexpr auto corners = 4uz;
+constexpr auto cellspan = 1uz;
+constexpr auto padding = int32_t{1};
+constexpr auto overscan = 2uz;
+constexpr auto empty = uint8_t{};
+constexpr auto pending = uint8_t{2};
+constexpr auto solid = uint8_t{1};
+constexpr auto firsttile = uint32_t{1};
+constexpr auto halfscale = .5f;
+constexpr auto fullscale = 1.f;
+constexpr std::array pattern{int32_t{0}, int32_t{1}, int32_t{2}, int32_t{0}, int32_t{2}, int32_t{3}};
+
+[[nodiscard]] constexpr uint32_t little(const uint8_t* bytes) noexcept {
+  auto value = uint32_t{};
+  constexpr auto bits = std::numeric_limits<uint8_t>::digits;
+  for (size_t i{}; i < sizeof(value); ++i)
+    value |= static_cast<uint32_t>(bytes[i]) << (i * bits);
+
+  return value;
+}
+
+[[nodiscard]] bool vacant(std::span<const uint8_t> bytes) noexcept {
+  while (bytes.size() >= sizeof(uint64_t)) {
+    uint64_t word;
+    std::memcpy(&word, bytes.data(), sizeof(word));
+    if (word != uint64_t{}) [[likely]]
+      return false;
+
+    bytes = bytes.subspan(sizeof(word));
+  }
+
+  for (const auto byte : bytes)
+    if (byte != empty) [[likely]]
+      return false;
 
   return true;
 }
 
-static void buffers(tilemap::layer& layer, size_t capacity) {
-  layer.vertices.reserve(capacity * 4);
-  layer.indices.resize(capacity * 6);
+void buffers(tilemap::layer& layer, size_t capacity) {
+  const auto first = layer.indices.size() / pattern.size();
+  if (first >= capacity) [[likely]]
+    return;
 
-  auto* noalias indices = layer.indices.data();
+  layer.vertices.reserve(capacity * corners);
+  layer.indices.resize(capacity * pattern.size());
 
-  [[assume(indices != nullptr)]];
-  [[assume(capacity > 0)]];
+  auto* output = layer.indices.data() + first * pattern.size();
 
-  for (size_t i = 0; i < capacity; ++i) {
-    const auto base = static_cast<int32_t>(i * 4);
-    auto* ip = indices + i * 6;
+  [[assume(output != nullptr)]];
 
-    *ip++ = base;
-    *ip++ = base + 1;
-    *ip++ = base + 2;
-    *ip++ = base;
-    *ip++ = base + 2;
-    *ip++ = base + 3;
+  for (auto i = first; i < capacity; ++i) {
+    const auto base = static_cast<int32_t>(i * corners);
+    for (const auto offset : pattern)
+      *output++ = base + offset;
   }
 }
 
-static void prepare(tilemap::layer& layer, std::string_view name, std::string_view path, float size, float inverse) {
+void prepare(tilemap::layer& layer, std::string_view name, std::string_view path, float size, float inverse) {
   if (layer.tiles.empty()) [[unlikely]]
     return;
 
@@ -40,8 +72,8 @@ static void prepare(tilemap::layer& layer, std::string_view name, std::string_vi
   const auto tpr = static_cast<size_t>(aw * inverse);
   const auto tpc = static_cast<size_t>(ah * inverse);
   const auto count = tpr * tpc;
-  const auto htu = .5f / aw;
-  const auto htv = .5f / ah;
+  const auto htu = halfscale / aw;
+  const auto htv = halfscale / ah;
 
   [[assume(tpr > 0)]];
   [[assume(tpc > 0)]];
@@ -49,14 +81,28 @@ static void prepare(tilemap::layer& layer, std::string_view name, std::string_vi
   layer.uvs.resize(count);
   for (size_t id = 0; id < count; ++id) {
     const auto column = static_cast<float>(id % tpr);
-    const auto row = static_cast<float>(id / tpr);
-    layer.uvs[id] = uv{
+    const auto rowid = id / tpr;
+    const auto row = static_cast<float>(rowid);
+    layer.uvs[id] = {
       column * us + htu,
       row * vs + htv,
-      (column + 1.f) * us - htu,
-      (row + 1.f) * vs - htv,
+      (column + fullscale) * us - htu,
+      (row + fullscale) * vs - htv,
     };
   }
+}
+
+void render(const tilemap::layer& layer) {
+  const auto vertices = layer.vertices.size();
+  SDL_RenderGeometry(
+    renderer,
+    static_cast<SDL_Texture*>(*layer.atlas),
+    layer.vertices.data(),
+    static_cast<int>(vertices),
+    layer.indices.data(),
+    static_cast<int>(vertices / corners * pattern.size())
+  );
+}
 }
 
 tilemap::tilemap(std::string_view name, b2WorldId world) {
@@ -64,75 +110,72 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   const auto* noalias bytes = blob.data();
   const auto length = blob.size();
 
-  static constexpr auto HEADER = size_t{20};
-  static constexpr auto PERCELL =
-    sizeof(uint32_t) +
-    sizeof(uint32_t) +
-    sizeof(uint8_t);
+  auto* cursor = bytes;
+  _width = static_cast<int32_t>(little(cursor));
+  cursor += sizeof(uint32_t);
+  _height = static_cast<int32_t>(little(cursor));
+  cursor += sizeof(uint32_t);
+  _size = std::bit_cast<float>(little(cursor));
 
-  uint32_t width{}, height{};
-  float size{};
-  std::memcpy(&width, bytes + 0, sizeof(width));
-  std::memcpy(&height, bytes + 4, sizeof(height));
-  std::memcpy(&size, bytes + 8, sizeof(size));
-
-  _width = static_cast<int32_t>(width);
-  _height = static_cast<int32_t>(height);
-  _size = size;
-
-  assert(_size > 0.f && "tilemap: invalid tile size");
-  _inverse = 1.f / _size;
+  assert(_size > float{} && "tilemap: invalid tile size");
+  _inverse = fullscale / _size;
 
   const auto n = static_cast<size_t>(_width) * static_cast<size_t>(_height);
 
-  [[assume(length == HEADER + PERCELL * n)]];
+  [[assume(length == header + cellsize * n)]];
 
-  auto offset = HEADER;
+  auto offset = header;
+  const auto tilebytes = n * sizeof(uint32_t);
+  const auto load = [&](layer& layer) {
+    const std::span source{bytes + offset, tilebytes};
+    offset += tilebytes;
 
-  _background.tiles.resize(n);
-  std::memcpy(_background.tiles.data(), bytes + offset, n * sizeof(uint32_t));
-  offset += n * sizeof(uint32_t);
+    if (vacant(source)) [[unlikely]]
+      return;
 
-  _foreground.tiles.resize(n);
-  std::memcpy(_foreground.tiles.data(), bytes + offset, n * sizeof(uint32_t));
-  offset += n * sizeof(uint32_t);
+    layer.tiles.resize(n);
+    if constexpr (std::endian::native == std::endian::little) {
+      std::memcpy(layer.tiles.data(), source.data(), tilebytes);
+    } else {
+      for (size_t i{}; i < n; ++i)
+        layer.tiles[i] = little(source.data() + i * sizeof(uint32_t));
+    }
+  };
+
+  load(_background);
+  load(_foreground);
 
   _collision.resize(n);
-  std::memcpy(_collision.data(), bytes + offset, n * sizeof(uint8_t));
-
-  if (vacant(_background.tiles)) [[unlikely]]
-    _background.tiles.clear();
-  if (vacant(_foreground.tiles)) [[unlikely]]
-    _foreground.tiles.clear();
+  auto* noalias collision = _collision.data();
+  const auto* noalias source = bytes + offset;
+  for (size_t i = 0; i < n; ++i)
+    collision[i] = source[i] == empty ? empty : pending;
 
   {
-    [[assume(_width > 0 && _height > 0)]];
+    [[assume(_width > int32_t{} && _height > int32_t{})]];
 
-    const auto* noalias collision = _collision.data();
     const auto columns = static_cast<size_t>(_width);
     const auto rows = static_cast<size_t>(_height);
-
-    std::vector<bool> seen(n, false);
 
     for (size_t row = 0; row < rows; ++row) {
       const auto ro = row * columns;
 
       for (size_t column = 0; column < columns; ++column) {
         const auto index = ro + column;
-        if (collision[index] == 0 || seen[index]) [[unlikely]]
+        if (collision[index] != pending) [[unlikely]]
           continue;
 
-        auto rw = size_t{1};
-        while (column + rw < columns && collision[index + rw] != 0 && !seen[index + rw])
+        auto rw = cellspan;
+        while (column + rw < columns && collision[index + rw] == pending)
           ++rw;
 
-        auto rh = size_t{1};
+        auto rh = cellspan;
         while (row + rh < rows) {
           const auto co = (row + rh) * columns + column;
           auto valid = true;
 
           for (size_t dx = 0; dx < rw; ++dx) {
-            if (collision[co + dx] == 0 || seen[co + dx]) [[unlikely]] {
+            if (collision[co + dx] != pending) [[unlikely]] {
               valid = false;
               break;
             }
@@ -147,10 +190,10 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
         for (size_t dy = 0; dy < rh; ++dy) {
           const auto base = (row + dy) * columns + column;
           for (size_t dx = 0; dx < rw; ++dx)
-            seen[base + dx] = true;
+            collision[base + dx] = solid;
         }
 
-        const auto half = _size * .5f;
+        const auto half = _size * halfscale;
         const auto bhx = static_cast<float>(rw) * half;
         const auto bhy = static_cast<float>(rh) * half;
 
@@ -167,8 +210,8 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   prepare(_background, name, "background", _size, _inverse);
   prepare(_foreground, name, "foreground", _size, _inverse);
 
-  const auto tx = static_cast<size_t>(viewport.width * _inverse) + 2;
-  const auto ty = static_cast<size_t>(viewport.height * _inverse) + 2;
+  const auto tx = static_cast<size_t>(viewport.width * _inverse) + overscan;
+  const auto ty = static_cast<size_t>(viewport.height * _inverse) + overscan;
   const auto capacity = tx * ty;
 
   if (_background.atlas) [[likely]]
@@ -187,15 +230,7 @@ void tilemap::draw_background() {
   if (_dirty) [[unlikely]]
     tessellate(_background);
 
-  const auto nv = static_cast<int>(_background.vertices.size());
-  SDL_RenderGeometry(
-    renderer,
-    static_cast<SDL_Texture*>(*_background.atlas),
-    _background.vertices.data(),
-    nv,
-    _background.indices.data(),
-    nv / 4 * 6
-  );
+  render(_background);
 
   if (!_foreground.atlas) [[unlikely]] {
     _snapshot = viewport;
@@ -213,34 +248,27 @@ void tilemap::draw_foreground() {
   _snapshot = viewport;
   _dirty = false;
 
-  const auto nv = static_cast<int>(_foreground.vertices.size());
-  SDL_RenderGeometry(
-    renderer,
-    static_cast<SDL_Texture*>(*_foreground.atlas),
-    _foreground.vertices.data(),
-    nv,
-    _foreground.indices.data(),
-    nv / 4 * 6
-  );
+  render(_foreground);
 }
 
 void tilemap::tessellate(layer& layer) {
-  const auto sc = std::max(0, static_cast<int32_t>(viewport.x * _inverse));
-  const auto sr = std::max(0, static_cast<int32_t>(viewport.y * _inverse));
-  const auto ec = std::min(_width - 1, static_cast<int32_t>((viewport.x + viewport.width) * _inverse) + 1);
-  const auto er = std::min(_height - 1, static_cast<int32_t>((viewport.y + viewport.height) * _inverse) + 1);
+  const auto sc = std::max(int32_t{}, static_cast<int32_t>(viewport.x * _inverse));
+  const auto sr = std::max(int32_t{}, static_cast<int32_t>(viewport.y * _inverse));
+  const auto ec = std::min(_width - padding, static_cast<int32_t>((viewport.x + viewport.width) * _inverse) + padding);
+  const auto er = std::min(_height - padding, static_cast<int32_t>((viewport.y + viewport.height) * _inverse) + padding);
 
   if (sc > ec || sr > er) [[unlikely]] {
     layer.vertices.clear();
     return;
   }
 
-  const auto capacity = static_cast<size_t>((ec - sc + 1) * (er - sr + 1));
-  layer.vertices.resize(capacity * 4);
+  const auto capacity = static_cast<size_t>((ec - sc + padding) * (er - sr + padding));
+  buffers(layer, capacity);
+  layer.vertices.resize(capacity * corners);
 
   auto* vp = layer.vertices.data();
 
-  const SDL_FColor white{1.f, 1.f, 1.f, 1.f};
+  constexpr SDL_FColor white{fullscale, fullscale, fullscale, fullscale};
 
   auto ro = sr * _width;
   auto dy = static_cast<float>(sr) * _size - viewport.y;
@@ -250,11 +278,11 @@ void tilemap::tessellate(layer& layer) {
 
     for (auto column = sc; column <= ec; ++column) {
       const auto ti = layer.tiles[static_cast<size_t>(ro + column)];
-      if (ti == 0) [[unlikely]]
+      if (ti == uint32_t{}) [[unlikely]]
         continue;
 
-      assert(static_cast<size_t>(ti - 1) < layer.uvs.size() && "tile index out of bounds");
-      const auto& uv = layer.uvs[ti - 1];
+      assert(static_cast<size_t>(ti - firsttile) < layer.uvs.size() && "tile index out of bounds");
+      const auto& uv = layer.uvs[ti - firsttile];
       const auto x0 = static_cast<float>(column) * _size - viewport.x;
       const auto x1 = x0 + _size;
 

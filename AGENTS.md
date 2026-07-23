@@ -20,3 +20,4 @@
 * Any changes to the Lua API exposed by C++ must be documented in `types/game.lua`.
 * Use unit tests only to validate the correctness and efficiency of the code. Always measure performance, memory usage, and allocations, aiming for the fewest allocations, the lowest memory usage, and the highest possible performance and efficiency. For most changes, a smoke test is also required. Test everything thoroughly, then remove the tests afterward. Neither unit tests nor smoke tests should be committed or versioned.
 * No guesswork. Every claim must be backed by evidence, either through empirical validation or reliable sources found online.
+* No magic numbers. Create a constant or add a comment.
