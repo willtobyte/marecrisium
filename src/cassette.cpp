@@ -5,11 +5,35 @@ namespace lookup {
 
 constexpr const char *FILENAME = "cassette.tape";
 
-sqlite3 *database;
-sqlite3_stmt *stmt_select;
-sqlite3_stmt *stmt_upsert;
-sqlite3_stmt *stmt_delete;
-sqlite3_stmt *stmt_clear;
+struct json_deleter final {
+  void operator()(yyjson_doc *document) const {
+    yyjson_doc_free(document);
+  }
+
+  void operator()(yyjson_mut_doc *document) const {
+    yyjson_mut_doc_free(document);
+  }
+
+  void operator()(char *json) const {
+    std::free(json);
+  }
+};
+
+struct sqlite_deleter final {
+  void operator()(sqlite3 *handle) const {
+    sqlite3_close(handle);
+  }
+
+  void operator()(sqlite3_stmt *statement) const {
+    sqlite3_finalize(statement);
+  }
+};
+
+std::unique_ptr<sqlite3, sqlite_deleter> database;
+std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_select;
+std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_upsert;
+std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_delete;
+std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_clear;
 
 int _purge_reference = LUA_NOREF;
 
@@ -24,34 +48,34 @@ static void execute(sqlite3_stmt *statement) {
 }
 
 static auto load(lua_State *state, std::string_view key) {
-  sqlite3_bind_text(stmt_select, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
-  const auto found = sqlite3_step(stmt_select) == SQLITE_ROW;
+  auto *statement = stmt_select.get();
+  sqlite3_bind_text(statement, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
+  const auto found = sqlite3_step(statement) == SQLITE_ROW;
 
   if (found)
     lua_pushlstring(state,
-      reinterpret_cast<const char *>(sqlite3_column_text(stmt_select, 0)),
-      static_cast<size_t>(sqlite3_column_bytes(stmt_select, 0)));
+      reinterpret_cast<const char *>(sqlite3_column_text(statement, 0)),
+      static_cast<size_t>(sqlite3_column_bytes(statement, 0)));
 
-  sqlite3_reset(stmt_select);
-  sqlite3_clear_bindings(stmt_select);
+  sqlite3_reset(statement);
+  sqlite3_clear_bindings(statement);
   return found;
 }
 
 static void save(lua_State *state, std::string_view key, int index) {
-  auto *document = yyjson_mut_doc_new(nullptr);
-  auto *root = lua_to_json(state, index, document);
-  yyjson_mut_doc_set_root(document, root);
+  const auto document = std::unique_ptr<yyjson_mut_doc, json_deleter>{yyjson_mut_doc_new(nullptr)};
+  auto *root = marshal::encode(state, index, document.get());
+  yyjson_mut_doc_set_root(document.get(), root);
 
   auto length = 0uz;
-  auto *json = yyjson_mut_write(document, 0, &length);
-  yyjson_mut_doc_free(document);
+  const auto json = std::unique_ptr<char, json_deleter>{yyjson_mut_write(document.get(), 0, &length)};
 
-  lua_pushlstring(state, json, length);
-  free(json);
+  lua_pushlstring(state, json.get(), length);
 
-  sqlite3_bind_text(stmt_upsert, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
-  sqlite3_bind_text(stmt_upsert, 2, lua_tostring(state, -1), static_cast<int>(length), SQLITE_STATIC);
-  execute(stmt_upsert);
+  auto *statement = stmt_upsert.get();
+  sqlite3_bind_text(statement, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
+  sqlite3_bind_text(statement, 2, lua_tostring(state, -1), static_cast<int>(length), SQLITE_STATIC);
+  execute(statement);
 }
 
 static int proxy_newindex(lua_State *state) {
@@ -202,7 +226,7 @@ static void proxify(lua_State *state, int data, int key, int root) {
 }
 
 static int cassette_clear(lua_State *state) {
-  execute(stmt_clear);
+  execute(stmt_clear.get());
   return 0;
 }
 
@@ -218,10 +242,9 @@ static int cassette_index(lua_State *state) {
 
   auto length = 0uz;
   const auto *json = lua_tolstring(state, -1, &length);
-  auto *document = yyjson_read(json, length, 0);
+  const auto document = std::unique_ptr<yyjson_doc, json_deleter>{yyjson_read(json, length, 0)};
 
-  json_to_lua(state, yyjson_doc_get_root(document));
-  yyjson_doc_free(document);
+  marshal::decode(state, yyjson_doc_get_root(document.get()));
 
   if (lua_type(state, -1) == LUA_TTABLE) {
     const auto data = lua_gettop(state);
@@ -253,8 +276,8 @@ static int cassette_newindex(lua_State *state) {
     return 0;
 
   if (lua_isnil(state, 3)) [[unlikely]] {
-    sqlite3_bind_text(stmt_delete, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
-    execute(stmt_delete);
+    sqlite3_bind_text(stmt_delete.get(), 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
+    execute(stmt_delete.get());
     return 0;
   }
 
@@ -275,8 +298,9 @@ static int cassette_newindex(lua_State *state) {
 }
 
 void cassette::wire() {
-  sqlite3_open(FILENAME, &database);
-  sqlite3_exec(database,
+  sqlite3_open(FILENAME, std::out_ptr(database));
+  auto *handle = database.get();
+  sqlite3_exec(handle,
     "PRAGMA journal_mode=WAL;"
     "PRAGMA synchronous=NORMAL;"
     "PRAGMA temp_store=MEMORY;"
@@ -287,17 +311,17 @@ void cassette::wire() {
     ")WITHOUT ROWID;",
     nullptr, nullptr, nullptr);
 
-  sqlite3_prepare_v2(database, "SELECT json(value) FROM data WHERE key=?", -1, &stmt_select, nullptr);
-  sqlite3_prepare_v2(database, "INSERT OR REPLACE INTO data(key,value) VALUES(?,jsonb(?))", -1, &stmt_upsert, nullptr);
-  sqlite3_prepare_v2(database, "DELETE FROM data WHERE key=?", -1, &stmt_delete, nullptr);
-  sqlite3_prepare_v2(database, "DELETE FROM data", -1, &stmt_clear, nullptr);
+  sqlite3_prepare_v2(handle, "SELECT json(value) FROM data WHERE key=?", -1, std::out_ptr(stmt_select), nullptr);
+  sqlite3_prepare_v2(handle, "INSERT OR REPLACE INTO data(key,value) VALUES(?,jsonb(?))", -1, std::out_ptr(stmt_upsert), nullptr);
+  sqlite3_prepare_v2(handle, "DELETE FROM data WHERE key=?", -1, std::out_ptr(stmt_delete), nullptr);
+  sqlite3_prepare_v2(handle, "DELETE FROM data", -1, std::out_ptr(stmt_clear), nullptr);
 
   std::atexit(+[] {
-    sqlite3_finalize(stmt_select);
-    sqlite3_finalize(stmt_upsert);
-    sqlite3_finalize(stmt_delete);
-    sqlite3_finalize(stmt_clear);
-    sqlite3_close(database);
+    stmt_select.reset();
+    stmt_upsert.reset();
+    stmt_delete.reset();
+    stmt_clear.reset();
+    database.reset();
   });
 
   cfunction(L, cassette_clear);

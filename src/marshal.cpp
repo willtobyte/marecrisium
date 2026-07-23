@@ -5,25 +5,26 @@ static int absolute_index(lua_State *state, int index) {
     : lua_gettop(state) + index + 1;
 }
 
-static bool lua_table_is_array(lua_State *state, int index) {
+static bool is_array(lua_State *state, int index) {
   const auto absolute = absolute_index(state, index);
-  auto count = 0;
+  auto count = 0uz;
   lua_pushnil(state);
   while (lua_next(state, absolute) != 0) {
     if (lua_type(state, -2) != LUA_TNUMBER) {
       lua_pop(state, 2);
       return false;
     }
+
     lua_pop(state, 1);
     ++count;
   }
 
-  const auto length = static_cast<int>(lua_objlen(state, absolute));
+  const auto length = lua_objlen(state, absolute);
   return length > 0 && length == count;
 }
 }
 
-void json_to_lua(lua_State *state, yyjson_val *value) {
+void marshal::decode(lua_State *state, yyjson_val *value) {
   if (!value) [[unlikely]]
     return lua_pushnil(state);
 
@@ -39,9 +40,14 @@ void json_to_lua(lua_State *state, yyjson_val *value) {
     case YYJSON_TYPE_NUM: {
       const auto subtype = yyjson_get_subtype(value);
       switch (subtype) {
-        case YYJSON_SUBTYPE_UINT:
-          lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_uint(value)));
-          break;
+        case YYJSON_SUBTYPE_UINT: {
+          const auto number = yyjson_get_uint(value);
+          constexpr auto maximum = static_cast<uint64_t>(std::numeric_limits<lua_Integer>::max());
+          if (number <= maximum)
+            lua_pushinteger(state, static_cast<lua_Integer>(number));
+          else
+            lua_pushnumber(state, static_cast<lua_Number>(number));
+        } break;
         case YYJSON_SUBTYPE_SINT:
           lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_sint(value)));
           break;
@@ -64,11 +70,11 @@ void json_to_lua(lua_State *state, yyjson_val *value) {
       yyjson_arr_iter iterator;
       yyjson_arr_iter_init(value, &iterator);
       yyjson_val *element;
-      auto i = 1;
+      auto i = 0;
       while ((element = yyjson_arr_iter_next(&iterator))) {
-        json_to_lua(state, element);
-        lua_rawseti(state, -2, i);
         ++i;
+        decode(state, element);
+        lua_rawseti(state, -2, i);
       }
     } break;
 
@@ -80,7 +86,7 @@ void json_to_lua(lua_State *state, yyjson_val *value) {
       yyjson_val *key;
       while ((key = yyjson_obj_iter_next(&iterator))) {
         lua_pushlstring(state, yyjson_get_str(key), yyjson_get_len(key));
-        json_to_lua(state, yyjson_obj_iter_get_val(key));
+        decode(state, yyjson_obj_iter_get_val(key));
         lua_rawset(state, -3);
       }
     } break;
@@ -91,7 +97,7 @@ void json_to_lua(lua_State *state, yyjson_val *value) {
   }
 }
 
-yyjson_mut_val *lua_to_json(lua_State *state, int index, yyjson_mut_doc *document) {
+yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *document) {
   const auto absolute = absolute_index(state, index);
 
   switch (lua_type(state, absolute)) {
@@ -103,6 +109,9 @@ yyjson_mut_val *lua_to_json(lua_State *state, int index, yyjson_mut_doc *documen
 
     case LUA_TNUMBER: {
       const auto value = lua_tonumber(state, absolute);
+      if (value == 0 && std::signbit(value))
+        return yyjson_mut_real(document, value);
+
       constexpr auto maximum = static_cast<lua_Number>(std::numeric_limits<lua_Integer>::max());
       constexpr auto minimum = static_cast<lua_Number>(std::numeric_limits<lua_Integer>::min());
       if (value >= minimum && value < maximum) {
@@ -117,33 +126,33 @@ yyjson_mut_val *lua_to_json(lua_State *state, int index, yyjson_mut_doc *documen
     case LUA_TSTRING: {
       size_t length = 0;
       const auto *str = lua_tolstring(state, absolute, &length);
-      return yyjson_mut_strncpy(document, str, length);
+      return yyjson_mut_strn(document, str, length);
     }
 
     case LUA_TTABLE: {
-      if (lua_table_is_array(state, absolute)) [[likely]] {
-        auto *arr = yyjson_mut_arr(document);
+      if (is_array(state, absolute)) [[likely]] {
+        auto *array = yyjson_mut_arr(document);
         const auto length = static_cast<int>(lua_objlen(state, absolute));
-        for (auto i = 1; i <= length; ++i) {
-          lua_rawgeti(state, absolute, i);
-          yyjson_mut_arr_append(arr, lua_to_json(state, -1, document));
+        for (auto i = 0; i < length; ++i) {
+          lua_rawgeti(state, absolute, i + 1);
+          yyjson_mut_arr_append(array, encode(state, -1, document));
           lua_pop(state, 1);
         }
-        return arr;
+
+        return array;
       }
 
       auto *object = yyjson_mut_obj(document);
       lua_pushnil(state);
       while (lua_next(state, absolute) != 0) {
         size_t length = 0;
-        lua_pushvalue(state, -2);
-        const auto *name = lua_tolstring(state, -1, &length);
-        auto *key = yyjson_mut_strncpy(document, name, length);
-        lua_pop(state, 1);
-        auto *value = lua_to_json(state, -1, document);
+        const auto *name = lua_tolstring(state, -2, &length);
+        auto *key = yyjson_mut_strn(document, name, length);
+        auto *value = encode(state, -1, document);
         yyjson_mut_obj_add(object, key, value);
         lua_pop(state, 1);
       }
+
       return object;
     }
 

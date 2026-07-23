@@ -1,4 +1,6 @@
 #pragma once
 
-void json_to_lua(lua_State *state, yyjson_val *value);
-yyjson_mut_val *lua_to_json(lua_State *state, int index, yyjson_mut_doc *document);
+namespace marshal {
+  void decode(lua_State *state, yyjson_val *value);
+  yyjson_mut_val *encode(lua_State *state, int index, yyjson_mut_doc *document);
+}

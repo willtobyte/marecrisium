@@ -99,6 +99,9 @@ engine::engine() {
 }
 
 void engine::run() {
+  lua_gc(L, LUA_GCCOLLECT, 0);
+  lua_gc(L, LUA_GCRESTART, 0);
+
   while (_running) [[likely]] {
     loop();
   }
@@ -148,8 +151,6 @@ void engine::loop() {
     frames = 0;
     tick = now;
   }
-
-  // lua_gc(L, LUA_GCSTEP, lua_gc(L, LUA_GCCOUNT, 0) > 4096 ? 240 : 80);
 
   _director.transition();
 
