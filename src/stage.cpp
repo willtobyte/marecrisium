@@ -5,6 +5,14 @@ namespace {
   }
 }
 
+static bool on_event(void *userdata, SDL_Event *event) {
+  if (event->type != SDL_EVENT_TEXT_INPUT) [[likely]]
+    return true;
+
+  static_cast<stage *>(userdata)->on_text(event->text.text);
+  return true;
+}
+
 static void* to_userdata(entt::entity e) {
   return reinterpret_cast<void*>(static_cast<uintptr_t>(e) + 1);
 }
@@ -474,6 +482,9 @@ stage::stage(std::string name)
   lua_getfield(L, -1, "on_tick");
   _on_tick = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
+  lua_getfield(L, -1, "on_text");
+  _on_text = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+
   lua_getfield(L, -1, "on_enter");
   _on_enter = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
@@ -490,10 +501,13 @@ stage::stage(std::string name)
 }
 
 stage::~stage() {
+  SDL_RemoveEventWatch(on_event, this);
+
   luaL_unref(L, LUA_REGISTRYINDEX, _on_release);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_press);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_leave);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_enter);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_text);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_tick);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_camera);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
@@ -1002,6 +1016,15 @@ void stage::draw() {
 }
 
 void stage::on_enter() {
+  if (_on_text != LUA_NOREF) {
+    SDL_AddEventWatch(on_event, this);
+
+    const auto properties = SDL_CreateProperties();
+    SDL_SetBooleanProperty(properties, SDL_PROP_TEXTINPUT_AUTOCORRECT_BOOLEAN, false);
+    SDL_StartTextInputWithProperties(SDL_GetRenderWindow(renderer), properties);
+    SDL_DestroyProperties(properties);
+  }
+
   if (_on_enter == LUA_NOREF)
     return;
 
@@ -1011,6 +1034,9 @@ void stage::on_enter() {
 }
 
 void stage::on_leave() {
+  SDL_RemoveEventWatch(on_event, this);
+  SDL_StopTextInput(SDL_GetRenderWindow(renderer));
+
   if (_on_leave != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_leave);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
@@ -1041,6 +1067,16 @@ void stage::on_tick(uint64_t tick) {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _on_tick);
   lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
   lua_pushinteger(L, static_cast<lua_Integer>(tick));
+  pcall(L, 2, 0);
+}
+
+void stage::on_text(std::string_view text) {
+  if (_on_text == LUA_NOREF) [[unlikely]]
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _on_text);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_pushlstring(L, text.data(), text.size());
   pcall(L, 2, 0);
 }
 

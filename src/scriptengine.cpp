@@ -38,7 +38,6 @@ void scriptengine::run() {
   platform::wire();
   runtime::wire();
   sound::wire();
-  text::wire();
   user::wire();
   xorshift128::wire();
 

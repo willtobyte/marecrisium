@@ -86,27 +86,6 @@ local Mouse = {}
 mouse = {}
 
 --------------------------------------------------------------------------------
--- Text (typed input)
---------------------------------------------------------------------------------
-
----@class Text
-local Text = {}
-
----Register the callback invoked whenever the user types text.
----Fires for committed UTF-8 input (respects keyboard layout and IME), not raw key codes.
----Calling this again replaces the previously registered callback.
----@param callback fun(text: string) Receives the UTF-8 text that was input.
-function Text.on(callback) end
-
----Unregister the text callback and stop text input.
----Call this when the callback's owner, such as a stage, is no longer active.
-function Text.off() end
-
----Global typed-text input.
----@type Text
-text = {}
-
---------------------------------------------------------------------------------
 -- Gamepad
 --------------------------------------------------------------------------------
 
@@ -270,6 +249,12 @@ function Stage.on_leave(self) end
 ---@param self table The stage table itself.
 ---@param tick number Monotonically increasing tick counter (starts at 1).
 function Stage.on_tick(self, tick) end
+
+---Called when committed UTF-8 text is entered while this stage is active.
+---Text input starts automatically when the stage becomes active and stops when it becomes inactive.
+---@param self table The stage table itself.
+---@param text string The entered text.
+function Stage.on_text(self, text) end
 
 ---Called every frame while this stage is active.
 ---@param self table The stage table itself.

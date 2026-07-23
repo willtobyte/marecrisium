@@ -31,6 +31,8 @@ public:
 
   void on_tick(uint64_t tick);
 
+  void on_text(std::string_view text);
+
   int spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y);
 
   int destroy(lua_State* state);
@@ -100,6 +102,7 @@ private:
   int _on_loop{LUA_NOREF};
   int _on_camera{LUA_NOREF};
   int _on_tick{LUA_NOREF};
+  int _on_text{LUA_NOREF};
   int _on_enter{LUA_NOREF};
   int _on_leave{LUA_NOREF};
   int _on_press{LUA_NOREF};
