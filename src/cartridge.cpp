@@ -10,9 +10,20 @@ constexpr uint64_t PRIME = 0x9e3779b97f4a7c15ull;
 
 capture *active{};
 
-using decoder_t = std::unique_ptr<ZSTD_DCtx, decltype(&ZSTD_freeDCtx)>;
+struct zstd_deleter final {
+  void operator()(ZSTD_DCtx *context) const noexcept { ZSTD_freeDCtx(context); }
+  void operator()(ZSTD_DDict *dictionary) const noexcept { ZSTD_freeDDict(dictionary); }
+};
 
-using dictionary_t = std::unique_ptr<ZSTD_DDict, decltype(&ZSTD_freeDDict)>;
+struct source_deleter final {
+  void operator()(PHYSFS_Io *source) const noexcept { source->destroy(source); }
+};
+
+using decoder_t = std::unique_ptr<ZSTD_DCtx, zstd_deleter>;
+
+using dictionary_t = std::unique_ptr<ZSTD_DDict, zstd_deleter>;
+
+using source_t = std::unique_ptr<PHYSFS_Io, source_deleter>;
 
 struct record final {
   uint32_t position;
@@ -27,16 +38,17 @@ struct record final {
 static_assert(sizeof(record) == RECORD, "record layout must match on-disk size");
 
 struct archive final {
-  PHYSFS_Io *source{nullptr};
-  std::vector<uint8_t> manifest;
-  std::vector<uint32_t> storage;
-  std::vector<uint8_t> strings;
-  std::vector<uint8_t> scratch;
-  decoder_t decoder{nullptr, ZSTD_freeDCtx};
-  dictionary_t dictionary{nullptr, ZSTD_freeDDict};
+  std::unique_ptr<uint8_t[]> manifest;
+  std::unique_ptr<uint32_t[]> storage;
+  std::unique_ptr<uint8_t[]> strings;
+  std::unique_ptr<uint8_t[]> scratch;
+  size_t capacity{SCRATCH};
+  decoder_t decoder;
+  dictionary_t dictionary;
   std::span<const record> records;
   std::span<const uint32_t> buckets;
   uint32_t seed{};
+  source_t source;
 };
 
 struct handle final {
@@ -46,7 +58,7 @@ struct handle final {
 };
 
 [[nodiscard]] inline std::string_view path_of(const archive *cartridge, const record &r) noexcept {
-  return {reinterpret_cast<const char *>(cartridge->strings.data() + r.offset), r.length};
+  return {reinterpret_cast<const char *>(cartridge->strings.get() + r.offset), r.length};
 }
 
 [[nodiscard]] inline uint64_t hashfn(const char *name, uint64_t seed) noexcept {
@@ -131,11 +143,10 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   if (!io->seek(io, 0)) [[unlikely]]
     return nullptr;
 
-  alignas(uint64_t) uint8_t header[HEADER];
-  if (io->read(io, header, HEADER) != static_cast<PHYSFS_sint64>(HEADER)) [[unlikely]]
+  std::array<uint32_t, HEADER / sizeof(uint32_t)> fields;
+  if (io->read(io, fields.data(), HEADER) != static_cast<PHYSFS_sint64>(HEADER)) [[unlikely]]
     return nullptr;
 
-  const auto *fields = reinterpret_cast<const uint32_t *>(header);
   const auto count = fields[1];
   const auto stringsize = fields[2];
   const auto strings = fields[3];
@@ -147,37 +158,37 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   const auto size = HEADER + static_cast<size_t>(count) * RECORD + buckets + strings + trainsize;
 
   auto cartridge = std::make_unique<archive>();
-  cartridge->scratch.reserve(SCRATCH);
-  cartridge->manifest.resize(size);
-  std::memcpy(cartridge->manifest.data(), header, HEADER);
+  cartridge->scratch = std::make_unique_for_overwrite<uint8_t[]>(SCRATCH);
+  cartridge->manifest = std::make_unique_for_overwrite<uint8_t[]>(size);
+  std::memcpy(cartridge->manifest.get(), fields.data(), HEADER);
 
   const auto remainder = size - HEADER;
-  if (io->read(io, cartridge->manifest.data() + HEADER, remainder) != static_cast<PHYSFS_sint64>(remainder)) [[unlikely]]
+  if (io->read(io, cartridge->manifest.get() + HEADER, remainder) != static_cast<PHYSFS_sint64>(remainder)) [[unlikely]]
     return nullptr;
 
-  const auto *p = cartridge->manifest.data();
+  const auto *p = cartridge->manifest.get();
   [[assume(reinterpret_cast<uintptr_t>(p) % alignof(record) == 0)]];
   cartridge->records = std::span<const record>{reinterpret_cast<const record *>(p + HEADER), count};
   auto cursor = HEADER + static_cast<size_t>(count) * RECORD;
   cartridge->seed = seed;
 
-  cartridge->storage.resize(slots);
+  cartridge->storage = std::make_unique_for_overwrite<uint32_t[]>(slots);
   const auto bytes = ZSTD_decompress(
-    cartridge->storage.data(), static_cast<size_t>(slots) * sizeof(uint32_t), p + cursor, buckets);
+    cartridge->storage.get(), static_cast<size_t>(slots) * sizeof(uint32_t), p + cursor, buckets);
   [[assume(bytes == static_cast<size_t>(slots) * sizeof(uint32_t))]];
-  cartridge->buckets = std::span<const uint32_t>{cartridge->storage};
+  cartridge->buckets = std::span<const uint32_t>{cartridge->storage.get(), slots};
   cursor += buckets;
 
-  cartridge->strings.resize(stringsize);
+  cartridge->strings = std::make_unique_for_overwrite<uint8_t[]>(stringsize);
   const auto written = ZSTD_decompress(
-    cartridge->strings.data(), stringsize, p + cursor, strings);
+    cartridge->strings.get(), stringsize, p + cursor, strings);
   [[assume(written == stringsize)]];
   cursor += strings;
 
   cartridge->decoder.reset(ZSTD_createDCtx());
   cartridge->dictionary.reset(ZSTD_createDDict_byReference(p + cursor, trainsize));
 
-  cartridge->source = io;
+  cartridge->source.reset(io);
   return cartridge.release();
 }
 
@@ -236,9 +247,9 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   auto *data = storage->data();
 
   if (uncompressed > 0) [[likely]] {
-    auto *source = cartridge->source;
-    const auto seeked = source->seek(source, found.position);
-    [[assume(seeked != 0)]];
+    auto *source = cartridge->source.get();
+    const auto sought = source->seek(source, found.position);
+    [[assume(sought != 0)]];
 
     switch (found.algorithm) {
       case ALGO_RAW: {
@@ -248,14 +259,18 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
       }
 
       case ALGO_ZSTD_DICT: {
-        cartridge->scratch.resize(std::max(cartridge->scratch.size(), compressed));
-        const auto bytes = source->read(source, cartridge->scratch.data(), compressed);
+        if (compressed > cartridge->capacity) [[unlikely]] {
+          cartridge->scratch = std::make_unique_for_overwrite<uint8_t[]>(compressed);
+          cartridge->capacity = compressed;
+        }
+
+        const auto bytes = source->read(source, cartridge->scratch.get(), compressed);
         [[assume(bytes == static_cast<PHYSFS_sint64>(compressed))]];
 
         const auto result = ZSTD_decompress_usingDDict(
           cartridge->decoder.get(),
           data, uncompressed,
-          cartridge->scratch.data(), compressed,
+          cartridge->scratch.get(), compressed,
           cartridge->dictionary.get());
 
         [[assume(result == uncompressed)]];
@@ -344,11 +359,7 @@ int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
 }
 
 void crom_close_archive(void *opaque) {
-  auto *cartridge = static_cast<archive *>(opaque);
-  if (cartridge->source) [[likely]]
-    cartridge->source->destroy(cartridge->source);
-
-  delete cartridge;
+  delete static_cast<archive *>(opaque);
 }
 }
 
