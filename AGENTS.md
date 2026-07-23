@@ -1,5 +1,6 @@
 # Rules
 
+* Always make small, focused changes. Never refactor unrelated code or introduce unnecessarily complex solutions. **Simple and efficient always wins**. It's also acceptable to assume the happy path, since the input is provided by the author.
 * Do not add any `#include` directives. We use PCH, and only `common.h` may contain includes, and only when absolutely necessary.
 * Do not commit any changes.
 * Do not create branches.
