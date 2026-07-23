@@ -88,6 +88,70 @@ static int proxy_newindex(lua_State *state) {
   return 0;
 }
 
+static int length(lua_State *state) {
+  lua_getmetatable(state, 1);
+  lua_pushlightuserdata(state, &holder);
+  lua_rawget(state, -2);
+  lua_remove(state, -2);
+  lua_pushinteger(state, static_cast<lua_Integer>(lua_objlen(state, -1)));
+  return 1;
+}
+
+static int iterate(lua_State *state) {
+  if (lua_toboolean(state, lua_upvalueindex(2)) == 0) {
+    lua_pushvalue(state, lua_upvalueindex(1));
+    lua_pushvalue(state, 2);
+
+    if (lua_next(state, -2) == 0)
+      return 0;
+
+    lua_pop(state, 1);
+    lua_pushvalue(state, 1);
+    lua_pushvalue(state, -2);
+    lua_gettable(state, -2);
+    lua_remove(state, -2);
+    return 2;
+  }
+
+  const auto index = lua_tointeger(state, 2) + 1;
+  lua_pushinteger(state, index);
+  lua_pushvalue(state, 1);
+  lua_pushinteger(state, index);
+  lua_gettable(state, -2);
+  lua_remove(state, -2);
+
+  if (lua_isnil(state, -1))
+    return 0;
+
+  return 2;
+}
+
+static int pairs(lua_State *state) {
+  lua_getmetatable(state, 1);
+  lua_pushlightuserdata(state, &holder);
+  lua_rawget(state, -2);
+  lua_remove(state, -2);
+  lua_pushvalue(state, -1);
+  lua_pushboolean(state, false);
+  cclosure(state, iterate, 2);
+  lua_pushvalue(state, 1);
+  lua_pushnil(state);
+  return 3;
+}
+
+static int ipairs(lua_State *state) {
+  lua_getmetatable(state, 1);
+  lua_pushlightuserdata(state, &holder);
+  lua_rawget(state, -2);
+  lua_remove(state, -2);
+  lua_pushvalue(state, -1);
+  lua_pushboolean(state, true);
+  cclosure(state, iterate, 2);
+  lua_pushvalue(state, 1);
+  lua_pushinteger(state, 0);
+  return 3;
+}
+
 static void proxify(lua_State *state, int data, int key, int root);
 
 static int proxy_index(lua_State *state) {
@@ -105,7 +169,7 @@ static int proxy_index(lua_State *state) {
 
 static void proxify(lua_State *state, int data, int key, int root) {
   lua_newtable(state);
-  lua_newtable(state);
+  lua_createtable(state, 0, 6);
 
   lua_pushlightuserdata(state, &holder);
   lua_pushvalue(state, data);
@@ -122,6 +186,15 @@ static void proxify(lua_State *state, int data, int key, int root) {
   lua_pushvalue(state, root);
   cclosure(state, proxy_newindex, 3);
   lua_setfield(state, -2, "__newindex");
+
+  lua_pushcfunction(state, length);
+  lua_setfield(state, -2, "__len");
+
+  lua_pushcfunction(state, pairs);
+  lua_setfield(state, -2, "__pairs");
+
+  lua_pushcfunction(state, ipairs);
+  lua_setfield(state, -2, "__ipairs");
 
   lua_setmetatable(state, -2);
 }

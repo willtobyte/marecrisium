@@ -1,13 +1,15 @@
 # pyright: reportAttributeAccessIssue=false, reportMissingImports=false
 
+import os
+from typing import cast
+
 from conan import ConanFile
 from conan.tools.scm import Version
 from conan.tools.files import get, chdir, replace_in_file, copy, rmdir
-from conan.tools.microsoft import is_msvc, MSBuildToolchain, VCVars, unix_path
+from conan.tools.microsoft import is_msvc, VCVars, unix_path
 from conan.tools.layout import basic_layout
 from conan.tools.gnu import Autotools, AutotoolsToolchain
 from conan.tools.apple import is_apple_os
-import os
 
 
 required_conan_version = ">=2.0"
@@ -42,34 +44,30 @@ class LuajitConan(ConanFile):
         basic_layout(self, src_folder="src")
 
     def source(self):
+        conan_data = cast(dict, self.conan_data)
+        source_folder = cast(str, self.source_folder)
         get(
             self,
-            **self.conan_data["sources"][self.version],
-            destination=self.source_folder,
+            **conan_data["sources"][self.version],
+            destination=source_folder,
             strip_root=True,
         )
 
     def generate(self):
         if is_msvc(self):
-            tc = MSBuildToolchain(self)
-            # MSVC uses SEH (table-based on x64) so C++ exceptions already
-            # traverse LuaJIT frames; define LUAJIT_UNWIND_EXTERNAL anyway to
-            # keep parity with the Autotools branch and document intent.
-            tc.preprocessor_definitions["LUAJIT_UNWIND_EXTERNAL"] = ""
-            tc.generate()
             VCVars(self).generate()
         else:
             tc = AutotoolsToolchain(self)
-            # Belt-and-suspenders: v2.1 already auto-defines this for Darwin,
-            # but force it everywhere so non-Darwin targets also get C++
-            # exception interop.
-            tc.extra_defines.append("LUAJIT_UNWIND_EXTERNAL")
+            tc.make_args.append(
+                "XCFLAGS=-DLUAJIT_UNWIND_EXTERNAL -DLUAJIT_ENABLE_LUA52COMPAT"
+            )
             tc.generate()
 
     def _patch_sources(self):
         if is_msvc(self):
             return
-        makefile = os.path.join(self.source_folder, "src", "Makefile")
+        source_folder = cast(str, self.source_folder)
+        makefile = os.path.join(source_folder, "src", "Makefile")
         replace_in_file(self, makefile, "BUILDMODE= mixed", "BUILDMODE= static")
         replace_in_file(
             self,
@@ -105,7 +103,8 @@ class LuajitConan(ConanFile):
 
     @property
     def _make_arguments(self):
-        args = [f"PREFIX={unix_path(self, self.package_folder)}"]
+        package_folder = cast(str, self.package_folder)
+        args = [f"PREFIX={unix_path(self, package_folder)}"]
         if is_apple_os(self) and self._macosx_deployment_target:
             args.append(f"MACOSX_DEPLOYMENT_TARGET={self._macosx_deployment_target}")
         return args
@@ -116,23 +115,26 @@ class LuajitConan(ConanFile):
 
     def build(self):
         self._patch_sources()
+        source_folder = cast(str, self.source_folder)
         if is_msvc(self):
-            with chdir(self, os.path.join(self.source_folder, "src")):
-                self.run("msvcbuild.bat static", env="conanbuild")
+            with chdir(self, os.path.join(source_folder, "src")):
+                self.run("msvcbuild.bat lua52compat static", env="conanbuild")
         else:
-            with chdir(self, self.source_folder):
+            with chdir(self, source_folder):
                 Autotools(self).make(args=self._make_arguments)
 
     def package(self):
+        package_folder = cast(str, self.package_folder)
+        source_folder = cast(str, self.source_folder)
         copy(
             self,
             "COPYRIGHT",
-            dst=os.path.join(self.package_folder, "licenses"),
-            src=self.source_folder,
+            dst=os.path.join(package_folder, "licenses"),
+            src=source_folder,
         )
-        src_folder = os.path.join(self.source_folder, "src")
+        src_folder = os.path.join(source_folder, "src")
         include_folder = os.path.join(
-            self.package_folder, "include", self._luajit_include_folder
+            package_folder, "include", self._luajit_include_folder
         )
         if is_msvc(self):
             for header in (
@@ -148,15 +150,15 @@ class LuajitConan(ConanFile):
                 self,
                 "lua51.lib",
                 src=src_folder,
-                dst=os.path.join(self.package_folder, "lib"),
+                dst=os.path.join(package_folder, "lib"),
             )
         else:
-            with chdir(self, self.source_folder):
+            with chdir(self, source_folder):
                 Autotools(self).install(args=self._make_arguments + ["DESTDIR="])
-            rmdir(self, os.path.join(self.package_folder, "lib", "pkgconfig"))
-            rmdir(self, os.path.join(self.package_folder, "lib", "lua"))
-            rmdir(self, os.path.join(self.package_folder, "share"))
-            rmdir(self, os.path.join(self.package_folder, "bin"))
+            rmdir(self, os.path.join(package_folder, "lib", "pkgconfig"))
+            rmdir(self, os.path.join(package_folder, "lib", "lua"))
+            rmdir(self, os.path.join(package_folder, "share"))
+            rmdir(self, os.path.join(package_folder, "bin"))
 
     def package_info(self):
         self.cpp_info.libs = ["lua51" if is_msvc(self) else "luajit-5.1"]
