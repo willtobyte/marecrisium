@@ -120,7 +120,7 @@ local Gamepad = {}
 ---Vibrate the gamepad.
 ---@param low number Low-frequency motor intensity (0.0 to 1.0).
 ---@param high number High-frequency motor intensity (0.0 to 1.0).
----@param duration integer Duration in milliseconds.
+---@param duration integer Duration in milliseconds (0 to 4294967295).
 ---@return boolean success
 function Gamepad:rumble(low, high, duration) end
 

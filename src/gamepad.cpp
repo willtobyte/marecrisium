@@ -4,65 +4,116 @@ namespace {
     constexpr auto rumble = "rumble"_hs;
     constexpr auto led = "led"_hs;
     constexpr auto name = "name"_hs;
+    constexpr auto left_x = "left_x"_hs;
+    constexpr auto left_y = "left_y"_hs;
+    constexpr auto right_x = "right_x"_hs;
+    constexpr auto right_y = "right_y"_hs;
+    constexpr auto trigger_left = "trigger_left"_hs;
+    constexpr auto trigger_right = "trigger_right"_hs;
+    constexpr auto south = "south"_hs;
+    constexpr auto east = "east"_hs;
+    constexpr auto west = "west"_hs;
+    constexpr auto north = "north"_hs;
+    constexpr auto back = "back"_hs;
+    constexpr auto guide = "guide"_hs;
+    constexpr auto start = "start"_hs;
+    constexpr auto shoulder_left = "shoulder_left"_hs;
+    constexpr auto shoulder_right = "shoulder_right"_hs;
+    constexpr auto stick_left = "stick_left"_hs;
+    constexpr auto stick_right = "stick_right"_hs;
+    constexpr auto up = "up"_hs;
+    constexpr auto down = "down"_hs;
+    constexpr auto left = "left"_hs;
+    constexpr auto right = "right"_hs;
   }
 
-  static const ankerl::unordered_dense::map<entt::id_type, SDL_GamepadAxis> axes{
-    {"left_x"_hs, SDL_GAMEPAD_AXIS_LEFTX},
-    {"left_y"_hs, SDL_GAMEPAD_AXIS_LEFTY},
-    {"right_x"_hs, SDL_GAMEPAD_AXIS_RIGHTX},
-    {"right_y"_hs, SDL_GAMEPAD_AXIS_RIGHTY},
-    {"trigger_left"_hs, SDL_GAMEPAD_AXIS_LEFT_TRIGGER},
-    {"trigger_right"_hs, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER},
+  struct reference final {
+    static int rumble;
+    static int led;
   };
 
-  static const ankerl::unordered_dense::map<entt::id_type, SDL_GamepadButton> buttons{
-    {"south"_hs, SDL_GAMEPAD_BUTTON_SOUTH},
-    {"east"_hs, SDL_GAMEPAD_BUTTON_EAST},
-    {"west"_hs, SDL_GAMEPAD_BUTTON_WEST},
-    {"north"_hs, SDL_GAMEPAD_BUTTON_NORTH},
-    {"back"_hs, SDL_GAMEPAD_BUTTON_BACK},
-    {"guide"_hs, SDL_GAMEPAD_BUTTON_GUIDE},
-    {"start"_hs, SDL_GAMEPAD_BUTTON_START},
-    {"shoulder_left"_hs, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER},
-    {"shoulder_right"_hs, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER},
-    {"stick_left"_hs, SDL_GAMEPAD_BUTTON_LEFT_STICK},
-    {"stick_right"_hs, SDL_GAMEPAD_BUTTON_RIGHT_STICK},
-    {"up"_hs, SDL_GAMEPAD_BUTTON_DPAD_UP},
-    {"down"_hs, SDL_GAMEPAD_BUTTON_DPAD_DOWN},
-    {"left"_hs, SDL_GAMEPAD_BUTTON_DPAD_LEFT},
-    {"right"_hs, SDL_GAMEPAD_BUTTON_DPAD_RIGHT},
-  };
+  int reference::rumble = LUA_NOREF;
+  int reference::led = LUA_NOREF;
 }
 
-static constexpr float DEADZONE_THRESHOLD = .1f;
+static SDL_GamepadAxis axis(entt::id_type id) {
+  switch (id) {
+    case lookup::left_x: return SDL_GAMEPAD_AXIS_LEFTX;
+    case lookup::left_y: return SDL_GAMEPAD_AXIS_LEFTY;
+    case lookup::right_x: return SDL_GAMEPAD_AXIS_RIGHTX;
+    case lookup::right_y: return SDL_GAMEPAD_AXIS_RIGHTY;
+    case lookup::trigger_left: return SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
+    case lookup::trigger_right: return SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
+    default: return SDL_GAMEPAD_AXIS_INVALID;
+  }
+}
 
-static float deadzone(Sint16 axis) {
-  const auto normalized = static_cast<float>(axis) / 32768.f;
+static SDL_GamepadButton button(entt::id_type id) {
+  switch (id) {
+    case lookup::south: return SDL_GAMEPAD_BUTTON_SOUTH;
+    case lookup::east: return SDL_GAMEPAD_BUTTON_EAST;
+    case lookup::west: return SDL_GAMEPAD_BUTTON_WEST;
+    case lookup::north: return SDL_GAMEPAD_BUTTON_NORTH;
+    case lookup::back: return SDL_GAMEPAD_BUTTON_BACK;
+    case lookup::guide: return SDL_GAMEPAD_BUTTON_GUIDE;
+    case lookup::start: return SDL_GAMEPAD_BUTTON_START;
+    case lookup::shoulder_left: return SDL_GAMEPAD_BUTTON_LEFT_SHOULDER;
+    case lookup::shoulder_right: return SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER;
+    case lookup::stick_left: return SDL_GAMEPAD_BUTTON_LEFT_STICK;
+    case lookup::stick_right: return SDL_GAMEPAD_BUTTON_RIGHT_STICK;
+    case lookup::up: return SDL_GAMEPAD_BUTTON_DPAD_UP;
+    case lookup::down: return SDL_GAMEPAD_BUTTON_DPAD_DOWN;
+    case lookup::left: return SDL_GAMEPAD_BUTTON_DPAD_LEFT;
+    case lookup::right: return SDL_GAMEPAD_BUTTON_DPAD_RIGHT;
+    default: return SDL_GAMEPAD_BUTTON_INVALID;
+  }
+}
+
+static constexpr auto threshold = .1f;
+
+static float deadzone(Sint16 value) {
+  constexpr auto range = -static_cast<float>(std::numeric_limits<Sint16>::min());
+  const auto normalized = static_cast<float>(value) / range;
   const auto magnitude = std::abs(normalized);
-  if (magnitude < DEADZONE_THRESHOLD) [[likely]]
+  if (magnitude < threshold) [[likely]]
     return .0f;
 
   const auto sign = std::copysign(1.f, normalized);
-  return sign * (magnitude - DEADZONE_THRESHOLD) / (1.f - DEADZONE_THRESHOLD);
+  return sign * (magnitude - threshold) / (1.f - threshold);
 }
 
 static std::atomic<SDL_Gamepad *> ptr{nullptr};
 
+static void connect(SDL_JoystickID id) {
+  if (ptr.load()) [[likely]] return;
+
+  auto *const candidate = SDL_OpenGamepad(id);
+  if (!candidate) [[unlikely]] return;
+
+  SDL_Gamepad *expected = nullptr;
+  if (!ptr.compare_exchange_strong(expected, candidate))
+    SDL_CloseGamepad(candidate);
+}
+
+static void connect() {
+  auto count = 0;
+  const auto gamepads = std::unique_ptr<SDL_JoystickID[], SDL_Deleter>{SDL_GetGamepads(&count)};
+  if (gamepads && count > 0) [[likely]]
+    connect(gamepads[0]);
+}
+
 static bool on_event(void *, SDL_Event *event) {
   switch (event->type) {
-    case SDL_EVENT_GAMEPAD_ADDED: {
-      if (!ptr.load()) [[unlikely]] {
-        auto *opened = SDL_OpenGamepad(event->gdevice.which);
-        SDL_Gamepad *expected = nullptr;
-        if (!ptr.compare_exchange_strong(expected, opened))
-          SDL_CloseGamepad(opened);
-      }
-    } break;
+    case SDL_EVENT_GAMEPAD_ADDED:
+      connect(event->gdevice.which);
+      break;
 
     case SDL_EVENT_GAMEPAD_REMOVED: {
       auto *const gamepad = ptr.load();
-      if (gamepad && SDL_GetGamepadID(gamepad) == event->gdevice.which) [[likely]]
+      if (gamepad && SDL_GetGamepadID(gamepad) == event->gdevice.which) [[likely]] {
         SDL_CloseGamepad(ptr.exchange(nullptr));
+        connect();
+      }
     } break;
 
     default:
@@ -75,10 +126,15 @@ static bool on_event(void *, SDL_Event *event) {
 static int gamepad_rumble(lua_State *state) {
   const auto low = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
   const auto high = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
-  const auto duration = static_cast<uint32_t>(luaL_checkinteger(state, 4));
+  const auto milliseconds = luaL_checkinteger(state, 4);
+  const auto finite = std::isfinite(low) && std::isfinite(high);
+  const auto valid = milliseconds >= 0 && static_cast<uint64_t>(milliseconds) <= std::numeric_limits<uint32_t>::max();
+  [[assume(finite)]];
+  [[assume(valid)]];
 
-  const auto low16 = static_cast<uint16_t>(low * 65535.f);
-  const auto high16 = static_cast<uint16_t>(high * 65535.f);
+  const auto duration = static_cast<uint32_t>(milliseconds);
+  const auto lo = static_cast<uint16_t>(low * static_cast<float>(std::numeric_limits<uint16_t>::max()));
+  const auto hi = static_cast<uint16_t>(high * static_cast<float>(std::numeric_limits<uint16_t>::max()));
 
   auto *const gamepad = ptr.load();
   if (!gamepad) [[unlikely]] {
@@ -86,14 +142,21 @@ static int gamepad_rumble(lua_State *state) {
     return 1;
   }
 
-  lua_pushboolean(state, static_cast<bool>(SDL_RumbleGamepad(gamepad, low16, high16, duration)) ? 1 : 0);
+  lua_pushboolean(state, static_cast<bool>(SDL_RumbleGamepad(gamepad, lo, hi, duration)) ? 1 : 0);
   return 1;
 }
 
 static int gamepad_led(lua_State *state) {
-  const auto r = static_cast<uint8_t>(std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f) * 255.f);
-  const auto g = static_cast<uint8_t>(std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f) * 255.f);
-  const auto b = static_cast<uint8_t>(std::clamp(static_cast<float>(luaL_checknumber(state, 4)), .0f, 1.f) * 255.f);
+  const auto red = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
+  const auto green = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
+  const auto blue = std::clamp(static_cast<float>(luaL_checknumber(state, 4)), .0f, 1.f);
+  const auto finite = std::isfinite(red) && std::isfinite(green) && std::isfinite(blue);
+  [[assume(finite)]];
+
+  constexpr auto range = static_cast<float>(std::numeric_limits<uint8_t>::max());
+  const auto r = static_cast<uint8_t>(red * range);
+  const auto g = static_cast<uint8_t>(green * range);
+  const auto b = static_cast<uint8_t>(blue * range);
 
   auto *const gamepad = ptr.load();
   if (!gamepad) [[unlikely]] {
@@ -121,18 +184,15 @@ static int push_gamepad_button(lua_State *state, SDL_GamepadButton button, SDL_G
   return 1;
 }
 
-static int _rumble_reference = LUA_NOREF;
-static int _led_reference = LUA_NOREF;
-
 static int gamepad_index(lua_State *state) {
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
+  const auto id = entt::hashed_string::value(luaL_checkstring(state, 2));
   auto *const gamepad = ptr.load();
 
-  if (const auto it = axes.find(id); it != axes.end()) [[likely]]
-    return push_gamepad_axis(state, it->second, gamepad);
+  if (const auto value = axis(id); value != SDL_GAMEPAD_AXIS_INVALID) [[likely]]
+    return push_gamepad_axis(state, value, gamepad);
 
-  if (const auto it = buttons.find(id); it != buttons.end()) [[likely]]
-    return push_gamepad_button(state, it->second, gamepad);
+  if (const auto value = button(id); value != SDL_GAMEPAD_BUTTON_INVALID) [[likely]]
+    return push_gamepad_button(state, value, gamepad);
 
   switch (id) {
     case lookup::connected:
@@ -140,16 +200,18 @@ static int gamepad_index(lua_State *state) {
       return 1;
 
     case lookup::rumble:
-      lua_rawgeti(state, LUA_REGISTRYINDEX, _rumble_reference);
+      lua_rawgeti(state, LUA_REGISTRYINDEX, reference::rumble);
       return 1;
 
     case lookup::led:
-      lua_rawgeti(state, LUA_REGISTRYINDEX, _led_reference);
+      lua_rawgeti(state, LUA_REGISTRYINDEX, reference::led);
       return 1;
 
-    case lookup::name:
-      lua_pushstring(state, gamepad ? SDL_GetGamepadName(gamepad) : "");
+    case lookup::name: {
+      const auto *value = gamepad ? SDL_GetGamepadName(gamepad) : nullptr;
+      lua_pushstring(state, value ? value : "");
       return 1;
+    }
 
     default:
       lua_pushnil(state);
@@ -159,17 +221,12 @@ static int gamepad_index(lua_State *state) {
 
 void gamepad::wire() {
   SDL_AddEventWatch(on_event, nullptr);
-
-  auto count = 0;
-  const auto gamepads = std::unique_ptr<SDL_JoystickID[], SDL_Deleter>{SDL_GetGamepads(&count)};
-  if (gamepads && count > 0) [[likely]] {
-    ptr.store(SDL_OpenGamepad(gamepads[0]));
-  }
+  connect();
 
   binding::callback(L, gamepad_rumble);
-  _rumble_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  reference::rumble = luaL_ref(L, LUA_REGISTRYINDEX);
   binding::callback(L, gamepad_led);
-  _led_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  reference::led = luaL_ref(L, LUA_REGISTRYINDEX);
 
   binding::metatable(L, "Gamepad", gamepad_index);
 
