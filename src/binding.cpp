@@ -132,7 +132,7 @@ int traceback(lua_State *state) {
     lua_getinfo(state, "Sl", &debug);
     const auto *source = debug.short_src;
 
-    auto has_locals = false;
+    auto locals = false;
     for (int i = 1;; ++i) {
       const auto *name = lua_getlocal(state, &debug, i);
       if (!name)
@@ -143,9 +143,9 @@ int traceback(lua_State *state) {
         continue;
       }
 
-      if (!has_locals) [[unlikely]] {
+      if (!locals) [[unlikely]] {
         std::format_to(out, "\n    locals at {}:{}:", source, debug.currentline);
-        has_locals = true;
+        locals = true;
       }
 
       std::format_to(out, "\n      {} = ", name);

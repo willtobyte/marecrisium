@@ -179,7 +179,7 @@ namespace {
     const auto count = static_cast<ma_uint32>(op_channel_count(self->file, -1));
     if (format) *format = ma_format_f32;
     if (channels) *channels = count;
-    if (rate) *rate = 48000;
+    if (rate) *rate = 48'000;
     if (map) ma_channel_map_init_standard(ma_standard_channel_map_vorbis, map, capacity, count);
     return MA_SUCCESS;
   }
@@ -237,7 +237,7 @@ namespace {
     return PHYSFS_tell(static_cast<PHYSFS_File*>(source));
   }
 
-  constexpr OpusFileCallbacks opus_callbacks = {
+  constexpr OpusFileCallbacks callbacks = {
     physfs_read,
     physfs_seek,
     physfs_tell,
@@ -248,7 +248,8 @@ namespace {
 sound::sound(std::string_view filename) {
   _file = std::unique_ptr<PHYSFS_File, PHYSFS_Deleter>{PHYSFS_openRead(filename.data())};
 
-  _stream.file = op_open_callbacks(_file.get(), &opus_callbacks, nullptr, 0, nullptr);
+  _opus.reset(op_open_callbacks(_file.get(), &callbacks, nullptr, 0, nullptr));
+  _stream.file = _opus.get();
 
   auto config = ma_data_source_config_init();
   config.vtable = &vtable;
@@ -272,7 +273,6 @@ sound::~sound() {
   ma_sound_stop(&_sound);
   ma_sound_uninit(&_sound);
   ma_data_source_uninit(&_stream.base);
-  op_free(_stream.file);
   luaL_unref(L, LUA_REGISTRYINDEX, on_begin);
   luaL_unref(L, LUA_REGISTRYINDEX, on_end);
 }

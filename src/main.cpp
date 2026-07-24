@@ -23,8 +23,8 @@ int main(int argc, char** argv) {
 
   auto config = ma_engine_config_init();
   config.channels = 2;
-  config.sampleRate = 48000;
-  config.periodSizeInFrames = 2048;
+  config.sampleRate = 48'000;
+  config.periodSizeInFrames = 2'048;
   ma_engine_init(&config, &audio);
   std::atexit([]{ ma_engine_uninit(&audio); });
 

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "particle.hpp"
-
 class particlepool final {
 public:
   particlepool() = default;

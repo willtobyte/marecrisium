@@ -1,7 +1,5 @@
 #pragma once
 
-#include "overlay.hpp"
-
 class stage;
 
 class director final {
@@ -11,7 +9,7 @@ public:
 
   void wire();
 
-  void navigate(std::string_view name);
+  void navigate(std::string name);
 
   void destroy(std::string_view name);
 

@@ -38,8 +38,8 @@ void director::wire() {
 }
 
 
-void director::navigate(std::string_view name) {
-  _pending = name;
+void director::navigate(std::string name) {
+  _pending = std::move(name);
 }
 
 void director::destroy(std::string_view name) {

@@ -36,12 +36,12 @@ minimap::minimap(const tilemap &tilemap, entt::registry &registry,
     , _empty(static_cast<uint32_t>(empty))
     , _player(static_cast<uint32_t>(player))
     , _entity(static_cast<uint32_t>(entity))
-    , _pixels(static_cast<size_t>(SIDE * SIDE)) {
+    , _pixels(static_cast<size_t>(side * side)) {
   _texture.reset(SDL_CreateTexture(
     renderer,
     SDL_PIXELFORMAT_RGBA32,
     SDL_TEXTUREACCESS_STATIC,
-    SIDE, SIDE));
+    side, side));
 
   SDL_SetTextureScaleMode(_texture.get(), SDL_SCALEMODE_NEAREST);
 }
@@ -79,9 +79,9 @@ void minimap::draw() {
   const auto cy = static_cast<int32_t>(_position_y / ts);
 
   static const SDL_FRect target{
-    (viewport.width - SIZE) * .5f,
-    (viewport.height - SIZE) * .5f,
-    SIZE, SIZE
+    (viewport.width - size) * .5f,
+    (viewport.height - size) * .5f,
+    size, size
   };
 
   const snapshot current{cx, cy, digest};
@@ -97,21 +97,21 @@ void minimap::draw() {
   [[assume(pixels != nullptr)]];
   [[assume(coll != nullptr)]];
 
-  for (int32_t dy = -RADIUS; dy <= RADIUS; ++dy) {
+  for (int32_t dy = -radius; dy <= radius; ++dy) {
     const auto ty = cy + dy;
-    const auto row = static_cast<size_t>((dy + RADIUS) * SIDE);
+    const auto row = static_cast<size_t>((dy + radius) * side);
 
-    std::fill_n(pixels + row, SIDE, _empty);
+    std::fill_n(pixels + row, side, _empty);
 
     if (ty < 0 || ty >= th) [[unlikely]]
       continue;
 
     const auto base = static_cast<size_t>(ty * tw);
-    const auto dx_lo = std::max(static_cast<int32_t>(-RADIUS), -cx);
-    const auto dx_hi = std::min(static_cast<int32_t>(RADIUS), tw - 1 - cx);
+    const auto lo = std::max(static_cast<int32_t>(-radius), -cx);
+    const auto hi = std::min(static_cast<int32_t>(radius), tw - 1 - cx);
 
-    for (auto dx = dx_lo; dx <= dx_hi; ++dx) {
-      pixels[row + static_cast<size_t>(dx + RADIUS)] =
+    for (auto dx = lo; dx <= hi; ++dx) {
+      pixels[row + static_cast<size_t>(dx + radius)] =
         coll[base + static_cast<size_t>(cx + dx)] != 0 ? _solid : _passable;
     }
   }
@@ -120,18 +120,18 @@ void minimap::draw() {
     if (op.handle == LUA_NOREF || op.kind == "player"_hs) [[unlikely]]
       continue;
 
-    const auto ex = static_cast<int32_t>(tf.x / ts) - cx + RADIUS;
-    const auto ey = static_cast<int32_t>(tf.y / ts) - cy + RADIUS;
+    const auto ex = static_cast<int32_t>(tf.x / ts) - cx + radius;
+    const auto ey = static_cast<int32_t>(tf.y / ts) - cy + radius;
 
-    if (ex < 0 || ex >= SIDE || ey < 0 || ey >= SIDE) [[likely]]
+    if (ex < 0 || ex >= side || ey < 0 || ey >= side) [[likely]]
       continue;
 
-    pixels[static_cast<size_t>(ey * SIDE + ex)] = _entity;
+    pixels[static_cast<size_t>(ey * side + ex)] = _entity;
   }
 
-  pixels[static_cast<size_t>(RADIUS * SIDE + RADIUS)] = _player;
+  pixels[static_cast<size_t>(radius * side + radius)] = _player;
 
-  SDL_UpdateTexture(_texture.get(), nullptr, pixels, SIDE * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32));
+  SDL_UpdateTexture(_texture.get(), nullptr, pixels, side * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32));
 
   SDL_RenderTexture(renderer, _texture.get(), nullptr, &target);
 }

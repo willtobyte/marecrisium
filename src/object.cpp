@@ -27,7 +27,7 @@ namespace {
     b2Body_SetTransform(bd.id, center_of(bd, tf, fr), b2Rot_identity);
   }
 
-  struct prototype {
+  struct prototype final {
     int reference{LUA_NOREF};
     int on_loop{LUA_NOREF};
     int on_animation_end{LUA_NOREF};
@@ -62,13 +62,14 @@ namespace {
     const auto* self = static_cast<proxy*>(luaL_checkudata(state, 1, "Object"));
     const auto* key = luaL_checkstring(state, 2);
     const auto id = entt::hashed_string{key};
+    const auto valid = self->registry && self->registry->valid(self->entity);
 
     if (id == lookup::alive) {
-      lua_pushboolean(state, self->registry->valid(self->entity) ? 1 : 0);
+      lua_pushboolean(state, valid ? 1 : 0);
       return 1;
     }
 
-    if (!self->registry->valid(self->entity)) [[unlikely]]
+    if (!valid) [[unlikely]]
       return lua_pushnil(state), 1;
 
     auto& registry = *self->registry;
@@ -184,16 +185,18 @@ namespace {
         }
         lua_pop(state, 1);
 
-        assert(std::strlen(key) <= 60 &&
+        constexpr auto prefix = 3uz;
+        constexpr auto limit = 60uz;
+        assert(std::strlen(key) <= limit &&
                "key is too long and would be truncated to 60 characters.");
 
-        static std::array<char, 64> buffer;
-        const auto length = std::min(std::strlen(key), std::size_t{60});
+        std::array<char, prefix + limit + 1uz> buffer;
+        const auto length = std::min(std::strlen(key), limit);
         buffer[0] = 'o';
         buffer[1] = 'n';
         buffer[2] = '_';
-        std::memcpy(buffer.data() + 3, key, length);
-        buffer[3 + length] = '\0';
+        std::memcpy(buffer.data() + prefix, key, length);
+        buffer[prefix + length] = '\0';
 
         lua_getfield(state, -1, buffer.data());
         lua_remove(state, -2);
@@ -211,7 +214,7 @@ namespace {
     const auto* key = luaL_checkstring(state, 2);
     const auto id = entt::hashed_string{key};
 
-    if (!self->registry->valid(self->entity))
+    if (!self->registry || !self->registry->valid(self->entity)) [[unlikely]]
       return 0;
 
     auto& registry = *self->registry;

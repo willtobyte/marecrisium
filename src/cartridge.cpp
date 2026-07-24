@@ -1,11 +1,11 @@
 namespace {
-constexpr uint8_t DIRECTORY = 1;
-constexpr uint8_t ALGO_RAW = 0;
-constexpr uint8_t ALGO_ZSTD_DICT = 1;
-constexpr size_t HEADER = 36;
-constexpr size_t RECORD = 20;
-constexpr uint32_t EMPTY = UINT32_MAX;
-constexpr uint64_t PRIME = 0x9e3779b97f4a7c15ull;
+constexpr uint8_t directory = 1;
+constexpr uint8_t raw = 0;
+constexpr uint8_t zstd = 1;
+constexpr size_t header = 36;
+constexpr size_t stride = 20;
+constexpr uint32_t empty = UINT32_MAX;
+constexpr uint64_t prime = 0x9e3779b97f4a7c15ull;
 
 capture *active{};
 
@@ -34,7 +34,7 @@ struct record final {
   uint8_t algorithm;
 };
 
-static_assert(sizeof(record) == RECORD, "record layout must match on-disk size");
+static_assert(sizeof(record) == stride, "record stride must match on-disk size");
 
 struct archive final {
   std::unique_ptr<uint8_t[]> manifest;
@@ -66,7 +66,7 @@ struct handle final {
   while (n >= 8) {
     uint64_t chunk;
     std::memcpy(&chunk, p, 8);
-    h = mix(h ^ chunk, PRIME);
+    h = mix(h ^ chunk, prime);
     p += 8;
     n -= 8;
   }
@@ -75,20 +75,20 @@ struct handle final {
   for (unsigned shift = 0; n > 0; shift += 8, --n)
     tail |= static_cast<uint64_t>(*p++) << shift;
 
-  return tail == 0 ? h : mix(h ^ tail, PRIME);
+  return tail == 0 ? h : mix(h ^ tail, prime);
 }
 
 [[nodiscard]] size_t locate(const archive *cartridge, const char *name) noexcept {
   const auto h = hashfn(name, cartridge->seed);
   const auto slot = static_cast<size_t>(h) & (cartridge->buckets.size() - 1);
   const auto index = cartridge->buckets[slot];
-  if (index == EMPTY) [[unlikely]]
+  if (index == empty) [[unlikely]]
     return SIZE_MAX;
 
   return index;
 }
 
-PHYSFS_sint64 _read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
+PHYSFS_sint64 read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   auto *reader = static_cast<handle *>(io->opaque);
   const auto remaining = reader->storage->length - reader->position;
   if (remaining == 0)
@@ -100,25 +100,25 @@ PHYSFS_sint64 _read(PHYSFS_Io *io, void *buffer, PHYSFS_uint64 length) {
   return static_cast<PHYSFS_sint64>(count);
 }
 
-PHYSFS_sint64 _write(PHYSFS_Io *, const void *, PHYSFS_uint64) {
+PHYSFS_sint64 write(PHYSFS_Io *, const void *, PHYSFS_uint64) {
   PHYSFS_setErrorCode(PHYSFS_ERR_READ_ONLY);
   return -1;
 }
 
-int _seek(PHYSFS_Io *io, PHYSFS_uint64 offset) {
+int seek(PHYSFS_Io *io, PHYSFS_uint64 offset) {
   static_cast<handle *>(io->opaque)->position = offset;
   return 1;
 }
 
-PHYSFS_sint64 _tell(PHYSFS_Io *io) {
+PHYSFS_sint64 tell(PHYSFS_Io *io) {
   return static_cast<PHYSFS_sint64>(static_cast<handle *>(io->opaque)->position);
 }
 
-PHYSFS_sint64 _length(PHYSFS_Io *io) {
+PHYSFS_sint64 length(PHYSFS_Io *io) {
   return static_cast<PHYSFS_sint64>(static_cast<handle *>(io->opaque)->storage->length);
 }
 
-PHYSFS_Io *_duplicate(PHYSFS_Io *io) {
+PHYSFS_Io *duplicate(PHYSFS_Io *io) {
   auto *reader = static_cast<handle *>(io->opaque);
   auto storage = std::unique_ptr<backing, releaser>{reader->storage.get()};
   ++storage->count;
@@ -127,11 +127,11 @@ PHYSFS_Io *_duplicate(PHYSFS_Io *io) {
   return &copy->io;
 }
 
-int _flush(PHYSFS_Io *) {
+int flush(PHYSFS_Io *) {
   return 1;
 }
 
-void _destroy(PHYSFS_Io *io) {
+void destroy(PHYSFS_Io *io) {
   delete static_cast<handle *>(io->opaque);
 }
 
@@ -141,8 +141,8 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   if (!io->seek(io, 0)) [[unlikely]]
     return nullptr;
 
-  std::array<uint32_t, HEADER / sizeof(uint32_t)> fields;
-  if (io->read(io, fields.data(), HEADER) != static_cast<PHYSFS_sint64>(HEADER)) [[unlikely]]
+  std::array<uint32_t, header / sizeof(uint32_t)> fields;
+  if (io->read(io, fields.data(), header) != static_cast<PHYSFS_sint64>(header)) [[unlikely]]
     return nullptr;
 
   const auto count = fields[1];
@@ -154,21 +154,21 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   const auto buckets = fields[7];
   const auto buffer = fields[8];
 
-  const auto size = HEADER + static_cast<size_t>(count) * RECORD + buckets + strings + trainsize;
+  const auto size = header + static_cast<size_t>(count) * stride + buckets + strings + trainsize;
 
   auto cartridge = std::make_unique<archive>();
   cartridge->manifest = std::make_unique_for_overwrite<uint8_t[]>(size + buffer);
   cartridge->buffer = {cartridge->manifest.get() + size, buffer};
-  std::memcpy(cartridge->manifest.get(), fields.data(), HEADER);
+  std::memcpy(cartridge->manifest.get(), fields.data(), header);
 
-  const auto remainder = size - HEADER;
-  if (io->read(io, cartridge->manifest.get() + HEADER, remainder) != static_cast<PHYSFS_sint64>(remainder)) [[unlikely]]
+  const auto remainder = size - header;
+  if (io->read(io, cartridge->manifest.get() + header, remainder) != static_cast<PHYSFS_sint64>(remainder)) [[unlikely]]
     return nullptr;
 
   const auto *p = cartridge->manifest.get();
   [[assume(reinterpret_cast<uintptr_t>(p) % alignof(record) == 0)]];
-  cartridge->records = std::span<const record>{reinterpret_cast<const record *>(p + HEADER), count};
-  auto cursor = HEADER + static_cast<size_t>(count) * RECORD;
+  cartridge->records = std::span<const record>{reinterpret_cast<const record *>(p + header), count};
+  auto cursor = header + static_cast<size_t>(count) * stride;
   cartridge->seed = seed;
 
   cartridge->storage = std::make_unique_for_overwrite<uint32_t[]>(slots);
@@ -195,8 +195,10 @@ PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname,
   auto *cartridge = static_cast<archive *>(opaque);
 
   const std::string_view dir{dirname};
-  static std::array<char, 512> buffer;
-  if (dir.size() >= buffer.size()) [[unlikely]] return PHYSFS_ENUM_ERROR;
+  constexpr auto capacity = 256uz;
+  std::array<char, capacity> buffer;
+  assert(dir.size() < capacity && "directory path exceeds the enumeration buffer capacity");
+  if (dir.size() >= capacity) [[unlikely]] return PHYSFS_ENUM_ERROR;
   auto *end = std::ranges::copy(dir, buffer.data()).out;
   if (!dir.empty() && dir.back() != '/') [[likely]] *end++ = '/';
   const std::string_view needle{buffer.data(), end};
@@ -213,8 +215,9 @@ PHYSFS_EnumerateCallbackResult crom_enumerate(void *opaque, const char *dirname,
     if (leaf.empty() || leaf.find('/') != std::string_view::npos) [[unlikely]]
       continue;
 
-    char name[512];
-    if (leaf.size() >= sizeof(name)) [[unlikely]]
+    char name[capacity];
+    assert(leaf.size() < capacity && "archive entry name exceeds the enumeration buffer capacity");
+    if (leaf.size() >= capacity) [[unlikely]]
       continue;
     std::memcpy(name, leaf.data(), leaf.size());
     name[leaf.size()] = '\0';
@@ -237,7 +240,7 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
   }
 
   const auto &found = cartridge->records[index];
-  [[assume((found.flags & DIRECTORY) == 0)]];
+  [[assume((found.flags & directory) == 0)]];
 
   const auto uncompressed = static_cast<size_t>(found.uncompressed);
   const auto compressed = static_cast<size_t>(found.compressed);
@@ -251,13 +254,13 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     [[assume(sought != 0)]];
 
     switch (found.algorithm) {
-      case ALGO_RAW: {
+      case raw: {
         const auto bytes = source->read(source, data, uncompressed);
         [[assume(bytes == static_cast<PHYSFS_sint64>(uncompressed))]];
         break;
       }
 
-      case ALGO_ZSTD_DICT: {
+      case zstd: {
         const auto size = cartridge->buffer.size();
         [[assume(compressed <= size)]];
         const auto bytes = source->read(source, cartridge->buffer.data(), compressed);
@@ -282,14 +285,14 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
     PHYSFS_Io{
       .version = 0,
       .opaque = nullptr,
-      .read = _read,
-      .write = _write,
-      .seek = _seek,
-      .tell = _tell,
-      .length = _length,
-      .duplicate = _duplicate,
-      .flush = _flush,
-      .destroy = _destroy,
+      .read = read,
+      .write = write,
+      .seek = seek,
+      .tell = tell,
+      .length = length,
+      .duplicate = duplicate,
+      .flush = flush,
+      .destroy = destroy,
     },
     std::move(content),
     uint64_t{0},
@@ -343,12 +346,12 @@ int crom_stat(void *opaque, const char *name, PHYSFS_Stat *stat) {
   }
 
   const auto &current = cartridge->records[index];
-  const auto directory = (current.flags & DIRECTORY) != 0;
-  stat->filesize = directory ? -1 : static_cast<PHYSFS_sint64>(current.uncompressed);
+  const auto folder = (current.flags & directory) != 0;
+  stat->filesize = folder ? -1 : static_cast<PHYSFS_sint64>(current.uncompressed);
   stat->modtime = -1;
   stat->createtime = -1;
   stat->accesstime = -1;
-  stat->filetype = directory ? PHYSFS_FILETYPE_DIRECTORY : PHYSFS_FILETYPE_REGULAR;
+  stat->filetype = folder ? PHYSFS_FILETYPE_DIRECTORY : PHYSFS_FILETYPE_REGULAR;
   stat->readonly = 1;
 
   return 1;
@@ -371,6 +374,8 @@ capture::~capture() {
 
 blob capture::finish() noexcept {
   active = nullptr;
+  assert(content.storage && "[capture::finish] no captured storage");
+
   return std::move(content);
 }
 

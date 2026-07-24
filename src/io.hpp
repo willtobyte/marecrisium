@@ -20,40 +20,26 @@ struct releaser {
 
 struct blob final {
 private:
-  static constexpr auto STORED = SIZE_MAX;
+  std::unique_ptr<backing, releaser> storage;
 
-  union {
-    std::unique_ptr<uint8_t[]> buffer;
-    std::unique_ptr<backing, releaser> storage;
-  };
-
-  std::size_t length;
-
+  blob() noexcept = default;
   explicit blob(std::unique_ptr<backing, releaser> storage) noexcept;
-
-  bool stored() const noexcept { return length == STORED; }
 
   friend class capture;
 
 public:
-  blob() noexcept;
-  explicit blob(std::size_t length);
-  ~blob();
-
-  blob(blob &&other) noexcept;
-  blob &operator=(blob &&other) noexcept;
+  blob(blob &&other) noexcept = default;
+  blob &operator=(blob &&other) noexcept = default;
 
   blob(const blob &) = delete;
   blob &operator=(const blob &) = delete;
 
-  uint8_t *data() noexcept;
   const uint8_t *data() const noexcept;
   std::size_t size() const noexcept;
   operator std::span<const uint8_t>() const noexcept;
-  explicit operator bool() const noexcept;
 };
 
-static_assert(sizeof(blob) == sizeof(std::unique_ptr<uint8_t[]>) + sizeof(std::size_t));
+static_assert(sizeof(blob) == sizeof(std::unique_ptr<backing, releaser>));
 
 class capture final {
   blob content;

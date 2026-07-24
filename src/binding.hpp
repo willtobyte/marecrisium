@@ -1,7 +1,5 @@
 #pragma once
 
-#include "common.hpp"
-
 #ifdef _MSC_VER
 #define BINDING_HIDDEN
 #else

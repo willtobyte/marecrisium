@@ -1,15 +1,10 @@
 #pragma once
 
-#include "math.h"
-#include "minimap.hpp"
-#include "particlesystem.hpp"
-#include "tilemap.hpp"
-
 class pixmap;
 
 class stage final {
 public:
-  struct hit {
+  struct hit final {
     entt::entity entity{entt::null};
     float fraction{};
   };
@@ -99,6 +94,7 @@ private:
   int _reference{LUA_NOREF};
   int _pool_reference{LUA_NOREF};
   int _world_reference{LUA_NOREF};
+  int _owner_reference{LUA_NOREF};
   int _on_loop{LUA_NOREF};
   int _on_camera{LUA_NOREF};
   int _on_tick{LUA_NOREF};

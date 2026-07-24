@@ -3,7 +3,7 @@ namespace lookup {
   constexpr auto draw = "draw"_hs;
 }
 
-int _draw_reference = LUA_NOREF;
+int draw_reference = LUA_NOREF;
 
 static int foreground_draw(lua_State *state) {
   auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
@@ -97,7 +97,7 @@ static int foreground_index(lua_State *state) {
   const auto id = entt::hashed_string{key.data(), key.size()};
 
   if (id == lookup::draw) {
-    lua_rawgeti(state, LUA_REGISTRYINDEX, _draw_reference);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, draw_reference);
     return 1;
   }
 
@@ -212,7 +212,7 @@ foreground::~foreground() {
 
 void foreground::wire() {
   binding::callback(L, foreground_draw);
-  _draw_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  draw_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   binding::metatable(L, "Foreground", foreground_index);
 }

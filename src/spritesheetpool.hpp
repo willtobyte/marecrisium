@@ -1,7 +1,5 @@
 #pragma once
 
-#include "spritesheet.hpp"
-
 class spritesheetpool final {
 public:
   spritesheetpool() = default;
@@ -12,7 +10,7 @@ public:
   void clear();
 
 private:
-  struct storage {
+  struct storage final {
     std::vector<clip> clips;
     std::vector<frame> frames;
     spritesheet sheet;

@@ -200,7 +200,6 @@ cassette = {}
 
 ---@class StageSound
 ---@field name string Sound name. Loads `sounds/<name>` and is accessible as `pool.<name>`.
----@field autoplay? boolean Whether to start playing immediately. Default false.
 ---@field loop? boolean Whether to enable looping. Default false.
 
 ---@class StageParticle
@@ -209,6 +208,31 @@ cassette = {}
 ---@field x? number Initial X position. Default 0.
 ---@field y? number Initial Y position. Default 0.
 ---@field active? boolean Whether particles spawn immediately. Default true.
+
+---@alias ParticleRange [number, number]
+
+---@class ParticleSpawnConfig
+---@field x? ParticleRange Horizontal spawn offset range.
+---@field y? ParticleRange Vertical spawn offset range.
+---@field radius? ParticleRange Radial spawn offset range.
+---@field angle? ParticleRange Initial angle range in degrees.
+---@field scale? ParticleRange Initial scale range.
+---@field life? ParticleRange Lifetime range in seconds.
+
+---@class ParticleAxisConfig
+---@field x? ParticleRange Horizontal range.
+---@field y? ParticleRange Vertical range.
+
+---@class ParticleRotationConfig
+---@field force? ParticleRange Angular acceleration range.
+---@field velocity? ParticleRange Angular velocity range.
+
+---@class ParticleConfig
+---@field count integer Positive number of particles in the emitter.
+---@field spawn? ParticleSpawnConfig Spawn properties.
+---@field velocity? ParticleAxisConfig Velocity ranges.
+---@field gravity? ParticleAxisConfig Gravity ranges.
+---@field rotation? ParticleRotationConfig Rotation ranges.
 
 ---List of foreground names (each matching `foregrounds/<name>.lua`) to show
 ---when the stage becomes active. Order is z-order: index 1 is the back layer,
@@ -229,7 +253,7 @@ cassette = {}
 ---these fields, lifecycle callbacks, and entity/sound declarations.
 ---@field gravity number[]|nil World gravity as {gx, gy}. Default is {0, 0} (no gravity).
 ---@field objects StageObject[]|nil Objects to spawn when the stage is created.
----@field sounds StageSound[]|nil Sounds to preload. Each entry is `{ name = "foo", autoplay = true }`. Loads `sounds/<name>` and is accessible as `pool.<name>`.
+---@field sounds StageSound[]|nil Sounds to preload. Each entry is `{ name = "foo", loop = true }`. Loads `sounds/<name>` and is accessible as `pool.<name>`.
 ---@field particles StageParticle[]|nil Particle emitters to create. Each entry spawns a particle system accessible as `pool.<name>`.
 ---@field foregrounds string[]|nil Foregrounds shown when this stage is active, in z-order (index 1 is back). All listed foregrounds are pre-loaded; toggle individually at runtime via `foregrounds.<name> = true|false`.
 ---@field tilemap string|nil Tilemap name. Loads the binary navmap `tilemaps/<name>.bmap` produced by `assets/tilemaps/generate.py` (background, foreground, collision, components, JPS+ jump tables).
@@ -311,17 +335,18 @@ director = {}
 -- Foreground (a single visible layer; many can be active simultaneously)
 --------------------------------------------------------------------------------
 
----@class ForegroundSprite
----@field x number X position in logical pixels. Default 0.
----@field y number Y position in logical pixels. Default 0.
----@field width number Pixmap native width in pixels (read-only).
----@field height number Pixmap native height in pixels (read-only).
----@field angle number Rotation angle in degrees. Default 0.
----@field alpha number Opacity (0-255). Default 255.
+---@class ForegroundPixmap
+---@field width number Native texture width in pixels (read-only).
+---@field height number Native texture height in pixels (read-only).
 
 ---@class ForegroundConfig
----@field pixmaps string[] Pixmap names to preload from `blobs/foregrounds/<name>.png`.
 ---@field fonts? string[] Font families to preload from `fonts/<name>.lua`. Each declared font is exposed on the foreground table by family name (e.g. `self.pixel`, `self.small`) as a `Font` instance.
+
+---@class FontConfig
+---@field glyphs string Ordered characters represented by the font texture.
+---@field spacing? integer Horizontal spacing adjustment. Default 0.
+---@field leading? integer Vertical spacing adjustment. Default 0.
+---@field scale? number Font scale. Default 1.
 
 ---Per-glyph visual effect applied to individual characters in a label.
 ---Each field is optional; omitted fields use their default (no effect).
@@ -363,7 +388,8 @@ local Font = {}
 ---@param effects? table<integer, GlyphEffect> Per-glyph effects keyed by 1-based visible character index.
 function Font:label(text, x, y, effects) end
 
----@class Foreground
+---@class Foreground: ForegroundConfig
+---@field pixmap? ForegroundPixmap Metadata for the automatically loaded `blobs/foregrounds/<name>/pixmap.png` texture.
 local Foreground = {}
 
 ---Called when the foreground becomes visible. Fires every time the foreground
@@ -382,8 +408,8 @@ function Foreground.on_appear(self) end
 function Foreground.on_disappear(self) end
 
 ---Called every frame while this foreground is active (logic only, no rendering).
----Sprites declared in `pixmaps` are accessible as `self.<name>` and have
----mutable `x`, `y`, `width`, `height`, `alpha`, `angle` properties.
+---When the automatic texture exists, its read-only dimensions are available
+---through `self.pixmap.width` and `self.pixmap.height`.
 ---@param self Foreground The foreground table itself.
 ---@param delta number Frame delta time in seconds.
 function Foreground.on_loop(self, delta) end
@@ -395,7 +421,8 @@ function Foreground.on_loop(self, delta) end
 ---@param self Foreground The foreground table itself.
 function Foreground.on_paint(self) end
 
----Submit a batch of quads for rendering using the foreground's pixmap texture.
+---Submit a batch of quads using the foreground's automatically loaded pixmap texture.
+---This is a no-op when `blobs/foregrounds/<name>/pixmap.png` does not exist.
 ---`buffer` is a flat array of numbers in groups of 6: `{x, y, w, h, angle, alpha, ...}`.
 ---`count` is the total number of elements (must be a positive multiple of 6).
 ---Each group of 6 defines one quad: destination x/y, width/height, rotation angle in
@@ -451,14 +478,8 @@ viewport = {}
 
 ---@class ObjectPrototype
 ---@field body? "dynamic"|"kinematic"|"static" Physics body type. Default is "kinematic".
----@field animation table<string, AnimationClip> Animation clips. Each clip is named and contains frames plus an optional sound.
-
----@class AnimationClip
----An animation clip is an array of frames with an optional sound effect.
----Each frame is: {source_x, source_y, source_width, source_height, duration_ms [, collider_x, collider_y, collider_width, collider_height]}.
----@field sound? string Optional sound name. Loads `blobs/sounds/<name>.opus` and plays automatically when this clip is activated via `self.animation = "clip_name"`.
----@field [integer] number[] Frame data: {source_x, source_y, source_width, source_height, duration_ms [, collider_x, collider_y, collider_width, collider_height]}.
----@field sleepable? boolean If true, the object sleeps (pauses all callbacks) when off-screen by more than 32 px. Default false.
+---@field animation? AnimationConfig Named animation clips and their explicit default.
+---@field sleepable? boolean If true, the object sleeps beyond the larger viewport dimension and wakes within half that margin. Default false.
 ---@field on_spawn? fun(self: Object) Called once when the object is created.
 ---@field on_loop? fun(self: Object, delta: number) Called every frame. Not called while the object is dormant.
 ---@field on_sleep? fun(self: Object) Called when the object goes off-screen and enters sleep (only on sleepable objects).
@@ -474,6 +495,16 @@ viewport = {}
 ---@field on_hover? fun(self: Object) Called the first frame the cursor moves over the object.
 ---@field on_unhover? fun(self: Object) Called the first frame the cursor leaves the object.
 ---@field [string] any Custom properties accessible via the object instance.
+
+---@class AnimationConfig
+---@field default? string Default clip name. If omitted or unmatched, the first encountered clip is selected; specify it explicitly for deterministic selection.
+---@field [string] AnimationClip|string
+
+---@class AnimationClip
+---An animation clip is an array of frames with an optional sound effect.
+---Each frame is: {source_x, source_y, source_width, source_height, duration_ms [, collider_x, collider_y, collider_width, collider_height]}.
+---@field sound? string Optional sound name. Loads `blobs/sounds/<name>.opus` and plays automatically when this clip is activated via `self.animation = "clip_name"`.
+---@field [integer] number[] Frame data: {source_x, source_y, source_width, source_height, duration_ms [, collider_x, collider_y, collider_width, collider_height]}.
 
 --------------------------------------------------------------------------------
 -- Object (entity userdata, available as `self` and in `pool`)
@@ -494,7 +525,7 @@ viewport = {}
 ---@field name string The object's name (read-only).
 ---@field kind string The kind/type string of this object (read-only).
 ---@field z integer Render Z-order layer. Higher draws on top (read/write).
----@field alive boolean Whether the object is still alive (read-only).
+---@field alive boolean Whether the object is still alive (read-only). Becomes false after object or stage destruction; other stale reads return nil and writes are ignored.
 ---@field dormant boolean Whether this object is currently sleeping (read-only). Always false for non-sleepable objects.
 ---@field animation string|nil Currently playing animation clip name. Assign to switch clips.
 ---@field [string] any Custom properties from the prototype table.
@@ -585,7 +616,7 @@ function Sound:stop() end
 ---@param ms integer Fade duration in milliseconds.
 function Sound:fade(from, to, ms) end
 
----Register a callback for when playback starts.
+---Register a callback invoked when playback starts through the Lua `play` method.
 ---@param fn fun()
 function Sound:on_begin(fn) end
 
@@ -598,6 +629,7 @@ function Sound:on_end(fn) end
 --------------------------------------------------------------------------------
 
 ---@class Particle
+---Particle handles are stage-scoped; accessing one after its stage is destroyed raises an error.
 ---@field x number Emitter X position (read/write).
 ---@field y number Emitter Y position (read/write).
 ---@field active boolean Whether dead particles respawn (read/write).
@@ -608,6 +640,7 @@ local Particle = {}
 --------------------------------------------------------------------------------
 
 ---@class World
+---World handles are stage-scoped; retained operations raise an error after stage destruction.
 local World = {}
 
 ---Spawn a new object at runtime and return it.
@@ -684,8 +717,10 @@ flip = {}
 --------------------------------------------------------------------------------
 
 ---@class Minimap
----A 33x33 pixel minimap centered on the player, showing nearby tiles and entities.
----Toggle visibility with M key or gamepad back button.
+---A 129x129-sample minimap rendered as 310x310 logical units and centered on the player.
+---Visibility is controlled through `pool.minimap.visible`; the bundled controls
+---helper maps the action to Tab or the gamepad Back button.
+---Minimap handles are stage-scoped; accessing one after stage destruction raises an error.
 ---@field visible boolean Whether the minimap is currently shown (read/write).
 local Minimap = {}
 
@@ -757,19 +792,11 @@ user = {}
 platform = {}
 
 --------------------------------------------------------------------------------
--- Open URL
---------------------------------------------------------------------------------
-
----Open a URL in the system's default browser or handler.
----@param url string The URL to open.
-function openurl(url) end
-
---------------------------------------------------------------------------------
 -- Localization
 --------------------------------------------------------------------------------
 
 ---Looks up key in the loaded locale file (locales/<lang>.lua, 2-letter code from SDL).
----Tries each preferred OS locale in order; first existing file wins.
+---Uses the first preferred OS locale when its locale file exists.
 ---If no locale file is found (or the key is missing), the key itself is used,
 ---which is treated as the original English text written in the source.
 ---Extra arguments are applied via string.format on the resolved string,
@@ -808,7 +835,7 @@ function moment() end
 ---@field right boolean Arrow right, d-pad right, or left stick right.
 ---@field up boolean Arrow up, d-pad up, or left stick up.
 ---@field down boolean Arrow down, d-pad down, or left stick down.
----@field minimap boolean Gamepad back or M key.
+---@field minimap boolean Gamepad Back or Tab key.
 local Controls = {}
 
 --------------------------------------------------------------------------------
@@ -816,11 +843,9 @@ local Controls = {}
 --------------------------------------------------------------------------------
 
 ---The engine replaces Lua's built-in `math.random` and `math.randomseed` with
----a fast xorshift128 PRNG. The RNG state is **not** automatically seeded at
----startup, so `math.randomseed` **must** be called before the first use of
----`math.random`; otherwise the sequence is deterministic (all-zero state).
----Calling `math.randomseed` again at any point fully replaces the internal
----state, and all subsequent `math.random` calls use the new seed.
+---a fast xorshift128 PRNG that is automatically seeded during initialization.
+---Calling `math.randomseed` optionally replaces the internal state, and all
+---subsequent `math.random` calls use the new seed.
 ---
 ---Usage:
 ---```lua
@@ -830,7 +855,7 @@ local Controls = {}
 ---local m = math.random(10, 20)   -- integer in [10, 20]
 ---```
 
----Seed the xorshift128 PRNG. Must be called before any `math.random` call.
+---Replace the xorshift128 PRNG state with an explicit seed.
 ---Each call fully replaces the internal state; subsequent `math.random` calls
 ---produce a new sequence determined entirely by this seed.
 ---@param seed integer Seed value (truncated to 32 bits internally).

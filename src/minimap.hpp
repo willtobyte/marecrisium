@@ -22,9 +22,9 @@ public:
   static void wire();
 
 private:
-  static constexpr int32_t RADIUS = 64;
-  static constexpr int32_t SIDE = RADIUS * 2 + 1;
-  static constexpr float SIZE = 310.f;
+  static constexpr int32_t radius = 64;
+  static constexpr int32_t side = radius * 2 + 1;
+  static constexpr float size = 310.f;
 
   const tilemap* _tilemap;
   entt::registry* _registry;

@@ -4,7 +4,7 @@ class sound final {
 public:
   struct stream final {
     ma_data_source_base base{};
-    OggOpusFile* file{nullptr};
+    OggOpusFile* file{};
   };
 
   sound() = delete;
@@ -37,6 +37,7 @@ public:
 private:
   std::atomic<bool> _ended{false};
   std::unique_ptr<PHYSFS_File, PHYSFS_Deleter> _file{};
+  std::unique_ptr<OggOpusFile, OggDeleter> _opus{};
   stream _stream{};
   ma_sound _sound{};
 };

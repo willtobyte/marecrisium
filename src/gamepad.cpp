@@ -28,12 +28,11 @@ namespace {
   }
 
   struct reference final {
-    static int rumble;
-    static int led;
-  };
+    reference() = delete;
 
-  int reference::rumble = LUA_NOREF;
-  int reference::led = LUA_NOREF;
+    static inline int rumble{LUA_NOREF};
+    static inline int led{LUA_NOREF};
+  };
 }
 
 static SDL_GamepadAxis axis(entt::id_type id) {

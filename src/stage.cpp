@@ -3,6 +3,8 @@ namespace {
     constexpr auto dynamic_bodytype = "dynamic"_hs;
     constexpr auto static_bodytype = "static"_hs;
   }
+
+  constexpr auto picks = 16uz;
 }
 
 static bool on_event(void *userdata, SDL_Event *event) {
@@ -59,14 +61,14 @@ static bool culled(const transform &tf, const animation &an, float margin) {
   const auto &fr = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
   const auto width = fr.width * tf.scale;
   const auto height = fr.height * tf.scale;
-  const auto screen_x = tf.x - viewport.x;
-  const auto screen_y = tf.y - viewport.y;
+  const auto sx = tf.x - viewport.x;
+  const auto sy = tf.y - viewport.y;
 
   return
-    screen_x + width  < -margin ||
-    screen_x >  viewport.width  + margin ||
-    screen_y + height < -margin ||
-    screen_y >  viewport.height + margin;
+    sx + width  < -margin ||
+    sx >  viewport.width  + margin ||
+    sy + height < -margin ||
+    sy >  viewport.height + margin;
 }
 
 static constexpr auto mapping(const char *s) -> std::pair<body_type, b2BodyType> {
@@ -143,6 +145,12 @@ static bool resolve(b2ShapeId a, b2ShapeId b, entt::entity &ea, entt::entity &eb
 static void on_scriptable_destroy(entt::registry& registry, entt::entity entity) {
   auto& op = registry.get<scriptable>(entity);
 
+  lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+  auto* handle = static_cast<proxy*>(luaL_testudata(L, -1, "Object"));
+  if (handle)
+    handle->registry = nullptr;
+  lua_pop(L, 1);
+
   luaL_unref(L, LUA_REGISTRYINDEX, op.kind_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, op.name_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, op.handle);
@@ -175,8 +183,30 @@ static const scriptable* scriptable_of(entt::registry& registry, entt::entity en
   return op;
 }
 
+static stage* owner(lua_State* state) {
+  auto** slot = static_cast<stage**>(lua_touserdata(state, lua_upvalueindex(1)));
+  if (!slot || !*slot) {
+    luaL_error(state, "stage is no longer alive");
+    std::unreachable();
+  }
+
+  return *slot;
+}
+
+template<typename T>
+static void invalidate(lua_State* state, int table, const char* name) {
+  const auto index = table < 0 ? lua_gettop(state) + table + 1 : table;
+  lua_pushnil(state);
+  while (lua_next(state, index)) {
+    auto** value = static_cast<T**>(luaL_testudata(state, -1, name));
+    if (value)
+      *value = nullptr;
+    lua_pop(state, 1);
+  }
+}
+
 static int world_spawn(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto* self = owner(state);
   const std::string_view name = luaL_checkstring(state, 1);
   const std::string_view kind = luaL_checkstring(state, 2);
   const auto x = static_cast<float>(luaL_checknumber(state, 3));
@@ -185,22 +215,19 @@ static int world_spawn(lua_State* state) {
 }
 
 static int world_destroy(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  return self->destroy(state);
+  return owner(state)->destroy(state);
 }
 
 static int world_count(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  return self->count(state);
+  return owner(state)->count(state);
 }
 
 static int world_find(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
-  return self->find(state);
+  return owner(state)->find(state);
 }
 
 static int world_radar(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto* self = owner(state);
   const auto* caller = static_cast<proxy *>(luaL_checkudata(state, 1, "Object"));
   const auto x = static_cast<float>(luaL_checknumber(state, 2));
   const auto y = static_cast<float>(luaL_checknumber(state, 3));
@@ -209,7 +236,7 @@ static int world_radar(lua_State* state) {
 }
 
 static int world_raycast(lua_State* state) {
-  auto* self = static_cast<stage *>(lua_touserdata(state, lua_upvalueindex(1)));
+  auto* self = owner(state);
   const auto* caller = static_cast<proxy *>(luaL_checkudata(state, 1, "Object"));
   const auto x = static_cast<float>(luaL_checknumber(state, 2));
   const auto y = static_cast<float>(luaL_checknumber(state, 3));
@@ -237,29 +264,33 @@ stage::stage(std::string name)
   lua_newtable(L);
   _pool_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
+  auto** owner = static_cast<stage**>(lua_newuserdata(L, sizeof(stage*)));
+  *owner = this;
+  _owner_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+
   lua_newtable(L);
 
-  lua_pushlightuserdata(L, this);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
   binding::closure(L, world_spawn, 1);
   lua_setfield(L, -2, "spawn");
 
-  lua_pushlightuserdata(L, this);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
   binding::closure(L, world_destroy, 1);
   lua_setfield(L, -2, "destroy");
 
-  lua_pushlightuserdata(L, this);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
   binding::closure(L, world_count, 1);
   lua_setfield(L, -2, "count");
 
-  lua_pushlightuserdata(L, this);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
   binding::closure(L, world_find, 1);
   lua_setfield(L, -2, "find");
 
-  lua_pushlightuserdata(L, this);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
   binding::closure(L, world_radar, 1);
   lua_setfield(L, -2, "radar");
 
-  lua_pushlightuserdata(L, this);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
   binding::closure(L, world_raycast, 1);
   lua_setfield(L, -2, "raycast");
 
@@ -506,6 +537,16 @@ stage::stage(std::string name)
 stage::~stage() {
   SDL_RemoveEventWatch(on_event, this);
 
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
+  auto** owner = static_cast<stage**>(lua_touserdata(L, -1));
+  *owner = nullptr;
+  lua_pop(L, 1);
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+  invalidate<minimap>(L, -1, "Minimap");
+  invalidate<particle>(L, -1, "Particle");
+  lua_pop(L, 1);
+
   luaL_unref(L, LUA_REGISTRYINDEX, _on_release);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_press);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_leave);
@@ -515,6 +556,7 @@ stage::~stage() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_camera);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   luaL_unref(L, LUA_REGISTRYINDEX, _world_reference);
+  luaL_unref(L, LUA_REGISTRYINDEX, _owner_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _pool_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
 
@@ -808,7 +850,7 @@ void stage::update(float delta) {
     const auto events = b2World_GetSensorEvents(_world);
     entt::entity ea, eb;
 
-    auto dispatch_sensor = [&](auto *events, size_t count, int scriptable::*callback) {
+    auto dispatch = [&](auto *events, size_t count, int scriptable::*callback) {
       for (const auto& event : std::span(events, count)) {
         if (!resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
           continue;
@@ -820,8 +862,8 @@ void stage::update(float delta) {
       }
     };
 
-    dispatch_sensor(events.beginEvents, static_cast<size_t>(events.beginCount), &scriptable::on_collision_begin);
-    dispatch_sensor(events.endEvents, static_cast<size_t>(events.endCount), &scriptable::on_collision_end);
+    dispatch(events.beginEvents, static_cast<size_t>(events.beginCount), &scriptable::on_collision_begin);
+    dispatch(events.endEvents, static_cast<size_t>(events.endCount), &scriptable::on_collision_end);
 
     const auto contacts = b2World_GetContactEvents(_world);
     for (const auto& event : std::span(contacts.beginEvents, static_cast<size_t>(contacts.beginCount))) {
@@ -1190,7 +1232,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 
 int stage::destroy(lua_State* state) {
   auto* self = static_cast<proxy *>(luaL_checkudata(state, 1, "Object"));
-  if (!_registry.valid(self->entity))
+  if (self->registry != &_registry || !_registry.valid(self->entity)) [[unlikely]]
     return 0;
 
   const auto& op = _registry.get<scriptable>(self->entity);
@@ -1375,7 +1417,7 @@ uint8_t stage::pick_at(float x, float y, entt::entity* buffer, uint8_t capacity)
   constexpr auto half = .5f;
   const b2AABB aabb = {{x - half, y - half}, {x + half, y + half}};
 
-  struct context {
+  struct context final {
     entt::entity* hits;
     uint8_t capacity;
     uint8_t count;
@@ -1443,7 +1485,7 @@ void stage::dispatch_miss(int callback_reference, float x, float y, const char* 
 }
 
 void stage::dispatch_press(float x, float y, const char* button) {
-  static std::array<entt::entity, 16> buffer{};
+  std::array<entt::entity, picks> buffer{};
   const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
   if (count == 0) [[likely]] {
@@ -1468,7 +1510,7 @@ void stage::dispatch_press(float x, float y, const char* button) {
 }
 
 void stage::dispatch_release(float x, float y, const char* button) {
-  static std::array<entt::entity, 16> buffer{};
+  std::array<entt::entity, picks> buffer{};
   const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
   if (count == 0) [[likely]] {
@@ -1493,7 +1535,7 @@ void stage::dispatch_release(float x, float y, const char* button) {
 }
 
 void stage::dispatch_hover(float x, float y) {
-  static std::array<entt::entity, 16> buffer{};
+  std::array<entt::entity, picks> buffer{};
   const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
 
   const auto hits = std::span(buffer.data(), count);

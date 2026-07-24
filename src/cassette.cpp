@@ -35,7 +35,7 @@ std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_upsert;
 std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_delete;
 std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_clear;
 
-int _purge_reference = LUA_NOREF;
+int purge_reference = LUA_NOREF;
 
 char holder;
 char token;
@@ -235,7 +235,7 @@ static int cassette_index(lua_State *state) {
   const auto id = entt::hashed_string{key.data(), key.size()};
 
   if (id == lookup::purge) [[unlikely]]
-    return lua_rawgeti(state, LUA_REGISTRYINDEX, _purge_reference), 1;
+    return lua_rawgeti(state, LUA_REGISTRYINDEX, purge_reference), 1;
 
   if (!load(state, key)) [[unlikely]]
     return lua_pushnil(state), 1;
@@ -325,7 +325,7 @@ void cassette::wire() {
   });
 
   binding::callback(L, cassette_clear);
-  _purge_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  purge_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
   binding::metatable(L, "Cassette", cassette_index, cassette_newindex);
   binding::singleton(L, "Cassette", "cassette");

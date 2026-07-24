@@ -1,9 +1,9 @@
 # Building
 
-Install Conan, then set up profile and dependencies (once each):
+Install the repository-declared tools, then set up the Conan profile and dependencies:
 
 ```shell
-mise use -g conan # or: brew install conan / pip install conan
+mise install
 conan profile detect --force
 make conan
 ```
@@ -13,5 +13,5 @@ Build and run:
 ```shell
 make run # debug
 # or
-make build buildtype=Release && CARTRIDGE=cartridge ./build/marecrisium # release
+make build buildtype=Release && CARTRIDGE=cartridge ./build/carimbo # release
 ```
