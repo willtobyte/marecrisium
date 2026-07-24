@@ -5,33 +5,40 @@
 #include <atomic>
 #include <bit>
 #include <cassert>
-#include <charconv>
 #include <cmath>
+#include <compare>
+#include <concepts>
+#include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <filesystem>
 #include <format>
-#include <fstream>
+#include <iterator>
 #include <limits>
 #include <memory>
+#include <new>
 #include <numbers>
 #include <optional>
 #include <print>
-#include <queue>
 #include <random>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
-#include <unordered_set>
+#include <typeinfo>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
 #else
+#ifdef __APPLE__
+#include <dlfcn.h>
+#endif
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -41,8 +48,6 @@
 #include <ankerl/unordered_dense.h>
 #include <box2d/box2d.h>
 #include <entt/entt.hpp>
-
-using namespace entt::literals;
 #include <lua.hpp>
 #include <miniaudio.h>
 #include <opusfile.h>
@@ -53,9 +58,7 @@ using namespace entt::literals;
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 
-#include "compat.hpp"
-#include "deleter.hpp"
-#include "math.hpp"
+using namespace entt::literals;
 
 extern lua_State* L;
 extern SDL_Renderer* renderer;
@@ -64,7 +67,7 @@ extern ma_engine audio;
 struct resources;
 extern struct resources *depot;
 
-struct viewport {
+struct viewport final {
   float width;
   float height;
   float scale;
@@ -75,3 +78,47 @@ struct viewport {
 };
 
 extern struct viewport viewport;
+
+#include "achievement.hpp"
+#include "application.hpp"
+#include "binding.hpp"
+#include "cassette.hpp"
+#include "color.hpp"
+#include "compat.hpp"
+#include "components.hpp"
+#include "deleter.hpp"
+#include "font.hpp"
+#include "fontpool.hpp"
+#include "foreground.hpp"
+#include "gamepad.hpp"
+#include "io.hpp"
+#include "keyboard.hpp"
+#include "locales.hpp"
+#include "marshal.hpp"
+#include "math.hpp"
+#include "mouse.hpp"
+#include "object.hpp"
+#include "particle.hpp"
+#include "particlepool.hpp"
+#include "particlesystem.hpp"
+#include "pixmap.hpp"
+#include "pixmappool.hpp"
+#include "platform.hpp"
+#include "scriptengine.hpp"
+#include "sound.hpp"
+#include "soundpool.hpp"
+#include "sourcepool.hpp"
+#include "spritesheet.hpp"
+#include "spritesheetpool.hpp"
+#include "steam.hpp"
+#include "stringpool.hpp"
+#include "system.hpp"
+#include "tilemap.hpp"
+#include "minimap.hpp"
+#include "overlay.hpp"
+#include "resources.hpp"
+#include "stage.hpp"
+#include "director.hpp"
+#include "engine.hpp"
+#include "user.hpp"
+#include "xorshift.hpp"

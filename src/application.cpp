@@ -1,8 +1,6 @@
 int application::run() {
   try {
-    const auto* const rom = std::getenv("CARTRIDGE");
-
-    io::mount(rom ? rom : "cartridge.rom");
+    io::mount("cartridge.rom");
 
     scriptengine se;
     se.run();

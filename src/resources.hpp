@@ -1,17 +1,5 @@
 #pragma once
 
-#include "font.hpp"
-#include "pixmap.hpp"
-#include "sound.hpp"
-
-#include "fontpool.hpp"
-#include "particlepool.hpp"
-#include "pixmappool.hpp"
-#include "soundpool.hpp"
-#include "sourcepool.hpp"
-#include "spritesheetpool.hpp"
-#include "stringpool.hpp"
-
 struct resources final {
   fontpool font;
   particlepool particle;

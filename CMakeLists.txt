@@ -63,4 +63,4 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   zstd::libzstd_static
 )
 
-target_precompile_headers(${PROJECT_NAME} PRIVATE src/common.hpp src/components.hpp src/spritesheet.hpp src/tilemap.hpp src/overlay.hpp ${HEADER_FILES})
+target_precompile_headers(${PROJECT_NAME} PRIVATE src/common.hpp)
