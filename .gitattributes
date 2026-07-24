@@ -2,4 +2,4 @@
 
 *.png binary
 *.opus binary
-*.bmap binary
+*.tilemap binary

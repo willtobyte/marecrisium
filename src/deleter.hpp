@@ -29,16 +29,3 @@ struct OggOpusFile_Deleter final {
     op_free(ptr);
   }
 };
-
-struct PHYSFS_Deleter final {
-  template <typename T>
-  void operator()(T* ptr) const {
-    if (!ptr) [[unlikely]] return;
-
-    if constexpr (std::is_same_v<T, PHYSFS_File>) {
-      PHYSFS_close(ptr);
-    } else if constexpr (std::is_same_v<T, char*>) {
-      PHYSFS_freeList(ptr);
-    }
-  }
-};

@@ -3,13 +3,13 @@
 # requires-python = ">=3.13"
 # dependencies = ["numpy", "pyoxipng"]
 # ///
-"""Compile a Tiled .tmx tilemap into the single runtime .bmap binary the C++
+"""Compile a Tiled .tmx tilemap into the single runtime .tilemap binary the C++
 engine consumes, plus copy/optimise referenced tileset PNGs.
 
 Source of truth: ``assets/tilemaps/<name>.tmx``.
 
 Outputs:
-  cartridge/tilemaps/<name>.bmap                single binary tilemap
+  cartridge/tilemaps/<name>.tilemap             single binary tilemap
                                                 (display + collision)
   cartridge/blobs/tilemaps/<name>/<tileset>.png copied + oxipng-optimised
                                                 tileset images
@@ -21,7 +21,7 @@ Usage::
 The .tmx must have orthogonal orientation, square tiles, and three CSV
 layers named ``background``, ``foreground`` and ``collision``.
 
-.bmap layout (little-endian, tightly packed):
+.tilemap layout (little-endian, tightly packed):
   Header (20 bytes):
     uint32  width
     uint32  height
@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib
 import os
 import re
 import shutil
@@ -44,8 +45,8 @@ import struct
 import sys
 import xml.etree.ElementTree as ET
 
-import numpy as np
-import oxipng
+np = importlib.import_module("numpy")
+oxipng = importlib.import_module("oxipng")
 
 
 def csv(text: str | None, expected: int, label: str) -> list[int]:
@@ -116,7 +117,7 @@ def main() -> int:
 
     runtime = os.path.join(root, "cartridge", "tilemaps")
     os.makedirs(runtime, exist_ok=True)
-    output = os.path.join(runtime, f"{name}.bmap")
+    output = os.path.join(runtime, f"{name}.tilemap")
 
     with open(output, "wb") as handle:
         handle.write(

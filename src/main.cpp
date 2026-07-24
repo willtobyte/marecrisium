@@ -2,7 +2,7 @@
 
 static_assert(std::endian::native == std::endian::little, "this engine targets little-endian platforms only");
 
-int main(int argc, char** argv) {
+int main(int, char**) {
 #ifndef DEBUG
   if (auto* out = std::freopen("stdout.txt", "w", stdout)) {
     std::setvbuf(out, nullptr, _IONBF, 0);
@@ -16,10 +16,6 @@ int main(int argc, char** argv) {
   SDL_SetHint(SDL_HINT_MAC_PRESS_AND_HOLD, "0");
   SDL_Init(SDL_INIT_GAMEPAD | SDL_INIT_VIDEO);
   std::atexit([]{ SDL_Quit(); });
-
-  PHYSFS_init(argv[0]);
-  PHYSFS_registerArchiver(&archiver);
-  std::atexit([]{ PHYSFS_deinit(); });
 
   auto config = ma_engine_config_init();
   config.channels = 2;

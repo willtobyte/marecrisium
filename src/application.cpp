@@ -2,7 +2,7 @@ int application::run() {
   try {
     const auto* const rom = std::getenv("CARTRIDGE");
 
-    filesystem::mount(rom ? rom : "cartridge.rom", "/");
+    io::mount(rom ? rom : "cartridge.rom");
 
     scriptengine se;
     se.run();

@@ -109,9 +109,9 @@ void render(const tilemap::layer& layer) {
 }
 
 tilemap::tilemap(std::string_view name, b2WorldId world) {
-  const auto blob = io::read(std::format("tilemaps/{}.bmap", name));
-  const auto* noalias bytes = blob.data();
-  const auto length = blob.size();
+  const auto buffer = io::read(std::format("tilemaps/{}.tilemap", name));
+  const auto* noalias bytes = buffer.data();
+  const auto length = buffer.size();
 
   auto* cursor = bytes;
   _width = static_cast<int32_t>(little(cursor));

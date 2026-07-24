@@ -15,7 +15,6 @@
 #include <fstream>
 #include <limits>
 #include <memory>
-#include <mutex>
 #include <numbers>
 #include <optional>
 #include <print>
@@ -24,12 +23,20 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <thread>
 #include <type_traits>
 #include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 #include <ankerl/unordered_dense.h>
 #include <box2d/box2d.h>
@@ -39,7 +46,6 @@ using namespace entt::literals;
 #include <lua.hpp>
 #include <miniaudio.h>
 #include <opusfile.h>
-#include <physfs.h>
 #include <SDL3/SDL.h>
 #include <spng.h>
 #include <sqlite3.h>

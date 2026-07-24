@@ -1,20 +1,20 @@
-# pyright: reportAttributeAccessIssue=false, reportMissingImports=false
+from pathlib import Path
+from typing import Any, cast
 
 from conan import ConanFile
 from conan.tools.cmake import CMakeDeps, CMakeToolchain
-from pathlib import Path
 
 
 class Game(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
 
     def requirements(self):
+        api = cast(Any, self)
         for package in [
             "box2d/3.1.1",
             "entt/3.16.0",
             "miniaudio/0.11.22",
             "mimalloc/3.3.2",
-            "physfs/3.2.0",
             "libspng/0.7.4",
             "sdl/3.4.8",
             "sqlite3/3.53.3",
@@ -24,22 +24,24 @@ class Game(ConanFile):
             "yyjson/0.12.0",
             "zstd/1.5.7",
         ]:
-            self.requires(package)
+            api.requires(package)
 
     def configure(self):
-        self.options["miniaudio"].header_only = True
+        api = cast(Any, self)
+        api.options["miniaudio"].header_only = True
 
-        self.options["mimalloc"].shared = False
-        self.options["mimalloc"].secure = False
-        self.options["mimalloc"].override = True
-        self.options["mimalloc"].single_object = self.settings.os != "Windows"
+        api.options["mimalloc"].shared = False
+        api.options["mimalloc"].secure = False
+        api.options["mimalloc"].override = True
+        api.options["mimalloc"].single_object = api.settings.os != "Windows"
 
-        self.options["opusfile"].http = False
+        api.options["opusfile"].http = False
 
     def generate(self):
-        license_output = Path(self.build_folder) / "LICENSES"
+        api = cast(Any, self)
+        license_output = Path(api.build_folder) / "LICENSES"
         with license_output.open("w", encoding="utf-8") as out:
-            for dep in self.dependencies.values():
+            for dep in api.dependencies.values():
                 if dep.is_build_context or not dep.package_folder:
                     continue
 

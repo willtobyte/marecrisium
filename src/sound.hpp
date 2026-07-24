@@ -36,8 +36,8 @@ public:
 
 private:
   std::atomic<bool> _ended{false};
-  std::unique_ptr<PHYSFS_File, PHYSFS_Deleter> _file{};
-  std::unique_ptr<OggOpusFile, OggDeleter> _opus{};
+  bytes _data;
+  std::unique_ptr<OggOpusFile, OggOpusFile_Deleter> _opus{};
   stream _stream{};
   ma_sound _sound{};
 };

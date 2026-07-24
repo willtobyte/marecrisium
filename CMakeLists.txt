@@ -37,7 +37,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 find_package(box2d CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
-find_package(PhysFS CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(SPNG CONFIG REQUIRED)
 find_package(luajit CONFIG REQUIRED)
@@ -53,7 +52,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   $<$<NOT:$<CONFIG:Debug>>:mimalloc-static>
   box2d::box2d
   EnTT::EnTT
-  physfs-static
   SDL3::SDL3-static
   spng::spng_static
   miniaudio::miniaudio
@@ -65,4 +63,4 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   zstd::libzstd_static
 )
 
-target_precompile_headers(${PROJECT_NAME} PRIVATE ${HEADER_FILES})
+target_precompile_headers(${PROJECT_NAME} PRIVATE src/common.hpp src/components.hpp src/spritesheet.hpp src/tilemap.hpp src/overlay.hpp ${HEADER_FILES})

@@ -70,3 +70,4 @@
 * Make use of `[[assume ..]];`. Assume happy path.
 * **Always use instrumentation.**
 * Always test with all available sanitizers. When appropriate, also perform fuzz testing.
+* Only little-endian code.
