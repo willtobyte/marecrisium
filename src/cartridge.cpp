@@ -4,7 +4,6 @@ constexpr uint8_t ALGO_RAW = 0;
 constexpr uint8_t ALGO_ZSTD_DICT = 1;
 constexpr size_t HEADER = 36;
 constexpr size_t RECORD = 20;
-constexpr size_t SCRATCH = 6uz * 1024 * 1024;
 constexpr uint32_t EMPTY = UINT32_MAX;
 constexpr uint64_t PRIME = 0x9e3779b97f4a7c15ull;
 
@@ -41,8 +40,7 @@ struct archive final {
   std::unique_ptr<uint8_t[]> manifest;
   std::unique_ptr<uint32_t[]> storage;
   std::unique_ptr<uint8_t[]> strings;
-  std::unique_ptr<uint8_t[]> scratch;
-  size_t capacity{SCRATCH};
+  std::span<uint8_t> buffer;
   decoder_t decoder;
   dictionary_t dictionary;
   std::span<const record> records;
@@ -154,12 +152,13 @@ void *crom_open_archive(PHYSFS_Io *io, const char *, int, int *claimed) {
   const auto slots = fields[5];
   const auto seed = fields[6];
   const auto buckets = fields[7];
+  const auto buffer = fields[8];
 
   const auto size = HEADER + static_cast<size_t>(count) * RECORD + buckets + strings + trainsize;
 
   auto cartridge = std::make_unique<archive>();
-  cartridge->scratch = std::make_unique_for_overwrite<uint8_t[]>(SCRATCH);
-  cartridge->manifest = std::make_unique_for_overwrite<uint8_t[]>(size);
+  cartridge->manifest = std::make_unique_for_overwrite<uint8_t[]>(size + buffer);
+  cartridge->buffer = {cartridge->manifest.get() + size, buffer};
   std::memcpy(cartridge->manifest.get(), fields.data(), HEADER);
 
   const auto remainder = size - HEADER;
@@ -259,18 +258,15 @@ PHYSFS_Io *crom_open_read(void *opaque, const char *name) {
       }
 
       case ALGO_ZSTD_DICT: {
-        if (compressed > cartridge->capacity) [[unlikely]] {
-          cartridge->scratch = std::make_unique_for_overwrite<uint8_t[]>(compressed);
-          cartridge->capacity = compressed;
-        }
-
-        const auto bytes = source->read(source, cartridge->scratch.get(), compressed);
+        const auto size = cartridge->buffer.size();
+        [[assume(compressed <= size)]];
+        const auto bytes = source->read(source, cartridge->buffer.data(), compressed);
         [[assume(bytes == static_cast<PHYSFS_sint64>(compressed))]];
 
         const auto result = ZSTD_decompress_usingDDict(
           cartridge->decoder.get(),
           data, uncompressed,
-          cartridge->scratch.get(), compressed,
+          cartridge->buffer.data(), compressed,
           cartridge->dictionary.get());
 
         [[assume(result == uncompressed)]];

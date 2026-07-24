@@ -4,11 +4,12 @@
 # dependencies = ["zstandard"]
 # ///
 
+import importlib
 import struct
 import sys
 from pathlib import Path
 
-import zstandard
+zstandard = importlib.import_module("zstandard")
 
 MAGIC = 0x4D4F5243
 DIRECTORY = 1
@@ -140,12 +141,14 @@ def main() -> int:
     trained = dictionary.as_bytes()
 
     encoder = zstandard.ZstdCompressor(level=LEVEL, dict_data=dictionary, threads=-1)
+    buffer = 0
     for current in sources:
         if current["directory"]:
             continue
         compressed = encoder.compress(current["data"])
         if len(compressed) < len(current["data"]):
             current["blob"] = compressed
+            buffer = max(buffer, len(compressed))
         else:
             current["blob"] = current["data"]
             current["algorithm"] = ALGO_RAW
@@ -184,7 +187,7 @@ def main() -> int:
             slots,
             seed,
             len(buckets),
-            0,
+            buffer,
         )
     )
 

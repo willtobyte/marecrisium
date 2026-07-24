@@ -4,11 +4,12 @@
 # dependencies = ["zstandard"]
 # ///
 
+import importlib
 import struct
 import sys
 from pathlib import Path
 
-import zstandard
+zstandard = importlib.import_module("zstandard")
 
 MAGIC = 0x4D4F5243
 DIRECTORY = 1
@@ -30,7 +31,7 @@ def main() -> int:
         _slots,
         _seed,
         buckets_compressed,
-        _reserved,
+        buffer,
     ) = struct.unpack_from("<IIIIIIIII", rom, 0)
 
     if magic != MAGIC:
@@ -81,6 +82,9 @@ def main() -> int:
         if algorithm == ALGO_RAW:
             destination.write_bytes(rom[position : position + uncompressed])
             continue
+
+        if compressed > buffer:
+            raise ValueError("compressed payload exceeds buffer")
 
         payload = bytes(rom[position : position + compressed])
         destination.write_bytes(
