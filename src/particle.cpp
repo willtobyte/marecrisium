@@ -5,6 +5,26 @@ namespace lookup {
   constexpr auto y = "y"_hs;
 }
 
+enum class slot : size_t {
+  x,
+  y,
+  vx,
+  vy,
+  gx,
+  gy,
+  life,
+  scale,
+  angle,
+  av,
+  af,
+  total,
+};
+
+template<slot S, typename T>
+static T* column(T* values, size_t count) noexcept {
+  return values + count * std::to_underlying(S);
+}
+
 static int particle_index(lua_State* state) {
   const auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
@@ -51,13 +71,17 @@ static int particle_newindex(lua_State* state) {
 }
 
 particle::particle(const config& config, const pixmap& texture, float x, float y, bool active)
-    : _x(x)
+    : _count(config.count)
+    , _texture(&texture)
+    , _x(x)
     , _y(y)
     , _half_width(static_cast<float>(texture.width()) * .5f)
     , _half_height(static_cast<float>(texture.height()) * .5f)
     , _active(active)
-    , _count(config.count)
-    , _texture(&texture)
+    , _idle(!active)
+    , _values(std::make_unique_for_overwrite<float[]>(config.count * std::to_underlying(slot::total)))
+    , _vertices(std::make_unique_for_overwrite<SDL_Vertex[]>(config.count * 4))
+    , _indices(std::make_unique_for_overwrite<int[]>(config.count * 6))
     , _spawn_x_range(std::minmax(config.spawn_x.first, config.spawn_x.second))
     , _spawn_y_range(std::minmax(config.spawn_y.first, config.spawn_y.second))
     , _radius_range(std::minmax(config.radius.first, config.radius.second))
@@ -74,25 +98,12 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
 
   const auto n = _count;
 
-  _position_x.resize(n);
-  _position_y.resize(n);
-  _velocity_x.resize(n);
-  _velocity_y.resize(n);
-  _gravity_x.resize(n);
-  _gravity_y.resize(n);
-  _life.resize(n);
-  _scale.resize(n);
-  _angle.resize(n);
-  _angular_velocity.resize(n);
-  _angular_force.resize(n);
-
-  _vertices.resize(n * 4);
-  _indices.resize(n * 6);
+  std::fill_n(_values.get(), n * std::to_underlying(slot::total), .0f);
 
   for (auto i = 0uz; i < n; ++i) {
     const auto base = static_cast<int>(i * 4);
 
-    auto* ip = _indices.data() + i * 6;
+    auto* ip = _indices.get() + i * 6;
 
     *ip++ = base; *ip++ = base + 1; *ip++ = base + 2;
     *ip++ = base; *ip++ = base + 2; *ip++ = base + 3;
@@ -107,32 +118,41 @@ bool particle::active() const { return _active; }
 
 void particle::set_active(bool value) {
   _active = value;
+  if (value)
+    _idle = false;
 }
 
 void particle::update(float delta) {
+  if (_idle) [[unlikely]]
+    return;
+
   const auto n = _count;
   const auto twopi = 2.f * std::numbers::pi_v<float>;
 
-  auto* noalias xs = _position_x.data();
-  auto* noalias ys = _position_y.data();
-  auto* noalias vxs = _velocity_x.data();
-  auto* noalias vys = _velocity_y.data();
-  auto* noalias gxs = _gravity_x.data();
-  auto* noalias gys = _gravity_y.data();
-  auto* noalias lifes = _life.data();
-  auto* noalias angles = _angle.data();
-  auto* noalias avs = _angular_velocity.data();
-  auto* noalias afs = _angular_force.data();
+  auto* values = _values.get();
+  auto* noalias xs = column<slot::x>(values, n);
+  auto* noalias ys = column<slot::y>(values, n);
+  auto* noalias vxs = column<slot::vx>(values, n);
+  auto* noalias vys = column<slot::vy>(values, n);
+  auto* noalias gxs = column<slot::gx>(values, n);
+  auto* noalias gys = column<slot::gy>(values, n);
+  auto* noalias life = column<slot::life>(values, n);
+  auto* noalias scales = column<slot::scale>(values, n);
+  auto* noalias angles = column<slot::angle>(values, n);
+  auto* noalias avs = column<slot::av>(values, n);
+  auto* noalias afs = column<slot::af>(values, n);
 
   [[assume(xs != nullptr)]];
   [[assume(ys != nullptr)]];
   [[assume(vxs != nullptr)]];
   [[assume(vys != nullptr)]];
-  [[assume(lifes != nullptr)]];
+  [[assume(life != nullptr)]];
   [[assume(angles != nullptr)]];
 
+  auto idle = !_active;
   for (auto i = 0uz; i < n; ++i) {
-    lifes[i] -= delta;
+    life[i] -= delta;
+    idle = idle && life[i] <= .0f;
 
     avs[i] += afs[i] * delta;
 
@@ -153,7 +173,7 @@ void particle::update(float delta) {
     const auto py = _y;
 
     for (auto i = 0uz; i < n; ++i) {
-      if (lifes[i] > .0f) [[likely]]
+      if (life[i] > .0f) [[likely]]
         continue;
 
       const auto radius = rng(_radius_range);
@@ -170,32 +190,38 @@ void particle::update(float delta) {
       gys[i] = rng(_gravity_y_range);
       avs[i] = rng(_rotation_velocity_range);
       afs[i] = rng(_rotation_force_range);
-      lifes[i] = rng(_life_range);
-      _scale[i] = rng(_scale_range);
+      life[i] = rng(_life_range);
+      scales[i] = rng(_scale_range);
       angles[i] = a;
     }
   }
+
+  _idle = idle;
 }
 
 void particle::draw() {
+  if (_idle) [[unlikely]]
+    return;
+
   const auto n = _count;
   const auto hw = _half_width;
   const auto hh = _half_height;
   const auto vw = viewport.width;
   const auto vh = viewport.height;
   const auto extent = std::max(hw, hh);
-  auto* vertices = _vertices.data();
-  auto* indices = _indices.data();
+  auto* vertices = _vertices.get();
+  auto* indices = _indices.get();
 
-  const auto* noalias xs = _position_x.data();
-  const auto* noalias ys = _position_y.data();
-  const auto* noalias lifes = _life.data();
-  const auto* noalias scales = _scale.data();
-  const auto* noalias angles = _angle.data();
+  const auto* values = _values.get();
+  const auto* noalias xs = column<slot::x>(values, n);
+  const auto* noalias ys = column<slot::y>(values, n);
+  const auto* noalias life = column<slot::life>(values, n);
+  const auto* noalias scales = column<slot::scale>(values, n);
+  const auto* noalias angles = column<slot::angle>(values, n);
 
   [[assume(xs != nullptr)]];
   [[assume(ys != nullptr)]];
-  [[assume(lifes != nullptr)]];
+  [[assume(life != nullptr)]];
   [[assume(scales != nullptr)]];
   [[assume(angles != nullptr)]];
   [[assume(vertices != nullptr)]];
@@ -203,7 +229,7 @@ void particle::draw() {
   auto* vp = vertices;
 
   for (auto i = 0uz; i < n; ++i) {
-    if (lifes[i] <= .0f) [[unlikely]]
+    if (life[i] <= .0f) [[unlikely]]
       continue;
 
     const auto sc = scales[i];
@@ -214,17 +240,17 @@ void particle::draw() {
     if (px - se > vw || px + se < .0f || py - se > vh || py + se < .0f) [[unlikely]]
       continue;
 
-    const auto alpha = std::min(lifes[i], 1.f);
-    const auto shw = hw * sc;
-    const auto shh = hh * sc;
+    const auto alpha = std::min(life[i], 1.f);
+    const auto sw = hw * sc;
+    const auto sh = hh * sc;
 
     float sa, ca;
     sincos(angles[i], sa, ca);
 
-    const auto dx0 = -shw * ca + shh * sa;
-    const auto dy0 = -shw * sa - shh * ca;
-    const auto dx1 = shw * ca + shh * sa;
-    const auto dy1 = shw * sa - shh * ca;
+    const auto dx0 = -sw * ca + sh * sa;
+    const auto dy0 = -sw * sa - sh * ca;
+    const auto dx1 = sw * ca + sh * sa;
+    const auto dy1 = sw * sa - sh * ca;
 
     const SDL_FColor color{1.f, 1.f, 1.f, alpha};
 
@@ -235,6 +261,8 @@ void particle::draw() {
   }
 
   const auto nv = static_cast<int>(vp - vertices);
+  if (nv == 0) [[unlikely]]
+    return;
 
   SDL_RenderGeometry(
     renderer,

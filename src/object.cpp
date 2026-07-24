@@ -373,8 +373,6 @@ namespace {
 
 
 void object::bind(entt::registry& registry, entt::entity entity, scriptable& component, std::string_view name, std::string_view kind) {
-  depot->source.insert(kind);
-
   lua_pushlstring(L, name.data(), name.size());
   component.name_reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
@@ -384,8 +382,6 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
   const auto identity = entt::hashed_string{kind.data(), kind.size()};
 
   if (const auto it = prototypes.find(identity); it != prototypes.end()) [[likely]] {
-    lua_pop(L, 1);
-
     const auto& blueprint = it->second;
     component.prototype = blueprint.reference;
     component.on_loop = blueprint.on_loop;
@@ -406,6 +402,7 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
     return commit(registry, entity, component);
   }
 
+  depot->source.insert(kind);
   binding::call(L, 0, 1);
 
   component.prototype = luaL_ref(L, LUA_REGISTRYINDEX);

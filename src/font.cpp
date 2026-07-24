@@ -10,7 +10,7 @@ static int font_label(lua_State *state) {
     return 0;
   }
 
-  std::array<glypheffect, 256> effects{};
+  std::array<glypheffect, 256> effects;
   auto count = 0uz;
 
   lua_pushnil(state);
@@ -25,6 +25,11 @@ static int font_label(lua_State *state) {
     if (index >= effects.size()) {
       lua_pop(state, 1);
       continue;
+    }
+
+    if (index >= count) {
+      std::fill(effects.begin() + count, effects.begin() + index + 1, glypheffect{});
+      count = index + 1;
     }
 
     auto &effect = effects[index];
@@ -68,8 +73,6 @@ static int font_label(lua_State *state) {
     if (lua_isnumber(state, -1))
       effect.b = static_cast<float>(lua_tonumber(state, -1));
     lua_pop(state, 1);
-
-    if (index >= count) count = index + 1;
 
     lua_pop(state, 1);
   }

@@ -47,12 +47,12 @@ private:
   float _half_width;
   float _half_height;
   bool _active;
+  bool _idle;
 
-  std::vector<float> _position_x, _position_y, _velocity_x, _velocity_y, _gravity_x, _gravity_y;
-  std::vector<float> _life, _scale, _angle, _angular_velocity, _angular_force;
+  std::unique_ptr<float[]> _values;
 
-  std::vector<SDL_Vertex> _vertices;
-  std::vector<int> _indices;
+  std::unique_ptr<SDL_Vertex[]> _vertices;
+  std::unique_ptr<int[]> _indices;
 
   std::pair<float, float> _spawn_x_range, _spawn_y_range, _radius_range, _angle_range;
   std::pair<float, float> _velocity_x_range, _velocity_y_range, _gravity_x_range, _gravity_y_range;

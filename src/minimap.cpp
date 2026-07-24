@@ -55,11 +55,9 @@ void minimap::draw() {
   const auto ts = _tilemap->_size;
   const auto &collision = _tilemap->_collision;
 
-  _positions.clear();
-
   const auto view = _registry->view<const scriptable, const transform>(entt::exclude<dormant>);
-  _positions.reserve(view.size_hint());
 
+  uint64_t digest = 0;
   for (auto &&[en, op, tf] : view.each()) {
     if (op.handle == LUA_NOREF) [[unlikely]]
       continue;
@@ -70,7 +68,11 @@ void minimap::draw() {
       continue;
     }
 
-    _positions.emplace_back(tf.x, tf.y);
+    const auto ex = static_cast<int32_t>(tf.x / ts);
+    const auto ey = static_cast<int32_t>(tf.y / ts);
+    const auto packed = (static_cast<uint64_t>(static_cast<uint32_t>(ex)) << 32)
+                      |  static_cast<uint64_t>(static_cast<uint32_t>(ey));
+    digest = (digest << 6) + (digest >> 2) + packed + 0x9e3779b97f4a7c15ull;
   }
 
   const auto cx = static_cast<int32_t>(_position_x / ts);
@@ -81,15 +83,6 @@ void minimap::draw() {
     (viewport.height - SIZE) * .5f,
     SIZE, SIZE
   };
-
-  uint64_t digest = 0;
-  for (const auto& [x, y] : _positions) {
-    const auto ex = static_cast<int32_t>(x / ts);
-    const auto ey = static_cast<int32_t>(y / ts);
-    const auto packed = (static_cast<uint64_t>(static_cast<uint32_t>(ex)) << 32)
-                      |  static_cast<uint64_t>(static_cast<uint32_t>(ey));
-    digest = (digest << 6) + (digest >> 2) + packed + 0x9e3779b97f4a7c15ull;
-  }
 
   const snapshot current{cx, cy, digest};
 
@@ -123,9 +116,12 @@ void minimap::draw() {
     }
   }
 
-  for (const auto &[x, y] : _positions) {
-    const auto ex = static_cast<int32_t>(x / ts) - cx + RADIUS;
-    const auto ey = static_cast<int32_t>(y / ts) - cy + RADIUS;
+  for (auto &&[en, op, tf] : view.each()) {
+    if (op.handle == LUA_NOREF || op.kind == "player"_hs) [[unlikely]]
+      continue;
+
+    const auto ex = static_cast<int32_t>(tf.x / ts) - cx + RADIUS;
+    const auto ey = static_cast<int32_t>(tf.y / ts) - cy + RADIUS;
 
     if (ex < 0 || ex >= SIDE || ey < 0 || ey >= SIDE) [[likely]]
       continue;

@@ -80,6 +80,7 @@ struct body final {
   float extent_x{};
   float extent_y{};
   body_type type{body_type::kinematic};
+  bool events{};
 };
 
 static_assert(std::is_trivially_copyable_v<body>, "body must be trivially copyable");

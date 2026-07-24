@@ -94,6 +94,9 @@ void prepare(tilemap::layer& layer, std::string_view name, std::string_view path
 
 void render(const tilemap::layer& layer) {
   const auto vertices = layer.vertices.size();
+  if (vertices == 0) [[unlikely]]
+    return;
+
   SDL_RenderGeometry(
     renderer,
     static_cast<SDL_Texture*>(*layer.atlas),

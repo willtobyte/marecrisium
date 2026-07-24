@@ -22,6 +22,9 @@ static entt::entity to_entity(const void* p) {
 }
 
 static void submit(SDL_Texture *texture, std::vector<SDL_Vertex> &vertices, std::vector<int> &indices) {
+  if (vertices.empty()) [[unlikely]]
+    return;
+
   SDL_RenderGeometry(
     renderer,
     texture,
@@ -84,8 +87,8 @@ static bool ensure_shape(body &b, const frame &fr, entt::entity entity, const tr
 
     auto sdef = b2DefaultShapeDef();
     sdef.userData = to_userdata(entity);
-    sdef.enableContactEvents = true;
-    sdef.enableSensorEvents = true;
+    sdef.enableContactEvents = b.events;
+    sdef.enableSensorEvents = b.events;
 
     if (b.type == body_type::dynamic) {
       sdef.density = 1.f;
@@ -1133,8 +1136,11 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       }
 
       const auto id = b2CreateBody(_world, &bdef);
-      _registry.emplace<body>(entity, id, b2_nullShapeId, .0f, .0f, type);
-      _registry.emplace<boundary>(entity);
+      const auto events = op.on_collision_begin != LUA_NOREF || op.on_collision_end != LUA_NOREF;
+      _registry.emplace<body>(entity, id, b2_nullShapeId, .0f, .0f, type, events);
+
+      if (op.on_screen_exit != LUA_NOREF || op.on_screen_enter != LUA_NOREF)
+        _registry.emplace<boundary>(entity);
     }
   }
 
@@ -1401,16 +1407,23 @@ entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexc
     return entt::null;
 
   entt::entity topmost = entt::null;
+  auto depth = std::numeric_limits<int>::min();
+  auto rank = std::numeric_limits<std::size_t>::max();
+  const auto* order = _registry.storage<renderable>();
 
-  for (auto&& [entity, a, tf] : _registry.view<animation, transform>(entt::exclude<dormant>).each()) {
-    if (!tf.shown || tf.alpha <= .0f) [[unlikely]]
+  for (const auto entity : hits) {
+    if (!_registry.valid(entity) || _registry.all_of<dormant>(entity)) [[unlikely]]
       continue;
 
-    for (const auto hit : hits) {
-      if (hit == entity) {
-        topmost = entity;
-        break;
-      }
+    const auto [an, tf, r] = _registry.try_get<animation, transform, renderable>(entity);
+    if (!an || !tf || !r || !tf->shown || tf->alpha <= .0f) [[unlikely]]
+      continue;
+
+    const auto current = order->index(entity);
+    if (r->z > depth || (r->z == depth && current < rank)) {
+      topmost = entity;
+      depth = r->z;
+      rank = current;
     }
   }
 

@@ -68,11 +68,13 @@ void overlay::clear() {
 }
 
 void overlay::update(float delta) {
-  for (auto *foreground : decltype(_active){_active})
+  _snapshot.assign(_active.begin(), _active.end());
+  for (auto *foreground : _snapshot)
     foreground->update(delta);
 }
 
 void overlay::draw() {
-  for (auto *foreground : decltype(_active){_active})
+  _snapshot.assign(_active.begin(), _active.end());
+  for (auto *foreground : _snapshot)
     foreground->draw();
 }
