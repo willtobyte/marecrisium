@@ -5,6 +5,9 @@ namespace {
   }
 
   constexpr auto picks = 16uz;
+  constexpr auto corners = 4uz;
+  constexpr auto elements = 6uz;
+  constexpr std::array pattern{0, 1, 2, 0, 2, 3};
 }
 
 static bool on_event(void *userdata, SDL_Event *event) {
@@ -23,20 +26,18 @@ static entt::entity to_entity(const void* p) {
   return static_cast<entt::entity>(reinterpret_cast<uintptr_t>(p) - 1);
 }
 
-static void submit(SDL_Texture *texture, std::vector<SDL_Vertex> &vertices, std::vector<int> &indices) {
-  if (vertices.empty()) [[unlikely]]
+static void submit(SDL_Texture* texture, const SDL_Vertex* first, const SDL_Vertex* last, const int* indices) {
+  if (first == last) [[unlikely]]
     return;
 
+  const auto count = static_cast<size_t>(last - first);
   SDL_RenderGeometry(
     renderer,
     texture,
-    vertices.data(),
-    static_cast<int>(vertices.size()),
-    indices.data(),
-    static_cast<int>(indices.size()));
-
-  vertices.clear();
-  indices.clear();
+    first,
+    static_cast<int>(count),
+    indices,
+    static_cast<int>(count / corners * elements));
 }
 
 static const auto filter = b2DefaultQueryFilter();
@@ -80,11 +81,34 @@ static constexpr auto mapping(const char *s) -> std::pair<body_type, b2BodyType>
   }
 }
 
-static bool ensure_shape(body &b, const frame &fr, entt::entity entity, const transform &tf, float timestep) {
+static bool ensure_shape(body& b, const frame& fr, entt::entity entity, const transform& tf, float timestep) {
+  if (b.snapshot == &fr) [[likely]] {
+    if (b.type == body_type::kinematic) {
+      const auto center = center_of(b, tf, &fr);
+      if (center.x != b.target_x || center.y != b.target_y) [[unlikely]] {
+        b.target_x = center.x;
+        b.target_y = center.y;
+        b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
+        b.moving = true;
+      } else if (b.moving) [[unlikely]] {
+        const auto position = b2Body_GetPosition(b.id);
+        if (position.x == center.x && position.y == center.y) {
+          b2Body_SetLinearVelocity(b.id, b2Vec2_zero);
+          b.moving = false;
+        } else {
+          b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
+        }
+      }
+    }
+
+    return false;
+  }
+
+  b.snapshot = &fr;
   const auto hx = fr.bound_width * .5f;
   const auto hy = fr.bound_height * .5f;
 
-  if (!b2Shape_IsValid(b.shape)) {
+  if (B2_IS_NULL(b.shape)) {
     const auto polygon = b2MakeBox(hx, hy);
 
     auto sdef = b2DefaultShapeDef();
@@ -104,7 +128,10 @@ static bool ensure_shape(body &b, const frame &fr, entt::entity entity, const tr
     const auto center = center_of(b, tf, &fr);
 
     if (b.type == body_type::kinematic) {
+      b.target_x = center.x;
+      b.target_y = center.y;
       b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
+      b.moving = true;
       return true;
     }
 
@@ -122,7 +149,20 @@ static bool ensure_shape(body &b, const frame &fr, entt::entity entity, const tr
 
   if (b.type == body_type::kinematic) {
     const auto center = center_of(b, tf, &fr);
-    b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
+    if (center.x != b.target_x || center.y != b.target_y) [[unlikely]] {
+      b.target_x = center.x;
+      b.target_y = center.y;
+      b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
+      b.moving = true;
+    } else if (b.moving) [[unlikely]] {
+      const auto position = b2Body_GetPosition(b.id);
+      if (position.x == center.x && position.y == center.y) {
+        b2Body_SetLinearVelocity(b.id, b2Vec2_zero);
+        b.moving = false;
+      } else {
+        b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
+      }
+    }
   }
 
   return false;
@@ -584,8 +624,8 @@ void stage::update(float delta) {
         b2Body_Disable(b->id);
 
       const auto& op = _registry.get<scriptable>(e);
-      if (op.on_sleep != LUA_NOREF) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_sleep);
+      if (op.blueprint->on_sleep != LUA_NOREF) {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_sleep);
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
         binding::call(L, 1, 0);
       }
@@ -615,8 +655,8 @@ void stage::update(float delta) {
           b2Body_Enable(b->id);
 
         const auto& op = _registry.get<scriptable>(e);
-        if (op.on_wake != LUA_NOREF) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_wake);
+        if (op.blueprint->on_wake != LUA_NOREF) {
+          lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_wake);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
           binding::call(L, 1, 0);
         }
@@ -658,17 +698,19 @@ void stage::update(float delta) {
   }
 
   for (auto&& [e, op] : _registry.view<scriptable>(entt::exclude<dormant>).each()) {
-    if (op.prototype == LUA_NOREF || op.handle == LUA_NOREF) [[unlikely]]
+    if (!op.blueprint || op.blueprint->reference == LUA_NOREF || op.handle == LUA_NOREF) [[unlikely]]
       continue;
 
-    if (op.on_loop != LUA_NOREF) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_loop);
+    const auto& bp = *op.blueprint;
+    if (bp.on_loop != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_loop);
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
       lua_pushnumber(L, static_cast<lua_Number>(delta));
       binding::call(L, 2, 0);
-    }
 
-    if (!_registry.valid(e)) continue;
+      if (!_registry.valid(e))
+        continue;
+    }
 
     auto* a = _registry.try_get<animation>(e);
     if (!a || !a->playing || a->sheet->count == 0) [[unlikely]]
@@ -688,17 +730,18 @@ void stage::update(float delta) {
       if (a->current >= c.count) {
         a->current = 0;
 
-        if (op.on_animation_end != LUA_NOREF) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_animation_end);
+        if (bp.on_animation_end != LUA_NOREF) {
+          lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_end);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
           lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
           binding::call(L, 2, 0);
+
+          if (!_registry.valid(e))
+            continue;
         }
 
-        if (!_registry.valid(e)) continue;
-
-        if (op.on_animation_begin != LUA_NOREF) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_animation_begin);
+        if (bp.on_animation_begin != LUA_NOREF) {
+          lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_begin);
           lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
           lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
           binding::call(L, 2, 0);
@@ -826,8 +869,8 @@ void stage::update(float delta) {
 
     for (uint8_t bit = 0; bit < 4; ++bit) {
       const auto mask = static_cast<uint8_t>(1u << bit);
-      if ((exited & mask) && op.on_screen_exit != LUA_NOREF) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_screen_exit);
+      if ((exited & mask) && op.blueprint->on_screen_exit != LUA_NOREF) {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_screen_exit);
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
         lua_rawgeti(L, LUA_REGISTRYINDEX, _bearings[bit]);
         binding::call(L, 2, 0);
@@ -835,8 +878,8 @@ void stage::update(float delta) {
         if (!_registry.valid(e)) break;
       }
 
-      if ((entered & mask) && op.on_screen_enter != LUA_NOREF) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, op.on_screen_enter);
+      if ((entered & mask) && op.blueprint->on_screen_enter != LUA_NOREF) {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_screen_enter);
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
         lua_rawgeti(L, LUA_REGISTRYINDEX, _bearings[bit]);
         binding::call(L, 2, 0);
@@ -847,23 +890,23 @@ void stage::update(float delta) {
   }
 
   {
-    const auto events = b2World_GetSensorEvents(_world);
+    const auto sensors = b2World_GetSensorEvents(_world);
     entt::entity ea, eb;
 
-    auto dispatch = [&](auto *events, size_t count, int scriptable::*callback) {
-      for (const auto& event : std::span(events, count)) {
+    auto dispatch = [&](auto* entries, size_t count, int prototype::*callback) {
+      for (const auto& event : std::span(entries, count)) {
         if (!resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
           continue;
 
-        const auto *pa = _registry.try_get<scriptable>(ea);
-        const auto *pb = _registry.try_get<scriptable>(eb);
-        if (pa && pa->*callback != LUA_NOREF)
-          dispatch_collision(*pa, pb, pa->*callback);
+        const auto* pa = _registry.try_get<scriptable>(ea);
+        const auto* pb = _registry.try_get<scriptable>(eb);
+        if (pa && pa->blueprint->*callback != LUA_NOREF)
+          dispatch_collision(*pa, pb, pa->blueprint->*callback);
       }
     };
 
-    dispatch(events.beginEvents, static_cast<size_t>(events.beginCount), &scriptable::on_collision_begin);
-    dispatch(events.endEvents, static_cast<size_t>(events.endCount), &scriptable::on_collision_end);
+    dispatch(sensors.beginEvents, static_cast<size_t>(sensors.beginCount), &prototype::on_collision_begin);
+    dispatch(sensors.endEvents, static_cast<size_t>(sensors.endCount), &prototype::on_collision_end);
 
     const auto contacts = b2World_GetContactEvents(_world);
     for (const auto& event : std::span(contacts.beginEvents, static_cast<size_t>(contacts.beginCount))) {
@@ -872,12 +915,12 @@ void stage::update(float delta) {
 
       auto *pa = _registry.try_get<scriptable>(ea);
       auto *pb = _registry.try_get<scriptable>(eb);
-      if (pa) dispatch_collision(*pa, pb, pa->on_collision_begin, &event.manifold.normal);
+      if (pa) dispatch_collision(*pa, pb, pa->blueprint->on_collision_begin, &event.manifold.normal);
 
       pb = _registry.try_get<scriptable>(eb);
       pa = _registry.try_get<scriptable>(ea);
       const auto flipped = b2Vec2{-event.manifold.normal.x, -event.manifold.normal.y};
-      if (pb) dispatch_collision(*pb, pa, pb->on_collision_begin, &flipped);
+      if (pb) dispatch_collision(*pb, pa, pb->blueprint->on_collision_begin, &flipped);
     }
 
     for (const auto& event : std::span(contacts.endEvents, static_cast<size_t>(contacts.endCount))) {
@@ -886,10 +929,10 @@ void stage::update(float delta) {
 
       auto *pa = _registry.try_get<scriptable>(ea);
       auto *pb = _registry.try_get<scriptable>(eb);
-      if (pa) dispatch_collision(*pa, pb, pa->on_collision_end);
+      if (pa) dispatch_collision(*pa, pb, pa->blueprint->on_collision_end);
       pb = _registry.try_get<scriptable>(eb);
       pa = _registry.try_get<scriptable>(ea);
-      if (pb) dispatch_collision(*pb, pa, pb->on_collision_end);
+      if (pb) dispatch_collision(*pb, pa, pb->blueprint->on_collision_end);
     }
   }
 
@@ -903,7 +946,7 @@ void stage::update(float delta) {
       return lhs.z < rhs.z;
     }, entt::insertion_sort{});
 
-     rd.dirty = false;
+    rd.dirty = false;
   }
 }
 
@@ -919,12 +962,26 @@ void stage::draw() {
   view.use<renderable>();
 
   const auto capacity = view.size_hint();
-  _vertices.clear();
-  _indices.clear();
-  _vertices.reserve(capacity * 4);
-  _indices.reserve(capacity * 6);
+  const auto vcount = capacity * corners;
+  if (_vertices.size() < vcount)
+    _vertices.resize(vcount);
 
-  SDL_Texture *current = nullptr;
+  const auto icount = capacity * elements;
+  if (_indices.size() < icount) {
+    const auto first = _indices.size() / elements;
+    _indices.resize(icount);
+    auto* output = _indices.data() + first * elements;
+
+    for (auto i = first; i < capacity; ++i) {
+      const auto base = static_cast<int>(i * corners);
+      for (const auto offset : pattern)
+        *output++ = base + offset;
+    }
+  }
+
+  auto* output = _vertices.data();
+  auto* batch = output;
+  SDL_Texture* current = nullptr;
 
   for (auto&& [e, r, a, tf] : view.each()) {
     if (!tf.shown || !a.playing || !a.sheet || a.sheet->count == 0) [[unlikely]]
@@ -950,8 +1007,11 @@ void stage::draw() {
 
     auto *texture = static_cast<SDL_Texture *>(*a.sheet->pixmap);
 
-    if (texture != current) [[unlikely]]
-      submit(std::exchange(current, texture), _vertices, _indices);
+    if (texture != current) [[unlikely]] {
+      submit(current, batch, output, _indices.data());
+      current = texture;
+      batch = output;
+    }
 
     auto u0 = fr.u0;
     auto v0 = fr.v0;
@@ -977,23 +1037,15 @@ void stage::draw() {
     const auto dx1 = hw * ca + hh * sa;
     const auto dy1 = hw * sa - hh * ca;
 
-    const auto base = static_cast<int>(_vertices.size());
     const SDL_FColor color{1.f, 1.f, 1.f, alpha};
 
-    _vertices.emplace_back(SDL_Vertex{{mx + dx0, my + dy0}, color, {u0, v0}});
-    _vertices.emplace_back(SDL_Vertex{{mx + dx1, my + dy1}, color, {u1, v0}});
-    _vertices.emplace_back(SDL_Vertex{{mx - dx0, my - dy0}, color, {u1, v1}});
-    _vertices.emplace_back(SDL_Vertex{{mx - dx1, my - dy1}, color, {u0, v1}});
-
-    _indices.emplace_back(base);
-    _indices.emplace_back(base + 1);
-    _indices.emplace_back(base + 2);
-    _indices.emplace_back(base);
-    _indices.emplace_back(base + 2);
-    _indices.emplace_back(base + 3);
+    *output++ = SDL_Vertex{{mx + dx0, my + dy0}, color, {u0, v0}};
+    *output++ = SDL_Vertex{{mx + dx1, my + dy1}, color, {u1, v0}};
+    *output++ = SDL_Vertex{{mx - dx0, my - dy0}, color, {u1, v1}};
+    *output++ = SDL_Vertex{{mx - dx1, my - dy1}, color, {u0, v1}};
   }
 
-  submit(current, _vertices, _indices);
+  submit(current, batch, output, _indices.data());
 
   _particlesystem.draw();
 
@@ -1138,9 +1190,9 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   op.name = entt::hashed_string{name.data(), name.size()};
   op.kind = entt::hashed_string{kind.data(), kind.size()};
   object::bind(_registry, entity, op, name, kind);
-  const auto prototype = op.prototype;
+  const auto prototype = op.blueprint->reference;
   const auto handle = op.handle;
-  const auto on_spawn = op.on_spawn;
+  const auto on_spawn = op.blueprint->on_spawn;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
   lua_getfield(L, -1, "animation");
@@ -1178,10 +1230,10 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       }
 
       const auto id = b2CreateBody(_world, &bdef);
-      const auto events = op.on_collision_begin != LUA_NOREF || op.on_collision_end != LUA_NOREF;
+      const auto events = op.blueprint->on_collision_begin != LUA_NOREF || op.blueprint->on_collision_end != LUA_NOREF;
       _registry.emplace<body>(entity, id, b2_nullShapeId, .0f, .0f, type, events);
 
-      if (op.on_screen_exit != LUA_NOREF || op.on_screen_enter != LUA_NOREF)
+      if (op.blueprint->on_screen_exit != LUA_NOREF || op.blueprint->on_screen_enter != LUA_NOREF)
         _registry.emplace<boundary>(entity);
     }
   }
@@ -1358,14 +1410,14 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     translation,
     filter,
     +[](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void *userdata) -> float {
-      auto *gather = static_cast<tally *>(userdata);
-      const auto *data = b2Shape_GetUserData(shape);
+      auto* value = static_cast<tally*>(userdata);
+      const auto* data = b2Shape_GetUserData(shape);
       if (!data) [[unlikely]] {
-        gather->clip = fraction;
+        value->clip = fraction;
         return fraction;
       }
 
-      gather->hits->emplace_back(to_entity(data), fraction);
+      value->hits->emplace_back(to_entity(data), fraction);
       return 1.f;
     },
     &gather
@@ -1428,15 +1480,15 @@ uint8_t stage::pick_at(float x, float y, entt::entity* buffer, uint8_t capacity)
   b2World_OverlapAABB(
     _world, aabb, filter,
     [](b2ShapeId shape, void* userdata) -> bool {
-      auto* ctx = static_cast<context*>(userdata);
-      if (ctx->count >= ctx->capacity) [[unlikely]]
+      auto* value = static_cast<context*>(userdata);
+      if (value->count >= value->capacity) [[unlikely]]
         return false;
 
       const auto* ud = b2Shape_GetUserData(shape);
       if (!ud) [[unlikely]]
         return true;
 
-      ctx->hits[ctx->count++] = to_entity(ud);
+      value->hits[value->count++] = to_entity(ud);
       return true;
     },
     &ctx);
@@ -1498,10 +1550,10 @@ void stage::dispatch_press(float x, float y, const char* button) {
     return;
 
   const auto* proxy = _registry.try_get<scriptable>(topmost);
-  if (!proxy || proxy->handle == LUA_NOREF || proxy->on_press == LUA_NOREF) [[unlikely]]
+  if (!proxy || proxy->handle == LUA_NOREF || proxy->blueprint->on_press == LUA_NOREF) [[unlikely]]
     return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->on_press);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->blueprint->on_press);
   lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
   lua_pushnumber(L, static_cast<lua_Number>(x));
   lua_pushnumber(L, static_cast<lua_Number>(y));
@@ -1523,10 +1575,10 @@ void stage::dispatch_release(float x, float y, const char* button) {
     return;
 
   const auto* proxy = _registry.try_get<scriptable>(topmost);
-  if (!proxy || proxy->handle == LUA_NOREF || proxy->on_release == LUA_NOREF) [[unlikely]]
+  if (!proxy || proxy->handle == LUA_NOREF || proxy->blueprint->on_release == LUA_NOREF) [[unlikely]]
     return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->on_release);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->blueprint->on_release);
   lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
   lua_pushnumber(L, static_cast<lua_Number>(x));
   lua_pushnumber(L, static_cast<lua_Number>(y));
@@ -1551,10 +1603,10 @@ void stage::dispatch_hover(float x, float y) {
       continue;
 
     const auto* proxy = _registry.try_get<scriptable>(entity);
-    if (!proxy || proxy->handle == LUA_NOREF || proxy->on_hover == LUA_NOREF)
+    if (!proxy || proxy->handle == LUA_NOREF || proxy->blueprint->on_hover == LUA_NOREF)
       continue;
 
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->on_hover);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->blueprint->on_hover);
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
     binding::call(L, 1, 0);
   }
@@ -1571,10 +1623,10 @@ void stage::dispatch_unhover(std::span<const entt::entity> current) {
       continue;
 
     const auto* proxy = _registry.try_get<scriptable>(entity);
-    if (!proxy || proxy->handle == LUA_NOREF || proxy->on_unhover == LUA_NOREF)
+    if (!proxy || proxy->handle == LUA_NOREF || proxy->blueprint->on_unhover == LUA_NOREF)
       continue;
 
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->on_unhover);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->blueprint->on_unhover);
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
     binding::call(L, 1, 0);
   }

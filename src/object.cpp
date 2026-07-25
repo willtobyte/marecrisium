@@ -27,25 +27,7 @@ namespace {
     b2Body_SetTransform(bd.id, center_of(bd, tf, fr), b2Rot_identity);
   }
 
-  struct prototype final {
-    int reference{LUA_NOREF};
-    int on_loop{LUA_NOREF};
-    int on_animation_end{LUA_NOREF};
-    int on_animation_begin{LUA_NOREF};
-    int on_collision_begin{LUA_NOREF};
-    int on_collision_end{LUA_NOREF};
-    int on_wake{LUA_NOREF};
-    int on_sleep{LUA_NOREF};
-    int on_screen_exit{LUA_NOREF};
-    int on_screen_enter{LUA_NOREF};
-    int on_spawn{LUA_NOREF};
-    int on_press{LUA_NOREF};
-    int on_release{LUA_NOREF};
-    int on_hover{LUA_NOREF};
-    int on_unhover{LUA_NOREF};
-  };
-
-  entt::dense_map<entt::id_type, prototype> prototypes;
+  entt::dense_map<entt::id_type, std::unique_ptr<prototype>> prototypes;
 
   static void commit(entt::registry& registry, entt::entity entity, scriptable& component) {
     auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));
@@ -175,9 +157,9 @@ namespace {
         return 1;
 
       default: {
-        assert(op.prototype != LUA_NOREF && "object must have an object reference");
+        assert(op.blueprint && op.blueprint->reference != LUA_NOREF && "object must have an object reference");
 
-        lua_rawgeti(state, LUA_REGISTRYINDEX, op.prototype);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, op.blueprint->reference);
         lua_getfield(state, -1, key);
         if (!lua_isnil(state, -1)) [[likely]] {
           lua_remove(state, -2);
@@ -318,8 +300,8 @@ namespace {
           if (op.handle == LUA_NOREF)
             return 0;
 
-          if (callback != LUA_NOREF && identity != hash && op.on_animation_end != LUA_NOREF) [[unlikely]] {
-            lua_rawgeti(state, LUA_REGISTRYINDEX, op.on_animation_end);
+          if (callback != LUA_NOREF && identity != hash && op.blueprint->on_animation_end != LUA_NOREF) [[unlikely]] {
+            lua_rawgeti(state, LUA_REGISTRYINDEX, op.blueprint->on_animation_end);
             lua_rawgeti(state, LUA_REGISTRYINDEX, op.handle);
             lua_rawgeti(state, LUA_REGISTRYINDEX, callback);
             binding::call(state, 2, 0);
@@ -327,8 +309,8 @@ namespace {
 
           if (!registry.valid(entity)) return 0;
 
-          if (op.on_animation_begin != LUA_NOREF) {
-            lua_rawgeti(state, LUA_REGISTRYINDEX, op.on_animation_begin);
+          if (op.blueprint->on_animation_begin != LUA_NOREF) {
+            lua_rawgeti(state, LUA_REGISTRYINDEX, op.blueprint->on_animation_begin);
             lua_rawgeti(state, LUA_REGISTRYINDEX, op.handle);
             lua_rawgeti(state, LUA_REGISTRYINDEX, a->sheet->clips[i].identity.reference);
             binding::call(state, 2, 0);
@@ -363,9 +345,9 @@ namespace {
         return 0;
 
       default:
-        assert(op.prototype != LUA_NOREF && "object must have an object reference");
+        assert(op.blueprint && op.blueprint->reference != LUA_NOREF && "object must have an object reference");
 
-        lua_rawgeti(state, LUA_REGISTRYINDEX, op.prototype);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, op.blueprint->reference);
         lua_pushvalue(state, 3);
         lua_setfield(state, -2, key);
         lua_pop(state, 1);
@@ -385,95 +367,64 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
   const auto identity = entt::hashed_string{kind.data(), kind.size()};
 
   if (const auto it = prototypes.find(identity); it != prototypes.end()) [[likely]] {
-    const auto& blueprint = it->second;
-    component.prototype = blueprint.reference;
-    component.on_loop = blueprint.on_loop;
-    component.on_animation_end = blueprint.on_animation_end;
-    component.on_animation_begin = blueprint.on_animation_begin;
-    component.on_collision_begin = blueprint.on_collision_begin;
-    component.on_collision_end = blueprint.on_collision_end;
-    component.on_wake = blueprint.on_wake;
-    component.on_sleep = blueprint.on_sleep;
-    component.on_screen_exit = blueprint.on_screen_exit;
-    component.on_screen_enter = blueprint.on_screen_enter;
-    component.on_spawn = blueprint.on_spawn;
-    component.on_press = blueprint.on_press;
-    component.on_release = blueprint.on_release;
-    component.on_hover = blueprint.on_hover;
-    component.on_unhover = blueprint.on_unhover;
-
+    component.blueprint = it->second.get();
     return commit(registry, entity, component);
   }
 
   depot->source.insert(kind);
   binding::call(L, 0, 1);
 
-  component.prototype = luaL_ref(L, LUA_REGISTRYINDEX);
+  auto blueprint = std::make_unique<prototype>();
+  blueprint->reference = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, component.prototype);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint->reference);
 
   lua_getfield(L, -1, "on_loop");
-  component.on_loop = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_loop = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_animation_end");
-  component.on_animation_end = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_animation_end = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_animation_begin");
-  component.on_animation_begin = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_animation_begin = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_collision_begin");
-  component.on_collision_begin = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_collision_begin = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_collision_end");
-  component.on_collision_end = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_collision_end = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_wake");
-  component.on_wake = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_wake = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_sleep");
-  component.on_sleep = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_sleep = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_screen_exit");
-  component.on_screen_exit = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_screen_exit = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_screen_enter");
-  component.on_screen_enter = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_screen_enter = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_spawn");
-  component.on_spawn = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_spawn = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_press");
-  component.on_press = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_press = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_release");
-  component.on_release = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_release = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_hover");
-  component.on_hover = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_hover = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_unhover");
-  component.on_unhover = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  blueprint->on_unhover = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_pop(L, 1);
 
-  prototypes.emplace(identity, prototype{
-    component.prototype,
-    component.on_loop,
-    component.on_animation_end,
-    component.on_animation_begin,
-    component.on_collision_begin,
-    component.on_collision_end,
-    component.on_wake,
-    component.on_sleep,
-    component.on_screen_exit,
-    component.on_screen_enter,
-    component.on_spawn,
-    component.on_press,
-    component.on_release,
-    component.on_hover,
-    component.on_unhover,
-  });
-
+  component.blueprint = blueprint.get();
+  prototypes.emplace(identity, std::move(blueprint));
   commit(registry, entity, component);
 }
 

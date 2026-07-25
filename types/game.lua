@@ -77,7 +77,6 @@ keyboard = {}
 ---@class Mouse
 ---@field x number Mouse X position in world coordinates (logical position plus viewport offset, read-only).
 ---@field y number Mouse Y position in world coordinates (logical position plus viewport offset, read-only).
----@field button integer Currently pressed mouse button: 1 = left, 2 = middle, 3 = right, 0 = none (read-only).
 ---@field left boolean Whether the left mouse button is pressed (read-only).
 ---@field middle boolean Whether the middle mouse button is pressed (read-only).
 ---@field right boolean Whether the right mouse button is pressed (read-only).
