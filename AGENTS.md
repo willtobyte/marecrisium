@@ -45,7 +45,7 @@
 * Always use language features such as `auto`, `final`, `const`, and `constexpr`
   whenever appropriate.
 * There is no need for mutexes or `thread_local`. We do not use threads.
-* Use modern C++, targeting C++26 whenever possible.
+* Use modern C++, targeting C++23 whenever possible.
 * Always benchmark performance before and after your changes to avoid
   regressions. Never compare performance in Debug mode. Always benchmark using
   Release builds only.
