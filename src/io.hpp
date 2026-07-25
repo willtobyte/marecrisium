@@ -1,24 +1,51 @@
 #pragma once
 
-template<typename T>
-struct overwrite : std::allocator<T> {
-  using std::allocator<T>::allocator;
+class bytes final {
+public:
+  bytes(bytes&& other) noexcept
+      : _storage(std::move(other._storage)),
+        _data(std::exchange(other._data, nullptr)),
+        _size(std::exchange(other._size, 0uz)) {}
 
-  template<typename U>
-  struct rebind final {
-    using other = overwrite<U>;
-  };
-
-  template<typename U, typename... Args>
-  void construct(U *ptr, Args&&... args) {
-    if constexpr (sizeof...(Args) == 0)
-      ::new (static_cast<void *>(ptr)) U;
-    else
-      std::construct_at(ptr, std::forward<Args>(args)...);
+  bytes& operator=(bytes&& other) noexcept {
+    _storage = std::move(other._storage);
+    _data = std::exchange(other._data, nullptr);
+    _size = std::exchange(other._size, 0uz);
+    return *this;
   }
-};
 
-using bytes = std::vector<uint8_t, overwrite<uint8_t>>;
+  [[nodiscard]] const uint8_t* data() const noexcept {
+    return _data;
+  }
+
+  [[nodiscard]] size_t size() const noexcept {
+    return _size;
+  }
+
+  operator std::span<const uint8_t>() const noexcept {
+    return {data(), size()};
+  }
+
+private:
+  friend class io;
+
+  bytes() = default;
+
+  explicit bytes(size_t size)
+      : _storage(std::make_unique_for_overwrite<uint8_t[]>(size)),
+        _data(_storage.get()), _size(size) {}
+
+  bytes(const uint8_t* data, size_t size)
+      : _data(data), _size(size) {}
+
+  [[nodiscard]] uint8_t* writable() noexcept {
+    return _storage.get();
+  }
+
+  std::unique_ptr<uint8_t[]> _storage;
+  const uint8_t* _data{};
+  size_t _size{};
+};
 
 class io final {
 public:

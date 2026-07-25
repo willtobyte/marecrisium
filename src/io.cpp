@@ -208,20 +208,18 @@ bytes io::read(std::string_view filename) {
   const auto &current = cartridge->records[index];
   [[assume((current.flags & directory) == 0)]];
   const auto size = static_cast<size_t>(current.uncompressed);
-  bytes buffer(size);
   if (size == 0) [[unlikely]]
-    return buffer;
+    return {};
 
   const auto *source = cartridge->source.data + current.position;
-  if (current.algorithm == raw) {
-    std::memcpy(buffer.data(), source, size);
-    return buffer;
-  }
+  if (current.algorithm == raw)
+    return {source, size};
 
   [[assume(current.algorithm == zstd)]];
+  bytes buffer(size);
   const auto result = ZSTD_decompress_usingDDict(
     cartridge->decoder.get(),
-    buffer.data(), size,
+    buffer.writable(), size,
     source, current.compressed,
     cartridge->dictionary.get());
   [[assume(result == size)]];
