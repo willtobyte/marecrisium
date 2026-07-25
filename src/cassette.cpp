@@ -307,12 +307,12 @@ void cassette::wire() {
     "PRAGMA mmap_size=67108864;"
     "CREATE TABLE IF NOT EXISTS data("
       "key TEXT PRIMARY KEY,"
-      "value JSONB NOT NULL"
+      "value TEXT NOT NULL"
     ")WITHOUT ROWID;",
     nullptr, nullptr, nullptr);
 
-  sqlite3_prepare_v2(handle, "SELECT json(value) FROM data WHERE key=?", -1, std::out_ptr(stmt_select), nullptr);
-  sqlite3_prepare_v2(handle, "INSERT OR REPLACE INTO data(key,value) VALUES(?,jsonb(?))", -1, std::out_ptr(stmt_upsert), nullptr);
+  sqlite3_prepare_v2(handle, "SELECT value FROM data WHERE key=?", -1, std::out_ptr(stmt_select), nullptr);
+  sqlite3_prepare_v2(handle, "INSERT OR REPLACE INTO data(key,value) VALUES(?,?)", -1, std::out_ptr(stmt_upsert), nullptr);
   sqlite3_prepare_v2(handle, "DELETE FROM data WHERE key=?", -1, std::out_ptr(stmt_delete), nullptr);
   sqlite3_prepare_v2(handle, "DELETE FROM data", -1, std::out_ptr(stmt_clear), nullptr);
 
