@@ -36,5 +36,5 @@ private:
 
   std::optional<std::string> _pending;
 
-  ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<stage>> _stages;
+  entt::dense_map<entt::id_type, std::unique_ptr<stage>> _stages;
 };

@@ -10,5 +10,5 @@ public:
   void clear();
 
 private:
-  ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<sound>> _pool;
+  entt::dense_map<entt::id_type, std::unique_ptr<sound>> _pool;
 };

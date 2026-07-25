@@ -15,5 +15,5 @@ public:
   void clear();
 
 private:
-  ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<particle>> _particles;
+  entt::dense_map<entt::id_type, std::unique_ptr<particle>> _particles;
 };

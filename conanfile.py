@@ -20,7 +20,6 @@ class Game(ConanFile):
             "sqlite3/3.53.3",
             "luajit/2.1-20260720",
             "opusfile/0.12",
-            "unordered_dense/4.8.1",
             "yyjson/0.12.0",
             "zstd/1.5.7",
         ]:

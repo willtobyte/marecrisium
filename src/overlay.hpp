@@ -20,7 +20,7 @@ public:
   void draw();
 
 private:
-  ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<foreground>> _foregrounds;
+  entt::dense_map<entt::id_type, std::unique_ptr<foreground>> _foregrounds;
   std::vector<foreground *> _active;
   std::vector<foreground *> _snapshot;
   int _userdata_reference{LUA_NOREF};

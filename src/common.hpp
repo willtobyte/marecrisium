@@ -45,7 +45,6 @@
 #include <unistd.h>
 #endif
 
-#include <ankerl/unordered_dense.h>
 #include <box2d/box2d.h>
 #include <entt/entt.hpp>
 #include <lua.hpp>

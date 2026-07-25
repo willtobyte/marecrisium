@@ -1,5 +1,5 @@
-static int keyboard_index(lua_State *state) {
-  static const ankerl::unordered_dense::map<entt::id_type, SDL_Scancode> mapping{
+static auto mapping() {
+  constexpr auto entries = std::to_array<std::pair<entt::id_type, SDL_Scancode>>({
     {"a"_hs, SDL_SCANCODE_A}, {"b"_hs, SDL_SCANCODE_B}, {"c"_hs, SDL_SCANCODE_C},
     {"d"_hs, SDL_SCANCODE_D}, {"e"_hs, SDL_SCANCODE_E}, {"f"_hs, SDL_SCANCODE_F},
     {"g"_hs, SDL_SCANCODE_G}, {"h"_hs, SDL_SCANCODE_H}, {"i"_hs, SDL_SCANCODE_I},
@@ -19,11 +19,21 @@ static int keyboard_index(lua_State *state) {
     {"escape"_hs, SDL_SCANCODE_ESCAPE}, {"space"_hs, SDL_SCANCODE_SPACE},
     {"enter"_hs, SDL_SCANCODE_RETURN}, {"backspace"_hs, SDL_SCANCODE_BACKSPACE},
     {"tab"_hs, SDL_SCANCODE_TAB},
-  };
+  });
+
+  entt::dense_map<entt::id_type, SDL_Scancode> map{entries.size()};
+  map.reserve(entries.size());
+  map.insert(entries.cbegin(), entries.cend());
+
+  return map;
+}
+
+static int keyboard_index(lua_State *state) {
+  static const auto map = mapping();
 
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
-  const auto it = mapping.find(id);
-  if (it == mapping.end()) [[unlikely]]
+  const auto it = map.find(id);
+  if (it == map.end()) [[unlikely]]
     return lua_pushnil(state), 1;
 
   const auto *keyboard = SDL_GetKeyboardState(nullptr);

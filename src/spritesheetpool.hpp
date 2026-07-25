@@ -16,5 +16,5 @@ private:
     spritesheet sheet;
   };
 
-  ankerl::unordered_dense::map<entt::id_type, std::unique_ptr<storage>> _pool;
+  entt::dense_map<entt::id_type, std::unique_ptr<storage>> _pool;
 };

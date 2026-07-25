@@ -45,7 +45,7 @@ namespace {
     int on_unhover{LUA_NOREF};
   };
 
-  ankerl::unordered_dense::map<entt::id_type, prototype> prototypes;
+  entt::dense_map<entt::id_type, prototype> prototypes;
 
   static void commit(entt::registry& registry, entt::entity entity, scriptable& component) {
     auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));

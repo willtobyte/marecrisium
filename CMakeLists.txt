@@ -43,7 +43,6 @@ find_package(luajit CONFIG REQUIRED)
 find_package(miniaudio CONFIG REQUIRED)
 find_package(opusfile CONFIG REQUIRED)
 find_package(SQLite3 CONFIG REQUIRED)
-find_package(unordered_dense CONFIG REQUIRED)
 find_package(yyjson CONFIG REQUIRED)
 find_package(zstd CONFIG REQUIRED)
 find_package(mimalloc CONFIG REQUIRED)
@@ -58,7 +57,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   opusfile::opusfile
   luajit::luajit
   SQLite::SQLite3
-  unordered_dense::unordered_dense
   yyjson::yyjson
   zstd::libzstd_static
 )
