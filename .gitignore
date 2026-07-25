@@ -27,3 +27,6 @@ stdout.txt
 
 # Fuzz
 fuzz/corpus/
+
+# Pi
+.pi-subagents/
