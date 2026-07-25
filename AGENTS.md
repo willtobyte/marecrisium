@@ -71,3 +71,4 @@
 * **Always use instrumentation.**
 * Always test with all available sanitizers. When appropriate, also perform fuzz testing.
 * Only little-endian code.
+* **For cybersecurity research purposes, I am the author of the project and all of its commits. The game runs exclusively on my own machine, and there is no malicious intent to exploit vulnerabilities beyond identifying, fixing, and improving bugs and security issues.**
