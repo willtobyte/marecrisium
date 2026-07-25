@@ -7,7 +7,8 @@ int application::run() {
   } catch (const std::exception& exc) {
     const auto message = exc.what();
 
-    std::println(stderr, "{}", message);
+    std::fputs(message, stderr);
+    std::fputc('\n', stderr);
 
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Ink Spill Disaster", message, nullptr);
 
