@@ -25,6 +25,10 @@ static T* column(T* values, size_t count) noexcept {
   return values + count * std::to_underlying(S);
 }
 
+[[nodiscard]] static float sample(std::pair<float, float> range) {
+  return range.first == range.second ? range.first : rng(range);
+}
+
 static int particle_index(lua_State* state) {
   const auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
@@ -103,7 +107,13 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
   for (auto i = 0uz; i < n; ++i) {
     const auto base = static_cast<int>(i * 4);
 
+    auto* vp = _vertices.get() + i * 4;
     auto* ip = _indices.get() + i * 6;
+
+    *vp++ = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {.0f, .0f}};
+    *vp++ = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {1.f, .0f}};
+    *vp++ = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {1.f, 1.f}};
+    *vp = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {.0f, 1.f}};
 
     *ip++ = base; *ip++ = base + 1; *ip++ = base + 2;
     *ip++ = base; *ip++ = base + 2; *ip++ = base + 3;
@@ -152,7 +162,7 @@ void particle::update(float delta) {
   auto idle = !_active;
   for (auto i = 0uz; i < n; ++i) {
     life[i] -= delta;
-    idle = idle && life[i] <= .0f;
+    idle &= life[i] <= .0f;
 
     avs[i] += afs[i] * delta;
 
@@ -176,22 +186,22 @@ void particle::update(float delta) {
       if (life[i] > .0f) [[likely]]
         continue;
 
-      const auto radius = rng(_radius_range);
-      const auto a = rng(_angle_range);
+      const auto radius = sample(_radius_range);
+      const auto a = sample(_angle_range);
 
       float sa, ca;
       sincos(a, sa, ca);
 
-      xs[i] = px + rng(_spawn_x_range) + radius * ca;
-      ys[i] = py + rng(_spawn_y_range) + radius * sa;
-      vxs[i] = rng(_velocity_x_range);
-      vys[i] = rng(_velocity_y_range);
-      gxs[i] = rng(_gravity_x_range);
-      gys[i] = rng(_gravity_y_range);
-      avs[i] = rng(_rotation_velocity_range);
-      afs[i] = rng(_rotation_force_range);
-      life[i] = rng(_life_range);
-      scales[i] = rng(_scale_range);
+      xs[i] = px + sample(_spawn_x_range) + radius * ca;
+      ys[i] = py + sample(_spawn_y_range) + radius * sa;
+      vxs[i] = sample(_velocity_x_range);
+      vys[i] = sample(_velocity_y_range);
+      gxs[i] = sample(_gravity_x_range);
+      gys[i] = sample(_gravity_y_range);
+      avs[i] = sample(_rotation_velocity_range);
+      afs[i] = sample(_rotation_force_range);
+      life[i] = sample(_life_range);
+      scales[i] = sample(_scale_range);
       angles[i] = a;
     }
   }
@@ -252,12 +262,10 @@ void particle::draw() {
     const auto dx1 = sw * ca + sh * sa;
     const auto dy1 = sw * sa - sh * ca;
 
-    const SDL_FColor color{1.f, 1.f, 1.f, alpha};
-
-    *vp++ = SDL_Vertex{{px + dx0, py + dy0}, color, {.0f, .0f}};
-    *vp++ = SDL_Vertex{{px + dx1, py + dy1}, color, {1.f, .0f}};
-    *vp++ = SDL_Vertex{{px - dx0, py - dy0}, color, {1.f, 1.f}};
-    *vp++ = SDL_Vertex{{px - dx1, py - dy1}, color, {.0f, 1.f}};
+    vp->position = {px + dx0, py + dy0}; vp++->color.a = alpha;
+    vp->position = {px + dx1, py + dy1}; vp++->color.a = alpha;
+    vp->position = {px - dx0, py - dy0}; vp++->color.a = alpha;
+    vp->position = {px - dx1, py - dy1}; vp++->color.a = alpha;
   }
 
   const auto nv = static_cast<int>(vp - vertices);

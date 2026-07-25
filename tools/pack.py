@@ -75,6 +75,29 @@ def build_perfect(
         slots *= 2
 
 
+def display(
+    sources: list[dict], index: int = 0, parent: str = "", prefix: str = ""
+) -> None:
+    count = len(sources)
+    while index < count:
+        path = sources[index]["path"]
+        folder, _, name = path.rpartition("/")
+        if folder != parent:
+            break
+
+        end = index + 1
+        stem = f"{path}/"
+        while end < count and sources[end]["path"].startswith(stem):
+            end += 1
+
+        last = end == count or sources[end]["path"].rpartition("/")[0] != parent
+        print(f"{prefix}{'`--' if last else '|--'} {name}")
+        if end > index + 1:
+            display(sources, index + 1, path, prefix + ("    " if last else "|   "))
+
+        index = end
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print("usage: pack <dir>", file=sys.stderr)
@@ -217,6 +240,8 @@ def main() -> int:
         blob.extend(current["blob"])
 
     Path("cartridge.rom").write_bytes(blob)
+
+    display(sources)
     print(f"created cartridge.rom ({count} entries, {len(blob)} bytes)")
     return 0
 
