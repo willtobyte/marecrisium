@@ -1,6 +1,13 @@
 xorshift128 rng{};
 
 namespace {
+static int check(lua_State *state, int index) {
+  const auto value = luaL_checkinteger(state, index);
+  if (!std::in_range<int>(value)) [[unlikely]]
+    return luaL_argerror(state, index, "value is outside signed 32-bit range");
+  return static_cast<int>(value);
+}
+
 static int math_random(lua_State *state) {
   const auto argc = lua_gettop(state);
 
@@ -10,7 +17,7 @@ static int math_random(lua_State *state) {
       return 1;
 
     case 1: {
-      const auto n = static_cast<int>(luaL_checkinteger(state, 1));
+      const auto n = check(state, 1);
       if (n < 1) [[unlikely]]
         return luaL_error(state, "interval is empty");
       lua_pushinteger(state, static_cast<lua_Integer>(rng(1, n)));
@@ -18,8 +25,8 @@ static int math_random(lua_State *state) {
     }
 
     default: {
-      const auto minimum = static_cast<int>(luaL_checkinteger(state, 1));
-      const auto maximum = static_cast<int>(luaL_checkinteger(state, 2));
+      const auto minimum = check(state, 1);
+      const auto maximum = check(state, 2);
       if (minimum > maximum) [[unlikely]]
         return luaL_error(state, "interval is empty");
       lua_pushinteger(state, static_cast<lua_Integer>(rng(minimum, maximum)));
@@ -36,13 +43,17 @@ static int math_randomseed(lua_State *state) {
 }
 
 void xorshift128::seed(uint32_t value) {
+  constexpr auto increment = uint64_t{0x9E3779B97F4A7C15};
+  constexpr auto first = uint64_t{0xBF58476D1CE4E5B9};
+  constexpr auto second = uint64_t{0x94D049BB133111EB};
+
   auto s = static_cast<uint64_t>(value);
   for (auto &word : state) {
-    s += 0x9E3779B97F4A7C15ull;
+    s += increment;
     auto z = s;
-    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
-    z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
-    z = z ^ (z >> 31);
+    z = (z ^ (z >> 30)) * first;
+    z = (z ^ (z >> 27)) * second;
+    z ^= z >> 31;
     word = static_cast<uint32_t>(z);
   }
 }
@@ -61,14 +72,19 @@ void xorshift128::seed(uint32_t value) {
 }
 
 [[nodiscard("RNG result should be used")]] float xorshift128::operator()(std::pair<float, float> range) {
-  constexpr auto scale = 1.f / 4294967296.f;
+  constexpr auto scale = 0x1.fffffep-33f;
   const auto [minimum, maximum] = range;
   return minimum + (maximum - minimum) * (static_cast<float>((*this)()) * scale);
 }
 
 [[nodiscard("RNG result should be used")]] int xorshift128::operator()(int minimum, int maximum) {
-  const auto range = static_cast<uint32_t>(maximum - minimum + 1);
+  [[assume(minimum <= maximum)]];
+
+  const auto range = static_cast<uint32_t>(maximum) - static_cast<uint32_t>(minimum) + 1u;
   auto raw = (*this)();
+  if (range == 0) [[unlikely]]
+    return static_cast<int>(static_cast<int64_t>(minimum) + raw);
+
   auto product = static_cast<uint64_t>(raw) * static_cast<uint64_t>(range);
   auto low = static_cast<uint32_t>(product);
   if (low < range) [[unlikely]] {
@@ -79,7 +95,7 @@ void xorshift128::seed(uint32_t value) {
       low = static_cast<uint32_t>(product);
     }
   }
-  return minimum + static_cast<int>(product >> 32);
+  return static_cast<int>(static_cast<int64_t>(minimum) + static_cast<int64_t>(product >> 32));
 }
 
 void xorshift128::wire() {

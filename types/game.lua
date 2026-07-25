@@ -856,8 +856,8 @@ local Controls = {}
 ---```
 
 ---Replace the xorshift128 PRNG state with an explicit seed.
----Each call fully replaces the internal state; subsequent `math.random` calls
----produce a new sequence determined entirely by this seed.
+---Each call fully replaces the shared internal state. Lua calls and particle
+---emitters consume the resulting sequence.
 ---@param seed integer Seed value (truncated to 32 bits internally).
 function math.randomseed(seed) end
 
@@ -866,6 +866,7 @@ function math.randomseed(seed) end
 ---With no arguments, returns a float in [0, 1).
 ---With one argument `n`, returns an integer in [1, n].
 ---With two arguments, returns an integer in [minimum, maximum].
+---Integer bounds must fit the signed 32-bit range.
 ---@overload fun(): number
 ---@overload fun(n: integer): integer
 ---@param minimum integer Lower bound (inclusive).
