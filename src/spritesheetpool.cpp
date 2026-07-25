@@ -38,9 +38,6 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       c.offset = static_cast<uint16_t>(s->frames.size());
       c.count = 0;
 
-      if (id == dh)
-        initial = static_cast<uint8_t>(s->clips.size() - 1);
-
       const auto count = static_cast<int>(lua_objlen(state, -1));
       for (int i = 1; i <= count; ++i) {
         lua_rawgeti(state, -1, i);
@@ -93,6 +90,12 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
         ++c.count;
         lua_pop(state, 1);
       }
+
+      assert(c.count > 0 && "animation clip must contain at least one frame");
+      [[assume(c.count > 0)]];
+
+      if (id == dh)
+        initial = static_cast<uint8_t>(s->clips.size() - 1);
 
       lua_getfield(state, -1, "sound");
       if (lua_isstring(state, -1))

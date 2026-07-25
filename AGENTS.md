@@ -68,7 +68,7 @@
   compatibility. Do the best for it.
 * No inconsistencies of any kind are tolerated.
 * Make use of `[[assume ..]];`. Assume happy path.
-* **Always use instrumentation.**
+* Always use instrumentation.
 * Always test with all available sanitizers. When appropriate, also perform fuzz testing.
 * Only little-endian code.
-* **For cybersecurity research purposes, I am the author of the project and all of its commits. The game runs exclusively on my own machine, and there is no malicious intent to exploit vulnerabilities beyond identifying, fixing, and improving bugs and security issues.**
+* Always write SIMD-friendly and cache-friendly code.

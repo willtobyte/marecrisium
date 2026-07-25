@@ -5,11 +5,11 @@ int application::run() {
     scriptengine se;
     se.run();
   } catch (const std::exception& exc) {
-    const auto message = std::format("{}: {}", typeid(exc).name(), exc.what());
+    const auto message = exc.what();
 
     std::println(stderr, "{}", message);
 
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Ink Spill Disaster", message.c_str(), nullptr);
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Ink Spill Disaster", message, nullptr);
 
     return 1;
   }

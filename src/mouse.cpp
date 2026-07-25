@@ -3,6 +3,9 @@ namespace lookup {
   constexpr auto x = "x"_hs;
   constexpr auto y = "y"_hs;
   constexpr auto button = "button"_hs;
+  constexpr auto left = "left"_hs;
+  constexpr auto middle = "middle"_hs;
+  constexpr auto right = "right"_hs;
   constexpr auto shown = "shown"_hs;
 }
 }
@@ -47,6 +50,18 @@ static int mouse_index(lua_State *state) {
       }
 
       lua_pushinteger(state, static_cast<lua_Integer>(0));
+      return 1;
+
+    case lookup::left:
+      lua_pushboolean(state, !!(button & SDL_BUTTON_MASK(SDL_BUTTON_LEFT)));
+      return 1;
+
+    case lookup::middle:
+      lua_pushboolean(state, !!(button & SDL_BUTTON_MASK(SDL_BUTTON_MIDDLE)));
+      return 1;
+
+    case lookup::right:
+      lua_pushboolean(state, !!(button & SDL_BUTTON_MASK(SDL_BUTTON_RIGHT)));
       return 1;
 
     default:

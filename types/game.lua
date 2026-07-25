@@ -78,6 +78,9 @@ keyboard = {}
 ---@field x number Mouse X position in world coordinates (logical position plus viewport offset, read-only).
 ---@field y number Mouse Y position in world coordinates (logical position plus viewport offset, read-only).
 ---@field button integer Currently pressed mouse button: 1 = left, 2 = middle, 3 = right, 0 = none (read-only).
+---@field left boolean Whether the left mouse button is pressed (read-only).
+---@field middle boolean Whether the middle mouse button is pressed (read-only).
+---@field right boolean Whether the right mouse button is pressed (read-only).
 ---@field shown boolean Whether the mouse cursor is visible (read/write).
 local Mouse = {}
 
@@ -501,7 +504,7 @@ viewport = {}
 ---@field [string] AnimationClip|string
 
 ---@class AnimationClip
----An animation clip is an array of frames with an optional sound effect.
+---An animation clip is a non-empty array of frames with an optional sound effect.
 ---Each frame is: {source_x, source_y, source_width, source_height, duration_ms [, collider_x, collider_y, collider_width, collider_height]}.
 ---@field sound? string Optional sound name. Loads `blobs/sounds/<name>.opus` and plays automatically when this clip is activated via `self.animation = "clip_name"`.
 ---@field [integer] number[] Frame data: {source_x, source_y, source_width, source_height, duration_ms [, collider_x, collider_y, collider_width, collider_height]}.
