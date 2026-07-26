@@ -1,4 +1,4 @@
-static auto mapping() {
+static const auto mapping = [] {
   constexpr auto entries = std::to_array<std::pair<entt::id_type, SDL_Scancode>>({
     {"a"_hs, SDL_SCANCODE_A}, {"b"_hs, SDL_SCANCODE_B}, {"c"_hs, SDL_SCANCODE_C},
     {"d"_hs, SDL_SCANCODE_D}, {"e"_hs, SDL_SCANCODE_E}, {"f"_hs, SDL_SCANCODE_F},
@@ -21,19 +21,17 @@ static auto mapping() {
     {"tab"_hs, SDL_SCANCODE_TAB},
   });
 
-  entt::dense_map<entt::id_type, SDL_Scancode> map{entries.size()};
-  map.reserve(entries.size());
-  map.insert(entries.cbegin(), entries.cend());
+  entt::dense_map<entt::id_type, SDL_Scancode> result{entries.size()};
+  result.reserve(entries.size());
+  result.insert(entries.cbegin(), entries.cend());
 
-  return map;
-}
+  return result;
+}();
 
 static int keyboard_index(lua_State *state) {
-  static const auto map = mapping();
-
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
-  const auto it = map.find(id);
-  if (it == map.end()) [[unlikely]]
+  const auto it = mapping.find(id);
+  if (it == mapping.end()) [[unlikely]]
     return lua_pushnil(state), 1;
 
   const auto *keyboard = SDL_GetKeyboardState(nullptr);
