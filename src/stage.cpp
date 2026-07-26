@@ -981,6 +981,7 @@ void stage::draw() {
 
   auto* output = _vertices.data();
   auto* batch = output;
+  const pixmap* source = nullptr;
   SDL_Texture* current = nullptr;
 
   for (auto&& [e, r, a, tf] : view.each()) {
@@ -1005,12 +1006,15 @@ void stage::draw() {
         py + dh < .0f || py > viewport.height)
       continue;
 
-    auto *texture = static_cast<SDL_Texture *>(*a.sheet->pixmap);
+    if (a.sheet->pixmap != source) [[unlikely]] {
+      source = a.sheet->pixmap;
+      auto *texture = static_cast<SDL_Texture *>(*source);
 
-    if (texture != current) [[unlikely]] {
-      submit(current, batch, output, _indices.data());
-      current = texture;
-      batch = output;
+      if (texture != current) {
+        submit(current, batch, output, _indices.data());
+        current = texture;
+        batch = output;
+      }
     }
 
     auto u0 = fr.u0;
