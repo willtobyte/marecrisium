@@ -81,91 +81,69 @@ static constexpr auto mapping(const char *s) -> std::pair<body_type, b2BodyType>
   }
 }
 
-static bool ensure_shape(body& b, const frame& fr, entt::entity entity, const transform& tf, float timestep) {
-  if (b.snapshot == &fr) [[likely]] {
-    if (b.type == body_type::kinematic) {
-      const auto center = center_of(b, tf, &fr);
-      if (center.x != b.target_x || center.y != b.target_y) [[unlikely]] {
-        b.target_x = center.x;
-        b.target_y = center.y;
-        b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
-        b.moving = true;
-      } else if (b.moving) [[unlikely]] {
-        const auto position = b2Body_GetPosition(b.id);
-        if (position.x == center.x && position.y == center.y) {
-          b2Body_SetLinearVelocity(b.id, b2Vec2_zero);
-          b.moving = false;
-        } else {
-          b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
-        }
+static void ensure_shape(body& b, const frame& fr, entt::entity entity, const transform& tf, float timestep) {
+  auto created = false;
+  if (b.snapshot != &fr) [[unlikely]] {
+    b.snapshot = &fr;
+    const auto hx = fr.bound_width * .5f;
+    const auto hy = fr.bound_height * .5f;
+
+    if (B2_IS_NULL(b.shape)) {
+      const auto polygon = b2MakeBox(hx, hy);
+
+      auto sdef = b2DefaultShapeDef();
+      sdef.userData = to_userdata(entity);
+      sdef.enableContactEvents = b.events;
+      sdef.enableSensorEvents = b.events;
+
+      if (b.type == body_type::dynamic) {
+        sdef.density = 1.f;
+        sdef.material.friction = .0f;
       }
-    }
 
-    return false;
-  }
+      b.shape = b2CreatePolygonShape(b.id, &sdef, &polygon);
+      b.extent_x = hx;
+      b.extent_y = hy;
 
-  b.snapshot = &fr;
-  const auto hx = fr.bound_width * .5f;
-  const auto hy = fr.bound_height * .5f;
-
-  if (B2_IS_NULL(b.shape)) {
-    const auto polygon = b2MakeBox(hx, hy);
-
-    auto sdef = b2DefaultShapeDef();
-    sdef.userData = to_userdata(entity);
-    sdef.enableContactEvents = b.events;
-    sdef.enableSensorEvents = b.events;
-
-    if (b.type == body_type::dynamic) {
-      sdef.density = 1.f;
-      sdef.material.friction = .0f;
-    }
-
-    b.shape = b2CreatePolygonShape(b.id, &sdef, &polygon);
-    b.extent_x = hx;
-    b.extent_y = hy;
-
-    const auto center = center_of(b, tf, &fr);
-
-    if (b.type == body_type::kinematic) {
-      b.target_x = center.x;
-      b.target_y = center.y;
-      b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
-      b.moving = true;
-      return true;
-    }
-
-    b2Body_SetTransform(b.id, center, b2Rot_identity);
-
-    return true;
-  }
-
-  if (hx != b.extent_x || hy != b.extent_y) [[unlikely]] {
-    const auto polygon = b2MakeBox(hx, hy);
-    b2Shape_SetPolygon(b.shape, &polygon);
-    b.extent_x = hx;
-    b.extent_y = hy;
-  }
-
-  if (b.type == body_type::kinematic) {
-    const auto center = center_of(b, tf, &fr);
-    if (center.x != b.target_x || center.y != b.target_y) [[unlikely]] {
-      b.target_x = center.x;
-      b.target_y = center.y;
-      b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
-      b.moving = true;
-    } else if (b.moving) [[unlikely]] {
-      const auto position = b2Body_GetPosition(b.id);
-      if (position.x == center.x && position.y == center.y) {
-        b2Body_SetLinearVelocity(b.id, b2Vec2_zero);
-        b.moving = false;
-      } else {
-        b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
+      if (b.type != body_type::kinematic) {
+        b2Body_SetTransform(b.id, center_of(b, tf, &fr), b2Rot_identity);
+        return;
       }
+
+      created = true;
+    }
+
+    if (hx != b.extent_x || hy != b.extent_y) [[unlikely]] {
+      const auto polygon = b2MakeBox(hx, hy);
+      b2Shape_SetPolygon(b.shape, &polygon);
+      b.extent_x = hx;
+      b.extent_y = hy;
     }
   }
 
-  return false;
+  if (b.type != body_type::kinematic)
+    return;
+
+  const auto center = center_of(b, tf, &fr);
+  if (created || center.x != b.target_x || center.y != b.target_y) [[unlikely]] {
+    b.target_x = center.x;
+    b.target_y = center.y;
+    b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
+    b.moving = true;
+    return;
+  }
+
+  if (!b.moving) [[likely]]
+    return;
+
+  const auto position = b2Body_GetPosition(b.id);
+  if (position.x == center.x && position.y == center.y) {
+    b2Body_SetLinearVelocity(b.id, b2Vec2_zero);
+    b.moving = false;
+    return;
+  }
+
+  b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
 }
 
 static bool resolve(b2ShapeId a, b2ShapeId b, entt::entity &ea, entt::entity &eb) {
@@ -283,6 +261,39 @@ static int world_raycast(lua_State* state) {
   const auto angle = static_cast<float>(luaL_checknumber(state, 4));
   const auto distance = static_cast<float>(luaL_checknumber(state, 5));
   return self->raycast(state, caller->entity, x, y, angle, distance);
+}
+
+template<void (stage::*callback)(float, float, const char*)>
+static void dispatch_button(stage& self, uint32_t buttons, float x, float y) {
+  const auto active = buttons & (SDL_BUTTON_LMASK | SDL_BUTTON_MMASK | SDL_BUTTON_RMASK);
+  if (!active) [[likely]]
+    return;
+
+  static constexpr const char* names[] = {"left", "middle", "right"};
+  (self.*callback)(x, y, names[static_cast<size_t>(std::countr_zero(active))]);
+}
+
+template<typename T>
+static void dispatch_sensors(
+    stage& self,
+    entt::registry& registry,
+    const T* entries,
+    size_t count,
+    int prototype::*callback) {
+  entt::entity ea, eb;
+  for (const auto& event : std::span(entries, count)) {
+    if (!resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
+      continue;
+
+    const auto* pa = registry.try_get<scriptable>(ea);
+    const auto* pb = registry.try_get<scriptable>(eb);
+    if (pa && pa->blueprint->*callback != LUA_NOREF)
+      self.dispatch_collision(*pa, pb, pa->blueprint->*callback);
+  }
+}
+
+static bool ordered(const renderable& lhs, const renderable& rhs) {
+  return lhs.z < rhs.z;
 }
 
 stage::stage(std::string name)
@@ -606,10 +617,38 @@ stage::~stage() {
 }
 
 void stage::update(float delta) {
-  {
+  _pending.clear();
+  for (auto&& [e, tf, an] : _registry.view<sleepable, transform, animation>(entt::exclude<dormant>).each()) {
+    if (culled(tf, an, _sleep_margin))
+      _pending.emplace_back(e);
+  }
+
+  for (const auto e : _pending) {
+    if (!_registry.valid(e)) [[unlikely]]
+      continue;
+
+    _registry.emplace<dormant>(e);
+
+    if (auto* b = _registry.try_get<body>(e);
+        b && alive(*b))
+      b2Body_Disable(b->id);
+
+    const auto& op = _registry.get<scriptable>(e);
+    if (op.blueprint->on_sleep != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_sleep);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+      binding::call(L, 1, 0);
+    }
+  }
+
+  auto& state = _registry.ctx().get<dormancy>();
+  if (state.dirty || state.viewport != viewport) {
+    state.viewport = viewport;
+    state.dirty = false;
+
     _pending.clear();
-    for (auto&& [e, tf, an] : _registry.view<sleepable, transform, animation>(entt::exclude<dormant>).each()) {
-      if (culled(tf, an, _sleep_margin))
+    for (auto&& [e, tf, an] : _registry.view<sleepable, dormant, transform, animation>().each()) {
+      if (!culled(tf, an, _wake_margin))
         _pending.emplace_back(e);
     }
 
@@ -617,49 +656,17 @@ void stage::update(float delta) {
       if (!_registry.valid(e)) [[unlikely]]
         continue;
 
-      _registry.emplace<dormant>(e);
+      _registry.remove<dormant>(e);
 
       if (auto* b = _registry.try_get<body>(e);
           b && alive(*b))
-        b2Body_Disable(b->id);
+        b2Body_Enable(b->id);
 
       const auto& op = _registry.get<scriptable>(e);
-      if (op.blueprint->on_sleep != LUA_NOREF) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_sleep);
+      if (op.blueprint->on_wake != LUA_NOREF) {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_wake);
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
         binding::call(L, 1, 0);
-      }
-    }
-  }
-
-  {
-    auto& sleep = _registry.ctx().get<dormancy>();
-    if (sleep.dirty || sleep.viewport != viewport) {
-      sleep.viewport = viewport;
-      sleep.dirty = false;
-
-      _pending.clear();
-      for (auto&& [e, tf, an] : _registry.view<sleepable, dormant, transform, animation>().each()) {
-        if (!culled(tf, an, _wake_margin))
-          _pending.emplace_back(e);
-      }
-
-      for (const auto e : _pending) {
-        if (!_registry.valid(e)) [[unlikely]]
-          continue;
-
-        _registry.remove<dormant>(e);
-
-        if (auto* b = _registry.try_get<body>(e);
-            b && alive(*b))
-          b2Body_Enable(b->id);
-
-        const auto& op = _registry.get<scriptable>(e);
-        if (op.blueprint->on_wake != LUA_NOREF) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_wake);
-          lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-          binding::call(L, 1, 0);
-        }
       }
     }
   }
@@ -674,19 +681,8 @@ void stage::update(float delta) {
   const auto released = _mouse_previous_buttons & ~buttons;
   _mouse_previous_buttons = buttons;
 
-  if (pressed & SDL_BUTTON_LMASK) [[unlikely]]
-    dispatch_press(mx, my, "left");
-  else if (pressed & SDL_BUTTON_MMASK) [[unlikely]]
-    dispatch_press(mx, my, "middle");
-  else if (pressed & SDL_BUTTON_RMASK) [[unlikely]]
-    dispatch_press(mx, my, "right");
-
-  if (released & SDL_BUTTON_LMASK) [[unlikely]]
-    dispatch_release(mx, my, "left");
-  else if (released & SDL_BUTTON_MMASK) [[unlikely]]
-    dispatch_release(mx, my, "middle");
-  else if (released & SDL_BUTTON_RMASK) [[unlikely]]
-    dispatch_release(mx, my, "right");
+  dispatch_button<&stage::dispatch_press>(*this, pressed, mx, my);
+  dispatch_button<&stage::dispatch_release>(*this, released, mx, my);
 
   dispatch_hover(mx, my);
 
@@ -722,34 +718,34 @@ void stage::update(float delta) {
       continue;
 
     a->elapsed += delta;
+    if (a->elapsed < fr.duration)
+      continue;
 
-    if (a->elapsed >= fr.duration) {
-      a->elapsed -= fr.duration;
-      ++a->current;
+    a->elapsed -= fr.duration;
+    if (++a->current < c.count)
+      continue;
 
-      if (a->current >= c.count) {
-        a->current = 0;
+    a->current = 0;
 
-        if (bp.on_animation_end != LUA_NOREF) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_end);
-          lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-          lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
-          binding::call(L, 2, 0);
+    if (bp.on_animation_end != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_end);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
+      binding::call(L, 2, 0);
 
-          if (!_registry.valid(e))
-            continue;
-        }
+      if (!_registry.valid(e))
+        continue;
+    }
 
-        if (bp.on_animation_begin != LUA_NOREF) {
-          lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_begin);
-          lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-          lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
-          binding::call(L, 2, 0);
-        }
-      }
+    if (bp.on_animation_begin != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_begin);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
+      binding::call(L, 2, 0);
     }
   }
 
+  auto& rd = _registry.ctx().get<reorder>();
   _accumulator += delta;
 
   _interpolation.before = _interpolation.current;
@@ -765,14 +761,12 @@ void stage::update(float delta) {
 
       const auto& frame = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
 
-      if (ensure_shape(b, frame, en, tf, _timestep))
-        continue;
+      ensure_shape(b, frame, en, tf, _timestep);
     }
 
     b2World_Step(_world, _timestep, _substeps);
 
     const auto events = b2World_GetBodyEvents(_world);
-    auto &rd = _registry.ctx().get<reorder>();
 
     for (const auto& event : std::span(events.moveEvents, static_cast<size_t>(events.moveCount))) {
       const auto entity = to_entity(event.userData);
@@ -781,11 +775,8 @@ void stage::update(float delta) {
         continue;
 
       const auto* b = _registry.try_get<body>(entity);
-      if (!b || b->type != body_type::dynamic) [[unlikely]]
-        continue;
-
       const auto* an = _registry.try_get<animation>(entity);
-      if (!an || !an->playing || an->sheet->count == 0) [[unlikely]]
+      if (!b || b->type != body_type::dynamic || !an || !an->playing || an->sheet->count == 0) [[unlikely]]
         continue;
 
       auto& tf = _registry.get<transform>(entity);
@@ -819,20 +810,17 @@ void stage::update(float delta) {
     lua_pop(L, 2);
   }
 
-  if (steps > 0 && _interpolation.ready) {
-    const auto inverse = 1.f / static_cast<float>(steps);
-    _interpolation.previous.x = _interpolation.current.x
-      - (_interpolation.current.x - _interpolation.before.x) * inverse;
-    _interpolation.previous.y = _interpolation.current.y
-      - (_interpolation.current.y - _interpolation.before.y) * inverse;
-  } else {
-    _interpolation.previous = _interpolation.current;
-    _interpolation.ready = true;
-  }
-
+  const auto inverse = steps > 0 && _interpolation.ready
+    ? 1.f / static_cast<float>(steps)
+    : .0f;
+  _interpolation.previous.x = _interpolation.current.x
+    - (_interpolation.current.x - _interpolation.before.x) * inverse;
+  _interpolation.previous.y = _interpolation.current.y
+    - (_interpolation.current.y - _interpolation.before.y) * inverse;
+  _interpolation.ready = true;
   _interpolation.alpha = _timestep > .0f ? _accumulator / _timestep : .0f;
 
-  static const int _bearings[] = {
+  static const int bearings[] = {
     (lua_pushstring(L, "left"), luaL_ref(L, LUA_REGISTRYINDEX)),
     (lua_pushstring(L, "right"), luaL_ref(L, LUA_REGISTRYINDEX)),
     (lua_pushstring(L, "top"), luaL_ref(L, LUA_REGISTRYINDEX)),
@@ -851,63 +839,42 @@ void stage::update(float delta) {
 
     const auto aabb = b2Shape_GetAABB(b.shape);
 
-    uint8_t current = 0;
-    if (aabb.upperBound.x < viewport.x)
-      current |= boundary::left;
-    if (aabb.lowerBound.x > vr)
-      current |= boundary::right;
-    if (aabb.upperBound.y < viewport.y)
-      current |= boundary::top;
-    if (aabb.lowerBound.y > vb)
-      current |= boundary::bottom;
-
+    const auto current = static_cast<uint8_t>(
+      (aabb.upperBound.x < viewport.x ? boundary::left : 0)
+      | (aabb.lowerBound.x > vr ? boundary::right : 0)
+      | (aabb.upperBound.y < viewport.y ? boundary::top : 0)
+      | (aabb.lowerBound.y > vb ? boundary::bottom : 0));
     const auto exited = static_cast<uint8_t>(current & ~bd.previous);
     const auto entered = static_cast<uint8_t>(bd.previous & ~current);
     bd.previous = current;
 
-    if ((exited | entered) == 0) [[likely]] continue;
-
-    for (uint8_t bit = 0; bit < 4; ++bit) {
+    for (auto bits = static_cast<uint8_t>(exited | entered);
+         bits;
+         bits &= static_cast<uint8_t>(bits - 1)) {
+      const auto bit = static_cast<size_t>(std::countr_zero(bits));
       const auto mask = static_cast<uint8_t>(1u << bit);
-      if ((exited & mask) && op.blueprint->on_screen_exit != LUA_NOREF) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_screen_exit);
-        lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-        lua_rawgeti(L, LUA_REGISTRYINDEX, _bearings[bit]);
-        binding::call(L, 2, 0);
+      const auto callback = (exited & mask)
+        ? op.blueprint->on_screen_exit
+        : op.blueprint->on_screen_enter;
+      if (callback == LUA_NOREF)
+        continue;
 
-        if (!_registry.valid(e)) break;
-      }
+      lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, bearings[bit]);
+      binding::call(L, 2, 0);
 
-      if ((entered & mask) && op.blueprint->on_screen_enter != LUA_NOREF) {
-        lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_screen_enter);
-        lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-        lua_rawgeti(L, LUA_REGISTRYINDEX, _bearings[bit]);
-        binding::call(L, 2, 0);
-
-        if (!_registry.valid(e)) break;
-      }
+      if (!_registry.valid(e))
+        break;
     }
   }
 
   {
     const auto sensors = b2World_GetSensorEvents(_world);
+    dispatch_sensors(*this, _registry, sensors.beginEvents, static_cast<size_t>(sensors.beginCount), &prototype::on_collision_begin);
+    dispatch_sensors(*this, _registry, sensors.endEvents, static_cast<size_t>(sensors.endCount), &prototype::on_collision_end);
+
     entt::entity ea, eb;
-
-    auto dispatch = [&](auto* entries, size_t count, int prototype::*callback) {
-      for (const auto& event : std::span(entries, count)) {
-        if (!resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
-          continue;
-
-        const auto* pa = _registry.try_get<scriptable>(ea);
-        const auto* pb = _registry.try_get<scriptable>(eb);
-        if (pa && pa->blueprint->*callback != LUA_NOREF)
-          dispatch_collision(*pa, pb, pa->blueprint->*callback);
-      }
-    };
-
-    dispatch(sensors.beginEvents, static_cast<size_t>(sensors.beginCount), &prototype::on_collision_begin);
-    dispatch(sensors.endEvents, static_cast<size_t>(sensors.endCount), &prototype::on_collision_end);
-
     const auto contacts = b2World_GetContactEvents(_world);
     for (const auto& event : std::span(contacts.beginEvents, static_cast<size_t>(contacts.beginCount))) {
       if (!resolve(event.shapeIdA, event.shapeIdB, ea, eb))
@@ -940,12 +907,8 @@ void stage::update(float delta) {
 
   _particlesystem.update(delta);
 
-  auto& rd = _registry.ctx().get<reorder>();
   if (rd.dirty) [[unlikely]] {
-    _registry.sort<renderable>([](const renderable& lhs, const renderable& rhs) {
-      return lhs.z < rhs.z;
-    }, entt::insertion_sort{});
-
+    _registry.sort<renderable>(ordered, entt::insertion_sort{});
     rd.dirty = false;
   }
 }

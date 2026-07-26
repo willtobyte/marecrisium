@@ -72,3 +72,4 @@
 * Always test with all available sanitizers. When appropriate, also perform fuzz testing.
 * Only little-endian code.
 * Always write SIMD-friendly and cache-friendly code.
+* Use **likely** or **unlikely** whenever appropriate. Assume the happy path whenever it is reasonable, as it often leads to better performance.
