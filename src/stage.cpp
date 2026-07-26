@@ -642,7 +642,7 @@ void stage::update(float delta) {
   }
 
   auto& state = _registry.ctx().get<dormancy>();
-  if (state.dirty || state.viewport != viewport) {
+  if (state.dirty || state.viewport != viewport) [[unlikely]] {
     state.viewport = viewport;
     state.dirty = false;
 
@@ -718,7 +718,7 @@ void stage::update(float delta) {
       continue;
 
     a->elapsed += delta;
-    if (a->elapsed < fr.duration)
+    if (a->elapsed < fr.duration) [[likely]]
       continue;
 
     a->elapsed -= fr.duration;
