@@ -40,7 +40,10 @@ static void submit(SDL_Texture* texture, const SDL_Vertex* first, const SDL_Vert
     static_cast<int>(count / corners * elements));
 }
 
-static const auto filter = b2DefaultQueryFilter();
+static constexpr b2QueryFilter filter{
+  B2_DEFAULT_CATEGORY_BITS,
+  B2_DEFAULT_MASK_BITS,
+};
 
 static color unpack(lua_State *state, int index) {
   lua_rawgeti(state, index, 1);

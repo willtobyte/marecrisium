@@ -73,3 +73,4 @@
 * Only little-endian code.
 * Always write SIMD-friendly and cache-friendly code.
 * Use **likely** or **unlikely** whenever appropriate. Assume the happy path whenever it is reasonable, as it often leads to better performance.
+* Never rely solely on benchmarks. Inspect the generated assembly to verify that the code is efficient, SIMD-friendly, cache-friendly, and free of unnecessary overhead.
