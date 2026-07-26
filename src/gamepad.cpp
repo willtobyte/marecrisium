@@ -87,7 +87,8 @@ static void connect(SDL_JoystickID id) {
   if (ptr.load()) [[likely]] return;
 
   auto *const candidate = SDL_OpenGamepad(id);
-  if (!candidate) [[unlikely]] return;
+  if (!candidate) [[unlikely]]
+    return;
 
   SDL_Gamepad *expected = nullptr;
   if (!ptr.compare_exchange_strong(expected, candidate))
