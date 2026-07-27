@@ -1,10 +1,9 @@
-local scheduler = require("helpers/scheduler")
 local camera = require("helpers/camera")
 local controls = require("helpers/controls")
 
 local pressed = true
 
-return scheduler.wrap({
+return {
 	tilemap = "forest",
 
 	minimap = {
@@ -74,4 +73,4 @@ return scheduler.wrap({
 	on_leave = function(self)
 		-- pool.theme1:stop()
 	end,
-})
+}

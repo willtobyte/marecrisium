@@ -187,7 +187,6 @@ cassette = {}
 ---@field splash string Splash screen image name. Resolves to `blobs/splashes/<name>.png`. Displayed full-screen on the first frame while the game loads.
 ---@field scale number Render scale factor.
 ---@field fullscreen boolean Whether to start in fullscreen mode.
----@field ticks integer|nil Fixed tick rate (ticks per second). Default is 0 (disabled). Set to e.g. 10 for 10 ticks/second.
 ---@field on_begin fun() Called once after the engine is fully initialized.
 
 --------------------------------------------------------------------------------
@@ -269,12 +268,6 @@ function Stage.on_enter(self) end
 ---Called when the director navigates away from this stage.
 ---@param self table The stage table itself.
 function Stage.on_leave(self) end
-
----Called at fixed tick rate while this stage is active.
----Only fires when `ticks` is set in MainConfig.
----@param self table The stage table itself.
----@param tick number Monotonically increasing tick counter (starts at 1).
-function Stage.on_tick(self, tick) end
 
 ---Called when committed UTF-8 text is entered while this stage is active.
 ---Text input starts automatically when the stage becomes active and stops when it becomes inactive.
@@ -819,6 +812,75 @@ function _(key, ...) end
 function moment() end
 
 --------------------------------------------------------------------------------
+-- Timer (frame-driven repeating callbacks)
+--------------------------------------------------------------------------------
+
+---@class TimerHandle
+---@operator call(): TimerHandle
+---Subscription returned by `timer:add`. Calling the handle directly is an
+---alias for `cancel`. Control methods are idempotent and return the handle.
+local TimerHandle = {}
+
+---Cancel future callbacks and release the callback reference.
+---@return TimerHandle self
+function TimerHandle:cancel() end
+
+---Pause without discarding the elapsed portion of the current interval.
+---@return TimerHandle self
+function TimerHandle:pause() end
+
+---Resume a paused timer from its remaining interval.
+---@return TimerHandle self
+function TimerHandle:resume() end
+
+---Restart the current interval, optionally replacing its duration.
+---@param milliseconds? number New positive interval in milliseconds.
+---@return TimerHandle self
+function TimerHandle:reset(milliseconds) end
+
+---Whether the timer has not been cancelled.
+---@return boolean
+function TimerHandle:is_active() end
+
+---Whether the active timer is paused.
+---@return boolean
+function TimerHandle:is_paused() end
+
+---@class Timer
+---Single-threaded timer queue advanced by the engine once per frame using its
+---clamped simulation delta; suspended wall-clock time is not replayed.
+---Timers created by a stage use that stage's clock. Leaving the stage freezes
+---their remaining interval completely; returning resumes from the same point
+---without firing or catching up for time spent in another stage. Timers created
+---outside a stage use the global clock and continue across stage transitions.
+---Frame time is accrued for all running timers before due callbacks run. The
+---global queue runs before the current stage queue; each queue preserves
+---registration order. If one frame spans multiple intervals, the callback runs
+---once per elapsed interval so that repeating timers do not drift.
+local Timer = {}
+
+---Add a repeating callback.
+---The returned handle can be called as `unsubscribe()` or controlled with
+---`unsubscribe:pause()`, `unsubscribe:resume()`, `unsubscribe:reset()`, and
+---`unsubscribe:cancel()`.
+---@param milliseconds number Positive repeating interval in milliseconds.
+---@param callback fun() Callback invoked synchronously by the event loop.
+---@return TimerHandle unsubscribe
+function Timer:add(milliseconds, callback) end
+
+---Advance all timers. Called automatically by the engine event loop; calling it
+---manually advances time again. Must not be called recursively from a callback.
+---@param delta number Frame delta time in seconds.
+function Timer:update(delta) end
+
+---Cancel every active timer.
+function Timer:clear() end
+
+---Global frame-driven timer queue.
+---@type Timer
+timer = {}
+
+--------------------------------------------------------------------------------
 -- Controls (unified keyboard + gamepad abstraction)
 --------------------------------------------------------------------------------
 
@@ -875,56 +937,3 @@ function math.randomseed(seed) end
 ---@param maximum integer Upper bound (inclusive).
 ---@return integer
 function math.random(minimum, maximum) end
-
---------------------------------------------------------------------------------
--- Scheduler (coroutine-based task scheduler)
---------------------------------------------------------------------------------
-
----@class Scheduler
----Pure Lua coroutine scheduler driven by the engine's fixed tick rate.
----Require via `require("helpers/scheduler")`.
----
----Usage:
----```lua
----local scheduler = require("helpers/scheduler")
----
----local stop = scheduler.run(function(wait)
----    while self.alive do
----        self.direction = 1
----        wait(20)
----        self.direction = -1
----        wait(20)
----    end
----end)
----
------ Cancel early (e.g. when the entity dies). Idempotent: safe to
------ call again after the routine has already finished.
----stop()
----
----return scheduler.wrap({
----    ...
----})
----```
-local Scheduler = {}
-
----Launch a function as a managed coroutine.
----`f` receives a `wait` function; call `wait(n)` to pause N ticks.
----Begins executing on the next scheduler advance.
----Returns a `stop` closure that cancels the routine: once called, the
----coroutine is never resumed again and is removed on the next advance.
----@param fn fun(wait: fun(ticks: integer)) The function to run.
----@return fun() stop Cancel closure; idempotent; safe after completion.
-function Scheduler.run(fn) end
-
----Advance all ready coroutines. Called internally by `wrap`.
----@param current_tick integer The current tick counter.
-function Scheduler.advance(current_tick) end
-
----Cancel all active coroutines.
-function Scheduler.clear() end
-
----Decorate a stage to auto-advance on `on_tick` and auto-clear on `on_leave`.
----Chains with existing callbacks.
----@param stage Stage The stage table to wrap.
----@return Stage stage The same table, modified in place.
-function Scheduler.wrap(stage) end

@@ -10,7 +10,6 @@ return {
 	width = 1920,
 	height = 1080,
 	scale = 3.0,
-	ticks = 10,
 	fullscreen = getenv("WINDOWED") ~= "1",
 	on_begin = function()
 		local seed = cassette.seed

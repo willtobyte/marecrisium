@@ -301,6 +301,8 @@ static bool ordered(const renderable& lhs, const renderable& rhs) {
 
 stage::stage(std::string name)
     : _name(std::move(name)) {
+  const timer::scope scope{_timer};
+
   _registry.on_destroy<scriptable>().connect<&on_scriptable_destroy>();
   _registry.on_destroy<body>().connect<&on_object_destroy>();
   _registry.ctx().emplace<reorder>();
@@ -567,9 +569,6 @@ stage::stage(std::string name)
   lua_getfield(L, -1, "on_camera");
   _on_camera = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
-  lua_getfield(L, -1, "on_tick");
-  _on_tick = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
-
   lua_getfield(L, -1, "on_text");
   _on_text = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
@@ -606,7 +605,6 @@ stage::~stage() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_leave);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_enter);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_text);
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_tick);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_camera);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   luaL_unref(L, LUA_REGISTRYINDEX, _world_reference);
@@ -1125,16 +1123,6 @@ void stage::conceal() {
   lua_setglobal(L, "pool");
   lua_pushnil(L);
   lua_setglobal(L, "world");
-}
-
-void stage::on_tick(uint64_t tick) {
-  if (_on_tick == LUA_NOREF) [[likely]]
-    return;
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _on_tick);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  lua_pushinteger(L, static_cast<lua_Integer>(tick));
-  binding::call(L, 2, 0);
 }
 
 void stage::on_text(std::string_view text) {

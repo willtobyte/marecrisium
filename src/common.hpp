@@ -66,15 +66,7 @@ extern ma_engine audio;
 struct resources;
 extern struct resources *depot;
 
-struct viewport final {
-  float width;
-  float height;
-  float scale;
-  float x;
-  float y;
-
-  constexpr bool operator==(const viewport&) const = default;
-};
+#include "viewport.hpp"
 
 extern struct viewport viewport;
 
@@ -113,6 +105,7 @@ extern struct viewport viewport;
 #include "stringpool.hpp"
 #include "system.hpp"
 #include "tilemap.hpp"
+#include "timer.hpp"
 #include "minimap.hpp"
 #include "overlay.hpp"
 #include "resources.hpp"

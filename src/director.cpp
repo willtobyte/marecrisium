@@ -69,19 +69,13 @@ void director::transition() {
 
   _pending.reset();
   _current = it->second.get();
+  _current->_timer.activate();
   _current->expose();
 
   for (const auto &name : _current->_foregrounds)
     _overlay.show(name);
 
   _current->on_enter();
-}
-
-void director::on_tick(uint64_t tick) {
-  if (!_current) [[unlikely]]
-    return;
-
-  _current->on_tick(tick);
 }
 
 void director::update(float delta) {

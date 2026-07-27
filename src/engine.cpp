@@ -20,10 +20,6 @@ engine::engine() {
   const auto fullscreen = lua_toboolean(L, -1) != 0;
   lua_pop(L, 1);
 
-  lua_getfield(L, -1, "ticks");
-  _period = 1.f / static_cast<float>(lua_tonumber(L, -1));
-  lua_pop(L, 1);
-
   lua_getfield(L, -1, "title");
   const std::string title = lua_tostring(L, -1);
   lua_pop(L, 1);
@@ -154,14 +150,7 @@ void engine::loop() {
 
   _director.transition();
 
-  if (_period > .0f) [[likely]] {
-    _accumulator += delta;
-
-    while (_accumulator >= _period) {
-      _accumulator -= _period;
-      _director.on_tick(++_tick);
-    }
-  }
+  timer::update(delta);
 
   _director.update(delta);
 
