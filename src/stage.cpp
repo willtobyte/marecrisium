@@ -8,7 +8,6 @@ namespace {
   constexpr auto corners = 4uz;
   constexpr auto elements = 6uz;
   constexpr std::array pattern{0, 1, 2, 0, 2, 3};
-}
 
 static bool on_event(void *userdata, SDL_Event *event) {
   if (event->type != SDL_EVENT_TEXT_INPUT) [[likely]]
@@ -18,15 +17,15 @@ static bool on_event(void *userdata, SDL_Event *event) {
   return true;
 }
 
-static void* to_userdata(entt::entity e) {
+static void* encode(entt::entity e) {
   return reinterpret_cast<void*>(static_cast<uintptr_t>(e) + 1);
 }
 
-static entt::entity to_entity(const void* p) {
+static entt::entity decode(const void* p) {
   return static_cast<entt::entity>(reinterpret_cast<uintptr_t>(p) - 1);
 }
 
-static void submit(SDL_Texture* texture, const SDL_Vertex* first, const SDL_Vertex* last, const int* indices) {
+static void flush(SDL_Texture* texture, const SDL_Vertex* first, const SDL_Vertex* last, const int* indices) {
   if (first == last) [[unlikely]]
     return;
 
@@ -45,7 +44,7 @@ static constexpr b2QueryFilter filter{
   B2_DEFAULT_MASK_BITS,
 };
 
-static color unpack(lua_State *state, int index) {
+static color read_color(lua_State *state, int index) {
   lua_rawgeti(state, index, 1);
   const auto r = static_cast<uint8_t>(lua_tonumber(state, -1));
   lua_pop(state, 1);
@@ -61,7 +60,7 @@ static color unpack(lua_State *state, int index) {
   return {r, g, b};
 }
 
-static bool culled(const transform &tf, const animation &an, float margin) {
+static bool outside(const transform &tf, const animation &an, float margin) {
   const auto &fr = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
   const auto width = fr.width * tf.scale;
   const auto height = fr.height * tf.scale;
@@ -75,7 +74,7 @@ static bool culled(const transform &tf, const animation &an, float margin) {
     sy >  viewport.height + margin;
 }
 
-static constexpr auto mapping(const char *s) -> std::pair<body_type, b2BodyType> {
+static constexpr auto body_types(const char *s) -> std::pair<body_type, b2BodyType> {
   const auto id = entt::hashed_string{s};
   switch (id) {
     case lookup::dynamic_bodytype: return {body_type::dynamic, b2_dynamicBody};
@@ -84,7 +83,7 @@ static constexpr auto mapping(const char *s) -> std::pair<body_type, b2BodyType>
   }
 }
 
-static void ensure_shape(body& b, const frame& fr, entt::entity entity, const transform& tf, float timestep) {
+static void sync_body(body& b, const frame& fr, entt::entity entity, const transform& tf, float timestep) {
   auto created = false;
   if (b.snapshot != &fr) [[unlikely]] {
     b.snapshot = &fr;
@@ -95,7 +94,7 @@ static void ensure_shape(body& b, const frame& fr, entt::entity entity, const tr
       const auto polygon = b2MakeBox(hx, hy);
 
       auto sdef = b2DefaultShapeDef();
-      sdef.userData = to_userdata(entity);
+      sdef.userData = encode(entity);
       sdef.enableContactEvents = b.events;
       sdef.enableSensorEvents = b.events;
 
@@ -149,7 +148,7 @@ static void ensure_shape(body& b, const frame& fr, entt::entity entity, const tr
   b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, timestep);
 }
 
-static bool resolve(b2ShapeId a, b2ShapeId b, entt::entity &ea, entt::entity &eb) {
+static bool resolve_entities(b2ShapeId a, b2ShapeId b, entt::entity &ea, entt::entity &eb) {
   if (!b2Shape_IsValid(a) || !b2Shape_IsValid(b)) [[unlikely]]
     return false;
 
@@ -158,12 +157,12 @@ static bool resolve(b2ShapeId a, b2ShapeId b, entt::entity &ea, entt::entity &eb
   if (!ua || !ub) [[unlikely]]
     return false;
 
-  ea = to_entity(ua);
-  eb = to_entity(ub);
+  ea = decode(ua);
+  eb = decode(ub);
   return true;
 }
 
-static void on_scriptable_destroy(entt::registry& registry, entt::entity entity) {
+static void release_scriptable(entt::registry& registry, entt::entity entity) {
   auto& op = registry.get<scriptable>(entity);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
@@ -177,23 +176,23 @@ static void on_scriptable_destroy(entt::registry& registry, entt::entity entity)
   luaL_unref(L, LUA_REGISTRYINDEX, op.handle);
 }
 
-static void on_object_destroy(entt::registry& registry, entt::entity entity) {
+static void destroy_body(entt::registry& registry, entt::entity entity) {
   auto& b = registry.get<body>(entity);
   if (alive(b))
     b2DestroyBody(b.id);
 }
 
-static bool gather(b2ShapeId shape, void *userdata) {
+static bool collect_hits(b2ShapeId shape, void *userdata) {
   const auto *ud = b2Shape_GetUserData(shape);
   if (!ud) [[unlikely]]
     return true;
 
   auto *hits = static_cast<std::vector<stage::hit> *>(userdata);
-  hits->emplace_back(to_entity(ud));
+  hits->emplace_back(decode(ud));
   return true;
 }
 
-static const scriptable* scriptable_of(entt::registry& registry, entt::entity entity) {
+static const scriptable* find_scriptable(entt::registry& registry, entt::entity entity) {
   if (!registry.valid(entity)) [[unlikely]]
     return nullptr;
 
@@ -226,7 +225,7 @@ static void invalidate(lua_State* state, int table, const char* name) {
   }
 }
 
-static int world_spawn(lua_State* state) {
+static int spawn_callback(lua_State* state) {
   auto* self = owner(state);
   const std::string_view name = luaL_checkstring(state, 1);
   const std::string_view kind = luaL_checkstring(state, 2);
@@ -235,19 +234,19 @@ static int world_spawn(lua_State* state) {
   return self->spawn(state, name, kind, x, y);
 }
 
-static int world_destroy(lua_State* state) {
+static int destroy_callback(lua_State* state) {
   return owner(state)->destroy(state);
 }
 
-static int world_count(lua_State* state) {
+static int count_callback(lua_State* state) {
   return owner(state)->count(state);
 }
 
-static int world_find(lua_State* state) {
+static int find_callback(lua_State* state) {
   return owner(state)->find(state);
 }
 
-static int world_radar(lua_State* state) {
+static int radar_callback(lua_State* state) {
   auto* self = owner(state);
   const auto* caller = static_cast<proxy *>(luaL_checkudata(state, 1, "Object"));
   const auto x = static_cast<float>(luaL_checknumber(state, 2));
@@ -256,7 +255,7 @@ static int world_radar(lua_State* state) {
   return self->radar(state, caller->entity, x, y, radius);
 }
 
-static int world_raycast(lua_State* state) {
+static int raycast_callback(lua_State* state) {
   auto* self = owner(state);
   const auto* caller = static_cast<proxy *>(luaL_checkudata(state, 1, "Object"));
   const auto x = static_cast<float>(luaL_checknumber(state, 2));
@@ -285,7 +284,7 @@ static void dispatch_sensors(
     int prototype::*callback) {
   entt::entity ea, eb;
   for (const auto& event : std::span(entries, count)) {
-    if (!resolve(event.sensorShapeId, event.visitorShapeId, ea, eb))
+    if (!resolve_entities(event.sensorShapeId, event.visitorShapeId, ea, eb))
       continue;
 
     const auto* pa = registry.try_get<scriptable>(ea);
@@ -295,16 +294,17 @@ static void dispatch_sensors(
   }
 }
 
-static bool ordered(const renderable& lhs, const renderable& rhs) {
+static bool by_depth(const renderable& lhs, const renderable& rhs) {
   return lhs.z < rhs.z;
+}
 }
 
 stage::stage(std::string name)
     : _name(std::move(name)) {
   const timer::scope scope{_timer};
 
-  _registry.on_destroy<scriptable>().connect<&on_scriptable_destroy>();
-  _registry.on_destroy<body>().connect<&on_object_destroy>();
+  _registry.on_destroy<scriptable>().connect<&release_scriptable>();
+  _registry.on_destroy<body>().connect<&destroy_body>();
   _registry.ctx().emplace<reorder>();
   _registry.ctx().emplace<dormancy>();
 
@@ -327,27 +327,27 @@ stage::stage(std::string name)
   lua_newtable(L);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
-  binding::closure(L, world_spawn, 1);
+  binding::closure(L, spawn_callback, 1);
   lua_setfield(L, -2, "spawn");
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
-  binding::closure(L, world_destroy, 1);
+  binding::closure(L, destroy_callback, 1);
   lua_setfield(L, -2, "destroy");
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
-  binding::closure(L, world_count, 1);
+  binding::closure(L, count_callback, 1);
   lua_setfield(L, -2, "count");
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
-  binding::closure(L, world_find, 1);
+  binding::closure(L, find_callback, 1);
   lua_setfield(L, -2, "find");
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
-  binding::closure(L, world_radar, 1);
+  binding::closure(L, radar_callback, 1);
   lua_setfield(L, -2, "radar");
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
-  binding::closure(L, world_raycast, 1);
+  binding::closure(L, raycast_callback, 1);
   lua_setfield(L, -2, "raycast");
 
   _world_reference = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -464,23 +464,23 @@ stage::stage(std::string name)
 
   if (lua_istable(L, -1)) [[unlikely]] {
     lua_getfield(L, -1, "solid");
-    const auto solid = unpack(L, -1);
+    const auto solid = read_color(L, -1);
     lua_pop(L, 1);
 
     lua_getfield(L, -1, "passable");
-    const auto passable = unpack(L, -1);
+    const auto passable = read_color(L, -1);
     lua_pop(L, 1);
 
     lua_getfield(L, -1, "void");
-    const auto empty = unpack(L, -1);
+    const auto empty = read_color(L, -1);
     lua_pop(L, 1);
 
     lua_getfield(L, -1, "player");
-    const auto player = unpack(L, -1);
+    const auto player = read_color(L, -1);
     lua_pop(L, 1);
 
     lua_getfield(L, -1, "entity");
-    const auto entity = unpack(L, -1);
+    const auto entity = read_color(L, -1);
     lua_pop(L, 1);
 
     _minimap.emplace(_tilemap, _registry, solid, passable, empty, player, entity);
@@ -612,7 +612,7 @@ stage::~stage() {
   luaL_unref(L, LUA_REGISTRYINDEX, _pool_reference);
   luaL_unref(L, LUA_REGISTRYINDEX, _reference);
 
-  _registry.on_destroy<body>().disconnect<&on_object_destroy>();
+  _registry.on_destroy<body>().disconnect<&destroy_body>();
   _registry.clear();
   b2DestroyWorld(_world);
 }
@@ -620,7 +620,7 @@ stage::~stage() {
 void stage::update(float delta) {
   _pending.clear();
   for (auto&& [e, tf, an] : _registry.view<sleepable, transform, animation>(entt::exclude<dormant>).each()) {
-    if (culled(tf, an, _sleep_margin))
+    if (outside(tf, an, _sleep_margin))
       _pending.emplace_back(e);
   }
 
@@ -649,7 +649,7 @@ void stage::update(float delta) {
 
     _pending.clear();
     for (auto&& [e, tf, an] : _registry.view<sleepable, dormant, transform, animation>().each()) {
-      if (!culled(tf, an, _wake_margin))
+      if (!outside(tf, an, _wake_margin))
         _pending.emplace_back(e);
     }
 
@@ -762,7 +762,7 @@ void stage::update(float delta) {
 
       const auto& frame = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
 
-      ensure_shape(b, frame, en, tf, _timestep);
+      sync_body(b, frame, en, tf, _timestep);
     }
 
     b2World_Step(_world, _timestep, _substeps);
@@ -770,7 +770,7 @@ void stage::update(float delta) {
     const auto events = b2World_GetBodyEvents(_world);
 
     for (const auto& event : std::span(events.moveEvents, static_cast<size_t>(events.moveCount))) {
-      const auto entity = to_entity(event.userData);
+      const auto entity = decode(event.userData);
 
       if (!_registry.valid(entity)) [[unlikely]]
         continue;
@@ -878,7 +878,7 @@ void stage::update(float delta) {
     entt::entity ea, eb;
     const auto contacts = b2World_GetContactEvents(_world);
     for (const auto& event : std::span(contacts.beginEvents, static_cast<size_t>(contacts.beginCount))) {
-      if (!resolve(event.shapeIdA, event.shapeIdB, ea, eb))
+      if (!resolve_entities(event.shapeIdA, event.shapeIdB, ea, eb))
         continue;
 
       auto *pa = _registry.try_get<scriptable>(ea);
@@ -892,7 +892,7 @@ void stage::update(float delta) {
     }
 
     for (const auto& event : std::span(contacts.endEvents, static_cast<size_t>(contacts.endCount))) {
-      if (!resolve(event.shapeIdA, event.shapeIdB, ea, eb))
+      if (!resolve_entities(event.shapeIdA, event.shapeIdB, ea, eb))
         continue;
 
       auto *pa = _registry.try_get<scriptable>(ea);
@@ -909,7 +909,7 @@ void stage::update(float delta) {
   _particlesystem.update(delta);
 
   if (rd.dirty) [[unlikely]] {
-    _registry.sort<renderable>(ordered, entt::insertion_sort{});
+    _registry.sort<renderable>(by_depth, entt::insertion_sort{});
     rd.dirty = false;
   }
 }
@@ -975,7 +975,7 @@ void stage::draw() {
       auto *texture = static_cast<SDL_Texture *>(*source);
 
       if (texture != current) {
-        submit(current, batch, output, _indices.data());
+        flush(current, batch, output, _indices.data());
         current = texture;
         batch = output;
       }
@@ -1013,7 +1013,7 @@ void stage::draw() {
     *output++ = SDL_Vertex{{mx - dx1, my - dy1}, color, {u0, v1}};
   }
 
-  submit(current, batch, output, _indices.data());
+  flush(current, batch, output, _indices.data());
 
   _particlesystem.draw();
 
@@ -1176,10 +1176,10 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       const std::string behavior = lua_isstring(L, -1) ? lua_tostring(L, -1) : "kinematic";
       lua_pop(L, 2);
 
-      const auto [type, b2type] = mapping(behavior.data());
+      const auto [type, b2type] = body_types(behavior.data());
 
       b2BodyDef bdef = b2DefaultBodyDef();
-      bdef.userData = to_userdata(entity);
+      bdef.userData = encode(entity);
       bdef.type = b2type;
 
       if (type == body_type::dynamic) {
@@ -1227,7 +1227,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 
   if (auto [a, t] = _registry.try_get<animation, transform>(entity);
       a && t && _registry.all_of<sleepable>(entity)) {
-    if (culled(*t, *a, _sleep_margin)) {
+    if (outside(*t, *a, _sleep_margin)) {
       _registry.emplace<dormant>(entity);
 
       if (auto* b = _registry.try_get<body>(entity);
@@ -1268,11 +1268,11 @@ int stage::count(lua_State *state) {
   const auto aabb = b2AABB{{x, y}, {x + w, y + h}};
 
   _hits.clear();
-  b2World_OverlapAABB(_world, aabb, filter, +gather, &_hits);
+  b2World_OverlapAABB(_world, aabb, filter, +collect_hits, &_hits);
 
   int total = 0;
   for (const auto& [entity, fraction] : _hits) {
-    const auto* op = scriptable_of(_registry, entity);
+    const auto* op = find_scriptable(_registry, entity);
     if (op && op->kind == kind)
       ++total;
   }
@@ -1291,13 +1291,13 @@ int stage::find(lua_State *state) {
   const b2AABB aabb = {{x, y}, {x + w, y + h}};
 
   _hits.clear();
-  b2World_OverlapAABB(_world, aabb, filter, +gather, &_hits);
+  b2World_OverlapAABB(_world, aabb, filter, +collect_hits, &_hits);
 
   lua_createtable(state, static_cast<int>(_hits.size()), 0);
   int index = 1;
 
   for (const auto& [entity, fraction] : _hits) {
-    const auto* op = scriptable_of(_registry, entity);
+    const auto* op = find_scriptable(_registry, entity);
     if (!op || op->kind != kind)
       continue;
 
@@ -1322,7 +1322,7 @@ int stage::radar(lua_State *state, entt::entity caller, float x, float y, float 
     _world,
     &proxy,
     filter,
-    +gather,
+    +collect_hits,
     &_hits
   );
 
@@ -1333,7 +1333,7 @@ int stage::radar(lua_State *state, entt::entity caller, float x, float y, float 
     if (entity == caller)
       continue;
 
-    const auto* op = scriptable_of(_registry, entity);
+    const auto* op = find_scriptable(_registry, entity);
     if (!op)
       continue;
 
@@ -1360,7 +1360,7 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
   struct tally final {
     std::vector<hit>* hits;
     float clip;
-  } gather{&_hits, 1.f};
+  } query{&_hits, 1.f};
 
   b2World_CastRay(
     _world,
@@ -1375,13 +1375,13 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
         return fraction;
       }
 
-      value->hits->emplace_back(to_entity(data), fraction);
+      value->hits->emplace_back(decode(data), fraction);
       return 1.f;
     },
-    &gather
+    &query
   );
 
-  std::erase_if(_hits, [clip = gather.clip](const hit& entry) { return entry.fraction > clip; });
+  std::erase_if(_hits, [clip = query.clip](const hit& entry) { return entry.fraction > clip; });
   std::ranges::sort(_hits, {}, &hit::fraction);
 
   lua_createtable(state, static_cast<int>(_hits.size()), 0);
@@ -1391,7 +1391,7 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
     if (entity == caller) [[unlikely]]
       continue;
 
-    const auto* object = scriptable_of(_registry, entity);
+    const auto* object = find_scriptable(_registry, entity);
     if (!object) [[unlikely]]
       continue;
 
@@ -1446,7 +1446,7 @@ uint8_t stage::pick_at(float x, float y, entt::entity* buffer, uint8_t capacity)
       if (!ud) [[unlikely]]
         return true;
 
-      value->hits[value->count++] = to_entity(ud);
+      value->hits[value->count++] = decode(ud);
       return true;
     },
     &ctx);

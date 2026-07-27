@@ -107,16 +107,19 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
   for (auto i = 0uz; i < n; ++i) {
     const auto base = static_cast<int>(i * 4);
 
-    auto* vp = _vertices.get() + i * 4;
-    auto* ip = _indices.get() + i * 6;
+    auto *vertices = _vertices.get() + i * 4;
+    vertices[0] = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {.0f, .0f}};
+    vertices[1] = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {1.f, .0f}};
+    vertices[2] = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {1.f, 1.f}};
+    vertices[3] = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {.0f, 1.f}};
 
-    *vp++ = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {.0f, .0f}};
-    *vp++ = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {1.f, .0f}};
-    *vp++ = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {1.f, 1.f}};
-    *vp = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {.0f, 1.f}};
-
-    *ip++ = base; *ip++ = base + 1; *ip++ = base + 2;
-    *ip++ = base; *ip++ = base + 2; *ip++ = base + 3;
+    auto *indices = _indices.get() + i * 6;
+    indices[0] = base;
+    indices[1] = base + 1;
+    indices[2] = base + 2;
+    indices[3] = base;
+    indices[4] = base + 2;
+    indices[5] = base + 3;
   }
 }
 
@@ -236,7 +239,7 @@ void particle::draw() {
   [[assume(angles != nullptr)]];
   [[assume(vertices != nullptr)]];
 
-  auto* vp = vertices;
+  auto *out = vertices;
 
   for (auto i = 0uz; i < n; ++i) {
     if (life[i] <= .0f) [[unlikely]]
@@ -262,13 +265,18 @@ void particle::draw() {
     const auto dx1 = sw * ca + sh * sa;
     const auto dy1 = sw * sa - sh * ca;
 
-    vp->position = {px + dx0, py + dy0}; vp++->color.a = alpha;
-    vp->position = {px + dx1, py + dy1}; vp++->color.a = alpha;
-    vp->position = {px - dx0, py - dy0}; vp++->color.a = alpha;
-    vp->position = {px - dx1, py - dy1}; vp++->color.a = alpha;
+    out[0].position = {px + dx0, py + dy0};
+    out[0].color.a = alpha;
+    out[1].position = {px + dx1, py + dy1};
+    out[1].color.a = alpha;
+    out[2].position = {px - dx0, py - dy0};
+    out[2].color.a = alpha;
+    out[3].position = {px - dx1, py - dy1};
+    out[3].color.a = alpha;
+    out += 4;
   }
 
-  const auto nv = static_cast<int>(vp - vertices);
+  const auto nv = static_cast<int>(out - vertices);
   if (nv == 0) [[unlikely]]
     return;
 

@@ -13,7 +13,7 @@ CMakeUserPresets.json
 # OS
 .DS_Store
 
-# Engine
+# Carimbo
 cartridge.rom
 cassette.tape*
 stderr.txt
