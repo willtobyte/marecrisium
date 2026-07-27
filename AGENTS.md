@@ -12,7 +12,7 @@
 
 - Support only little-endian systems.
 - Support Apple Silicon on macOS and AMD64 on Windows.
-- Always use Linux Docker with an **AMD64** userspace and **Wine** for Windows builds and testing. **Never use Wine on macOS!**.
+- Always use Linux Docker with an AMD64 userspace and Wine for Windows builds and testing. **Never use Wine on macOS!**.
 
 ## C++
 
