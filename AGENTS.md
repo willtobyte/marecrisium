@@ -26,7 +26,7 @@
 
 - Prefer short, descriptive names.
 - Local variables should be a single word whenever practical.
-- Use abbreviations only when universally understood.
+- Use a single word or abbreviation for local-scope variable names.
 
 ### Design
 
