@@ -2,7 +2,8 @@ namespace {
 constexpr auto invalid = std::numeric_limits<uint32_t>::max();
 constexpr auto paused = uint32_t{1} << (std::numeric_limits<uint32_t>::digits - 1);
 constexpr auto mask = ~paused;
-constexpr auto capacity = static_cast<size_t>(std::numeric_limits<int>::max() - 1);
+constexpr auto capacity = static_cast<std::size_t>(std::numeric_limits<int>::max() - 1);
+constexpr auto retained = 64uz;
 constexpr auto global = uint32_t{};
 constexpr auto name = "TimerHandle";
 
@@ -27,7 +28,7 @@ struct queue final {
   std::vector<record> list;
   std::vector<slot> slots;
   uint32_t free{invalid};
-  size_t removed{};
+  std::size_t removed{};
   double now{};
   int roots{LUA_NOREF};
 };
@@ -122,18 +123,23 @@ struct runner final {
   return milliseconds;
 }
 
-[[nodiscard]] record *find(const ticket *owner) noexcept {
+struct found final {
+  queue *group;
+  record *current;
+};
+
+[[nodiscard]] found find(const ticket *owner) noexcept {
   auto *const group = queue_of(owner->group);
   if (!group || owner->slot >= group->slots.size()) [[unlikely]]
-    return nullptr;
+    return {};
 
   const auto &location = group->slots[owner->slot];
   if (location.generation != owner->generation) [[unlikely]]
-    return nullptr;
+    return {};
 
   auto &current = group->list[location.position];
   assert((current.slot & mask) == owner->slot);
-  return &current;
+  return {group, &current};
 }
 
 void erase(lua_State *state, int root, uint32_t index) {
@@ -149,10 +155,21 @@ void release(queue& group, uint32_t index) noexcept {
   group.free = index;
 }
 
-void cancel(ticket *owner, int root = 0) {
-  auto *const group = queue_of(owner->group);
-  auto *current = find(owner);
-  if (!group || !current) [[unlikely]]
+void reset(queue& group) {
+  std::vector<record>{}.swap(group.list);
+  std::vector<slot>{}.swap(group.slots);
+  group.removed = 0;
+  group.free = invalid;
+
+  lua_newtable(L);
+  const auto roots = luaL_ref(L, LUA_REGISTRYINDEX);
+  luaL_unref(L, LUA_REGISTRYINDEX, group.roots);
+  group.roots = roots;
+}
+
+void cancel(ticket *owner) {
+  const auto [group, current] = find(owner);
+  if (!current) [[unlikely]]
     return;
 
   const auto index = owner->slot;
@@ -161,14 +178,20 @@ void cancel(ticket *owner, int root = 0) {
   release(*group, index);
   ++group->removed;
 
-  if (root == 0) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, group->roots);
-    root = lua_gettop(L);
-    erase(L, root, index);
-    lua_pop(L, 1);
-  } else {
-    erase(L, root, index);
+  if (store::running == invalid && current == &group->list.back()) {
+    do {
+      group->list.pop_back();
+      --group->removed;
+    } while (!group->list.empty() && group->list.back().slot == invalid);
   }
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, group->roots);
+  const auto root = lua_gettop(L);
+  erase(L, root, index);
+  lua_pop(L, 1);
+  if (group->list.empty() &&
+      (group->list.capacity() > retained || group->slots.capacity() > retained))
+    reset(*group);
 }
 
 int cancel_callback(lua_State *state) {
@@ -179,9 +202,8 @@ int cancel_callback(lua_State *state) {
 
 int pause_callback(lua_State *state) {
   const auto *owner = static_cast<ticket *>(luaL_checkudata(state, 1, name));
-  auto *current = find(owner);
+  const auto [group, current] = find(owner);
   if (current && (current->slot & paused) == 0) [[likely]] {
-    const auto *group = queue_of(owner->group);
     current->deadline = std::max(current->deadline - group->now, 0.0);
     current->slot |= paused;
   }
@@ -192,9 +214,8 @@ int pause_callback(lua_State *state) {
 
 int resume_callback(lua_State *state) {
   const auto *owner = static_cast<ticket *>(luaL_checkudata(state, 1, name));
-  auto *current = find(owner);
+  const auto [group, current] = find(owner);
   if (current && (current->slot & paused) != 0) [[likely]] {
-    const auto *group = queue_of(owner->group);
     current->deadline += group->now;
     current->slot &= mask;
   }
@@ -205,7 +226,7 @@ int resume_callback(lua_State *state) {
 
 int reset_callback(lua_State *state) {
   const auto *owner = static_cast<ticket *>(luaL_checkudata(state, 1, name));
-  auto *current = find(owner);
+  const auto [group, current] = find(owner);
   if (!current) [[unlikely]] {
     lua_settop(state, 1);
     return 1;
@@ -214,7 +235,6 @@ int reset_callback(lua_State *state) {
   if (!lua_isnoneornil(state, 2))
     current->period = period(state, 2);
 
-  const auto *group = queue_of(owner->group);
   current->deadline = (current->slot & paused) != 0
     ? current->period
     : group->now + current->period;
@@ -225,13 +245,13 @@ int reset_callback(lua_State *state) {
 
 int active_callback(lua_State *state) {
   const auto *owner = static_cast<ticket *>(luaL_checkudata(state, 1, name));
-  lua_pushboolean(state, find(owner) != nullptr);
+  lua_pushboolean(state, find(owner).current != nullptr);
   return 1;
 }
 
 int paused_callback(lua_State *state) {
   const auto *owner = static_cast<ticket *>(luaL_checkudata(state, 1, name));
-  const auto *current = find(owner);
+  const auto current = find(owner).current;
   lua_pushboolean(state, current && (current->slot & paused) != 0);
   return 1;
 }
@@ -300,6 +320,9 @@ int add_callback(lua_State *state) {
 }
 
 void discard(queue& group) {
+  if (group.removed == group.list.size())
+    return;
+
   lua_rawgeti(L, LUA_REGISTRYINDEX, group.roots);
   const auto root = lua_gettop(L);
 
@@ -311,10 +334,10 @@ void discard(queue& group) {
     current.slot = invalid;
     release(group, index);
     erase(L, root, index);
-    ++group.removed;
   }
 
   lua_pop(L, 1);
+  group.removed = group.list.size();
 }
 
 void clear() {
@@ -340,35 +363,39 @@ void bind(lua_State *state, const char *field, lua_CFunction callback) {
 }
 
 void compact(queue& group) {
-  size_t write{};
   const auto size = group.list.size();
-  for (size_t read = 0; read < size; ++read) {
+  assert(group.removed <= size);
+  if (group.removed == size) {
+    group.list.clear();
+    group.removed = 0;
+    if (group.list.capacity() > retained || group.slots.capacity() > retained)
+      reset(group);
+    return;
+  }
+
+  std::size_t write{};
+  for (std::size_t read = 0; read < size; ++read) {
     if (group.list[read].slot == invalid)
       continue;
 
-    if (write != read)
+    if (write != read) {
       group.list[write] = group.list[read];
+      const auto index = group.list[write].slot & mask;
+      group.slots[index].position = static_cast<uint32_t>(write);
+    }
 
-    const auto index = group.list[write].slot & mask;
-    group.slots[index].position = static_cast<uint32_t>(write);
     ++write;
   }
 
+  assert(write + group.removed == size);
   group.list.resize(write);
-  if (write == 0) {
-    std::vector<record>{}.swap(group.list);
-    std::vector<slot>{}.swap(group.slots);
-    group.free = invalid;
-    lua_newtable(L);
-    const auto roots = luaL_ref(L, LUA_REGISTRYINDEX);
-    luaL_unref(L, LUA_REGISTRYINDEX, group.roots);
-    group.roots = roots;
-  }
-
   group.removed = 0;
 }
 
-void advance(queue& group, uint32_t owner, size_t limit) {
+#ifndef _MSC_VER
+__attribute__((aligned(16)))
+#endif
+void advance(queue& group, uint32_t owner, std::size_t limit) {
   struct anchor final {
     ~anchor() {
       if (position != 0)
@@ -378,7 +405,7 @@ void advance(queue& group, uint32_t owner, size_t limit) {
     int position{};
   } root;
 
-  size_t position{};
+  std::size_t position{};
   while (position < limit) {
     const auto &current = group.list[position];
     if (current.slot != invalid && (current.slot & paused) == 0 && group.now >= current.deadline) {
@@ -417,7 +444,7 @@ group::group()
     : _id(create()) {
 }
 
-group::~group() {
+group::~group() noexcept {
   assert(_id != store::running);
   auto *const group = queue_of(_id);
   if (!group) [[unlikely]]
@@ -444,7 +471,7 @@ scope::scope(const group& owner) noexcept
   store::owner = owner._id;
 }
 
-scope::~scope() {
+scope::~scope() noexcept {
   store::owner = _prior;
 }
 
@@ -486,7 +513,7 @@ void update(double delta) {
   const auto global_limit = global_queue.list.size();
   global_queue.now += elapsed;
 
-  auto active_limit = size_t{};
+  auto active_limit = std::size_t{};
   if (active != global) {
     auto &active_queue = *queue_of(active);
     active_limit = active_queue.list.size();

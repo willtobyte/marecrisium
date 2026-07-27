@@ -1,83 +1,65 @@
-# Agent Rules
+# Rules
 
-## Core
+## General
 
-### Scope
+- Assume valid, author-provided input. Optimize for the happy path.
+- Keep changes small, focused, and minimal. Never refactor unrelated code.
+- Prefer the simplest correct solution.
+- Do not create branches or commits.
+- Backward compatibility is not required for project-specific formats.
 
-- Assume valid, author-provided input; **optimize for the happy path**.
-- Make only small, focused changes. **Never refactor unrelated code.**
-- Prefer the simplest consistent solution.
-- **Do not create branches or commits.**
-- Custom formats need no backward compatibility.
-
-### Platforms
+## Platforms
 
 - Support only little-endian systems.
-- Support only Support Apple Silicon on macOS and AMD64 on Windows.
+- Support Apple Silicon on macOS and AMD64 on Windows.
+- Always use Linux Docker with an **AMD64** userspace and **Wine** for Windows builds and testing. **Never use Wine on macOS!**.
 
-## Languages
+## C++
 
-### C++
+- Target C++23.
+- Prefer modern C++ (`auto`, `constexpr`, `const`, `final`) when appropriate.
+- Add headers only to `common.hpp`, and only when necessary.
+- On Win32, `main.cpp` must include `SDL3/SDL_main.h`.
+- Always use `noexcept` where necessary. Do not swallow important exceptions. Exceptions such as allocation failures may be ignored.
 
-#### Standard and Files
+### Style
 
-- Target C++23; use modern features such as `auto`, `final`, `const`, and `constexpr` when appropriate.
-- **Add includes only to `common.hpp` and only when necessary.**
-- For Win32, `main.cpp` must include `SDL3/SDL_main.h`.
+- Prefer short, descriptive names.
+- Local variables should be a single word whenever practical.
+- Use abbreviations only when universally understood.
 
-#### Naming
+### Design
 
-- Prefer one-word names.
-- Local variables must use one word or acronym. Use short `snake_case` only when one word is impractical.
-- Outside local variables, use abbreviations only when widely recognized and unambiguous.
+- Keep constants, types, and state in the narrowest possible scope.
+- Use `struct` only to group closely related data or behavior.
+- Do not place project-specific constants in `common.hpp`.
 
-#### Types and State
+### Performance
 
-- Use structs only to group related data or behavior. Keep them in the narrowest `.cpp`; use a header only when shared.
-- Group related static variables only when necessary. Use a non-instantiated `final` struct with a one-word name.
-- Keep constants in the narrowest scope.
-- Never place project-specific constant groups in `common.hpp` or create types only to qualify constants.
-- Keep clear, one-use literals inline. Name reused values and every non-obvious semantic value.
+- The project is strictly single-threaded. Never use mutexes or `thread_local`.
+- Minimize allocations, copies, and runtime overhead.
+- Prefer O(1), SIMD-friendly, and cache-friendly implementations.
+- Use `[[assume]]`, `likely`, and `unlikely` when they measurably improve the hot path.
 
-#### Ownership and Safety
+### Memory
 
-- Use smart pointers only when they improve ownership or safety without needless overhead. Prefer `std::make_unique_for_overwrite`.
-- Raw non-owning pointers and managed C handles are valid when ownership and lifetime are clear.
-- **Never allow leaks or memory corruption.**
+- Prefer `std::make_unique_for_overwrite` when appropriate.
+- Raw non-owning pointers are acceptable when ownership is explicit.
+- Never introduce memory leaks or undefined behavior.
 
-#### Performance and Concurrency
+### Lua API
 
-- The project is single-threaded. **Do not use mutexes or `thread_local`.**
-- Avoid allocations, copies, and runtime overhead.
-- Favor O(1), SIMD-friendly, and cache-friendly implementations.
-- Use `[[assume(...)]]`, `likely`, and `unlikely` when they improve the happy path.
+- Every C++ change to the Lua API must also update `types/game.lua`.
 
-#### Lua API
+## Lua
 
-- Document every C++ change to the Lua API in `types/game.lua`.
+- LuaJIT only.
+- Keep Lua code LuaJIT-friendly and performance-oriented.
 
-### Lua
+## Validation
 
-- **LuaJIT only**
-- Lua code **must be LuaJIT-friendly and performance-oriented**.
-
-## Verification
-
-### Evidence and Benchmarks
-
-- Instrument changes; support every claim with measurements or reliable sources.
-- **Benchmark before and after every change in Release mode.** Never compare Debug benchmarks.
-- Measure runtime, memory use, and allocations.
-- Inspect generated assembly; do not rely on benchmarks alone.
-
-### Quality Checks
-
-- Enable strong compiler warnings and checks during development.
-- Test with every available sanitizer; fuzz when appropriate.
-- Use unit and smoke tests to validate correctness and efficiency.
-- Remove temporary tests before finishing; **never version them**.
-
-## Tools
-
-- Use Docker on Linux for better instrumentation.
-- Use Wine when Windows validation is required.
+- Measure every change in **Release** mode before and after.
+- Always collect runtime, memory usage, and allocation metrics.
+- Inspect generated assembly; benchmarks alone are insufficient.
+- Enable compiler warnings, sanitizers, and fuzzing whenever applicable.
+- Validate with unit and smoke tests, then remove temporary tests before finishing.

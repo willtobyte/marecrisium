@@ -5,7 +5,7 @@ struct SDL_Deleter final {
     requires requires(T* p) { SDL_CloseGamepad(p); } ||
              requires(T* p) { SDL_DestroyTexture(p); } ||
              requires(T* p) { SDL_free(p); }
-  void operator()(T* ptr) const {
+  void operator()(T* ptr) const noexcept {
     if (!ptr) [[unlikely]] return;
 
     if constexpr (requires { SDL_CloseGamepad(ptr); }) SDL_CloseGamepad(ptr);
@@ -15,7 +15,7 @@ struct SDL_Deleter final {
 };
 
 struct SPNG_Deleter final {
-  void operator()(spng_ctx* context) const {
+  void operator()(spng_ctx* context) const noexcept {
     if (!context) [[unlikely]] return;
 
     spng_ctx_free(context);
@@ -23,7 +23,7 @@ struct SPNG_Deleter final {
 };
 
 struct OggOpusFile_Deleter final {
-  void operator()(OggOpusFile* ptr) const {
+  void operator()(OggOpusFile* ptr) const noexcept {
     if (!ptr) [[unlikely]] return;
 
     op_free(ptr);

@@ -6,25 +6,25 @@ namespace lookup {
 constexpr const char *FILENAME = "cassette.tape";
 
 struct json_deleter final {
-  void operator()(yyjson_doc *document) const {
+  void operator()(yyjson_doc *document) const noexcept {
     yyjson_doc_free(document);
   }
 
-  void operator()(yyjson_mut_doc *document) const {
+  void operator()(yyjson_mut_doc *document) const noexcept {
     yyjson_mut_doc_free(document);
   }
 
-  void operator()(char *json) const {
+  void operator()(char *json) const noexcept {
     std::free(json);
   }
 };
 
 struct sqlite_deleter final {
-  void operator()(sqlite3 *handle) const {
+  void operator()(sqlite3 *handle) const noexcept {
     sqlite3_close(handle);
   }
 
-  void operator()(sqlite3_stmt *statement) const {
+  void operator()(sqlite3_stmt *statement) const noexcept {
     sqlite3_finalize(statement);
   }
 };

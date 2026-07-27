@@ -4,7 +4,7 @@ namespace timer {
   class group final {
   public:
     group();
-    ~group();
+    ~group() noexcept;
 
     group(const group&) = delete;
     group& operator=(const group&) = delete;
@@ -20,7 +20,7 @@ namespace timer {
   class scope final {
   public:
     explicit scope(const group& owner) noexcept;
-    ~scope();
+    ~scope() noexcept;
 
     scope(const scope&) = delete;
     scope& operator=(const scope&) = delete;
