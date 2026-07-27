@@ -17,6 +17,7 @@
 ## C++
 
 - Target C++23.
+- Always prefer `constexpr` whenever applicable.
 - Prefer modern C++ (`auto`, `constexpr`, `const`, `final`) when appropriate.
 - Add headers only to `common.hpp`, and only when necessary.
 - On Win32, `main.cpp` must include `SDL3/SDL_main.h`.
