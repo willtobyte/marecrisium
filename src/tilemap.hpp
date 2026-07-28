@@ -18,8 +18,6 @@ public:
 
   tilemap(std::string_view name, b2WorldId world);
 
-  ~tilemap() = default;
-
   void draw_background();
 
   void draw_foreground();

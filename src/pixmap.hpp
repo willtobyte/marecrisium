@@ -2,10 +2,7 @@
 
 class pixmap final {
 public:
-  pixmap() = delete;
   explicit pixmap(std::string_view filename);
-  ~pixmap() = default;
-
   void draw(
     const float sx, const float sy, const float sw, const float sh,
     const float dx, const float dy, const float dw, const float dh,

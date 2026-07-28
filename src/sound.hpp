@@ -7,7 +7,6 @@ public:
     OggOpusFile* file{};
   };
 
-  sound() = delete;
   explicit sound(std::string_view filename);
   ~sound();
 

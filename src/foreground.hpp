@@ -5,6 +5,9 @@ public:
   explicit foreground(std::string_view name);
   ~foreground();
 
+  foreground(const foreground&) = delete;
+  foreground& operator=(const foreground&) = delete;
+
   static void wire();
 
   void update(float delta);

@@ -70,6 +70,9 @@ struct guard final {
     store::owner = prior;
   }
 
+  guard(const guard&) = delete;
+  guard& operator=(const guard&) = delete;
+
   uint32_t prior;
 };
 
@@ -82,6 +85,9 @@ struct runner final {
   ~runner() {
     store::running = prior;
   }
+
+  runner(const runner&) = delete;
+  runner& operator=(const runner&) = delete;
 
   uint32_t prior;
 };
@@ -397,10 +403,15 @@ __attribute__((aligned(16)))
 #endif
 void advance(queue& group, uint32_t owner, std::size_t limit) {
   struct anchor final {
+    anchor() = default;
+
     ~anchor() {
       if (position != 0)
         lua_settop(L, position - 1);
     }
+
+    anchor(const anchor&) = delete;
+    anchor& operator=(const anchor&) = delete;
 
     int position{};
   } root;

@@ -20,8 +20,6 @@ struct glyphprops final {
 
 class font final {
 public:
-  font() = delete;
-
   explicit font(std::string_view family);
 
   static void wire();

@@ -2,9 +2,6 @@
 
 class fontpool final {
 public:
-  fontpool() = default;
-  ~fontpool() = default;
-
   font* get(std::string_view family);
 
   void clear();

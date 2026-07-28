@@ -3,8 +3,6 @@
 class engine final {
 public:
   engine();
-  ~engine() = default;
-
   void run();
 
   void loop();

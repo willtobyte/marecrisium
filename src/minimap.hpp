@@ -4,16 +4,9 @@ class tilemap;
 
 class minimap final {
 public:
-  minimap() = delete;
-
   minimap(const tilemap& tilemap, entt::registry& registry,
           color solid, color passable, color empty,
           color player, color entity);
-
-  ~minimap() = default;
-
-  minimap(minimap&&) = default;
-  minimap& operator=(minimap&&) = default;
 
   void draw();
 

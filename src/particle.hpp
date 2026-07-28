@@ -16,14 +16,7 @@ struct config final {
 
 class particle final {
 public:
-  particle() = delete;
-
   particle(const config& configuration, const pixmap& texture, float x, float y, bool active);
-
-  ~particle() = default;
-
-  particle(particle&&) = default;
-  particle& operator=(particle&&) = default;
 
   void update(float delta);
   void draw();

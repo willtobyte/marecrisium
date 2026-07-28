@@ -2,9 +2,6 @@
 
 class stringpool final {
 public:
-  stringpool() = default;
-  ~stringpool() = default;
-
   entt::id_type get(std::string_view value);
 
   const char* get(entt::id_type key) const;

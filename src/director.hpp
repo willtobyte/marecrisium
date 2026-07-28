@@ -4,9 +4,6 @@ class stage;
 
 class director final {
 public:
-  director() = default;
-  ~director() = default;
-
   void wire();
 
   void navigate(std::string name);
