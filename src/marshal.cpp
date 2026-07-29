@@ -43,10 +43,9 @@ void marshal::decode(lua_State *state, yyjson_val *value) {
         case YYJSON_SUBTYPE_UINT: {
           const auto number = yyjson_get_uint(value);
           constexpr auto maximum = static_cast<uint64_t>(std::numeric_limits<lua_Integer>::max());
-          if (number <= maximum)
-            lua_pushinteger(state, static_cast<lua_Integer>(number));
-          else
-            lua_pushnumber(state, static_cast<lua_Number>(number));
+          number <= maximum
+            ? static_cast<void>(lua_pushinteger(state, static_cast<lua_Integer>(number)))
+            : static_cast<void>(lua_pushnumber(state, static_cast<lua_Number>(number)));
         } break;
         case YYJSON_SUBTYPE_SINT:
           lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_sint(value)));
@@ -70,11 +69,11 @@ void marshal::decode(lua_State *state, yyjson_val *value) {
       yyjson_arr_iter iterator;
       yyjson_arr_iter_init(value, &iterator);
       yyjson_val *element;
-      auto i = 0;
+      auto index = 0;
       while ((element = yyjson_arr_iter_next(&iterator))) {
-        ++i;
+        ++index;
         decode(state, element);
-        lua_rawseti(state, -2, i);
+        lua_rawseti(state, -2, index);
       }
     } break;
 
@@ -133,8 +132,8 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
       if (is_array(state, absolute)) [[likely]] {
         auto *array = yyjson_mut_arr(document);
         const auto length = static_cast<int>(lua_objlen(state, absolute));
-        for (auto i = 0; i < length; ++i) {
-          lua_rawgeti(state, absolute, i + 1);
+        for (auto index = 0; index < length; ++index) {
+          lua_rawgeti(state, absolute, index + 1);
           yyjson_mut_arr_append(array, encode(state, -1, document));
           lua_pop(state, 1);
         }

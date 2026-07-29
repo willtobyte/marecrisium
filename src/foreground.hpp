@@ -18,7 +18,7 @@ public:
 
   void disappear();
 
-  int _reference{LUA_NOREF};
+  int _table{LUA_NOREF};
 
   pixmap *_texture{nullptr};
   std::vector<SDL_Vertex> _vertices;
@@ -30,5 +30,5 @@ private:
   int _on_paint{LUA_NOREF};
   int _on_appear{LUA_NOREF};
   int _on_disappear{LUA_NOREF};
-  int _userdata_reference{LUA_NOREF};
+  int _userdata{LUA_NOREF};
 };

@@ -6,13 +6,13 @@
 #  define noalias __restrict__
 #endif
 
-[[nodiscard]] inline uint64_t mix(uint64_t a, uint64_t b) noexcept {
+[[nodiscard]] inline uint64_t mix(uint64_t left, uint64_t right) noexcept {
 #ifdef _MSC_VER
   const auto lo = a * b;
   const auto hi = __umulh(a, b);
   return lo ^ hi;
 #else
-  const auto r = static_cast<__uint128_t>(a) * b;
-  return static_cast<uint64_t>(r) ^ static_cast<uint64_t>(r >> 64);
+  const auto product = static_cast<__uint128_t>(left) * right;
+  return static_cast<uint64_t>(product) ^ static_cast<uint64_t>(product >> 64);
 #endif
 }

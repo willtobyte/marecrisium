@@ -1,18 +1,18 @@
 static std::pair<float, float> read_range(lua_State* state, const char* field) {
-  float a = .0f, b = .0f;
+  float minimum = .0f, maximum = .0f;
   lua_getfield(state, -1, field);
   if (lua_istable(state, -1)) {
     lua_rawgeti(state, -1, 1);
-    a = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : .0f;
+    minimum = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : .0f;
     lua_pop(state, 1);
 
     lua_rawgeti(state, -1, 2);
-    b = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : .0f;
+    maximum = lua_isnumber(state, -1) ? static_cast<float>(lua_tonumber(state, -1)) : .0f;
     lua_pop(state, 1);
   }
   lua_pop(state, 1);
 
-  return {a, b};
+  return {minimum, maximum};
 }
 
 config* particlepool::get(std::string_view kind) {
@@ -24,9 +24,22 @@ config* particlepool::get(std::string_view kind) {
     const auto filename = std::format("particles/{}.lua", kind);
     const auto buffer = io::read(filename);
     const auto chunk = std::format("@{}", filename);
-    binding::load(L, buffer, chunk);
+    if (luaL_loadbuffer(L, reinterpret_cast<const char*>(buffer.data()), buffer.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
+    }
 
-    binding::call(L, 0, 1);
+    {
+      const auto base = lua_gettop(L);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+      lua_insert(L, base);
+      const auto status = lua_pcall(L, 0, 1, base);
+      lua_remove(L, base);
+      if (status != LUA_OK) [[unlikely]] {
+        lua_error(L);
+        std::unreachable();
+      }
+    }
 
     lua_getfield(L, -1, "count");
     config->count = lua_isnumber(L, -1) ? static_cast<size_t>(lua_tonumber(L, -1)) : 0uz;

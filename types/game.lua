@@ -1,23 +1,18 @@
 ---@meta
 
--- Mare Crisium API definitions
--- Auto-generated EmmyLua annotations for the Lua Language Server
+---@alias BodyType "dynamic"|"kinematic"|"static"
+---@alias ScreenDirection "left"|"right"|"top"|"bottom"
+---@alias MouseButton "left"|"middle"|"right"
+---@alias FlipMode 0|1|2|3
+---@alias Vector2 [number, number]
+---@alias RGB [integer, integer, integer] Channels from 0 to 255.
+---@alias ParticleRange [number, number]
+---@alias AnimationFrame [number, number, number, number, number]|[number, number, number, number, number, number, number, number, number]
 
---------------------------------------------------------------------------------
 -- Keyboard
---------------------------------------------------------------------------------
 
+---Read-only keyboard state.
 ---@class Keyboard
----Read-only. Access any field to check if a key is pressed.
----
----Supported keys:
---- Letters: a-z
---- Digits: 0-9
---- Arrows: up, down, left, right
---- Modifiers: shift, ctrl
---- Special: escape, space, enter, backspace, tab
----
----Usage: `if keyboard.w then ... end`
 ---@field a boolean
 ---@field b boolean
 ---@field c boolean
@@ -58,50 +53,44 @@
 ---@field down boolean
 ---@field left boolean
 ---@field right boolean
----@field shift boolean
----@field ctrl boolean
+---@field shift boolean Left Shift.
+---@field ctrl boolean Left Ctrl.
 ---@field escape boolean
 ---@field space boolean
 ---@field enter boolean
 ---@field backspace boolean
 ---@field tab boolean
 
----Global keyboard state.
 ---@type Keyboard
-keyboard = {}
+keyboard = nil
 
---------------------------------------------------------------------------------
 -- Mouse
---------------------------------------------------------------------------------
 
+---Read-only position and button state; `shown` is read/write.
 ---@class Mouse
----@field x number Mouse X position in world coordinates (logical position plus viewport offset, read-only).
----@field y number Mouse Y position in world coordinates (logical position plus viewport offset, read-only).
----@field left boolean Whether the left mouse button is pressed (read-only).
----@field middle boolean Whether the middle mouse button is pressed (read-only).
----@field right boolean Whether the right mouse button is pressed (read-only).
----@field shown boolean Whether the mouse cursor is visible (read/write).
-local Mouse = {}
+---@field x number World X coordinate (read-only).
+---@field y number World Y coordinate (read-only).
+---@field left boolean Left button state (read-only).
+---@field middle boolean Middle button state (read-only).
+---@field right boolean Right button state (read-only).
+---@field shown boolean Cursor visibility (read/write).
 
----Global mouse state.
 ---@type Mouse
-mouse = {}
+mouse = nil
 
---------------------------------------------------------------------------------
 -- Gamepad
---------------------------------------------------------------------------------
 
+---Read-only gamepad state with a 0.1 deadzone. Sticks range from -1.0 to
+---1.0; triggers range from 0.0 to 1.0.
 ---@class Gamepad
----@field connected boolean Whether a gamepad is connected (read-only).
----@field name string Gamepad name, empty string if not connected (read-only).
----Axes (number, -1.0 to 1.0 with 0.1 deadzone):
----@field left_x number Left stick X axis.
----@field left_y number Left stick Y axis.
----@field right_x number Right stick X axis.
----@field right_y number Right stick Y axis.
----@field trigger_left number Left trigger.
----@field trigger_right number Right trigger.
----Buttons (boolean):
+---@field connected boolean
+---@field name string Empty when disconnected.
+---@field left_x number
+---@field left_y number
+---@field right_x number
+---@field right_y number
+---@field trigger_left number
+---@field trigger_right number
 ---@field south boolean A / Cross.
 ---@field east boolean B / Circle.
 ---@field west boolean X / Square.
@@ -119,821 +108,525 @@ mouse = {}
 ---@field right boolean D-pad right.
 local Gamepad = {}
 
----Vibrate the gamepad.
----@param low number Low-frequency motor intensity (0.0 to 1.0).
----@param high number High-frequency motor intensity (0.0 to 1.0).
----@param duration integer Duration in milliseconds (0 to 4294967295).
----@return boolean success
+---Vibrate the gamepad. Intensities are clamped to 0.0-1.0.
+---@param low number
+---@param high number
+---@param duration integer Milliseconds, from 0 to 4294967295.
+---@return boolean
 function Gamepad:rumble(low, high, duration) end
 
----Set the gamepad LED color.
----@param r number Red intensity (0.0 to 1.0).
----@param g number Green intensity (0.0 to 1.0).
----@param b number Blue intensity (0.0 to 1.0).
----@return boolean success
+---Set the gamepad LED. Channels are clamped to 0.0-1.0.
+---@param r number
+---@param g number
+---@param b number
+---@return boolean
 function Gamepad:led(r, g, b) end
 
----Global gamepad state.
 ---@type Gamepad
-gamepad = {}
+gamepad = nil
 
---------------------------------------------------------------------------------
--- Cassette (persistent key-value store)
---------------------------------------------------------------------------------
+-- Cassette
 
+---@alias CassetteValue boolean|number|string|table
+
+---Persistent key-value storage for JSON-compatible values. Writes persist
+---immediately; assigning nil deletes a key. Nested writes to returned tables
+---also persist. Table proxies support `#`, `pairs`, and `ipairs` and become
+---stale when their root key is replaced.
 ---@class Cassette
----Persistent save-data store. Read/write arbitrary keys.
----
----Supported value types: `boolean`, `number`, `string`, `table`.
----Assign `nil` to delete a key. Accepted writes persist immediately.
----Tables are serialized as JSON and stored as JSONB in SQLite.
----Each root-key read loads the latest persisted value. Tables are returned
----as reactive proxies: mutating any nested field automatically re-persists
----the root key. Writes through a stale proxy are ignored after the same
----root key changes.
----
----Proxied tables support indexed access, `#`, `pairs()`, and `ipairs()`.
----
----Usage:
----```lua
----cassette.score = 100
----local s = cassette.score
----cassette.inventory = { "sword", "shield" }
----local count = #cassette.inventory
----for index, item in ipairs(cassette.inventory) do print(index, item) end
----cassette.progress = { level = 3, stars = 2 }
----cassette.progress.stars = 5       -- persists automatically
----cassette.score = nil              -- delete
----cassette:purge()                  -- delete all
----```
----@field [string] boolean|number|string|table|nil
+---@field seed? integer Project random seed.
+---@field [string] CassetteValue|nil
 local Cassette = {}
 
----Delete all saved data and clear the in-memory cache.
+---Delete all saved keys.
 function Cassette:purge() end
 
----Global persistent storage.
 ---@type Cassette
-cassette = {}
+cassette = nil
 
---------------------------------------------------------------------------------
--- Main Script (scripts/main.lua return table)
---------------------------------------------------------------------------------
+-- Main script (`scripts/main.lua`)
 
+---Startup configuration read once by the engine.
 ---@class MainConfig
----@field width number Viewport width in logical pixels.
----@field height number Viewport height in logical pixels.
+---@field width integer Window width in pixels.
+---@field height integer Window height in pixels.
 ---@field title string Window title.
----@field splash string Splash screen image name. Resolves to `blobs/splashes/<name>.png`. Displayed full-screen on the first frame while the game loads.
----@field scale number Render scale factor.
----@field fullscreen boolean Whether to start in fullscreen mode.
----@field on_begin fun() Called once after the engine is fully initialized.
+---@field splash string Splash image name: `blobs/splashes/<name>.png`.
+---@field scale number Render scale; logical viewport size is width/scale by height/scale.
+---@field fullscreen? boolean Defaults to false.
+---@field on_begin? fun() Runs once after engine initialization.
 
---------------------------------------------------------------------------------
--- Stage (scripts returned by stages/<name>.lua)
---------------------------------------------------------------------------------
-
----@class StageObject
----@field name string Unique instance name for this object. Accessible via `pool.<name>`.
----@field kind string Object type. Maps to `objects/<kind>.lua` (prototype) and `blobs/objects/<kind>.png` (spritesheet).
----@field x? number Initial X position. Default 0.
----@field y? number Initial Y position. Default 0.
-
----@class StageSound
----@field name string Sound name. Loads `sounds/<name>` and is accessible as `pool.<name>`.
----@field loop? boolean Whether to enable looping. Default false.
-
----@class StageParticle
----@field name string Unique instance name for this particle emitter. Accessible via `pool.<name>`.
----@field kind string Particle type. Maps to `particles/<kind>.lua` (config) and `blobs/particles/<kind>.png` (texture).
----@field x? number Initial X position. Default 0.
----@field y? number Initial Y position. Default 0.
----@field active? boolean Whether particles spawn immediately. Default true.
-
----@alias ParticleRange [number, number]
+-- Particle config (`particles/<kind>.lua`)
 
 ---@class ParticleSpawnConfig
----@field x? ParticleRange Horizontal spawn offset range.
----@field y? ParticleRange Vertical spawn offset range.
----@field radius? ParticleRange Radial spawn offset range.
----@field angle? ParticleRange Initial angle range in degrees.
----@field scale? ParticleRange Initial scale range.
----@field life? ParticleRange Lifetime range in seconds.
+---@field x? ParticleRange Horizontal offset.
+---@field y? ParticleRange Vertical offset.
+---@field radius? ParticleRange Radial offset.
+---@field angle? ParticleRange Angle in radians.
+---@field scale? ParticleRange
+---@field life? ParticleRange Lifetime in seconds.
 
 ---@class ParticleAxisConfig
----@field x? ParticleRange Horizontal range.
----@field y? ParticleRange Vertical range.
+---@field x? ParticleRange
+---@field y? ParticleRange
 
 ---@class ParticleRotationConfig
----@field force? ParticleRange Angular acceleration range.
----@field velocity? ParticleRange Angular velocity range.
+---@field force? ParticleRange Angular acceleration in radians per second squared.
+---@field velocity? ParticleRange Angular velocity in radians per second.
 
+---Emitter configuration read when its kind is first loaded.
 ---@class ParticleConfig
----@field count integer Positive number of particles in the emitter.
----@field spawn? ParticleSpawnConfig Spawn properties.
----@field velocity? ParticleAxisConfig Velocity ranges.
----@field gravity? ParticleAxisConfig Gravity ranges.
----@field rotation? ParticleRotationConfig Rotation ranges.
+---@field count integer Must be positive.
+---@field spawn? ParticleSpawnConfig
+---@field velocity? ParticleAxisConfig
+---@field gravity? ParticleAxisConfig
+---@field rotation? ParticleRotationConfig
 
----List of foreground names (each matching `foregrounds/<name>.lua`) to show
----when the stage becomes active. Order is z-order: index 1 is the back layer,
----last index is on top. All listed foregrounds are pre-loaded and made visible
----on stage entry; they can be toggled at runtime via `foregrounds.<name> = true|false`.
----On stage leave, every active foreground receives `on_disappear`.
+-- Stage (`stages/<name>.lua`)
+
+---@class StageObject
+---@field name string Pool name.
+---@field kind string Loads `objects/<kind>.lua` and `blobs/objects/<kind>.png`.
+---@field x? number Defaults to 0.
+---@field y? number Defaults to 0.
+
+---@class StageSound
+---@field name string Pool name; loads `blobs/sounds/<name>.opus`.
+---@field loop? boolean Defaults to false.
+
+---@class StageParticle
+---@field name string Pool name.
+---@field kind string Loads `particles/<kind>.lua` and `blobs/particles/<kind>.png`.
+---@field x? number Defaults to 0.
+---@field y? number Defaults to 0.
+---@field active? boolean Whether dead particles respawn. Defaults to true.
 
 ---@class StageMinimap
----Minimap color configuration. Each field is an RGB triplet `{r, g, b}` (0-255).
----@field solid number[] Color for solid (collision) tiles.
----@field passable number[] Color for passable (free) tiles.
----@field void number[] Color for out-of-map areas.
----@field player number[] Color for the player marker.
----@field entity number[] Color for entity markers.
+---@field solid RGB
+---@field passable RGB
+---@field void RGB
+---@field player RGB
+---@field entity RGB
 
+---Stage definition and callbacks owned by the script.
 ---@class Stage
----A stage script (`stages/<name>.lua`) returns a table that may contain
----these fields, lifecycle callbacks, and entity/sound declarations.
----@field gravity number[]|nil World gravity as {gx, gy}. Default is {0, 0} (no gravity).
----@field objects StageObject[]|nil Objects to spawn when the stage is created.
----@field sounds StageSound[]|nil Sounds to preload. Each entry is `{ name = "foo", loop = true }`. Loads `sounds/<name>` and is accessible as `pool.<name>`.
----@field particles StageParticle[]|nil Particle emitters to create. Each entry spawns a particle system accessible as `pool.<name>`.
----@field foregrounds string[]|nil Foregrounds shown when this stage is active, in z-order (index 1 is back). All listed foregrounds are pre-loaded; toggle individually at runtime via `foregrounds.<name> = true|false`.
----@field tilemap string|nil Tilemap name. Loads the binary navmap `tilemaps/<name>.tilemap` produced by `assets/tilemaps/generate.py` (background, foreground, collision, components, JPS+ jump tables).
----@field minimap StageMinimap|nil Minimap color palette. Only used when `tilemap` is also set.
-local Stage = {}
+---@field gravity? Vector2 Defaults to {0, 0}.
+---@field objects? StageObject[]
+---@field sounds? StageSound[]
+---@field particles? StageParticle[]
+---@field foregrounds? string[] Shown in order; later entries draw on top.
+---@field tilemap? string Loads `tilemaps/<name>.tilemap`.
+---@field minimap? StageMinimap Requires a tilemap.
+---@field on_enter? fun(self: Stage) Called when this stage becomes active.
+---@field on_leave? fun(self: Stage) Called before this stage becomes inactive.
+---@field on_text? fun(self: Stage, text: string) Receives committed UTF-8 text while active.
+---@field on_loop? fun(self: Stage, delta: number) Called every active frame; delta is in seconds.
+---@field on_camera? fun(self: Stage): number?, number? Returns the viewport world origin; nil preserves the previous coordinate.
+---@field on_press? fun(self: Stage, x: number, y: number, button: MouseButton) Called when the physics query finds no shape under the cursor; x and y are world coordinates.
+---@field on_release? fun(self: Stage, x: number, y: number, button: MouseButton) Called when the physics query finds no shape under the cursor; x and y are world coordinates.
 
----Called when the director navigates to this stage.
----@param self table The stage table itself.
-function Stage.on_enter(self) end
-
----Called when the director navigates away from this stage.
----@param self table The stage table itself.
-function Stage.on_leave(self) end
-
----Called when committed UTF-8 text is entered while this stage is active.
----Text input starts automatically when the stage becomes active and stops when it becomes inactive.
----@param self table The stage table itself.
----@param text string The entered text.
-function Stage.on_text(self, text) end
-
----Called every frame while this stage is active.
----@param self table The stage table itself.
----@param delta number Frame delta time in seconds.
-function Stage.on_loop(self, delta) end
-
----Called every frame before rendering.
----Return camera_x, camera_y to offset object and tilemap rendering.
----The engine automatically applies the returned camera to the tilemap.
----@param self table The stage table itself.
----@return number|nil camera_x Camera X offset for rendering.
----@return number|nil camera_y Camera Y offset for rendering.
-function Stage.on_camera(self) end
-
----Called when a mouse button is pressed while the cursor is over no object (miss fallback).
----@param self table The stage table itself.
----@param x number Cursor X in world coordinates.
----@param y number Cursor Y in world coordinates.
----@param button "left"|"middle"|"right" The mouse button pressed.
-function Stage.on_press(self, x, y, button) end
-
----Called when a mouse button is released while the cursor is over no object (miss fallback).
----@param self table The stage table itself.
----@param x number Cursor X in world coordinates.
----@param y number Cursor Y in world coordinates.
----@param button "left"|"middle"|"right" The mouse button released.
-function Stage.on_release(self, x, y, button) end
-
---------------------------------------------------------------------------------
--- Director (stage navigation)
---------------------------------------------------------------------------------
+-- Director
 
 ---@class Director
 local Director = {}
 
----Navigate to a named stage. Creates it if not enrolled.
----Triggers `on_leave` on the current stage.
----@param name string Stage name (matches `stages/<name>.lua`).
+---Queue navigation to a cached stage, creating it if needed.
+---@param name string Stage name.
 function Director.navigate(name) end
 
----Destroy a named stage. Cannot destroy the current stage.
+---Destroy a cached stage. The active stage is not destroyed.
 ---@param name string Stage name.
 function Director.destroy(name) end
 
----Enroll a stage without navigating to it.
+---Create and cache a stage without navigating to it.
 ---@param name string Stage name.
 function Director.enroll(name) end
 
----Global stage director.
 ---@type Director
-director = {}
+director = nil
 
---------------------------------------------------------------------------------
--- Foreground (a single visible layer; many can be active simultaneously)
---------------------------------------------------------------------------------
+-- Foreground (`foregrounds/<name>.lua`)
 
+---Mutable Lua snapshot; writes never affect the texture.
 ---@class ForegroundPixmap
----@field width number Native texture width in pixels (read-only).
----@field height number Native texture height in pixels (read-only).
+---@field width integer Texture width.
+---@field height integer Texture height.
 
 ---@class ForegroundConfig
----@field fonts? string[] Font families to preload from `fonts/<name>.lua`. Each declared font is exposed on the foreground table by family name (e.g. `self.pixel`, `self.small`) as a `Font` instance.
+---@field fonts? string[] Font families from `fonts/<name>.lua`.
 
 ---@class FontConfig
----@field glyphs string Ordered characters represented by the font texture.
----@field spacing? integer Horizontal spacing adjustment. Default 0.
----@field leading? integer Vertical spacing adjustment. Default 0.
----@field scale? number Font scale. Default 1.
+---@field glyphs string Single-byte glyphs in texture order.
+---@field spacing? integer Defaults to 0.
+---@field leading? integer Defaults to 0.
+---@field scale? number Defaults to 1.
 
----Per-glyph visual effect applied to individual characters in a label.
----Each field is optional; omitted fields use their default (no effect).
----Newline characters do not count as glyphs for indexing purposes.
----
----Usage:
----```lua
----self.pixel:label("hello", 10, 20, {
----  [1] = { r = 1, g = 0, b = 0 },           -- 'h' in red
----  [3] = { y_offset = -2, scale = 1.5 },      -- first 'l' raised and scaled
----  [5] = { alpha = 0.5 },                     -- 'o' semi-transparent
----})
----```
 ---@class GlyphEffect
----@field x_offset? number Horizontal pixel offset for this glyph. Default 0.
----@field y_offset? number Vertical pixel offset for this glyph. Default 0.
----@field scale? number Scale factor for this glyph. Default 1.
----@field angle? number Rotation angle in degrees for this glyph, around its center. Default 0.
----@field r? number Red channel for this glyph (0.0-1.0). Default 1.
----@field g? number Green channel for this glyph (0.0-1.0). Default 1.
----@field b? number Blue channel for this glyph (0.0-1.0). Default 1.
----@field alpha? number Opacity for this glyph (0.0-1.0). Default 1.
+---@field x_offset? number Defaults to 0.
+---@field y_offset? number Defaults to 0.
+---@field scale? number Defaults to 1.
+---@field angle? number Degrees; defaults to 0.
+---@field r? number Red channel, 0.0-1.0; defaults to 1.
+---@field g? number Green channel, 0.0-1.0; defaults to 1.
+---@field b? number Blue channel, 0.0-1.0; defaults to 1.
+---@field alpha? number Opacity, 0.0-1.0; defaults to 1.
 
 ---@class Font
----A font instance bound to a foreground. The same family across foregrounds
----resolves to the same underlying texture and metrics (cached in the engine),
----so declaring a font in multiple foregrounds is cheap.
 local Font = {}
 
----Draw a text label at the given position using this font.
----Optionally accepts a table of per-glyph effects keyed by 1-based visible
----character index (newlines are not counted). Each entry is a GlyphEffect
----table that overrides position, scale, color, and rotation for that specific
----glyph. Indices without an entry render normally (white, no offset, scale 1).
----Each call submits one batched draw to the GPU.
----@param text string The text to render.
----@param x number X position in logical pixels.
----@param y number Y position in logical pixels.
----@param effects? table<integer, GlyphEffect> Per-glyph effects keyed by 1-based visible character index.
+---Draw up to 256 non-newline bytes. Effects use 1-based byte indices;
+---newlines do not consume an index.
+---@param text string
+---@param x number
+---@param y number
+---@param effects? table<integer, GlyphEffect>
 function Font:label(text, x, y, effects) end
 
----@class Foreground: ForegroundConfig
----@field pixmap? ForegroundPixmap Metadata for the automatically loaded `blobs/foregrounds/<name>/pixmap.png` texture.
+---Script-owned configuration, callbacks, and custom state (read/write).
+---@class ForegroundState: ForegroundConfig
+---@field pixmap? ForegroundPixmap Available when the pixmap texture exists.
+---@field on_appear? fun(self: ForegroundState) Called each time the foreground becomes visible.
+---@field on_disappear? fun(self: ForegroundState) Called each time the foreground becomes hidden.
+---@field on_loop? fun(self: ForegroundState, delta: number) Called every visible frame before painting; delta is in seconds.
+---@field on_paint? fun(self: Foreground) Called every visible frame with the drawable handle.
+---@field [string] any Script fields and loaded fonts.
+
+---Read-only handle passed to `on_paint`; its backing state remains readable.
+---@class Foreground: ForegroundState
 local Foreground = {}
 
----Called when the foreground becomes visible. Fires every time the foreground
----is activated via `foregrounds.<name> = true` or implicitly by entering a
----stage that lists it, including subsequent activations after it was hidden.
----Foregrounds are cached, so the same instance receives `on_appear` again
----when it is shown after being hidden.
----@param self Foreground The foreground table itself.
-function Foreground.on_appear(self) end
-
----Called when the foreground stops being visible. Fires every time the
----foreground is hidden via `foregrounds.<name> = false` (or `nil`), or when
----the active stage transitions away. The instance stays cached and may
----receive `on_appear` again later.
----@param self Foreground The foreground table itself.
-function Foreground.on_disappear(self) end
-
----Called every frame while this foreground is active (logic only, no rendering).
----When the automatic texture exists, its read-only dimensions are available
----through `self.pixmap.width` and `self.pixmap.height`.
----@param self Foreground The foreground table itself.
----@param delta number Frame delta time in seconds.
-function Foreground.on_loop(self, delta) end
-
----Called every frame to render foreground elements. Use `self:draw()` for
----batched sprite quads from the pixmap, and `self.<font>:label(...)` for text
----using any font declared in this foreground's `fonts` list. Each call enqueues
----a draw that is flushed after `on_paint` returns.
----@param self Foreground The foreground table itself.
-function Foreground.on_paint(self) end
-
----Submit a batch of quads using the foreground's automatically loaded pixmap texture.
----This is a no-op when `blobs/foregrounds/<name>/pixmap.png` does not exist.
----`buffer` is a flat array of numbers in groups of 6: `{x, y, w, h, angle, alpha, ...}`.
----`count` is the total number of elements (must be a positive multiple of 6).
----Each group of 6 defines one quad: destination x/y, width/height, rotation angle in
----degrees, and alpha (0-255). Quads with alpha 0 are skipped. Call once per frame
----inside `on_paint`.
----@param buffer number[] Flat array of quad data: repeating {x, y, w, h, angle, alpha}.
----@param count integer Total number of elements in buffer (multiple of 6).
+---Draw textured quads immediately from the foreground pixmap. `buffer` repeats
+---`{x, y, width, height, angle_degrees, alpha_0_to_255}`.
+---@param buffer number[]
+---@param count integer Number of buffer elements; must be a positive multiple of 6.
 function Foreground:draw(buffer, count) end
 
----Global foreground instance (nil when no foreground is active).
---------------------------------------------------------------------------------
--- Foregrounds (the global container of active foreground layers)
---------------------------------------------------------------------------------
-
+---Write-only foreground visibility. Assign true to show; false or nil to hide.
+---Foregrounds draw in activation order, with the latest on top.
 ---@class Foregrounds
----Container for any number of simultaneously visible foregrounds. Assign
----`true` to a foreground name to show it (loading and caching the instance
----on first use); assign `false` or `nil` to hide it (the cached instance is
----preserved for later reuse). Multiple foregrounds can be active at the same
----time; they are drawn in the z-order defined by the active stage's
----`foregrounds` list, with later entries on top.
----@field [string] boolean Write-only. `foregrounds.<name> = true` shows the foreground; `false`/`nil` hides it.
-local Foregrounds = {}
+---@field [string] boolean|nil
 
----Global foregrounds container. Always present.
----
----Usage:
----```lua
----foregrounds.inventory = true    -- show on top of whatever is already visible
----foregrounds.dialog    = true    -- show as well; both stay visible
----foregrounds.inventory = false   -- hide just inventory; dialog remains
----foregrounds.inventory = nil     -- same as false
----```
 ---@type Foregrounds
-foregrounds = {}
+foregrounds = nil
 
---------------------------------------------------------------------------------
 -- Viewport
---------------------------------------------------------------------------------
 
+---Mutable Lua snapshot of the viewport. Assignments do not affect rendering.
 ---@class Viewport
----@field width number Viewport width in logical units (read-only).
----@field height number Viewport height in logical units (read-only).
----@field scale number Render scale factor (read-only).
+---@field width number Logical width.
+---@field height number Logical height.
+---@field scale number Render scale.
 
----Global viewport dimensions.
 ---@type Viewport
-viewport = {}
+viewport = nil
 
---------------------------------------------------------------------------------
--- ObjectPrototype (table returned by objects/<kind>.lua)
---------------------------------------------------------------------------------
-
----@class ObjectPrototype
----@field body? "dynamic"|"kinematic"|"static" Physics body type. Default is "kinematic".
----@field animation? AnimationConfig Named animation clips and their explicit default.
----@field sleepable? boolean If true, the object sleeps beyond the larger viewport dimension and wakes within half that margin. Default false.
----@field on_spawn? fun(self: Object) Called once when the object is created.
----@field on_loop? fun(self: Object, delta: number) Called every frame. Not called while the object is dormant.
----@field on_sleep? fun(self: Object) Called when the object goes off-screen and enters sleep (only on sleepable objects).
----@field on_wake? fun(self: Object) Called when the object returns on-screen and wakes up (only on sleepable objects).
----@field on_screen_exit? fun(self: Object, direction: "left"|"right"|"top"|"bottom") Called when the object's physics body exits the viewport on the given side.
----@field on_screen_enter? fun(self: Object, direction: "left"|"right"|"top"|"bottom") Called when the object's physics body re-enters the viewport from the given side.
----@field on_collision_begin? fun(self: Object, name: string, kind: string, normal_x?: number, normal_y?: number) Called on physics contact begin. `name` and `kind` refer to the other object involved in the collision.
----@field on_collision_end? fun(self: Object, name: string, kind: string) Called on physics contact end. `name` and `kind` refer to the other object involved in the collision.
----@field on_animation_end? fun(self: Object, clip_name: string) Called when an animation clip finishes or is replaced.
----@field on_animation_begin? fun(self: Object, clip_name: string) Called when a new animation clip starts playing.
----@field on_press? fun(self: Object, x: number, y: number, button: "left"|"middle"|"right") Called when a mouse button is pressed over the topmost visible object under the cursor. `x`/`y` are world coordinates.
----@field on_release? fun(self: Object, x: number, y: number, button: "left"|"middle"|"right") Called when a mouse button is released over the topmost visible object under the cursor. `x`/`y` are world coordinates.
----@field on_hover? fun(self: Object) Called the first frame the cursor moves over the object.
----@field on_unhover? fun(self: Object) Called the first frame the cursor leaves the object.
----@field [string] any Custom properties accessible via the object instance.
+-- Objects (`objects/<kind>.lua`)
 
 ---@class AnimationConfig
----@field default? string Default clip name. If omitted or unmatched, the first encountered clip is selected; specify it explicitly for deterministic selection.
+---@field default? string Initial clip. Without it, the first parsed clip is used.
 ---@field [string] AnimationClip|string
 
+---Non-empty frame array with an optional sound.
 ---@class AnimationClip
----An animation clip is a non-empty array of frames with an optional sound effect.
----Each frame is: {source_x, source_y, source_width, source_height, duration_ms [, collider_x, collider_y, collider_width, collider_height]}.
----@field sound? string Optional sound name. Loads `blobs/sounds/<name>.opus` and plays automatically when this clip is activated via `self.animation = "clip_name"`.
----@field [integer] number[] Frame data: {source_x, source_y, source_width, source_height, duration_ms [, collider_x, collider_y, collider_width, collider_height]}.
+---@field sound? string Plays `blobs/sounds/<name>.opus` when selected through `object.animation`.
+---@field [integer] AnimationFrame `{sx, sy, width, height, duration_ms}` with optional `{collider_x, collider_y, collider_width, collider_height}`.
 
---------------------------------------------------------------------------------
--- Object (entity userdata, available as `self` and in `pool`)
---------------------------------------------------------------------------------
+---Spawn configuration and shared custom behavior. Engine configuration and
+---callbacks are consumed internally and are unavailable through `Object`.
+---@class ObjectPrototype
+---@field body? BodyType Spawn-only; defaults to "kinematic".
+---@field animation? AnimationConfig Spawn-only animation definitions.
+---@field sleepable? boolean Spawn-only; defaults to false.
+---@field on_spawn? fun(self: Object)
+---@field on_loop? fun(self: Object, delta: number) Not called while dormant.
+---@field on_sleep? fun(self: Object)
+---@field on_wake? fun(self: Object)
+---@field on_screen_exit? fun(self: Object, direction: ScreenDirection)
+---@field on_screen_enter? fun(self: Object, direction: ScreenDirection)
+---@field on_collision_begin? fun(self: Object, name: string, kind: string, normal_x?: number, normal_y?: number) Normal points from self to the other object; it is nil for sensor events.
+---@field on_collision_end? fun(self: Object, name: string, kind: string)
+---@field on_animation_end? fun(self: Object, clip: string) Called when a clip loops or is replaced.
+---@field on_animation_begin? fun(self: Object, clip: string) Called after a selected clip starts and after each loop.
+---@field on_press? fun(self: Object, x: number, y: number, button: MouseButton) Called for the topmost visible collider; the picker considers up to 16 overlaps.
+---@field on_release? fun(self: Object, x: number, y: number, button: MouseButton) Called for the topmost visible collider; the picker considers up to 16 overlaps.
+---@field on_hover? fun(self: Object) Called when the cursor enters the collider.
+---@field on_unhover? fun(self: Object) Called when the cursor leaves the collider.
+---@field [string] any Custom fields and methods shared by every object of this kind.
 
+---Entity handle available as `self` and through `pool`. Calling
+---`object:foo(...)` falls back to a non-reserved `on_foo(self, ...)` method.
+---Custom writes update the shared prototype table for the object's kind.
+---Spawn configuration and engine callbacks are not exposed.
 ---@class Object
----@field x number Transform X position. For dynamic and static bodies, setting this teleports the body.
----@field y number Transform Y position. For dynamic and static bodies, setting this teleports the body.
----@field center_x number World X coordinate of the body's hitbox center, derived from the current animation frame's collider (read-only).
----@field center_y number World Y coordinate of the body's hitbox center, derived from the current animation frame's collider (read-only).
----@field velocity_x number Linear velocity X component. Readable on all body types; writable only on dynamic bodies.
----@field velocity_y number Linear velocity Y component. Readable on all body types; writable only on dynamic bodies.
----@field scale number Transform scale factor.
----@field angle number Rotation angle in degrees.
----@field alpha number Opacity (0-255).
----@field shown boolean Whether the object is visible.
----@field flip integer Flip mode for rendering. Use `flip.none`, `flip.horizontal`, `flip.vertical`, or `flip.both`.
----@field name string The object's name (read-only).
----@field kind string The kind/type string of this object (read-only).
----@field z integer Render Z-order layer. Higher draws on top (read/write).
----@field alive boolean Whether the object is still alive (read-only). Becomes false after object or stage destruction; other stale reads return nil and writes are ignored.
----@field dormant boolean Whether this object is currently sleeping (read-only). Always false for non-sleepable objects.
----@field animation string|nil Currently playing animation clip name. Assign to switch clips.
----@field [string] any Custom properties from the prototype table.
----
----Method dispatch: calling `pool.<name>:<method>(...)` resolves to
----`on_<method>(self, ...)` in the target object's prototype. The engine
----automatically prepends the `on_` prefix when looking up methods.
----For example, `pool.player:damage()` invokes `on_damage(self)` defined
----in the player's prototype (`objects/player.lua`).
-local Object = {}
+---@field x number Transform X (read/write). Setting it teleports dynamic and static bodies.
+---@field y number Transform Y (read/write). Setting it teleports dynamic and static bodies.
+---@field center_x number Collider center X, or x when no collider exists (read-only).
+---@field center_y number Collider center Y, or y when no collider exists (read-only).
+---@field velocity_x number Linear velocity (read; write on dynamic bodies only).
+---@field velocity_y number Linear velocity (read; write on dynamic bodies only).
+---@field scale number Transform scale (read/write).
+---@field angle number Rotation in degrees (read/write).
+---@field alpha number Opacity, clamped to 0-255 (read/write).
+---@field shown boolean Visibility (read/write).
+---@field flip FlipMode Render mirroring (read/write).
+---@field name string Instance name (read-only).
+---@field kind string Prototype kind (read-only).
+---@field z integer Render order (read/write); higher values draw on top.
+---@field alive boolean Lifetime state (read-only); false after destruction.
+---@field dormant boolean Sleep state (read-only).
+---@field animation? string Current clip (read/write); unknown names are ignored.
+---@field [string] any Non-reserved shared prototype field or dispatched method.
 
----Called once when the object is created during stage construction.
----@param self Object
-function Object.on_spawn(self) end
-
----Called every frame. Use for movement, AI, input handling, etc.
----@param self Object
----@param delta number Frame delta time in seconds.
-function Object.on_loop(self, delta) end
-
----Called when a physics contact begins with another object.
----For contact events, the collision normal is provided. The normal points from self toward the other object.
----@param self Object
----@param name string Name of the other object involved in the collision.
----@param kind string Kind/type of the other object involved in the collision.
----@param normal_x? number X component of the contact normal (nil for sensor events).
----@param normal_y? number Y component of the contact normal (nil for sensor events).
-function Object.on_collision_begin(self, name, kind, normal_x, normal_y) end
-
----Called when a physics contact ends with another object.
----@param self Object
----@param name string Name of the other object involved in the collision.
----@param kind string Kind/type of the other object involved in the collision.
-function Object.on_collision_end(self, name, kind) end
-
----Called when an animation clip finishes (loops or is replaced).
----@param self Object
----@param clip_name string Name of the clip that ended.
-function Object.on_animation_end(self, clip_name) end
-
----Called when a new animation clip starts playing.
----@param self Object
----@param clip_name string Name of the clip that started.
-function Object.on_animation_begin(self, clip_name) end
-
----Called when a mouse button is pressed and this object is the topmost visible object under the cursor.
----@param self Object
----@param x number Cursor X in world coordinates.
----@param y number Cursor Y in world coordinates.
----@param button "left"|"middle"|"right" The mouse button pressed.
-function Object.on_press(self, x, y, button) end
-
----Called when a mouse button is released and this object is the topmost visible object under the cursor.
----@param self Object
----@param x number Cursor X in world coordinates.
----@param y number Cursor Y in world coordinates.
----@param button "left"|"middle"|"right" The mouse button released.
-function Object.on_release(self, x, y, button) end
-
----Called the first frame the cursor moves over this object.
----@param self Object
-function Object.on_hover(self) end
-
----Called the first frame the cursor leaves this object.
----@param self Object
-function Object.on_unhover(self) end
-
---------------------------------------------------------------------------------
--- Sound (audio handle userdata, available in `pool`)
---------------------------------------------------------------------------------
+-- Sound
 
 ---@class Sound
----@field volume number Current volume, 0.0 to 1.0.
----@field pan number Current stereo pan, -1.0 (left) to 1.0 (right).
----@field loop boolean Whether looping is enabled.
----@field playing boolean Whether the sound is currently playing (read-only).
+---@field volume number Gain, clamped to 0.0-1.0 (read/write).
+---@field pan number Stereo pan, clamped to -1.0-1.0 (read/write).
+---@field loop boolean Looping state (read/write).
+---@field playing boolean Playback state (read-only).
 local Sound = {}
 
----Start playback from the beginning.
+---Restart playback and run the `on_begin` callback.
 function Sound:play() end
 
 ---Stop playback.
 function Sound:stop() end
 
----Fade the sound volume over time.
----@param from number Starting volume (0.0 to 1.0, or -1 to use current volume).
----@param to number Target volume (0.0 to 1.0).
----@param ms integer Fade duration in milliseconds.
+---Fade the volume.
+---@param from number Start gain; a negative value uses the current gain.
+---@param to number Target gain.
+---@param ms integer Duration in milliseconds; negative values become 0.
 function Sound:fade(from, to, ms) end
 
----Register a callback invoked when playback starts through the Lua `play` method.
+---Replace the playback-start callback.
 ---@param fn fun()
 function Sound:on_begin(fn) end
 
----Register a callback for when playback ends.
+---Replace the playback-end callback.
 ---@param fn fun()
 function Sound:on_end(fn) end
 
---------------------------------------------------------------------------------
--- Particle (particle emitter userdata, available in `pool`)
---------------------------------------------------------------------------------
+-- Particle emitter
 
+---Stage-scoped; do not retain after its stage is destroyed.
 ---@class Particle
----Particle handles are stage-scoped; accessing one after its stage is destroyed raises an error.
----@field x number Emitter X position (read/write).
----@field y number Emitter Y position (read/write).
+---@field x number Emitter X (read/write).
+---@field y number Emitter Y (read/write).
 ---@field active boolean Whether dead particles respawn (read/write).
-local Particle = {}
 
---------------------------------------------------------------------------------
--- World (physics, available per-stage)
---------------------------------------------------------------------------------
+-- World
 
+---Stage-scoped physics API. Retained calls fail after the stage is destroyed.
 ---@class World
----World handles are stage-scoped; retained operations raise an error after stage destruction.
 local World = {}
 
----Spawn a new object at runtime and return it.
----@param name string Unique name for the object (used in pool).
----@param kind string Object kind (loads objects/<kind>.lua prototype).
----@param x number Initial X position.
----@param y number Initial Y position.
----@return Object object The newly created object.
+---Spawn an object. Returns nil if `on_spawn` destroys it.
+---@param name string Unique pool name.
+---@param kind string Object kind.
+---@param x number
+---@param y number
+---@return Object?
 function World.spawn(name, kind, x, y) end
 
----Destroy an object, removing it from the world and pool.
----@param object Object The object to destroy.
+---Destroy an object owned by this stage.
+---@param object Object
 function World.destroy(object) end
 
----Cast a ray and return all hits sorted by distance.
----Tilemap solid tiles have no user data and are skipped; only Object entities are returned.
----Cast a ray from (x, y) in the given direction up to ``distance``. The ray
----stops at the first solid tilemap tile (line of sight is blocked by walls).
----Returns the entities hit along the way, sorted by distance.
----@param caller Object The object casting the ray (excluded from results).
+---Return the closest object hit before the first solid tile. The caller is ignored.
+---@param caller Object
 ---@param x number Ray origin X.
 ---@param y number Ray origin Y.
----@param angle number Ray angle in degrees.
----@param distance number Maximum ray distance.
----@return Object[] hits Sorted array of hit objects (in front of the first wall, if any).
+---@param angle number Degrees.
+---@param distance number
+---@return Object?
 function World.raycast(caller, x, y, angle, distance) end
 
----Return all objects within a circular area, excluding the caller.
----@param caller Object The object performing the scan (excluded from results).
----@param x number Center X.
----@param y number Center Y.
----@param radius number Circle radius.
----@return Object[] hits Array of objects within the area.
+---Return objects whose physics bodies overlap a circle, excluding the caller.
+---@param caller Object
+---@param x number
+---@param y number
+---@param radius number
+---@return Object[]
 function World.radar(caller, x, y, radius) end
 
----Count objects of a given kind whose physics body overlaps the given rectangle.
----@param x number Left edge of the query region in world coordinates.
----@param y number Top edge of the query region in world coordinates.
----@param w number Width of the query region.
----@param h number Height of the query region.
----@param kind string Object kind to filter by (e.g. "enemy").
----@return integer count Number of matching objects.
-function World.count(x, y, w, h, kind) end
+---Count objects of a kind whose physics bodies overlap a rectangle.
+---@param x number
+---@param y number
+---@param width number
+---@param height number
+---@param kind string
+---@return integer
+function World.count(x, y, width, height, kind) end
 
----Find objects of a given kind whose physics body overlaps the given rectangle.
----@param x number Left edge of the query region in world coordinates.
----@param y number Top edge of the query region in world coordinates.
----@param w number Width of the query region.
----@param h number Height of the query region.
----@param kind string Object kind to filter by (e.g. "enemy").
----@return Object[] objects Array of matching objects.
-function World.find(x, y, w, h, kind) end
+---Return objects of a kind whose physics bodies overlap a rectangle.
+---@param x number
+---@param y number
+---@param width number
+---@param height number
+---@param kind string
+---@return Object[]
+function World.find(x, y, width, height, kind) end
 
----Physics world (available inside stage scripts).
+---Available during callbacks of the active stage; nil at runtime otherwise.
 ---@type World
-world = {}
+world = nil
 
---------------------------------------------------------------------------------
--- Flip (rendering mirror constants)
---------------------------------------------------------------------------------
+-- Flip
 
+---Lua constants by contract; the table itself is mutable.
 ---@class Flip
----@field none integer No flip (0).
----@field horizontal integer Flip horizontally (1).
----@field vertical integer Flip vertically (2).
----@field both integer Flip both axes (3).
+---@field none 0
+---@field horizontal 1
+---@field vertical 2
+---@field both 3
 
----Global flip mode constants.
 ---@type Flip
-flip = {}
+flip = nil
 
---------------------------------------------------------------------------------
--- Minimap (toggle-able tile overview, available in `pool`)
---------------------------------------------------------------------------------
+-- Minimap
 
+---Stage-scoped; do not retain after its stage is destroyed.
 ---@class Minimap
----A 129x129-sample minimap rendered as 310x310 logical units and centered on the player.
----Visibility is controlled through `pool.minimap.visible`; the bundled controls
----helper maps the action to Tab or the gamepad Back button.
----Minimap handles are stage-scoped; accessing one after stage destruction raises an error.
----@field visible boolean Whether the minimap is currently shown (read/write).
-local Minimap = {}
+---@field visible boolean Visibility (read/write).
 
---------------------------------------------------------------------------------
--- Pool (named collection of objects and sounds, available per-stage)
---------------------------------------------------------------------------------
+-- Pool
 
+---Mutable Lua table of handles. Replacing an entry does not destroy or rename
+---the corresponding engine resource.
 ---@class Pool
----Access objects, sounds, particle emitters, and minimap by name.
----@field minimap Minimap|nil The stage minimap (present when the stage has a tilemap and minimap config).
----@field [string] Object|Sound|Particle
+---@field minimap? Minimap
+---@field [string] Object|Sound|Particle|Minimap|nil
 
----Resource pool (available inside stage scripts).
+---Available during callbacks of the active stage; nil at runtime otherwise.
 ---@type Pool
-pool = {}
+pool = nil
 
---------------------------------------------------------------------------------
--- Achievement (Steam achievements)
---------------------------------------------------------------------------------
+-- Steam
 
 ---@class Achievement
 local Achievement = {}
 
----Unlock a Steam achievement by its API name.
----No-op if Steam is unavailable or the achievement is already unlocked.
----@param id string The achievement API name (e.g., "ACH_FIRST_BLOOD").
----@return boolean success Whether the unlock succeeded.
+---Unlock an achievement. Returns false when Steam is unavailable or the call fails.
+---@param id string Achievement API name.
+---@return boolean
 function Achievement:unlock(id) end
 
----Global achievement interface.
 ---@type Achievement
-achievement = {}
-
---------------------------------------------------------------------------------
--- User (Steam user info)
---------------------------------------------------------------------------------
+achievement = nil
 
 ---@class Friend
----@field id number The friend's Steam ID (read-only).
----@field name string The friend's display name (read-only).
+---@field id number Steam ID (read-only).
+---@field name string Display name (read-only).
 
 ---@class User
-local User = {}
+---@field persona string Local display name (read-only), or an empty string without Steam.
+---@field friends Friend[] Friends snapshot (read-only property); the returned Lua array is mutable.
 
----The local user's Steam display name. Empty string if Steam is unavailable.
----@type string
-User.persona = ""
-
----List of Steam friends. Empty table if Steam is unavailable.
----@type Friend[]
-User.friends = {}
-
----Global user interface.
 ---@type User
-user = {}
+user = nil
 
---------------------------------------------------------------------------------
--- Platform (system information)
---------------------------------------------------------------------------------
+-- Platform
 
 ---@class Platform
----@field name string Operating system name, e.g. "macOS", "Windows", "Linux" (read-only).
----@field cores integer Number of logical CPU cores (read-only).
----@field memory integer System RAM in megabytes (read-only).
----@field clipboard string System clipboard text (read/write).
+---@field name string Operating system name (read-only).
+---@field cores integer Logical CPU count (read-only).
+---@field memory integer RAM in MiB (read-only).
+---@field clipboard string Clipboard text (read/write).
 
----Global platform information.
 ---@type Platform
-platform = {}
+platform = nil
 
---------------------------------------------------------------------------------
 -- Localization
---------------------------------------------------------------------------------
 
----Looks up key in the loaded locale file (locales/<lang>.lua, 2-letter code from SDL).
----Uses the first preferred OS locale when its locale file exists.
----If no locale file is found (or the key is missing), the key itself is used,
----which is treated as the original English text written in the source.
----Extra arguments are applied via string.format on the resolved string,
----supporting %s, %d, %1$s positional specifiers, %% literals, etc.
----Format errors are silently ignored and the resolved template is returned as-is.
----@param key string Template string (may contain string.format placeholders)
----@vararg any Values to interpolate
+---Translate a key with the first preferred OS locale and format it with
+---`string.format`. Uses the key itself when the locale file does not exist.
+---@param key string
+---@vararg any
 ---@return string
 function _(key, ...) end
 
---------------------------------------------------------------------------------
--- Moment (time)
---------------------------------------------------------------------------------
+-- Time
 
----Returns the current time in milliseconds since engine initialization.
----Useful for absolute timestamps, countdowns, and sub-tick timing.
----@return number milliseconds
+---Milliseconds since SDL initialization.
+---@return number
 function moment() end
 
---------------------------------------------------------------------------------
--- Timer (frame-driven repeating callbacks)
---------------------------------------------------------------------------------
+-- Timer
 
 ---@class TimerHandle
----@operator call(): TimerHandle
----Subscription returned by `timer:add`. Calling the handle directly is an
----alias for `cancel`. Control methods are idempotent and return the handle.
+---@operator call: TimerHandle
 local TimerHandle = {}
 
----Cancel future callbacks and release the callback reference.
+---Cancel this timer. Idempotent.
 ---@return TimerHandle self
 function TimerHandle:cancel() end
 
----Pause without discarding the elapsed portion of the current interval.
+---Pause this timer, preserving its remaining interval.
 ---@return TimerHandle self
 function TimerHandle:pause() end
 
----Resume a paused timer from its remaining interval.
+---Resume this timer.
 ---@return TimerHandle self
 function TimerHandle:resume() end
 
----Restart the current interval, optionally replacing its duration.
----@param milliseconds? number New positive interval in milliseconds.
+---Restart the interval, optionally changing its duration.
+---@param milliseconds? number Positive and finite.
 ---@return TimerHandle self
 function TimerHandle:reset(milliseconds) end
 
----Whether the timer has not been cancelled.
 ---@return boolean
 function TimerHandle:is_active() end
 
----Whether the active timer is paused.
 ---@return boolean
 function TimerHandle:is_paused() end
 
+---Single-threaded repeating timers advanced once per frame. Stage timers freeze
+---while their stage is inactive; global timers continue across transitions and
+---run before the active stage queue. Elapsed intervals replay without drift in
+---registration order.
 ---@class Timer
----Single-threaded timer queue advanced by the engine once per frame using its
----clamped simulation delta; suspended wall-clock time is not replayed.
----Timers created by a stage use that stage's clock. Leaving the stage freezes
----their remaining interval completely; returning resumes from the same point
----without firing or catching up for time spent in another stage. Timers created
----outside a stage use the global clock and continue across stage transitions.
----Frame time is accrued for all running timers before due callbacks run. The
----global queue runs before the current stage queue; each queue preserves
----registration order. If one frame spans multiple intervals, the callback runs
----once per elapsed interval so that repeating timers do not drift.
 local Timer = {}
 
----Add a repeating callback.
----The returned handle can be called as `unsubscribe()` or controlled with
----`unsubscribe:pause()`, `unsubscribe:resume()`, `unsubscribe:reset()`, and
----`unsubscribe:cancel()`.
----@param milliseconds number Positive repeating interval in milliseconds.
----@param callback fun() Callback invoked synchronously by the event loop.
----@return TimerHandle unsubscribe
+---Add a repeating timer.
+---@param milliseconds number Positive and finite.
+---@param callback fun()
+---@return TimerHandle
 function Timer:add(milliseconds, callback) end
 
----Advance all timers. Called automatically by the engine event loop; calling it
----manually advances time again. Must not be called recursively from a callback.
----@param delta number Frame delta time in seconds.
+---Advance timers manually. The engine already calls this once per frame.
+---@param delta number Seconds.
 function Timer:update(delta) end
 
----Cancel every active timer.
+---Cancel every global and stage timer.
 function Timer:clear() end
 
----Global frame-driven timer queue.
 ---@type Timer
-timer = {}
+timer = nil
 
---------------------------------------------------------------------------------
--- Controls (unified keyboard + gamepad abstraction)
---------------------------------------------------------------------------------
+-- Controls (`require("helpers/controls")`)
 
+---Computed input state. Assigning a key creates a Lua-side override.
 ---@class Controls
----Unified input abstraction that merges keyboard and gamepad into
----semantic game actions. Require via `require("helpers/controls")`.
----
----Directional inputs combine arrow keys, d-pad, and left stick.
----
----Usage:
----```lua
----local controls = require("helpers/controls")
----if controls.left then ... end
----```
----@field left boolean Arrow left, d-pad left, or left stick left.
----@field right boolean Arrow right, d-pad right, or left stick right.
----@field up boolean Arrow up, d-pad up, or left stick up.
----@field down boolean Arrow down, d-pad down, or left stick down.
----@field minimap boolean Gamepad Back or Tab key.
-local Controls = {}
+---@field left boolean A, D-pad left, or left stick left.
+---@field right boolean D, D-pad right, or left stick right.
+---@field up boolean W, D-pad up, or left stick up.
+---@field down boolean S, D-pad down, or left stick down.
+---@field minimap boolean Tab or gamepad Back.
 
---------------------------------------------------------------------------------
--- Random (xorshift128 replacement for math.random / math.randomseed)
---------------------------------------------------------------------------------
+-- Random
 
----The engine replaces Lua's built-in `math.random` and `math.randomseed` with
----a fast xorshift128 PRNG that is automatically seeded during initialization.
----Calling `math.randomseed` optionally replaces the internal state, and all
----subsequent `math.random` calls use the new seed.
----
----Usage:
----```lua
----math.randomseed(moment())      -- seed once at startup
----local f = math.random()         -- float in [0, 1)
----local n = math.random(6)        -- integer in [1, 6]
----local m = math.random(10, 20)   -- integer in [10, 20]
----```
+---The shared xorshift128 generator is seeded automatically and is also used by
+---particle emitters.
 
----Replace the xorshift128 PRNG state with an explicit seed.
----Each call fully replaces the shared internal state. Lua calls and particle
----emitters consume the resulting sequence.
----@param seed integer Seed value (truncated to 32 bits internally).
+---Replace its state. The seed is truncated to 32 bits.
+---@param seed integer
 function math.randomseed(seed) end
 
----Generate a pseudo-random number using the xorshift128 PRNG.
----
----With no arguments, returns a float in [0, 1).
----With one argument `n`, returns an integer in [1, n].
----With two arguments, returns an integer in [minimum, maximum].
----Integer bounds must fit the signed 32-bit range.
+---With no bounds, return a number in [0, 1). With one bound, return an integer
+---from 1 through that positive bound. With two, return an integer in the range.
 ---@overload fun(): number
----@overload fun(n: integer): integer
----@param minimum integer Lower bound (inclusive).
----@param maximum integer Upper bound (inclusive).
+---@overload fun(maximum: integer): integer
+---@param minimum integer Inclusive signed 32-bit bound.
+---@param maximum integer Inclusive signed 32-bit bound.
 ---@return integer
 function math.random(minimum, maximum) end

@@ -12,9 +12,9 @@ void number(lua_State *state, int table, const char *field, T &value) {
 std::array<SDL_Vertex, 1024> vertices;
 constexpr auto indices = [] {
   std::array<int, 1536> values{};
-  for (auto i = 0uz; i < values.size() / 6; ++i) {
-    const auto vertex = static_cast<int>(i * 4);
-    auto *out = values.data() + i * 6;
+  for (auto index = 0uz; index < values.size() / 6; ++index) {
+    const auto vertex = static_cast<int>(index * 4);
+    auto *out = values.data() + index * 6;
     out[0] = vertex;
     out[1] = vertex + 1;
     out[2] = vertex + 2;
@@ -83,10 +83,12 @@ int font::label(lua_State *state) {
 }
 
 void font::wire() {
-  binding::metatable(L, "Font", nullptr);
-  luaL_getmetatable(L, "Font");
+  luaL_newmetatable(L, "Font");
+  lua_pushliteral(L, "Font");
+  lua_setfield(L, -2, "__name");
+
   lua_newtable(L);
-  binding::callback(L, label);
+  lua_pushcfunction(L, label);
   lua_setfield(L, -2, "label");
   lua_setfield(L, -2, "__index");
   lua_pop(L, 1);
@@ -102,9 +104,22 @@ font::font(std::string_view family) {
   const auto filename = std::format("fonts/{}.lua", family);
   const auto meta = io::read(filename);
   const auto chunk = std::format("@{}", filename);
-  binding::load(L, meta, chunk);
+  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(meta.data()), meta.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
+    lua_error(L);
+    std::unreachable();
+  }
 
-  binding::call(L, 0, 1);
+  {
+    const auto base = lua_gettop(L);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 0, 1, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
+    }
+  }
 
   const auto config = lua_gettop(L);
   lua_getfield(L, config, "glyphs");

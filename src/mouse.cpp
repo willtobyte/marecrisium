@@ -9,7 +9,7 @@ namespace lookup {
 }
 }
 
-static int mouse_index(lua_State *state) {
+static int index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id == lookup::shown) {
@@ -49,22 +49,32 @@ static int mouse_index(lua_State *state) {
   }
 }
 
-static int mouse_newindex(lua_State *state) {
+static int newindex(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id != lookup::shown || !lua_isboolean(state, 3))
     return 0;
 
-  if (lua_toboolean(state, 3))
-    SDL_ShowCursor();
-  else
-    SDL_HideCursor();
+  lua_toboolean(state, 3)
+    ? SDL_ShowCursor()
+    : SDL_HideCursor();
 
   return 0;
 }
 
 void mouse::wire() {
-  binding::metatable(L, "Mouse", mouse_index, mouse_newindex);
+  luaL_newmetatable(L, "Mouse");
+  lua_pushliteral(L, "Mouse");
+  lua_setfield(L, -2, "__name");
 
-  binding::singleton(L, "Mouse", "mouse");
+  lua_pushcfunction(L, index);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, newindex);
+  lua_setfield(L, -2, "__newindex");
+  lua_pop(L, 1);
+
+  lua_newuserdata(L, 1);
+  luaL_getmetatable(L, "Mouse");
+  lua_setmetatable(L, -2);
+  lua_setglobal(L, "mouse");
 }

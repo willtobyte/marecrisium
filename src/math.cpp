@@ -10,14 +10,14 @@ constexpr auto mask = 3;
 
 void sincos(float x, float& sine, float& cosine) {
   const auto raw = x * (2.f * std::numbers::inv_pi_v<float>);
-  const auto q = static_cast<int>(raw) - static_cast<int>(raw < .0f);
-  const auto t = x - static_cast<float>(q) * (std::numbers::pi_v<float> * .5f);
-  const auto t2 = t * t;
+  const auto quadrant = static_cast<int>(raw) - static_cast<int>(raw < .0f);
+  const auto reduced = x - static_cast<float>(quadrant) * (std::numbers::pi_v<float> * .5f);
+  const auto t2 = reduced * reduced;
 
-  const auto st = t * (sin_c0() - t2 * (sin_c1() - t2 * sin_c2()));
+  const auto st = reduced * (sin_c0() - t2 * (sin_c1() - t2 * sin_c2()));
   const auto ct = cos_c0() - t2 * (cos_c1() - t2 * cos_c2());
 
-  const auto sq = q & mask;
+  const auto sq = quadrant & mask;
   const auto swap = static_cast<float>(sq & 1);
   const auto keep = 1.f - swap;
   const auto ss = 1.f - 2.f * static_cast<float>((sq >> 1) & 1);

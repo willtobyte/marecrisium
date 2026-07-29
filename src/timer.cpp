@@ -109,10 +109,9 @@ struct runner final {
   try {
     auto current = std::make_unique<queue>();
     current->roots = roots;
-    if (available == store::groups.end())
-      store::groups.emplace_back(std::move(current));
-    else
-      *available = std::move(current);
+    available == store::groups.end()
+      ? static_cast<void>(store::groups.emplace_back(std::move(current)))
+      : static_cast<void>(*available = std::move(current));
   } catch (...) {
     luaL_unref(L, LUA_REGISTRYINDEX, roots);
     throw;
@@ -432,7 +431,17 @@ void advance(queue& group, uint32_t owner, std::size_t limit) {
       {
         const runner running{owner};
         const guard context{owner};
-        binding::call(L, 0, 0);
+        {
+          const auto base = lua_gettop(L);
+          lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+          lua_insert(L, base);
+          const auto status = lua_pcall(L, 0, 0, base);
+          lua_remove(L, base);
+          if (status != LUA_OK) [[unlikely]] {
+            lua_error(L);
+            std::unreachable();
+          }
+        }
       }
 
       const auto &updated = group.list[position];
@@ -512,7 +521,7 @@ void wire() {
   lua_newtable(L);
   bind(L, "add", add_callback);
   bind(L, "clear", clear_callback);
-  binding::callback(L, update_callback);
+  lua_pushcfunction(L, update_callback);
   lua_setfield(L, -2, "update");
   lua_setglobal(L, "timer");
 }

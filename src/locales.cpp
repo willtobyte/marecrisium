@@ -7,39 +7,37 @@ static int translate(lua_State *state) {
   lua_rawget(state, -2);
   lua_replace(state, -2);
 
-  if (lua_isnil(state, -1)) [[unlikely]] {
-    lua_pop(state, 1);
-    lua_pushvalue(state, 1);
-  }
+  for (auto index = 0; index < extras; ++index)
+    lua_pushvalue(state, 2 + index);
 
-  for (auto i = 0; i < extras; ++i)
-    lua_pushvalue(state, 2 + i);
-
-  if (!binding::call(state, 1 + extras, 1, binding::fault::ignore)) [[unlikely]]
-    lua_pushvalue(state, 1);
-
+  lua_call(state, 1 + extras, 1);
   return 1;
 }
 
 void locales::wire() {
-  lua_newtable(L);
-
-  auto count = 0;
-  const auto preferred = std::unique_ptr<SDL_Locale*[], SDL_Deleter>{SDL_GetPreferredLocales(&count)};
-  if (preferred && count > 0) [[likely]] {
-    const auto filename = std::format("locales/{}.lua", preferred[0]->language);
-
-    if (io::exists(filename)) [[likely]] {
-      binding::load(L, io::read(filename), std::format("@{}", filename));
-      if (binding::call(L, 0, 1, binding::fault::ignore)) [[likely]]
-        lua_replace(L, -2);
-    }
+  const auto preferred = std::unique_ptr<SDL_Locale*[], SDL_Deleter>{SDL_GetPreferredLocales(nullptr)};
+  const auto filename = std::format("locales/{}.lua", preferred[0]->language);
+  if (!io::exists(filename)) [[unlikely]] {
+    lua_getglobal(L, "string");
+    lua_getfield(L, -1, "format");
+    lua_remove(L, -2);
+    lua_setglobal(L, "_");
+    return;
   }
+
+  const auto buffer = io::read(filename);
+  const auto chunk = std::format("@{}", filename);
+  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(buffer.data()), buffer.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
+    lua_error(L);
+    std::unreachable();
+  }
+
+  lua_call(L, 0, 1);
 
   lua_getglobal(L, "string");
   lua_getfield(L, -1, "format");
   lua_remove(L, -2);
 
-  binding::closure(L, translate, 2);
+  lua_pushcclosure(L, translate, 2);
   lua_setglobal(L, "_");
 }

@@ -4,7 +4,7 @@ namespace {
   }
 }
 
-static int achievement_unlock(lua_State *state) {
+static int grant(lua_State *state) {
   const auto *id = luaL_checkstring(state, 2);
 
   if (!SteamUserStats()) [[unlikely]] {
@@ -24,22 +24,31 @@ static int achievement_unlock(lua_State *state) {
   return 1;
 }
 
-static int _unlock_reference = LUA_NOREF;
+static int unlock = LUA_NOREF;
 
-static int achievement_index(lua_State *state) {
+static int index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id == lookup::unlock)
-    return lua_rawgeti(state, LUA_REGISTRYINDEX, _unlock_reference), 1;
+    return lua_rawgeti(state, LUA_REGISTRYINDEX, unlock), 1;
 
   return lua_pushnil(state), 1;
 }
 
 void achievement::wire() {
-  binding::callback(L, achievement_unlock);
-  _unlock_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  lua_pushcfunction(L, grant);
+  unlock = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  binding::metatable(L, "Achievement", achievement_index);
+  luaL_newmetatable(L, "Achievement");
+  lua_pushliteral(L, "Achievement");
+  lua_setfield(L, -2, "__name");
 
-  binding::singleton(L, "Achievement", "achievement");
+  lua_pushcfunction(L, index);
+  lua_setfield(L, -2, "__index");
+  lua_pop(L, 1);
+
+  lua_newuserdata(L, 1);
+  luaL_getmetatable(L, "Achievement");
+  lua_setmetatable(L, -2);
+  lua_setglobal(L, "achievement");
 }

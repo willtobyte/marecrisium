@@ -1,8 +1,21 @@
 engine::engine() {
   const auto buffer = io::read("scripts/main.lua");
-  binding::load(L, buffer, "@main.lua");
+  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(buffer.data()), buffer.size(), "@main.lua") != LUA_OK) [[unlikely]] {
+    lua_error(L);
+    std::unreachable();
+  }
 
-  binding::call(L, 0, 1);
+  {
+    const auto base = lua_gettop(L);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 0, 1, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
+    }
+  }
 
   lua_getfield(L, -1, "width");
   const auto width = static_cast<int>(lua_tonumber(L, -1));
@@ -85,10 +98,18 @@ engine::engine() {
   _director.wire();
 
   lua_getfield(L, -1, "on_begin");
-  if (lua_isnoneornil(L, -1)) {
+  if (lua_isnil(L, -1)) {
     lua_pop(L, 1);
   } else {
-    binding::call(L, 0, 0);
+    const auto base = lua_gettop(L);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 0, 0, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
+    }
   }
 
   lua_pop(L, 1);

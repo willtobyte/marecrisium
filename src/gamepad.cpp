@@ -26,13 +26,6 @@ namespace {
     constexpr auto left = "left"_hs;
     constexpr auto right = "right"_hs;
   }
-
-  struct reference final {
-    reference() = delete;
-
-    static inline int rumble{LUA_NOREF};
-    static inline int led{LUA_NOREF};
-  };
 }
 
 static SDL_GamepadAxis axis(entt::id_type id) {
@@ -123,7 +116,7 @@ static bool on_event(void *, SDL_Event *event) {
   return true;
 }
 
-static int gamepad_rumble(lua_State *state) {
+static int rumble(lua_State *state) {
   const auto low = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
   const auto high = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
   const auto milliseconds = luaL_checkinteger(state, 4);
@@ -146,7 +139,7 @@ static int gamepad_rumble(lua_State *state) {
   return 1;
 }
 
-static int gamepad_led(lua_State *state) {
+static int led(lua_State *state) {
   const auto red = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
   const auto green = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
   const auto blue = std::clamp(static_cast<float>(luaL_checknumber(state, 4)), .0f, 1.f);
@@ -168,6 +161,9 @@ static int gamepad_led(lua_State *state) {
   return 1;
 }
 
+static constexpr lua_CFunction functions[]{rumble, led};
+static constexpr auto count = static_cast<int>(std::size(functions));
+
 static int push_gamepad_axis(lua_State *state, SDL_GamepadAxis axis, SDL_Gamepad *gamepad) {
   if (!gamepad) [[unlikely]]
     return lua_pushnumber(state, .0), 1;
@@ -184,7 +180,7 @@ static int push_gamepad_button(lua_State *state, SDL_GamepadButton button, SDL_G
   return 1;
 }
 
-static int gamepad_index(lua_State *state) {
+static int index(lua_State *state) {
   const auto id = entt::hashed_string::value(luaL_checkstring(state, 2));
   auto *const gamepad = ptr.load();
 
@@ -200,11 +196,11 @@ static int gamepad_index(lua_State *state) {
       return 1;
 
     case lookup::rumble:
-      lua_rawgeti(state, LUA_REGISTRYINDEX, reference::rumble);
+      lua_pushvalue(state, lua_upvalueindex(1));
       return 1;
 
     case lookup::led:
-      lua_rawgeti(state, LUA_REGISTRYINDEX, reference::led);
+      lua_pushvalue(state, lua_upvalueindex(2));
       return 1;
 
     case lookup::name: {
@@ -223,12 +219,18 @@ void gamepad::wire() {
   SDL_AddEventWatch(on_event, nullptr);
   connect();
 
-  binding::callback(L, gamepad_rumble);
-  reference::rumble = luaL_ref(L, LUA_REGISTRYINDEX);
-  binding::callback(L, gamepad_led);
-  reference::led = luaL_ref(L, LUA_REGISTRYINDEX);
+  luaL_newmetatable(L, "Gamepad");
+  lua_pushliteral(L, "Gamepad");
+  lua_setfield(L, -2, "__name");
 
-  binding::metatable(L, "Gamepad", gamepad_index);
+  for (const auto function : functions)
+    lua_pushcfunction(L, function);
+  lua_pushcclosure(L, index, count);
+  lua_setfield(L, -2, "__index");
+  lua_pop(L, 1);
 
-  binding::singleton(L, "Gamepad", "gamepad");
+  lua_newuserdata(L, 1);
+  luaL_getmetatable(L, "Gamepad");
+  lua_setmetatable(L, -2);
+  lua_setglobal(L, "gamepad");
 }

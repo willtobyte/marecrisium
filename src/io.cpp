@@ -157,28 +157,28 @@ std::unique_ptr<archive> content;
 }
 
 [[nodiscard]] inline uint64_t hashfn(std::string_view name, uint64_t seed) noexcept {
-  const auto *p = reinterpret_cast<const uint8_t *>(name.data());
-  auto n = name.size();
-  uint64_t h = seed ^ n;
-  while (n >= 8) {
+  const auto *cursor = reinterpret_cast<const uint8_t *>(name.data());
+  auto remaining = name.size();
+  uint64_t h = seed ^ remaining;
+  while (remaining >= 8) {
     uint64_t chunk;
-    std::memcpy(&chunk, p, 8);
+    std::memcpy(&chunk, cursor, 8);
     h = mix(h ^ chunk, prime);
-    p += 8;
-    n -= 8;
+    cursor += 8;
+    remaining -= 8;
   }
 
-  const auto rem = n;
+  const auto rem = remaining;
   uint64_t tail = 0;
-  for (unsigned shift = 0; n > 0; shift += 8, --n)
-    tail |= static_cast<uint64_t>(*p++) << shift;
+  for (unsigned shift = 0; remaining > 0; shift += 8, --remaining)
+    tail |= static_cast<uint64_t>(*cursor++) << shift;
 
   return rem == 0 ? h : mix(h ^ tail, prime);
 }
 
 [[nodiscard]] size_t locate(const archive *cartridge, std::string_view name) noexcept {
-  const auto h = hashfn(name, cartridge->seed);
-  const auto slot = static_cast<size_t>(h) & (cartridge->buckets.size() - 1);
+  const auto hash = hashfn(name, cartridge->seed);
+  const auto slot = static_cast<size_t>(hash) & (cartridge->buckets.size() - 1);
   const auto index = cartridge->buckets[slot];
   if (index == empty || path_of(cartridge, cartridge->records[index]) != name) [[unlikely]]
     return SIZE_MAX;

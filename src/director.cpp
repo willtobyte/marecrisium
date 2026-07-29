@@ -23,15 +23,15 @@ void director::wire() {
   lua_newtable(L);
 
   lua_pushlightuserdata(L, this);
-  binding::closure(L, navigate_callback, 1);
+  lua_pushcclosure(L, navigate_callback, 1);
   lua_setfield(L, -2, "navigate");
 
   lua_pushlightuserdata(L, this);
-  binding::closure(L, destroy_callback, 1);
+  lua_pushcclosure(L, destroy_callback, 1);
   lua_setfield(L, -2, "destroy");
 
   lua_pushlightuserdata(L, this);
-  binding::closure(L, enroll_callback, 1);
+  lua_pushcclosure(L, enroll_callback, 1);
   lua_setfield(L, -2, "enroll");
 
   lua_setglobal(L, "director");

@@ -171,8 +171,7 @@ static void release_scriptable(entt::registry& registry, entt::entity entity) {
     handle->registry = nullptr;
   lua_pop(L, 1);
 
-  luaL_unref(L, LUA_REGISTRYINDEX, op.kind_reference);
-  luaL_unref(L, LUA_REGISTRYINDEX, op.name_reference);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.label);
   luaL_unref(L, LUA_REGISTRYINDEX, op.handle);
 }
 
@@ -315,44 +314,57 @@ stage::stage(std::string name)
   const auto buffer = io::read(filename);
   const auto chunk = std::format("@{}", filename);
 
-  binding::load(L, buffer, chunk);
+  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(buffer.data()), buffer.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
+    lua_error(L);
+    std::unreachable();
+  }
 
   lua_newtable(L);
-  _pool_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  _pool = luaL_ref(L, LUA_REGISTRYINDEX);
 
   auto** owner = static_cast<stage**>(lua_newuserdata(L, sizeof(stage*)));
   *owner = this;
-  _owner_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  _owner = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_newtable(L);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
-  binding::closure(L, spawn_callback, 1);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
+  lua_pushcclosure(L, spawn_callback, 1);
   lua_setfield(L, -2, "spawn");
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
-  binding::closure(L, destroy_callback, 1);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
+  lua_pushcclosure(L, destroy_callback, 1);
   lua_setfield(L, -2, "destroy");
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
-  binding::closure(L, count_callback, 1);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
+  lua_pushcclosure(L, count_callback, 1);
   lua_setfield(L, -2, "count");
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
-  binding::closure(L, find_callback, 1);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
+  lua_pushcclosure(L, find_callback, 1);
   lua_setfield(L, -2, "find");
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
-  binding::closure(L, radar_callback, 1);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
+  lua_pushcclosure(L, radar_callback, 1);
   lua_setfield(L, -2, "radar");
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
-  binding::closure(L, raycast_callback, 1);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
+  lua_pushcclosure(L, raycast_callback, 1);
   lua_setfield(L, -2, "raycast");
 
-  _world_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  _world = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  binding::call(L, 0, 1);
+  {
+    const auto base = lua_gettop(L);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 0, 1, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
+    }
+  }
 
   b2Vec2 gravity{.0f, .0f};
 
@@ -370,7 +382,7 @@ stage::stage(std::string name)
 
   b2WorldDef def = b2DefaultWorldDef();
   def.gravity = gravity;
-  _world = b2CreateWorld(&def);
+  _physics = b2CreateWorld(&def);
 
   const auto largest = std::max(viewport.width, viewport.height);
   _sleep_margin = largest;
@@ -438,7 +450,7 @@ stage::stage(std::string name)
       luaL_getmetatable(L, "Sound");
       lua_setmetatable(L, -2);
 
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
       lua_pushvalue(L, -2);
       lua_setfield(L, -2, label.c_str());
       lua_pop(L, 1);
@@ -457,7 +469,7 @@ stage::stage(std::string name)
 
   lua_getfield(L, -1, "tilemap");
   if (lua_isstring(L, -1))
-    _tilemap = tilemap(lua_tostring(L, -1), _world);
+    _tilemap = tilemap(lua_tostring(L, -1), _physics);
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "minimap");
@@ -490,7 +502,7 @@ stage::stage(std::string name)
     luaL_getmetatable(L, "Minimap");
     lua_setmetatable(L, -2);
 
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
     lua_pushvalue(L, -2);
     lua_setfield(L, -2, "minimap");
     lua_pop(L, 1);
@@ -542,14 +554,14 @@ stage::stage(std::string name)
 
       lua_pop(L, 1);
 
-      auto *p = _particlesystem.add(label, kind, px, py, active);
+      auto *particle = _particlesystem.add(label, kind, px, py, active);
 
       auto **userdata = static_cast<class particle **>(lua_newuserdata(L, sizeof(class particle *)));
-      *userdata = p;
+      *userdata = particle;
       luaL_getmetatable(L, "Particle");
       lua_setmetatable(L, -2);
 
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
       lua_pushvalue(L, -2);
       lua_setfield(L, -2, label.c_str());
       lua_pop(L, 1);
@@ -559,9 +571,9 @@ stage::stage(std::string name)
   }
   lua_pop(L, 1);
 
-  _reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  _table = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
 
   lua_getfield(L, -1, "on_loop");
   _on_loop = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
@@ -590,12 +602,12 @@ stage::stage(std::string name)
 stage::~stage() {
   SDL_RemoveEventWatch(on_event, this);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
   auto** owner = static_cast<stage**>(lua_touserdata(L, -1));
   *owner = nullptr;
   lua_pop(L, 1);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
   invalidate<minimap>(L, -1, "Minimap");
   invalidate<particle>(L, -1, "Particle");
   lua_pop(L, 1);
@@ -607,14 +619,14 @@ stage::~stage() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_text);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_camera);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
-  luaL_unref(L, LUA_REGISTRYINDEX, _world_reference);
-  luaL_unref(L, LUA_REGISTRYINDEX, _owner_reference);
-  luaL_unref(L, LUA_REGISTRYINDEX, _pool_reference);
-  luaL_unref(L, LUA_REGISTRYINDEX, _reference);
+  luaL_unref(L, LUA_REGISTRYINDEX, _world);
+  luaL_unref(L, LUA_REGISTRYINDEX, _owner);
+  luaL_unref(L, LUA_REGISTRYINDEX, _pool);
+  luaL_unref(L, LUA_REGISTRYINDEX, _table);
 
   _registry.on_destroy<body>().disconnect<&destroy_body>();
   _registry.clear();
-  b2DestroyWorld(_world);
+  b2DestroyWorld(_physics);
 }
 
 void stage::update(float delta) {
@@ -638,7 +650,17 @@ void stage::update(float delta) {
     if (op.blueprint->on_sleep != LUA_NOREF) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_sleep);
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-      binding::call(L, 1, 0);
+      {
+        const auto base = lua_gettop(L) - 1;
+        lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+        lua_insert(L, base);
+        const auto status = lua_pcall(L, 1, 0, base);
+        lua_remove(L, base);
+        if (status != LUA_OK) [[unlikely]] {
+          lua_error(L);
+          std::unreachable();
+        }
+      }
     }
   }
 
@@ -667,7 +689,17 @@ void stage::update(float delta) {
       if (op.blueprint->on_wake != LUA_NOREF) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_wake);
         lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-        binding::call(L, 1, 0);
+        {
+          const auto base = lua_gettop(L) - 1;
+          lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+          lua_insert(L, base);
+          const auto status = lua_pcall(L, 1, 0, base);
+          lua_remove(L, base);
+          if (status != LUA_OK) [[unlikely]] {
+            lua_error(L);
+            std::unreachable();
+          }
+        }
       }
     }
   }
@@ -689,13 +721,23 @@ void stage::update(float delta) {
 
   if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
-    binding::call(L, 2, 0);
+    {
+      const auto base = lua_gettop(L) - 2;
+      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+      lua_insert(L, base);
+      const auto status = lua_pcall(L, 2, 0, base);
+      lua_remove(L, base);
+      if (status != LUA_OK) [[unlikely]] {
+        lua_error(L);
+        std::unreachable();
+      }
+    }
   }
 
   for (auto&& [e, op] : _registry.view<scriptable>(entt::exclude<dormant>).each()) {
-    if (!op.blueprint || op.blueprint->reference == LUA_NOREF || op.handle == LUA_NOREF) [[unlikely]]
+    if (!op.blueprint || op.blueprint->table == LUA_NOREF || op.handle == LUA_NOREF) [[unlikely]]
       continue;
 
     const auto& bp = *op.blueprint;
@@ -703,7 +745,17 @@ void stage::update(float delta) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_loop);
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
       lua_pushnumber(L, static_cast<lua_Number>(delta));
-      binding::call(L, 2, 0);
+      {
+        const auto base = lua_gettop(L) - 2;
+        lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+        lua_insert(L, base);
+        const auto status = lua_pcall(L, 2, 0, base);
+        lua_remove(L, base);
+        if (status != LUA_OK) [[unlikely]] {
+          lua_error(L);
+          std::unreachable();
+        }
+      }
 
       if (!_registry.valid(e))
         continue;
@@ -731,8 +783,18 @@ void stage::update(float delta) {
     if (bp.on_animation_end != LUA_NOREF) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_end);
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
-      binding::call(L, 2, 0);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.name);
+      {
+        const auto base = lua_gettop(L) - 2;
+        lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+        lua_insert(L, base);
+        const auto status = lua_pcall(L, 2, 0, base);
+        lua_remove(L, base);
+        if (status != LUA_OK) [[unlikely]] {
+          lua_error(L);
+          std::unreachable();
+        }
+      }
 
       if (!_registry.valid(e))
         continue;
@@ -741,8 +803,18 @@ void stage::update(float delta) {
     if (bp.on_animation_begin != LUA_NOREF) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_begin);
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.reference);
-      binding::call(L, 2, 0);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.name);
+      {
+        const auto base = lua_gettop(L) - 2;
+        lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+        lua_insert(L, base);
+        const auto status = lua_pcall(L, 2, 0, base);
+        lua_remove(L, base);
+        if (status != LUA_OK) [[unlikely]] {
+          lua_error(L);
+          std::unreachable();
+        }
+      }
     }
   }
 
@@ -765,9 +837,9 @@ void stage::update(float delta) {
       sync_body(b, frame, en, tf, _timestep);
     }
 
-    b2World_Step(_world, _timestep, _substeps);
+    b2World_Step(_physics, _timestep, _substeps);
 
-    const auto events = b2World_GetBodyEvents(_world);
+    const auto events = b2World_GetBodyEvents(_physics);
 
     for (const auto& event : std::span(events.moveEvents, static_cast<size_t>(events.moveCount))) {
       const auto entity = decode(event.userData);
@@ -800,9 +872,19 @@ void stage::update(float delta) {
 
   if (_on_camera != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
 
-    binding::call(L, 1, 2);
+    {
+      const auto base = lua_gettop(L) - 1;
+      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+      lua_insert(L, base);
+      const auto status = lua_pcall(L, 1, 2, base);
+      lua_remove(L, base);
+      if (status != LUA_OK) [[unlikely]] {
+        lua_error(L);
+        std::unreachable();
+      }
+    }
 
     if (lua_isnumber(L, -2))
       _interpolation.current.x = static_cast<float>(lua_tonumber(L, -2));
@@ -863,7 +945,17 @@ void stage::update(float delta) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
       lua_rawgeti(L, LUA_REGISTRYINDEX, bearings[bit]);
-      binding::call(L, 2, 0);
+      {
+        const auto base = lua_gettop(L) - 2;
+        lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+        lua_insert(L, base);
+        const auto status = lua_pcall(L, 2, 0, base);
+        lua_remove(L, base);
+        if (status != LUA_OK) [[unlikely]] {
+          lua_error(L);
+          std::unreachable();
+        }
+      }
 
       if (!_registry.valid(e))
         break;
@@ -871,12 +963,12 @@ void stage::update(float delta) {
   }
 
   {
-    const auto sensors = b2World_GetSensorEvents(_world);
+    const auto sensors = b2World_GetSensorEvents(_physics);
     dispatch_sensors(*this, _registry, sensors.beginEvents, static_cast<size_t>(sensors.beginCount), &prototype::on_collision_begin);
     dispatch_sensors(*this, _registry, sensors.endEvents, static_cast<size_t>(sensors.endCount), &prototype::on_collision_end);
 
     entt::entity ea, eb;
-    const auto contacts = b2World_GetContactEvents(_world);
+    const auto contacts = b2World_GetContactEvents(_physics);
     for (const auto& event : std::span(contacts.beginEvents, static_cast<size_t>(contacts.beginCount))) {
       if (!resolve_entities(event.shapeIdA, event.shapeIdB, ea, eb))
         continue;
@@ -948,21 +1040,21 @@ void stage::draw() {
   const pixmap* source = nullptr;
   SDL_Texture* current = nullptr;
 
-  for (auto&& [e, r, a, tf] : view.each()) {
-    if (!tf.shown || !a.playing || !a.sheet || a.sheet->count == 0) [[unlikely]]
+  for (auto&& [e, r, a, transform] : view.each()) {
+    if (!transform.shown || !a.playing || !a.sheet || a.sheet->count == 0) [[unlikely]]
       continue;
 
-    const auto& c = a.sheet->clips[a.active];
-    if (c.count == 0)
+    const auto& clip = a.sheet->clips[a.active];
+    if (clip.count == 0)
       continue;
 
-    const auto& fr = a.sheet->frames[c.offset + a.current];
+    const auto& frame = a.sheet->frames[clip.offset + a.current];
 
-    const auto rx = tf.previous_x + _interpolation.alpha * (tf.x - tf.previous_x);
-    const auto ry = tf.previous_y + _interpolation.alpha * (tf.y - tf.previous_y);
+    const auto rx = transform.previous_x + _interpolation.alpha * (transform.x - transform.previous_x);
+    const auto ry = transform.previous_y + _interpolation.alpha * (transform.y - transform.previous_y);
 
-    const auto dw = fr.width * tf.scale;
-    const auto dh = fr.height * tf.scale;
+    const auto dw = frame.width * transform.scale;
+    const auto dh = frame.height * transform.scale;
     const auto px = std::floor(rx - viewport.x);
     const auto py = std::floor(ry - viewport.y);
 
@@ -981,15 +1073,15 @@ void stage::draw() {
       }
     }
 
-    auto u0 = fr.u0;
-    auto v0 = fr.v0;
-    auto u1 = fr.u1;
-    auto v1 = fr.v1;
+    auto u0 = frame.u0;
+    auto v0 = frame.v0;
+    auto u1 = frame.u1;
+    auto v1 = frame.v1;
 
-    if (std::to_underlying(tf.flip) & SDL_FLIP_HORIZONTAL) std::swap(u0, u1);
-    if (std::to_underlying(tf.flip) & SDL_FLIP_VERTICAL) std::swap(v0, v1);
+    if (std::to_underlying(transform.flip) & SDL_FLIP_HORIZONTAL) std::swap(u0, u1);
+    if (std::to_underlying(transform.flip) & SDL_FLIP_VERTICAL) std::swap(v0, v1);
 
-    const auto alpha = std::clamp(tf.alpha, .0f, 255.f) / 255.f;
+    const auto alpha = std::clamp(transform.alpha, .0f, 255.f) / 255.f;
 
     const auto hw = dw * .5f;
     const auto hh = dh * .5f;
@@ -997,8 +1089,8 @@ void stage::draw() {
     const auto my = py + hh;
 
     auto sa = .0f, ca = 1.f;
-    if (tf.angle != .0f) [[unlikely]]
-      sincos(to_radians(tf.angle), sa, ca);
+    if (transform.angle != .0f) [[unlikely]]
+      sincos(to_radians(transform.angle), sa, ca);
 
     const auto dx0 = -hw * ca + hh * sa;
     const auto dy0 = -hw * sa - hh * ca;
@@ -1027,7 +1119,7 @@ void stage::draw() {
 
   const auto aabb = b2AABB{{viewport.x, viewport.y}, {viewport.x + viewport.width, viewport.y + viewport.height}};
 
-  b2World_OverlapAABB(_world, aabb, filter, +[](b2ShapeId shape, void*) -> bool {
+  b2World_OverlapAABB(_physics, aabb, filter, +[](b2ShapeId shape, void*) -> bool {
     static const auto margin = .01f * b2GetLengthUnitsPerMeter();
     const auto polygon = b2Shape_GetPolygon(shape);
     const auto position = b2Body_GetPosition(b2Shape_GetBody(shape));
@@ -1094,8 +1186,18 @@ void stage::on_enter() {
     return;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _on_enter);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-  binding::call(L, 1, 0);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
+  {
+    const auto base = lua_gettop(L) - 1;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 1, 0, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
+    }
+  }
 }
 
 void stage::on_leave() {
@@ -1104,17 +1206,27 @@ void stage::on_leave() {
 
   if (_on_leave != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_leave);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
-    binding::call(L, 1, 0);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
+    {
+      const auto base = lua_gettop(L) - 1;
+      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+      lua_insert(L, base);
+      const auto status = lua_pcall(L, 1, 0, base);
+      lua_remove(L, base);
+      if (status != LUA_OK) [[unlikely]] {
+        lua_error(L);
+        std::unreachable();
+      }
+    }
   }
 
   conceal();
 }
 
 void stage::expose() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
   lua_setglobal(L, "pool");
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _world_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _world);
   lua_setglobal(L, "world");
 }
 
@@ -1130,9 +1242,19 @@ void stage::on_text(std::string_view text) {
     return;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _on_text);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
   lua_pushlstring(L, text.data(), text.size());
-  binding::call(L, 2, 0);
+  {
+    const auto base = lua_gettop(L) - 2;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 2, 0, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
+    }
+  }
 }
 
 int stage::spawn(lua_State* state, std::string_view name, std::string_view kind, float x, float y) {
@@ -1148,7 +1270,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   op.name = entt::hashed_string{name.data(), name.size()};
   op.kind = entt::hashed_string{kind.data(), kind.size()};
   object::bind(_registry, entity, op, name, kind);
-  const auto prototype = op.blueprint->reference;
+  const auto prototype = op.blueprint->table;
   const auto handle = op.handle;
   const auto on_spawn = op.blueprint->on_spawn;
 
@@ -1187,7 +1309,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
         bdef.fixedRotation = true;
       }
 
-      const auto id = b2CreateBody(_world, &bdef);
+      const auto id = b2CreateBody(_physics, &bdef);
       const auto events = op.blueprint->on_collision_begin != LUA_NOREF || op.blueprint->on_collision_end != LUA_NOREF;
       _registry.emplace<body>(entity, id, b2_nullShapeId, .0f, .0f, type, events);
 
@@ -1212,7 +1334,15 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
   if (on_spawn != LUA_NOREF) [[unlikely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, on_spawn);
     lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
-    binding::call(L, 1, 0);
+    {
+      const auto base = lua_gettop(L) - 1;
+      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+      lua_insert(L, base);
+      const auto status = lua_pcall(L, 1, 0, base);
+      lua_remove(L, base);
+      if (status != LUA_OK) [[unlikely]]
+        return lua_error(L);
+    }
   }
 
   if (!_registry.valid(entity)) [[unlikely]] {
@@ -1220,7 +1350,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
     return 1;
   }
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
   lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
   lua_setfield(L, -2, name.data());
   lua_pop(L, 1);
@@ -1247,9 +1377,9 @@ int stage::destroy(lua_State* state) {
 
   const auto& op = _registry.get<scriptable>(self->entity);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, op.name_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, op.label);
   const auto* label = lua_tostring(L, -1);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
   lua_pushnil(L);
   lua_setfield(L, -2, label);
   lua_pop(L, 2);
@@ -1268,7 +1398,7 @@ int stage::count(lua_State *state) {
   const auto aabb = b2AABB{{x, y}, {x + w, y + h}};
 
   _hits.clear();
-  b2World_OverlapAABB(_world, aabb, filter, +collect_hits, &_hits);
+  b2World_OverlapAABB(_physics, aabb, filter, +collect_hits, &_hits);
 
   int total = 0;
   for (const auto& [entity, fraction] : _hits) {
@@ -1291,7 +1421,7 @@ int stage::find(lua_State *state) {
   const b2AABB aabb = {{x, y}, {x + w, y + h}};
 
   _hits.clear();
-  b2World_OverlapAABB(_world, aabb, filter, +collect_hits, &_hits);
+  b2World_OverlapAABB(_physics, aabb, filter, +collect_hits, &_hits);
 
   lua_createtable(state, static_cast<int>(_hits.size()), 0);
   int index = 1;
@@ -1319,7 +1449,7 @@ int stage::radar(lua_State *state, entt::entity caller, float x, float y, float 
 
   _hits.clear();
   b2World_OverlapShape(
-    _world,
+    _physics,
     &proxy,
     filter,
     +collect_hits,
@@ -1356,71 +1486,98 @@ int stage::raycast(lua_State* state, entt::entity caller, float x, float y, floa
   _target = {origin.x + translation.x, origin.y + translation.y};
 #endif
 
-  _hits.clear();
-  struct tally final {
-    std::vector<hit>* hits;
-    float clip;
-  } query{&_hits, 1.f};
+  struct result final {
+    entt::registry* registry;
+    entt::entity caller;
+    int target{LUA_NOREF};
+    float fraction{1.f};
+    bool wall{};
+  } query{&_registry, caller};
 
   b2World_CastRay(
-    _world,
+    _physics,
     origin,
     translation,
     filter,
-    +[](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void *userdata) -> float {
-      auto* value = static_cast<tally*>(userdata);
+    +[](b2ShapeId shape, b2Vec2, b2Vec2, float fraction, void* userdata) -> float {
+      auto* value = static_cast<result*>(userdata);
       const auto* data = b2Shape_GetUserData(shape);
       if (!data) [[unlikely]] {
-        value->clip = fraction;
-        return fraction;
+        if (fraction <= value->fraction) {
+          value->target = LUA_NOREF;
+          value->fraction = fraction;
+          value->wall = true;
+        }
+
+        return value->fraction;
       }
 
-      value->hits->emplace_back(decode(data), fraction);
-      return 1.f;
+      const auto entity = decode(data);
+      if (entity == value->caller) [[unlikely]]
+        return -1.f;
+
+      const auto* object = find_scriptable(*value->registry, entity);
+      if (!object) [[unlikely]]
+        return -1.f;
+
+      if (fraction < value->fraction ||
+          (fraction == value->fraction && !value->wall && value->target == LUA_NOREF)) {
+        value->target = object->handle;
+        value->fraction = fraction;
+        value->wall = false;
+      }
+
+      return value->fraction;
     },
     &query
   );
 
-  std::erase_if(_hits, [clip = query.clip](const hit& entry) { return entry.fraction > clip; });
-  std::ranges::sort(_hits, {}, &hit::fraction);
-
-  lua_createtable(state, static_cast<int>(_hits.size()), 0);
-  int index = 1;
-
-  for (const auto& [entity, fraction] : _hits) {
-    if (entity == caller) [[unlikely]]
-      continue;
-
-    const auto* object = find_scriptable(_registry, entity);
-    if (!object) [[unlikely]]
-      continue;
-
-    lua_rawgeti(state, LUA_REGISTRYINDEX, object->handle);
-    lua_rawseti(state, -2, index++);
-  }
+  query.target == LUA_NOREF
+    ? static_cast<void>(lua_pushnil(state))
+    : static_cast<void>(lua_rawgeti(state, LUA_REGISTRYINDEX, query.target));
 
   return 1;
 }
 
-void stage::dispatch_collision(const scriptable& self, const scriptable* target, int callback_reference, const b2Vec2* normal) {
-  if (callback_reference == LUA_NOREF) [[likely]]
+void stage::dispatch_collision(const scriptable& self, const scriptable* target, int callback, const b2Vec2* normal) {
+  if (callback == LUA_NOREF) [[likely]]
     return;
 
   if (self.handle == LUA_NOREF || !target) [[unlikely]]
     return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, callback_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
   lua_rawgeti(L, LUA_REGISTRYINDEX, self.handle);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, target->name_reference);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, target->kind_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, target->label);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, target->blueprint->kind);
   if (!normal) {
-    binding::call(L, 3, 0);
+    {
+      const auto base = lua_gettop(L) - 3;
+      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+      lua_insert(L, base);
+      const auto status = lua_pcall(L, 3, 0, base);
+      lua_remove(L, base);
+      if (status != LUA_OK) [[unlikely]] {
+        lua_error(L);
+        std::unreachable();
+      }
+    }
     return;
   }
 
   lua_pushnumber(L, static_cast<lua_Number>(normal->x));
   lua_pushnumber(L, static_cast<lua_Number>(normal->y));
-  binding::call(L, 5, 0);
+  {
+    const auto base = lua_gettop(L) - 5;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 5, 0, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
+    }
+  }
 }
 
 uint8_t stage::pick_at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept {
@@ -1436,7 +1593,7 @@ uint8_t stage::pick_at(float x, float y, entt::entity* buffer, uint8_t capacity)
   context ctx{buffer, capacity, 0};
 
   b2World_OverlapAABB(
-    _world, aabb, filter,
+    _physics, aabb, filter,
     [](b2ShapeId shape, void* userdata) -> bool {
       auto* value = static_cast<context*>(userdata);
       if (value->count >= value->capacity) [[unlikely]]
@@ -1482,16 +1639,26 @@ entt::entity stage::find_topmost(std::span<const entt::entity> hits) const noexc
   return topmost;
 }
 
-void stage::dispatch_miss(int callback_reference, float x, float y, const char* button) {
-  if (callback_reference == LUA_NOREF) [[likely]]
+void stage::dispatch_miss(int callback, float x, float y, const char* button) {
+  if (callback == LUA_NOREF) [[likely]]
     return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, callback_reference);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
   lua_pushnumber(L, static_cast<lua_Number>(x));
   lua_pushnumber(L, static_cast<lua_Number>(y));
   lua_pushstring(L, button);
-  binding::call(L, 4, 0);
+  {
+    const auto base = lua_gettop(L) - 4;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 4, 0, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
+    }
+  }
 }
 
 void stage::dispatch_press(float x, float y, const char* button) {
@@ -1516,7 +1683,17 @@ void stage::dispatch_press(float x, float y, const char* button) {
   lua_pushnumber(L, static_cast<lua_Number>(x));
   lua_pushnumber(L, static_cast<lua_Number>(y));
   lua_pushstring(L, button);
-  binding::call(L, 4, 0);
+  {
+    const auto base = lua_gettop(L) - 4;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 4, 0, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
+    }
+  }
 }
 
 void stage::dispatch_release(float x, float y, const char* button) {
@@ -1541,7 +1718,17 @@ void stage::dispatch_release(float x, float y, const char* button) {
   lua_pushnumber(L, static_cast<lua_Number>(x));
   lua_pushnumber(L, static_cast<lua_Number>(y));
   lua_pushstring(L, button);
-  binding::call(L, 4, 0);
+  {
+    const auto base = lua_gettop(L) - 4;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 4, 0, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
+    }
+  }
 }
 
 void stage::dispatch_hover(float x, float y) {
@@ -1566,7 +1753,17 @@ void stage::dispatch_hover(float x, float y) {
 
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->blueprint->on_hover);
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
-    binding::call(L, 1, 0);
+    {
+      const auto base = lua_gettop(L) - 1;
+      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+      lua_insert(L, base);
+      const auto status = lua_pcall(L, 1, 0, base);
+      lua_remove(L, base);
+      if (status != LUA_OK) [[unlikely]] {
+        lua_error(L);
+        std::unreachable();
+      }
+    }
   }
 
   _hovering.assign(hits.begin(), hits.end());
@@ -1586,6 +1783,16 @@ void stage::dispatch_unhover(std::span<const entt::entity> current) {
 
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->blueprint->on_unhover);
     lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
-    binding::call(L, 1, 0);
+    {
+      const auto base = lua_gettop(L) - 1;
+      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+      lua_insert(L, base);
+      const auto status = lua_pcall(L, 1, 0, base);
+      lua_remove(L, base);
+      if (status != LUA_OK) [[unlikely]] {
+        lua_error(L);
+        std::unreachable();
+      }
+    }
   }
 }

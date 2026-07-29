@@ -6,13 +6,13 @@ local steering = {}
 
 function steering.avoid(object, x, y, desired, distance)
 	local degrees = desired * RTD
-	local hit = world.raycast(object, x, y, degrees, distance)[1]
+	local hit = world.raycast(object, x, y, degrees, distance)
 	if not hit then
 		return desired
 	end
 
 	for _, offset in ipairs(PROBE_OFFSETS) do
-		local candidate = world.raycast(object, x, y, degrees + offset, distance)[1]
+		local candidate = world.raycast(object, x, y, degrees + offset, distance)
 		if not candidate then
 			return desired + offset * DTR
 		end

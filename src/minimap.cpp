@@ -4,7 +4,7 @@ namespace lookup {
 }
 }
 
-static int minimap_index(lua_State *state) {
+static int index(lua_State *state) {
   auto *self = *static_cast<minimap **>(luaL_checkudata(state, 1, "Minimap"));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
@@ -16,7 +16,7 @@ static int minimap_index(lua_State *state) {
   return lua_pushnil(state), 1;
 }
 
-static int minimap_newindex(lua_State *state) {
+static int newindex(lua_State *state) {
   auto *self = *static_cast<minimap **>(luaL_checkudata(state, 1, "Minimap"));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
@@ -137,5 +137,13 @@ void minimap::draw() {
 }
 
 void minimap::wire() {
-  binding::metatable(L, "Minimap", minimap_index, minimap_newindex);
+  luaL_newmetatable(L, "Minimap");
+  lua_pushliteral(L, "Minimap");
+  lua_setfield(L, -2, "__name");
+
+  lua_pushcfunction(L, index);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, newindex);
+  lua_setfield(L, -2, "__newindex");
+  lua_pop(L, 1);
 }

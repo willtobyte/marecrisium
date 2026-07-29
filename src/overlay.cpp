@@ -1,13 +1,11 @@
-static int overlay_newindex(lua_State *state) {
+static int newindex(lua_State *state) {
   auto *self = *static_cast<overlay **>(luaL_checkudata(state, 1, "Foregrounds"));
   std::size_t length;
   const std::string_view name{luaL_checklstring(state, 2, &length), length};
 
-  if (lua_toboolean(state, 3) != 0) {
-    self->show(name);
-  } else {
-    self->hide(name);
-  }
+  lua_toboolean(state, 3)
+    ? self->show(name)
+    : self->hide(name);
 
   return 0;
 }
@@ -17,26 +15,35 @@ overlay::overlay() {
   *instance = this;
   luaL_getmetatable(L, "Foregrounds");
   lua_setmetatable(L, -2);
-  _userdata_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  _userdata = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_reference);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata);
   lua_setglobal(L, "foregrounds");
 }
 
-overlay::~overlay() {
-  clear();
-  luaL_unref(L, LUA_REGISTRYINDEX, _userdata_reference);
+overlay::~overlay() noexcept(false) {
+  if (std::uncaught_exceptions() == 0)
+    clear();
+  luaL_unref(L, LUA_REGISTRYINDEX, _userdata);
 }
 
 void overlay::wire() {
-  binding::metatable(L, "Foregrounds", nullptr, overlay_newindex);
+  luaL_newmetatable(L, "Foregrounds");
+  lua_pushliteral(L, "Foregrounds");
+  lua_setfield(L, -2, "__name");
+
+  lua_pushcfunction(L, newindex);
+  lua_setfield(L, -2, "__newindex");
+  lua_pop(L, 1);
 }
 
 void overlay::show(std::string_view name) {
   const auto key = entt::hashed_string{name.data(), name.size()};
-  const auto [it, inserted] = _foregrounds.try_emplace(key, nullptr);
-  if (inserted)
-    it->second = std::make_unique<foreground>(name);
+  auto it = _foregrounds.find(key);
+  if (it == _foregrounds.end()) {
+    auto fg = std::make_unique<foreground>(name);
+    it = _foregrounds.try_emplace(key, std::move(fg)).first;
+  }
 
   auto *fg = it->second.get();
 
@@ -58,13 +65,18 @@ void overlay::hide(std::string_view name) {
   if (active == _active.end())
     return;
 
-  foreground->disappear();
   _active.erase(active);
+  foreground->disappear();
 }
 
 void overlay::clear() {
-  for (auto *foreground : std::exchange(_active, {}))
-    foreground->disappear();
+  auto active = std::move(_active);
+  _active.clear();
+
+  for (auto *fg : active) {
+    if (std::ranges::find(_active, fg) == _active.end())
+      fg->disappear();
+  }
 }
 
 void overlay::update(float delta) {

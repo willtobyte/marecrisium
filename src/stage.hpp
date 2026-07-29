@@ -38,7 +38,7 @@ public:
 
   int raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance);
 
-  void dispatch_collision(const scriptable& self, const scriptable* target, int callback_reference, const b2Vec2* normal = nullptr);
+  void dispatch_collision(const scriptable& self, const scriptable* target, int callback, const b2Vec2* normal = nullptr);
 
   [[nodiscard]] uint8_t pick_at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
 
@@ -52,7 +52,7 @@ public:
 
   void dispatch_unhover(std::span<const entt::entity> current);
 
-  void dispatch_miss(int callback_reference, float x, float y, const char* button);
+  void dispatch_miss(int callback, float x, float y, const char* button);
 
 private:
   entt::registry _registry{};
@@ -64,7 +64,7 @@ private:
   std::optional<minimap> _minimap{};
   std::vector<sound*> _sounds{};
 
-  b2WorldId _world{};
+  b2WorldId _physics{};
   float _timestep{1.f / 60.f};
   float _accumulator{};
   int _substeps{4};
@@ -89,10 +89,10 @@ private:
   float _sleep_margin{};
   float _wake_margin{};
 
-  int _reference{LUA_NOREF};
-  int _pool_reference{LUA_NOREF};
-  int _world_reference{LUA_NOREF};
-  int _owner_reference{LUA_NOREF};
+  int _table{LUA_NOREF};
+  int _pool{LUA_NOREF};
+  int _world{LUA_NOREF};
+  int _owner{LUA_NOREF};
   int _on_loop{LUA_NOREF};
   int _on_camera{LUA_NOREF};
   int _on_text{LUA_NOREF};

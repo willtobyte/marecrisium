@@ -28,7 +28,7 @@ static const auto mapping = [] {
   return result;
 }();
 
-static int keyboard_index(lua_State *state) {
+static int index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
   const auto it = mapping.find(id);
   if (it == mapping.end()) [[unlikely]]
@@ -40,7 +40,16 @@ static int keyboard_index(lua_State *state) {
 }
 
 void keyboard::wire() {
-  binding::metatable(L, "Keyboard", keyboard_index);
+  luaL_newmetatable(L, "Keyboard");
+  lua_pushliteral(L, "Keyboard");
+  lua_setfield(L, -2, "__name");
 
-  binding::singleton(L, "Keyboard", "keyboard");
+  lua_pushcfunction(L, index);
+  lua_setfield(L, -2, "__index");
+  lua_pop(L, 1);
+
+  lua_newuserdata(L, 1);
+  luaL_getmetatable(L, "Keyboard");
+  lua_setmetatable(L, -2);
+  lua_setglobal(L, "keyboard");
 }

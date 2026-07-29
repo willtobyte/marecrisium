@@ -5,7 +5,7 @@ class foreground;
 class overlay final {
 public:
   overlay();
-  ~overlay();
+  ~overlay() noexcept(false);
 
   static void wire();
 
@@ -23,5 +23,5 @@ private:
   entt::dense_map<entt::id_type, std::unique_ptr<foreground>> _foregrounds;
   std::vector<foreground *> _active;
   std::vector<foreground *> _snapshot;
-  int _userdata_reference{LUA_NOREF};
+  int _userdata{LUA_NOREF};
 };

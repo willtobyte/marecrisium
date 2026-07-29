@@ -6,9 +6,9 @@ public:
 
   const char* get(entt::id_type key) const;
 
-  int reference(entt::id_type key) const;
+  int slot(entt::id_type key) const;
 
 private:
   entt::dense_map<entt::id_type, std::string> _pool;
-  entt::dense_map<entt::id_type, int> _references;
+  entt::dense_map<entt::id_type, int> _slots;
 };

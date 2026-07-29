@@ -17,10 +17,10 @@ static int math_random(lua_State *state) {
       return 1;
 
     case 1: {
-      const auto n = check(state, 1);
-      if (n < 1) [[unlikely]]
+      const auto maximum = check(state, 1);
+      if (maximum < 1) [[unlikely]]
         return luaL_error(state, "interval is empty");
-      lua_pushinteger(state, static_cast<lua_Integer>(rng(1, n)));
+      lua_pushinteger(state, static_cast<lua_Integer>(rng(1, maximum)));
       return 1;
     }
 
@@ -47,10 +47,10 @@ void xorshift128::seed(uint32_t value) {
   constexpr auto first = uint64_t{0xBF58476D1CE4E5B9};
   constexpr auto second = uint64_t{0x94D049BB133111EB};
 
-  auto s = static_cast<uint64_t>(value);
+  auto seed = static_cast<uint64_t>(value);
   for (auto &word : state) {
-    s += increment;
-    auto z = s;
+    seed += increment;
+    auto z = seed;
     z = (z ^ (z >> 30)) * first;
     z = (z ^ (z >> 27)) * second;
     z ^= z >> 31;
@@ -100,9 +100,9 @@ void xorshift128::seed(uint32_t value) {
 
 void xorshift128::wire() {
   lua_getglobal(L, "math");
-  binding::callback(L, math_random);
+  lua_pushcfunction(L, math_random);
   lua_setfield(L, -2, "random");
-  binding::callback(L, math_randomseed);
+  lua_pushcfunction(L, math_randomseed);
   lua_setfield(L, -2, "randomseed");
   lua_pop(L, 1);
 }

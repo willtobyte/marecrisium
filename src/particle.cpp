@@ -29,7 +29,7 @@ static T* column(T* values, size_t count) noexcept {
   return range.first == range.second ? range.first : rng(range);
 }
 
-static int particle_index(lua_State* state) {
+static int index(lua_State* state) {
   const auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
@@ -51,7 +51,7 @@ static int particle_index(lua_State* state) {
   }
 }
 
-static int particle_newindex(lua_State* state) {
+static int newindex(lua_State* state) {
   auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
@@ -290,5 +290,13 @@ void particle::draw() {
 }
 
 void particle::wire() {
-  binding::metatable(L, "Particle", particle_index, particle_newindex);
+  luaL_newmetatable(L, "Particle");
+  lua_pushliteral(L, "Particle");
+  lua_setfield(L, -2, "__name");
+
+  lua_pushcfunction(L, index);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, newindex);
+  lua_setfield(L, -2, "__newindex");
+  lua_pop(L, 1);
 }

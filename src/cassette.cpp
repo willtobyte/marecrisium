@@ -35,7 +35,7 @@ std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_upsert;
 std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_delete;
 std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_clear;
 
-int purge_reference = LUA_NOREF;
+int purge = LUA_NOREF;
 
 char holder;
 char token;
@@ -157,7 +157,7 @@ static int pairs(lua_State *state) {
   lua_remove(state, -2);
   lua_pushvalue(state, -1);
   lua_pushboolean(state, false);
-  binding::closure(state, iterate, 2);
+  lua_pushcclosure(state, iterate, 2);
   lua_pushvalue(state, 1);
   lua_pushnil(state);
   return 3;
@@ -170,7 +170,7 @@ static int ipairs(lua_State *state) {
   lua_remove(state, -2);
   lua_pushvalue(state, -1);
   lua_pushboolean(state, true);
-  binding::closure(state, iterate, 2);
+  lua_pushcclosure(state, iterate, 2);
   lua_pushvalue(state, 1);
   lua_pushinteger(state, 0);
   return 3;
@@ -202,13 +202,13 @@ static void proxify(lua_State *state, int data, int key, int root) {
   lua_pushvalue(state, data);
   lua_pushvalue(state, key);
   lua_pushvalue(state, root);
-  binding::closure(state, proxy_index, 3);
+  lua_pushcclosure(state, proxy_index, 3);
   lua_setfield(state, -2, "__index");
 
   lua_pushvalue(state, data);
   lua_pushvalue(state, key);
   lua_pushvalue(state, root);
-  binding::closure(state, proxy_newindex, 3);
+  lua_pushcclosure(state, proxy_newindex, 3);
   lua_setfield(state, -2, "__newindex");
 
   lua_pushcfunction(state, length);
@@ -225,17 +225,17 @@ static void proxify(lua_State *state, int data, int key, int root) {
 
 }
 
-static int cassette_clear(lua_State *state) {
+static int clear(lua_State *state) {
   execute(stmt_clear.get());
   return 0;
 }
 
-static int cassette_index(lua_State *state) {
+static int index(lua_State *state) {
   const auto key = std::string_view{luaL_checkstring(state, 2)};
   const auto id = entt::hashed_string{key.data(), key.size()};
 
   if (id == lookup::purge) [[unlikely]]
-    return lua_rawgeti(state, LUA_REGISTRYINDEX, purge_reference), 1;
+    return lua_rawgeti(state, LUA_REGISTRYINDEX, purge), 1;
 
   if (!load(state, key)) [[unlikely]]
     return lua_pushnil(state), 1;
@@ -267,7 +267,7 @@ static int cassette_index(lua_State *state) {
   return 1;
 }
 
-static int cassette_newindex(lua_State *state) {
+static int newindex(lua_State *state) {
   const auto key = std::string_view{luaL_checkstring(state, 2)};
   const auto id = entt::hashed_string{key.data(), key.size()};
   auto value = 3;
@@ -286,10 +286,9 @@ static int cassette_newindex(lua_State *state) {
     lua_rawget(state, -2);
     lua_remove(state, -2);
 
-    if (lua_istable(state, -1))
-      value = lua_gettop(state);
-    else
-      lua_pop(state, 1);
+    lua_istable(state, -1)
+      ? static_cast<void>(value = lua_gettop(state))
+      : static_cast<void>(lua_pop(state, 1));
   }
 
   save(state, key, value);
@@ -324,9 +323,20 @@ void cassette::wire() {
     database.reset();
   });
 
-  binding::callback(L, cassette_clear);
-  purge_reference = luaL_ref(L, LUA_REGISTRYINDEX);
+  lua_pushcfunction(L, clear);
+  purge = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  binding::metatable(L, "Cassette", cassette_index, cassette_newindex);
-  binding::singleton(L, "Cassette", "cassette");
+  luaL_newmetatable(L, "Cassette");
+  lua_pushliteral(L, "Cassette");
+  lua_setfield(L, -2, "__name");
+
+  lua_pushcfunction(L, index);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, newindex);
+  lua_setfield(L, -2, "__newindex");
+  lua_pop(L, 1);
+  lua_newuserdata(L, 1);
+  luaL_getmetatable(L, "Cassette");
+  lua_setmetatable(L, -2);
+  lua_setglobal(L, "cassette");
 }

@@ -7,7 +7,7 @@ namespace {
   }
 }
 
-static int platform_index(lua_State *state) {
+static int index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   switch (id) {
@@ -34,7 +34,7 @@ static int platform_index(lua_State *state) {
   }
 }
 
-static int platform_newindex(lua_State *state) {
+static int newindex(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
   if (id == lookup::clipboard) {
@@ -46,7 +46,18 @@ static int platform_newindex(lua_State *state) {
 }
 
 void platform::wire() {
-  binding::metatable(L, "Platform", platform_index, platform_newindex);
+  luaL_newmetatable(L, "Platform");
+  lua_pushliteral(L, "Platform");
+  lua_setfield(L, -2, "__name");
 
-  binding::singleton(L, "Platform", "platform");
+  lua_pushcfunction(L, index);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, newindex);
+  lua_setfield(L, -2, "__newindex");
+  lua_pop(L, 1);
+
+  lua_newuserdata(L, 1);
+  luaL_getmetatable(L, "Platform");
+  lua_setmetatable(L, -2);
+  lua_setglobal(L, "platform");
 }
