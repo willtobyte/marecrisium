@@ -8,8 +8,6 @@ public:
   foreground(const foreground&) = delete;
   foreground& operator=(const foreground&) = delete;
 
-  static void wire();
-
   void update(float delta);
 
   void draw();
@@ -30,5 +28,4 @@ private:
   int _on_paint{LUA_NOREF};
   int _on_appear{LUA_NOREF};
   int _on_disappear{LUA_NOREF};
-  int _userdata{LUA_NOREF};
 };

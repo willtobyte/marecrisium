@@ -288,10 +288,10 @@ function Font:label(text, x, y, effects) end
 ---@field on_appear? fun(self: ForegroundState) Called each time the foreground becomes visible.
 ---@field on_disappear? fun(self: ForegroundState) Called each time the foreground becomes hidden.
 ---@field on_loop? fun(self: ForegroundState, delta: number) Called every visible frame before painting; delta is in seconds.
----@field on_paint? fun(self: Foreground) Called every visible frame with the drawable handle.
+---@field on_paint? fun(self: Foreground) Called every visible frame with the drawable state.
 ---@field [string] any Script fields and loaded fonts.
 
----Read-only handle passed to `on_paint`; its backing state remains readable.
+---Mutable foreground state passed directly to `on_paint`.
 ---@class Foreground: ForegroundState
 local Foreground = {}
 
@@ -515,12 +515,12 @@ function Achievement:unlock(id) end
 achievement = nil
 
 ---@class Friend
----@field id number Steam ID (read-only).
----@field name string Display name (read-only).
+---@field id number Steam ID.
+---@field name string Display name.
 
 ---@class User
----@field persona string Local display name (read-only), or an empty string without Steam.
----@field friends Friend[] Friends snapshot (read-only property); the returned Lua array is mutable.
+---@field persona string Local display name, or an empty string without Steam.
+---@field friends Friend[] Mutable friends snapshot.
 
 ---@type User
 user = nil
@@ -528,10 +528,16 @@ user = nil
 -- Platform
 
 ---@class Platform
----@field name string Operating system name (read-only).
----@field cores integer Logical CPU count (read-only).
----@field memory integer RAM in MiB (read-only).
+---@field name string Operating system name.
+---@field cores integer Logical CPU count.
+---@field memory integer RAM in MiB.
 ---@field clipboard string Clipboard text (read/write).
+local Platform = {}
+
+---Ask the operating system to open a URL or URI.
+---@param url string
+---@return boolean
+function Platform:openurl(url) end
 
 ---@type Platform
 platform = nil

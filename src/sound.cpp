@@ -4,14 +4,9 @@ namespace {
     constexpr auto pan = "pan"_hs;
     constexpr auto loop = "loop"_hs;
     constexpr auto playing = "playing"_hs;
-    constexpr auto play = "play"_hs;
-    constexpr auto stop = "stop"_hs;
-    constexpr auto fade = "fade"_hs;
-    constexpr auto on_begin = "on_begin"_hs;
-    constexpr auto on_end = "on_end"_hs;
   }
 
-  static int play(lua_State* state) {
+  static int play_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     instance->play();
     if (instance->on_begin != LUA_NOREF) {
@@ -22,14 +17,13 @@ namespace {
     return 0;
   }
 
-  static int stop(lua_State* state) {
+  static int stop_callback(lua_State* state) {
     (*static_cast<sound**>(luaL_checkudata(state, 1, "Sound")))->stop();
     return 0;
   }
 
-  static int on_begin(lua_State* state) {
+  static int on_begin_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    luaL_checktype(state, 2, LUA_TFUNCTION);
     luaL_unref(state, LUA_REGISTRYINDEX, instance->on_begin);
     instance->on_begin = LUA_NOREF;
     lua_pushvalue(state, 2);
@@ -37,27 +31,26 @@ namespace {
     return 0;
   }
 
-  static int fade(lua_State* state) {
+  static int fade_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    const auto from = static_cast<float>(luaL_checknumber(state, 2));
-    const auto to = static_cast<float>(luaL_checknumber(state, 3));
-    const auto ms = static_cast<uint64_t>(std::max(luaL_checkinteger(state, 4), lua_Integer{0}));
-    instance->fade(from, to, ms);
+    const auto from = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
+    const auto to = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
+    const auto duration = std::clamp(
+      luaL_checkinteger(state, 4),
+      lua_Integer{},
+      static_cast<lua_Integer>(std::numeric_limits<uint32_t>::max()));
+    instance->fade(from, to, static_cast<uint64_t>(duration));
     return 0;
   }
 
-  static int on_end(lua_State* state) {
+  static int on_end_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    luaL_checktype(state, 2, LUA_TFUNCTION);
     luaL_unref(state, LUA_REGISTRYINDEX, instance->on_end);
     instance->on_end = LUA_NOREF;
     lua_pushvalue(state, 2);
     instance->on_end = luaL_ref(state, LUA_REGISTRYINDEX);
     return 0;
   }
-
-  static constexpr lua_CFunction functions[]{play, stop, fade, on_begin, on_end};
-  static constexpr auto count = static_cast<int>(std::size(functions));
 
   static int index(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
@@ -73,35 +66,18 @@ namespace {
         return 1;
 
       case lookup::loop:
-        lua_pushboolean(state, instance->loop() ? 1 : 0);
+        lua_pushboolean(state, instance->loop());
         return 1;
 
       case lookup::playing:
-        lua_pushboolean(state, instance->playing() ? 1 : 0);
-        return 1;
-
-      case lookup::play:
-        lua_pushvalue(state, lua_upvalueindex(1));
-        return 1;
-
-      case lookup::stop:
-        lua_pushvalue(state, lua_upvalueindex(2));
-        return 1;
-
-      case lookup::fade:
-        lua_pushvalue(state, lua_upvalueindex(3));
-        return 1;
-
-      case lookup::on_begin:
-        lua_pushvalue(state, lua_upvalueindex(4));
-        return 1;
-
-      case lookup::on_end:
-        lua_pushvalue(state, lua_upvalueindex(5));
+        lua_pushboolean(state, instance->playing());
         return 1;
 
       default:
-        return lua_pushnil(state), 1;
+        lua_getmetatable(state, 1);
+        lua_pushvalue(state, 2);
+        lua_rawget(state, -2);
+        return 1;
     }
   }
 
@@ -307,9 +283,17 @@ void sound::wire() {
   lua_pushliteral(L, "Sound");
   lua_setfield(L, -2, "__name");
 
-  for (const auto function : functions)
-    lua_pushcfunction(L, function);
-  lua_pushcclosure(L, index, count);
+  lua_pushcfunction(L, play_callback);
+  lua_setfield(L, -2, "play");
+  lua_pushcfunction(L, stop_callback);
+  lua_setfield(L, -2, "stop");
+  lua_pushcfunction(L, fade_callback);
+  lua_setfield(L, -2, "fade");
+  lua_pushcfunction(L, on_begin_callback);
+  lua_setfield(L, -2, "on_begin");
+  lua_pushcfunction(L, on_end_callback);
+  lua_setfield(L, -2, "on_end");
+  lua_pushcfunction(L, index);
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, newindex);
   lua_setfield(L, -2, "__newindex");

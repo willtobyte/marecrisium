@@ -119,6 +119,7 @@ struct archive final {
   explicit archive(std::string_view filename)
     : source{filename} {
     const auto *fields = reinterpret_cast<const uint32_t *>(source.data);
+    assert(reinterpret_cast<uintptr_t>(fields) % alignof(uint32_t) == 0 && "cartridge header must be aligned");
     [[assume(reinterpret_cast<uintptr_t>(fields) % alignof(uint32_t) == 0)]];
 
     const auto count = fields[1];
@@ -136,12 +137,14 @@ struct archive final {
     storage = std::make_unique_for_overwrite<uint32_t[]>(slots);
     const auto bytes = ZSTD_decompress(
       storage.get(), static_cast<size_t>(slots) * sizeof(uint32_t), data + cursor, table);
+    assert(bytes == static_cast<size_t>(slots) * sizeof(uint32_t) && "cartridge table size must be valid");
     [[assume(bytes == static_cast<size_t>(slots) * sizeof(uint32_t))]];
     buckets = {storage.get(), slots};
     cursor += table;
 
     strings = std::make_unique_for_overwrite<uint8_t[]>(textsize);
     const auto written = ZSTD_decompress(strings.get(), textsize, data + cursor, text);
+    assert(written == textsize && "cartridge text size must be valid");
     [[assume(written == textsize)]];
     cursor += text;
 
@@ -159,11 +162,11 @@ std::unique_ptr<archive> content;
 [[nodiscard]] inline uint64_t hashfn(std::string_view name, uint64_t seed) noexcept {
   const auto *cursor = reinterpret_cast<const uint8_t *>(name.data());
   auto remaining = name.size();
-  uint64_t h = seed ^ remaining;
+  uint64_t hash = seed ^ remaining;
   while (remaining >= 8) {
     uint64_t chunk;
     std::memcpy(&chunk, cursor, 8);
-    h = mix(h ^ chunk, prime);
+    hash = mix(hash ^ chunk, prime);
     cursor += 8;
     remaining -= 8;
   }
@@ -173,7 +176,7 @@ std::unique_ptr<archive> content;
   for (unsigned shift = 0; remaining > 0; shift += 8, --remaining)
     tail |= static_cast<uint64_t>(*cursor++) << shift;
 
-  return rem == 0 ? h : mix(h ^ tail, prime);
+  return rem == 0 ? hash : mix(hash ^ tail, prime);
 }
 
 [[nodiscard]] size_t locate(const archive *cartridge, std::string_view name) noexcept {
@@ -194,18 +197,21 @@ void io::mount(std::string_view filename) {
 
 bool io::exists(std::string_view filename) noexcept {
   const auto *cartridge = content.get();
+  assert(cartridge != nullptr && "cartridge must be mounted");
   [[assume(cartridge != nullptr)]];
   return locate(cartridge, filename) != SIZE_MAX;
 }
 
 bytes io::read(std::string_view filename) {
   auto *cartridge = content.get();
+  assert(cartridge != nullptr && "cartridge must be mounted");
   [[assume(cartridge != nullptr)]];
   const auto index = locate(cartridge, filename);
   if (index == SIZE_MAX) [[unlikely]]
     throw std::runtime_error{std::format("[io::read] file not found: {}", filename)};
 
   const auto &current = cartridge->records[index];
+  assert((current.flags & directory) == 0 && "cartridge entry must be a file");
   [[assume((current.flags & directory) == 0)]];
   const auto size = static_cast<size_t>(current.uncompressed);
   if (size == 0) [[unlikely]]
@@ -215,6 +221,7 @@ bytes io::read(std::string_view filename) {
   if (current.algorithm == raw)
     return {source, size};
 
+  assert(current.algorithm == zstd && "cartridge compression must be supported");
   [[assume(current.algorithm == zstd)]];
   bytes buffer(size);
   const auto result = ZSTD_decompress_usingDDict(
@@ -222,6 +229,7 @@ bytes io::read(std::string_view filename) {
     buffer.writable(), size,
     source, current.compressed,
     cartridge->dictionary.get());
+  assert(result == size && "cartridge payload size must be valid");
   [[assume(result == size)]];
   return buffer;
 }

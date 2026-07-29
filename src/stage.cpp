@@ -46,24 +46,24 @@ static constexpr b2QueryFilter filter{
 
 static color read_color(lua_State *state, int index) {
   lua_rawgeti(state, index, 1);
-  const auto r = static_cast<uint8_t>(lua_tonumber(state, -1));
+  const auto r = static_cast<uint8_t>(std::clamp(lua_tonumber(state, -1), lua_Number{}, lua_Number{255}));
   lua_pop(state, 1);
 
   lua_rawgeti(state, index, 2);
-  const auto g = static_cast<uint8_t>(lua_tonumber(state, -1));
+  const auto g = static_cast<uint8_t>(std::clamp(lua_tonumber(state, -1), lua_Number{}, lua_Number{255}));
   lua_pop(state, 1);
 
   lua_rawgeti(state, index, 3);
-  const auto b = static_cast<uint8_t>(lua_tonumber(state, -1));
+  const auto b = static_cast<uint8_t>(std::clamp(lua_tonumber(state, -1), lua_Number{}, lua_Number{255}));
   lua_pop(state, 1);
 
   return {r, g, b};
 }
 
 static bool outside(const transform &tf, const animation &an, float margin) {
-  const auto &fr = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
-  const auto width = fr.width * tf.scale;
-  const auto height = fr.height * tf.scale;
+  const auto &frame = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
+  const auto width = frame.width * tf.scale;
+  const auto height = frame.height * tf.scale;
   const auto sx = tf.x - viewport.x;
   const auto sy = tf.y - viewport.y;
 
@@ -83,12 +83,12 @@ static constexpr auto body_types(const char *s) -> std::pair<body_type, b2BodyTy
   }
 }
 
-static void sync_body(body& b, const frame& fr, entt::entity entity, const transform& tf, float timestep) {
+static void sync_body(body& b, const frame& frame, entt::entity entity, const transform& tf, float timestep) {
   auto created = false;
-  if (b.snapshot != &fr) [[unlikely]] {
-    b.snapshot = &fr;
-    const auto hx = fr.bound_width * .5f;
-    const auto hy = fr.bound_height * .5f;
+  if (b.snapshot != &frame) [[unlikely]] {
+    b.snapshot = &frame;
+    const auto hx = frame.bound_width * .5f;
+    const auto hy = frame.bound_height * .5f;
 
     if (B2_IS_NULL(b.shape)) {
       const auto polygon = b2MakeBox(hx, hy);
@@ -108,7 +108,7 @@ static void sync_body(body& b, const frame& fr, entt::entity entity, const trans
       b.extent_y = hy;
 
       if (b.type != body_type::kinematic) {
-        b2Body_SetTransform(b.id, center_of(b, tf, &fr), b2Rot_identity);
+        b2Body_SetTransform(b.id, center_of(b, tf, &frame), b2Rot_identity);
         return;
       }
 
@@ -126,7 +126,7 @@ static void sync_body(body& b, const frame& fr, entt::entity entity, const trans
   if (b.type != body_type::kinematic)
     return;
 
-  const auto center = center_of(b, tf, &fr);
+  const auto center = center_of(b, tf, &frame);
   if (created || center.x != b.target_x || center.y != b.target_y) [[unlikely]] {
     b.target_x = center.x;
     b.target_y = center.y;
@@ -296,6 +296,7 @@ static void dispatch_sensors(
 static bool by_depth(const renderable& lhs, const renderable& rhs) {
   return lhs.z < rhs.z;
 }
+
 }
 
 stage::stage(std::string name)
@@ -765,17 +766,17 @@ void stage::update(float delta) {
     if (!a || !a->playing || a->sheet->count == 0) [[unlikely]]
       continue;
 
-    const auto& c = a->sheet->clips[a->active];
-    const auto& fr = a->sheet->frames[c.offset + a->current];
-    if (c.count == 0 || fr.duration <= .0f) [[unlikely]]
+    const auto& clip = a->sheet->clips[a->active];
+    const auto& frame = a->sheet->frames[clip.offset + a->current];
+    if (clip.count == 0 || frame.duration <= .0f) [[unlikely]]
       continue;
 
     a->elapsed += delta;
-    if (a->elapsed < fr.duration) [[likely]]
+    if (a->elapsed < frame.duration) [[likely]]
       continue;
 
-    a->elapsed -= fr.duration;
-    if (++a->current < c.count)
+    a->elapsed -= frame.duration;
+    if (++a->current < clip.count)
       continue;
 
     a->current = 0;
@@ -783,7 +784,7 @@ void stage::update(float delta) {
     if (bp.on_animation_end != LUA_NOREF) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_end);
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.name);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, clip.identity.name);
       {
         const auto base = lua_gettop(L) - 2;
         lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
@@ -803,7 +804,7 @@ void stage::update(float delta) {
     if (bp.on_animation_begin != LUA_NOREF) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_begin);
       lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, c.identity.name);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, clip.identity.name);
       {
         const auto base = lua_gettop(L) - 2;
         lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
@@ -1040,8 +1041,8 @@ void stage::draw() {
   const pixmap* source = nullptr;
   SDL_Texture* current = nullptr;
 
-  for (auto&& [e, r, a, transform] : view.each()) {
-    if (!transform.shown || !a.playing || !a.sheet || a.sheet->count == 0) [[unlikely]]
+  for (auto&& [e, r, a, tf] : view.each()) {
+    if (!tf.shown || !a.playing || !a.sheet || a.sheet->count == 0) [[unlikely]]
       continue;
 
     const auto& clip = a.sheet->clips[a.active];
@@ -1050,11 +1051,11 @@ void stage::draw() {
 
     const auto& frame = a.sheet->frames[clip.offset + a.current];
 
-    const auto rx = transform.previous_x + _interpolation.alpha * (transform.x - transform.previous_x);
-    const auto ry = transform.previous_y + _interpolation.alpha * (transform.y - transform.previous_y);
+    const auto rx = tf.previous_x + _interpolation.alpha * (tf.x - tf.previous_x);
+    const auto ry = tf.previous_y + _interpolation.alpha * (tf.y - tf.previous_y);
 
-    const auto dw = frame.width * transform.scale;
-    const auto dh = frame.height * transform.scale;
+    const auto dw = frame.width * tf.scale;
+    const auto dh = frame.height * tf.scale;
     const auto px = std::floor(rx - viewport.x);
     const auto py = std::floor(ry - viewport.y);
 
@@ -1078,10 +1079,10 @@ void stage::draw() {
     auto u1 = frame.u1;
     auto v1 = frame.v1;
 
-    if (std::to_underlying(transform.flip) & SDL_FLIP_HORIZONTAL) std::swap(u0, u1);
-    if (std::to_underlying(transform.flip) & SDL_FLIP_VERTICAL) std::swap(v0, v1);
+    if (std::to_underlying(tf.flip) & SDL_FLIP_HORIZONTAL) std::swap(u0, u1);
+    if (std::to_underlying(tf.flip) & SDL_FLIP_VERTICAL) std::swap(v0, v1);
 
-    const auto alpha = std::clamp(transform.alpha, .0f, 255.f) / 255.f;
+    const auto alpha = std::clamp(tf.alpha, .0f, 255.f) / 255.f;
 
     const auto hw = dw * .5f;
     const auto hh = dh * .5f;
@@ -1089,8 +1090,8 @@ void stage::draw() {
     const auto my = py + hh;
 
     auto sa = .0f, ca = 1.f;
-    if (transform.angle != .0f) [[unlikely]]
-      sincos(to_radians(transform.angle), sa, ca);
+    if (tf.angle != .0f) [[unlikely]]
+      sincos(to_radians(tf.angle), sa, ca);
 
     const auto dx0 = -hw * ca + hh * sa;
     const auto dy0 = -hw * sa - hh * ca;
@@ -1286,9 +1287,9 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
     a.playing = sheet->count > 0;
 
     if (a.playing) {
-      const auto& fr = sheet->frames[sheet->clips[a.active].offset];
+      const auto& frame = sheet->frames[sheet->clips[a.active].offset];
       const auto& tf2 = _registry.get<transform>(entity);
-      _registry.get<renderable>(entity).z = static_cast<int>(tf2.y + fr.height * tf2.scale);
+      _registry.get<renderable>(entity).z = static_cast<int>(tf2.y + frame.height * tf2.scale);
       _registry.ctx().get<reorder>().dirty = true;
     }
 

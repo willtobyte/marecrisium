@@ -1,19 +1,11 @@
-namespace {
-namespace lookup {
-  constexpr auto draw = "draw"_hs;
-}
-
-int paint = LUA_NOREF;
-
-static int render(lua_State *state) {
-  auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
-  if (!self->_texture) [[unlikely]]
-    return 0;
-  luaL_checktype(state, 2, LUA_TTABLE);
+static int draw_callback(lua_State *state) {
+  auto *self = static_cast<foreground *>(lua_touserdata(state, lua_upvalueindex(1)));
+  const auto table = lua_istable(state, 2) != 0;
+  assert(table && "foreground buffer must be a table");
+  [[assume(table)]];
   const auto count = static_cast<int>(luaL_checkinteger(state, 3));
-
-  if (count <= 0 || count % 6 != 0) [[unlikely]]
-    return 0;
+  assert(count > 0 && count % 6 == 0 && "foreground buffer count must be a positive multiple of six");
+  [[assume(count > 0 && count % 6 == 0)]];
 
   auto &vertices = self->_vertices;
   auto &indices = self->_indices;
@@ -23,6 +15,7 @@ static int render(lua_State *state) {
 
   const auto quads = count / 6;
 
+  assert(quads > 0 && "foreground must contain a quad");
   [[assume(quads > 0)]];
 
   for (auto quad = 0; quad < quads; ++quad) {
@@ -40,7 +33,8 @@ static int render(lua_State *state) {
     const auto w = static_cast<float>(lua_tonumber(state, -4));
     const auto h = static_cast<float>(lua_tonumber(state, -3));
     const auto angle = static_cast<float>(lua_tonumber(state, -2));
-    const auto alpha = static_cast<float>(lua_tonumber(state, -1)) / 255.f;
+    const auto alpha = std::clamp(
+      static_cast<float>(lua_tonumber(state, -1)), .0f, 255.f) / 255.f;
 
     lua_pop(state, 6);
 
@@ -76,9 +70,6 @@ static int render(lua_State *state) {
     indices.emplace_back(base + 3);
   }
 
-  if (vertices.empty()) [[unlikely]]
-    return 0;
-
   SDL_RenderGeometry(
     renderer,
     static_cast<SDL_Texture *>(*self->_texture),
@@ -89,42 +80,6 @@ static int render(lua_State *state) {
   );
 
   return 0;
-}
-
-static int index(lua_State *state) {
-  auto *self = *static_cast<foreground **>(luaL_checkudata(state, 1, "Foreground"));
-  const std::string_view key = luaL_checkstring(state, 2);
-  const auto id = entt::hashed_string{key.data(), key.size()};
-
-  if (id == lookup::draw) {
-    lua_rawgeti(state, LUA_REGISTRYINDEX, paint);
-    return 1;
-  }
-
-  lua_rawgeti(state, LUA_REGISTRYINDEX, self->_table);
-  lua_getfield(state, -1, key.data());
-  if (!lua_isnil(state, -1)) [[likely]] {
-    lua_remove(state, -2);
-    return 1;
-  }
-  lua_pop(state, 1);
-
-  std::array<char, 64> buffer;
-  const auto length = std::min(key.size(), std::size_t{60});
-  buffer[0] = 'o';
-  buffer[1] = 'n';
-  buffer[2] = '_';
-  std::memcpy(buffer.data() + 3, key.data(), length);
-  buffer[3 + length] = '\0';
-
-  lua_getfield(state, -1, buffer.data());
-  lua_remove(state, -2);
-  if (!lua_isnil(state, -1))
-    return 1;
-  lua_pop(state, 1);
-
-  return lua_pushnil(state), 1;
-}
 }
 
 foreground::foreground(std::string_view name) {
@@ -172,10 +127,8 @@ foreground::foreground(std::string_view name) {
 
       if (lua_isstring(L, -1)) [[likely]] {
         const auto *family = lua_tostring(L, -1);
-        auto *font = depot->font.get(family);
-
-        auto **m = static_cast<font **>(lua_newuserdata(L, sizeof(font *)));
-        *m = font;
+        auto **f = static_cast<font **>(lua_newuserdata(L, sizeof(font *)));
+        *f = depot->font.get(family);
         luaL_getmetatable(L, "Font");
         lua_setmetatable(L, -2);
 
@@ -187,6 +140,9 @@ foreground::foreground(std::string_view name) {
   }
   lua_pop(L, 1);
 
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, draw_callback, 1);
+  lua_setfield(L, -2, "draw");
   _table = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
@@ -205,11 +161,6 @@ foreground::foreground(std::string_view name) {
 
   lua_pop(L, 1);
 
-  auto **m = static_cast<foreground **>(lua_newuserdata(L, sizeof(foreground *)));
-  *m = this;
-  luaL_getmetatable(L, "Foreground");
-  lua_setmetatable(L, -2);
-  _userdata = luaL_ref(L, LUA_REGISTRYINDEX);
 }
 
 foreground::~foreground() {
@@ -218,20 +169,6 @@ foreground::~foreground() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_disappear);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_appear);
   luaL_unref(L, LUA_REGISTRYINDEX, _table);
-  luaL_unref(L, LUA_REGISTRYINDEX, _userdata);
-}
-
-void foreground::wire() {
-  lua_pushcfunction(L, render);
-  paint = luaL_ref(L, LUA_REGISTRYINDEX);
-
-  luaL_newmetatable(L, "Foreground");
-  lua_pushliteral(L, "Foreground");
-  lua_setfield(L, -2, "__name");
-
-  lua_pushcfunction(L, index);
-  lua_setfield(L, -2, "__index");
-  lua_pop(L, 1);
 }
 
 void foreground::appear() {
@@ -306,7 +243,7 @@ void foreground::draw() {
 
   if (_on_paint != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     {
       const auto base = lua_gettop(L) - 1;
       lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);

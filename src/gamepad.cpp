@@ -1,8 +1,6 @@
 namespace {
   namespace lookup {
     constexpr auto connected = "connected"_hs;
-    constexpr auto rumble = "rumble"_hs;
-    constexpr auto led = "led"_hs;
     constexpr auto name = "name"_hs;
     constexpr auto left_x = "left_x"_hs;
     constexpr auto left_y = "left_y"_hs;
@@ -116,16 +114,14 @@ static bool on_event(void *, SDL_Event *event) {
   return true;
 }
 
-static int rumble(lua_State *state) {
+static int rumble_callback(lua_State *state) {
   const auto low = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
   const auto high = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
-  const auto milliseconds = luaL_checkinteger(state, 4);
-  const auto finite = std::isfinite(low) && std::isfinite(high);
-  const auto valid = milliseconds >= 0 && static_cast<uint64_t>(milliseconds) <= std::numeric_limits<uint32_t>::max();
-  [[assume(finite)]];
-  [[assume(valid)]];
-
-  const auto duration = static_cast<uint32_t>(milliseconds);
+  const auto duration = std::clamp(
+    luaL_checkinteger(state, 4),
+    lua_Integer{},
+    static_cast<lua_Integer>(std::numeric_limits<uint32_t>::max()));
+  const auto ms = static_cast<uint32_t>(duration);
   const auto lo = static_cast<uint16_t>(low * static_cast<float>(std::numeric_limits<uint16_t>::max()));
   const auto hi = static_cast<uint16_t>(high * static_cast<float>(std::numeric_limits<uint16_t>::max()));
 
@@ -135,16 +131,14 @@ static int rumble(lua_State *state) {
     return 1;
   }
 
-  lua_pushboolean(state, static_cast<bool>(SDL_RumbleGamepad(gamepad, lo, hi, duration)) ? 1 : 0);
+  lua_pushboolean(state, SDL_RumbleGamepad(gamepad, lo, hi, ms));
   return 1;
 }
 
-static int led(lua_State *state) {
+static int led_callback(lua_State *state) {
   const auto red = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
   const auto green = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
   const auto blue = std::clamp(static_cast<float>(luaL_checknumber(state, 4)), .0f, 1.f);
-  const auto finite = std::isfinite(red) && std::isfinite(green) && std::isfinite(blue);
-  [[assume(finite)]];
 
   constexpr auto range = static_cast<float>(std::numeric_limits<uint8_t>::max());
   const auto r = static_cast<uint8_t>(red * range);
@@ -157,26 +151,7 @@ static int led(lua_State *state) {
     return 1;
   }
 
-  lua_pushboolean(state, static_cast<bool>(SDL_SetGamepadLED(gamepad, r, g, b)) ? 1 : 0);
-  return 1;
-}
-
-static constexpr lua_CFunction functions[]{rumble, led};
-static constexpr auto count = static_cast<int>(std::size(functions));
-
-static int push_gamepad_axis(lua_State *state, SDL_GamepadAxis axis, SDL_Gamepad *gamepad) {
-  if (!gamepad) [[unlikely]]
-    return lua_pushnumber(state, .0), 1;
-
-  lua_pushnumber(state, static_cast<lua_Number>(deadzone(SDL_GetGamepadAxis(gamepad, axis))));
-  return 1;
-}
-
-static int push_gamepad_button(lua_State *state, SDL_GamepadButton button, SDL_Gamepad *gamepad) {
-  if (!gamepad) [[unlikely]]
-    return lua_pushboolean(state, 0), 1;
-
-  lua_pushboolean(state, static_cast<bool>(SDL_GetGamepadButton(gamepad, button)) ? 1 : 0);
+  lua_pushboolean(state, SDL_SetGamepadLED(gamepad, r, g, b));
   return 1;
 }
 
@@ -184,23 +159,21 @@ static int index(lua_State *state) {
   const auto id = entt::hashed_string::value(luaL_checkstring(state, 2));
   auto *const gamepad = ptr.load();
 
-  if (const auto value = axis(id); value != SDL_GAMEPAD_AXIS_INVALID) [[likely]]
-    return push_gamepad_axis(state, value, gamepad);
+  if (const auto value = axis(id); value != SDL_GAMEPAD_AXIS_INVALID) [[likely]] {
+    lua_pushnumber(state, gamepad
+      ? static_cast<lua_Number>(deadzone(SDL_GetGamepadAxis(gamepad, value)))
+      : lua_Number{});
+    return 1;
+  }
 
-  if (const auto value = button(id); value != SDL_GAMEPAD_BUTTON_INVALID) [[likely]]
-    return push_gamepad_button(state, value, gamepad);
+  if (const auto value = button(id); value != SDL_GAMEPAD_BUTTON_INVALID) [[likely]] {
+    lua_pushboolean(state, gamepad && SDL_GetGamepadButton(gamepad, value));
+    return 1;
+  }
 
   switch (id) {
     case lookup::connected:
-      lua_pushboolean(state, gamepad ? 1 : 0);
-      return 1;
-
-    case lookup::rumble:
-      lua_pushvalue(state, lua_upvalueindex(1));
-      return 1;
-
-    case lookup::led:
-      lua_pushvalue(state, lua_upvalueindex(2));
+      lua_pushboolean(state, gamepad != nullptr);
       return 1;
 
     case lookup::name: {
@@ -219,18 +192,15 @@ void gamepad::wire() {
   SDL_AddEventWatch(on_event, nullptr);
   connect();
 
-  luaL_newmetatable(L, "Gamepad");
-  lua_pushliteral(L, "Gamepad");
-  lua_setfield(L, -2, "__name");
+  lua_newtable(L);
+  lua_pushcfunction(L, rumble_callback);
+  lua_setfield(L, -2, "rumble");
+  lua_pushcfunction(L, led_callback);
+  lua_setfield(L, -2, "led");
 
-  for (const auto function : functions)
-    lua_pushcfunction(L, function);
-  lua_pushcclosure(L, index, count);
+  lua_newtable(L);
+  lua_pushcfunction(L, index);
   lua_setfield(L, -2, "__index");
-  lua_pop(L, 1);
-
-  lua_newuserdata(L, 1);
-  luaL_getmetatable(L, "Gamepad");
   lua_setmetatable(L, -2);
   lua_setglobal(L, "gamepad");
 }

@@ -36,11 +36,11 @@ namespace {
   }
 
   static void sync_body_position(body& bd, const transform& tf, const animation* an, bool changed) {
-    const frame* fr = nullptr;
+    const frame* frame = nullptr;
     if (an && an->playing && an->sheet->count > 0) [[likely]]
-      fr = &an->sheet->frames[an->sheet->clips[an->active].offset + an->current];
+      frame = &an->sheet->frames[an->sheet->clips[an->active].offset + an->current];
 
-    const auto center = center_of(bd, tf, fr);
+    const auto center = center_of(bd, tf, frame);
     if (!changed) {
       const auto current = b2Body_GetPosition(bd.id);
       if (current.x == center.x && current.y == center.y)
@@ -71,7 +71,7 @@ namespace {
     const auto valid = self->registry && self->registry->valid(self->entity);
 
     if (id == lookup::alive) {
-      lua_pushboolean(state, valid ? 1 : 0);
+      lua_pushboolean(state, valid);
       return 1;
     }
 
@@ -94,10 +94,10 @@ namespace {
         const auto& tf = registry.get<transform>(entity);
         const auto* a = registry.try_get<animation>(entity);
         const auto* b = registry.try_get<body>(entity);
-        const frame* fr = (a && a->playing && a->sheet->count > 0)
+        const frame* frame = (a && a->playing && a->sheet->count > 0)
           ? &a->sheet->frames[a->sheet->clips[a->active].offset + a->current]
           : nullptr;
-        const auto value = (b && fr) ? center_of(*b, tf, fr).x : tf.x;
+        const auto value = (b && frame) ? center_of(*b, tf, frame).x : tf.x;
         lua_pushnumber(state, static_cast<lua_Number>(value));
         return 1;
       }
@@ -106,10 +106,10 @@ namespace {
         const auto& tf = registry.get<transform>(entity);
         const auto* a = registry.try_get<animation>(entity);
         const auto* b = registry.try_get<body>(entity);
-        const frame* fr = (a && a->playing && a->sheet->count > 0)
+        const frame* frame = (a && a->playing && a->sheet->count > 0)
           ? &a->sheet->frames[a->sheet->clips[a->active].offset + a->current]
           : nullptr;
-        const auto value = (b && fr) ? center_of(*b, tf, fr).y : tf.y;
+        const auto value = (b && frame) ? center_of(*b, tf, frame).y : tf.y;
         lua_pushnumber(state, static_cast<lua_Number>(value));
         return 1;
       }
@@ -143,7 +143,7 @@ namespace {
         return 1;
 
       case lookup::dormant:
-        lua_pushboolean(state, registry.all_of<dormant>(entity) ? 1 : 0);
+        lua_pushboolean(state, registry.all_of<dormant>(entity));
         return 1;
 
       case lookup::animation: {
@@ -156,7 +156,7 @@ namespace {
       }
 
       case lookup::shown:
-        lua_pushboolean(state, registry.get<transform>(entity).shown ? 1 : 0);
+        lua_pushboolean(state, registry.get<transform>(entity).shown);
         return 1;
 
       case lookup::scale:
@@ -336,17 +336,15 @@ namespace {
       }
 
       case lookup::flip: {
-        const auto value = luaL_checkinteger(state, 3);
-        if (value < 0 || value > 3) [[unlikely]]
-          return luaL_error(state, "invalid flip value: %lld", static_cast<long long>(value));
+        const auto value = std::clamp(luaL_checkinteger(state, 3), lua_Integer{}, lua_Integer{3});
         registry.get<transform>(entity).flip = static_cast<mirror>(value);
         return 0;
       }
 
       case lookup::animation: {
         auto* a = registry.try_get<animation>(entity);
-        if (!a) [[unlikely]]
-          return 0;
+        assert(a != nullptr && "object must have animation");
+        [[assume(a != nullptr)]];
 
         const auto hash = entt::hashed_string{luaL_checkstring(state, 3)};
         if (a->playing && a->sheet->clips[a->active].identity.hash == hash)
@@ -413,7 +411,8 @@ namespace {
         return 0;
 
       case lookup::alpha:
-        registry.get<transform>(entity).alpha = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 255.0f);
+        registry.get<transform>(entity).alpha = std::clamp(
+          static_cast<float>(luaL_checknumber(state, 3)), .0f, 255.f);
         return 0;
 
       case lookup::shown:

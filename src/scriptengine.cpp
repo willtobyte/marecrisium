@@ -1,4 +1,4 @@
-static int loader(lua_State *state) {
+static int loader_callback(lua_State *state) {
   const std::string_view module = luaL_checkstring(state, 1);
   const auto filename = std::format("scripts/{}.lua", module);
 
@@ -16,7 +16,7 @@ void scriptengine::run() {
   lua_getfield(L, -1, "loaders");
 
   const auto length = static_cast<int>(lua_objlen(L, -1));
-  lua_pushcfunction(L, loader);
+  lua_pushcfunction(L, loader_callback);
   lua_rawseti(L, -2, length + 1);
 
   lua_pop(L, 2);
@@ -24,7 +24,6 @@ void scriptengine::run() {
   achievement::wire();
   cassette::wire();
   font::wire();
-  foreground::wire();
   gamepad::wire();
   keyboard::wire();
   locales::wire();

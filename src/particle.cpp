@@ -35,7 +35,7 @@ static int index(lua_State* state) {
 
   switch (id) {
     case lookup::active:
-      lua_pushboolean(state, self->active() ? 1 : 0);
+      lua_pushboolean(state, self->active());
       return 1;
 
     case lookup::x:
@@ -100,11 +100,11 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
     , _rotation_velocity_range(std::minmax(config.rotation_velocity.first, config.rotation_velocity.second)) {
   assert(config.count > 0 && "particle count must be positive");
 
-  const auto n = _count;
+  const auto count = _count;
 
-  std::fill_n(_values.get(), n * std::to_underlying(slot::total), .0f);
+  std::fill_n(_values.get(), count * std::to_underlying(slot::total), .0f);
 
-  for (auto i = 0uz; i < n; ++i) {
+  for (auto i = 0uz; i < count; ++i) {
     const auto base = static_cast<int>(i * 4);
 
     auto *vertices = _vertices.get() + i * 4;
@@ -139,31 +139,37 @@ void particle::update(float delta) {
   if (_idle) [[unlikely]]
     return;
 
-  const auto n = _count;
+  const auto count = _count;
   const auto twopi = 2.f * std::numbers::pi_v<float>;
 
   auto* values = _values.get();
-  auto* noalias xs = column<slot::x>(values, n);
-  auto* noalias ys = column<slot::y>(values, n);
-  auto* noalias vxs = column<slot::vx>(values, n);
-  auto* noalias vys = column<slot::vy>(values, n);
-  auto* noalias gxs = column<slot::gx>(values, n);
-  auto* noalias gys = column<slot::gy>(values, n);
-  auto* noalias life = column<slot::life>(values, n);
-  auto* noalias scales = column<slot::scale>(values, n);
-  auto* noalias angles = column<slot::angle>(values, n);
-  auto* noalias avs = column<slot::av>(values, n);
-  auto* noalias afs = column<slot::af>(values, n);
+  auto* noalias xs = column<slot::x>(values, count);
+  auto* noalias ys = column<slot::y>(values, count);
+  auto* noalias vxs = column<slot::vx>(values, count);
+  auto* noalias vys = column<slot::vy>(values, count);
+  auto* noalias gxs = column<slot::gx>(values, count);
+  auto* noalias gys = column<slot::gy>(values, count);
+  auto* noalias life = column<slot::life>(values, count);
+  auto* noalias scales = column<slot::scale>(values, count);
+  auto* noalias angles = column<slot::angle>(values, count);
+  auto* noalias avs = column<slot::av>(values, count);
+  auto* noalias afs = column<slot::af>(values, count);
 
+  assert(xs != nullptr && "particle X storage must exist");
   [[assume(xs != nullptr)]];
+  assert(ys != nullptr && "particle Y storage must exist");
   [[assume(ys != nullptr)]];
+  assert(vxs != nullptr && "particle X velocity storage must exist");
   [[assume(vxs != nullptr)]];
+  assert(vys != nullptr && "particle Y velocity storage must exist");
   [[assume(vys != nullptr)]];
+  assert(life != nullptr && "particle life storage must exist");
   [[assume(life != nullptr)]];
+  assert(angles != nullptr && "particle angle storage must exist");
   [[assume(angles != nullptr)]];
 
   auto idle = !_active;
-  for (auto i = 0uz; i < n; ++i) {
+  for (auto i = 0uz; i < count; ++i) {
     life[i] -= delta;
     idle &= life[i] <= .0f;
 
@@ -185,7 +191,7 @@ void particle::update(float delta) {
     const auto px = _x;
     const auto py = _y;
 
-    for (auto i = 0uz; i < n; ++i) {
+    for (auto i = 0uz; i < count; ++i) {
       if (life[i] > .0f) [[likely]]
         continue;
 
@@ -216,7 +222,7 @@ void particle::draw() {
   if (_idle) [[unlikely]]
     return;
 
-  const auto n = _count;
+  const auto count = _count;
   const auto hw = _half_width;
   const auto hh = _half_height;
   const auto vw = viewport.width;
@@ -226,22 +232,28 @@ void particle::draw() {
   auto* indices = _indices.get();
 
   const auto* values = _values.get();
-  const auto* noalias xs = column<slot::x>(values, n);
-  const auto* noalias ys = column<slot::y>(values, n);
-  const auto* noalias life = column<slot::life>(values, n);
-  const auto* noalias scales = column<slot::scale>(values, n);
-  const auto* noalias angles = column<slot::angle>(values, n);
+  const auto* noalias xs = column<slot::x>(values, count);
+  const auto* noalias ys = column<slot::y>(values, count);
+  const auto* noalias life = column<slot::life>(values, count);
+  const auto* noalias scales = column<slot::scale>(values, count);
+  const auto* noalias angles = column<slot::angle>(values, count);
 
+  assert(xs != nullptr && "particle X storage must exist");
   [[assume(xs != nullptr)]];
+  assert(ys != nullptr && "particle Y storage must exist");
   [[assume(ys != nullptr)]];
+  assert(life != nullptr && "particle life storage must exist");
   [[assume(life != nullptr)]];
+  assert(scales != nullptr && "particle scale storage must exist");
   [[assume(scales != nullptr)]];
+  assert(angles != nullptr && "particle angle storage must exist");
   [[assume(angles != nullptr)]];
+  assert(vertices != nullptr && "particle vertex storage must exist");
   [[assume(vertices != nullptr)]];
 
   auto *out = vertices;
 
-  for (auto i = 0uz; i < n; ++i) {
+  for (auto i = 0uz; i < count; ++i) {
     if (life[i] <= .0f) [[unlikely]]
       continue;
 

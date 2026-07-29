@@ -1,28 +1,12 @@
-namespace {
-namespace lookup {
-  constexpr auto visible = "visible"_hs;
-}
-}
-
 static int index(lua_State *state) {
   auto *self = *static_cast<minimap **>(luaL_checkudata(state, 1, "Minimap"));
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
-
-  if (id == lookup::visible) {
-    lua_pushboolean(state, self->_visible ? 1 : 0);
-    return 1;
-  }
-
-  return lua_pushnil(state), 1;
+  lua_pushboolean(state, self->_visible);
+  return 1;
 }
 
 static int newindex(lua_State *state) {
   auto *self = *static_cast<minimap **>(luaL_checkudata(state, 1, "Minimap"));
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
-
-  if (id == lookup::visible)
-    self->_visible = lua_toboolean(state, 3) != 0;
-
+  self->_visible = lua_toboolean(state, 3) != 0;
   return 0;
 }
 
@@ -94,7 +78,9 @@ void minimap::draw() {
   auto *noalias pixels = _pixels.data();
   const auto* noalias coll = collision.data();
 
+  assert(pixels != nullptr && "minimap pixels must exist");
   [[assume(pixels != nullptr)]];
+  assert(coll != nullptr && "tilemap collision data must exist");
   [[assume(coll != nullptr)]];
 
   for (int32_t dy = -radius; dy <= radius; ++dy) {

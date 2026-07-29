@@ -1,4 +1,4 @@
-static int translate(lua_State *state) {
+static int translate_callback(lua_State *state) {
   const auto extras = lua_gettop(state) - 1;
 
   lua_pushvalue(state, lua_upvalueindex(2));
@@ -38,6 +38,6 @@ void locales::wire() {
   lua_getfield(L, -1, "format");
   lua_remove(L, -2);
 
-  lua_pushcclosure(L, translate, 2);
+  lua_pushcclosure(L, translate_callback, 2);
   lua_setglobal(L, "_");
 }

@@ -28,13 +28,10 @@ public:
 
   void draw(std::string_view text, float x, float y, std::span<const glypheffect> effects) const;
 
-private:
-  static int label(lua_State *state);
-  static int render(lua_State *state, font *self, std::string_view text, float x, float y);
-
   template <bool sparse>
   void draw(std::string_view text, float x, float y, std::span<const glypheffect> effects, std::span<const uint64_t> active) const;
 
+private:
   std::array<glyphprops, 256> _props{};
   std::unique_ptr<SDL_Texture, SDL_Deleter> _texture;
   float _fontheight{.0f};

@@ -12,8 +12,8 @@ namespace lookup {
 static int index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
 
-  if (id == lookup::shown) {
-    lua_pushboolean(state, SDL_CursorVisible() ? 1 : 0);
+  if (id == lookup::shown) [[unlikely]] {
+    lua_pushboolean(state, SDL_CursorVisible());
     return 1;
   }
 
@@ -50,11 +50,6 @@ static int index(lua_State *state) {
 }
 
 static int newindex(lua_State *state) {
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
-
-  if (id != lookup::shown || !lua_isboolean(state, 3))
-    return 0;
-
   lua_toboolean(state, 3)
     ? SDL_ShowCursor()
     : SDL_HideCursor();

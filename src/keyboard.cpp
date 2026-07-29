@@ -31,8 +31,10 @@ static const auto mapping = [] {
 static int index(lua_State *state) {
   const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
   const auto it = mapping.find(id);
-  if (it == mapping.end()) [[unlikely]]
-    return lua_pushnil(state), 1;
+  if (it == mapping.end()) [[unlikely]] {
+    lua_pushboolean(state, 0);
+    return 1;
+  }
 
   const auto *keyboard = SDL_GetKeyboardState(nullptr);
   lua_pushboolean(state, !!keyboard[it->second]);

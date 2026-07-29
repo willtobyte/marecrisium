@@ -134,9 +134,9 @@ inline bool anchored(const body& b) {
   return b.type != body_type::kinematic && b2Body_IsValid(b.id);
 }
 
-inline b2Vec2 center_of(const body& b, const transform& tf, const frame* fr = nullptr) {
-  const auto ox = fr ? fr->bound_x : .0f;
-  const auto oy = fr ? fr->bound_y : .0f;
+inline b2Vec2 center_of(const body& b, const transform& tf, const frame* frame = nullptr) {
+  const auto ox = frame ? frame->bound_x : .0f;
+  const auto oy = frame ? frame->bound_y : .0f;
   return {tf.x + ox + b.extent_x, tf.y + oy + b.extent_y};
 }
 

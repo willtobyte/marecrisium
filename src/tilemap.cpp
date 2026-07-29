@@ -50,6 +50,7 @@ void buffers(tilemap::layer& layer, size_t capacity) {
 
   auto* output = layer.indices.data() + first * pattern.size();
 
+  assert(output != nullptr && "tilemap index buffer must exist");
   [[assume(output != nullptr)]];
 
   for (auto i = first; i < capacity; ++i) {
@@ -75,7 +76,9 @@ void prepare(tilemap::layer& layer, std::string_view name, std::string_view path
   const auto htu = halfscale / aw;
   const auto htv = halfscale / ah;
 
+  assert(tpr > 0 && "tilemap atlas must have columns");
   [[assume(tpr > 0)]];
+  assert(tpc > 0 && "tilemap atlas must have rows");
   [[assume(tpc > 0)]];
 
   layer.uvs.resize(count);
@@ -123,12 +126,13 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   assert(_size > float{} && "tilemap: invalid tile size");
   _inverse = fullscale / _size;
 
-  const auto n = static_cast<size_t>(_width) * static_cast<size_t>(_height);
+  const auto count = static_cast<size_t>(_width) * static_cast<size_t>(_height);
 
-  [[assume(length == header + cellsize * n)]];
+  assert(length == header + cellsize * count && "tilemap data size must be valid");
+  [[assume(length == header + cellsize * count)]];
 
   auto offset = header;
-  const auto tilebytes = n * sizeof(uint32_t);
+  const auto tilebytes = count * sizeof(uint32_t);
   const auto load = [&](layer& layer) {
     const std::span source{bytes + offset, tilebytes};
     offset += tilebytes;
@@ -136,11 +140,11 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
     if (vacant(source)) [[unlikely]]
       return;
 
-    layer.tiles.resize(n);
+    layer.tiles.resize(count);
     if constexpr (std::endian::native == std::endian::little) {
       std::memcpy(layer.tiles.data(), source.data(), tilebytes);
     } else {
-      for (size_t i{}; i < n; ++i)
+      for (size_t i{}; i < count; ++i)
         layer.tiles[i] = little(source.data() + i * sizeof(uint32_t));
     }
   };
@@ -148,13 +152,14 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
   load(_background);
   load(_foreground);
 
-  _collision.resize(n);
+  _collision.resize(count);
   auto* noalias collision = _collision.data();
   const auto* noalias source = bytes + offset;
-  for (size_t i = 0; i < n; ++i)
+  for (size_t i = 0; i < count; ++i)
     collision[i] = source[i] == empty ? empty : pending;
 
   {
+    assert(_width > int32_t{} && _height > int32_t{} && "tilemap dimensions must be positive");
     [[assume(_width > int32_t{} && _height > int32_t{})]];
 
     const auto columns = static_cast<size_t>(_width);

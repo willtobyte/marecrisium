@@ -122,9 +122,9 @@ struct runner final {
 
 [[nodiscard]] double period(lua_State *state, int index) {
   const auto milliseconds = static_cast<double>(lua_tonumber(state, index));
-  if (milliseconds <= 0.0 || !std::isfinite(milliseconds)) [[unlikely]]
-    luaL_argerror(state, index, "milliseconds must be a positive finite number");
-
+  const auto valid = milliseconds > 0.0 && std::isfinite(milliseconds);
+  assert(valid && "timer period must be positive and finite");
+  [[assume(valid)]];
   return milliseconds;
 }
 
@@ -199,13 +199,13 @@ void cancel(ticket *owner) {
     reset(*group);
 }
 
-int cancel_callback(lua_State *state) {
+static int cancel_callback(lua_State *state) {
   cancel(static_cast<ticket *>(luaL_checkudata(state, 1, name)));
   lua_settop(state, 1);
   return 1;
 }
 
-int pause_callback(lua_State *state) {
+static int pause_callback(lua_State *state) {
   const auto *owner = static_cast<ticket *>(luaL_checkudata(state, 1, name));
   const auto [group, current] = find(owner);
   if (current && (current->slot & paused) == 0) [[likely]] {
@@ -217,7 +217,7 @@ int pause_callback(lua_State *state) {
   return 1;
 }
 
-int resume_callback(lua_State *state) {
+static int resume_callback(lua_State *state) {
   const auto *owner = static_cast<ticket *>(luaL_checkudata(state, 1, name));
   const auto [group, current] = find(owner);
   if (current && (current->slot & paused) != 0) [[likely]] {
@@ -229,7 +229,7 @@ int resume_callback(lua_State *state) {
   return 1;
 }
 
-int reset_callback(lua_State *state) {
+static int reset_callback(lua_State *state) {
   const auto *owner = static_cast<ticket *>(luaL_checkudata(state, 1, name));
   const auto [group, current] = find(owner);
   if (!current) [[unlikely]] {
@@ -248,30 +248,32 @@ int reset_callback(lua_State *state) {
   return 1;
 }
 
-int active_callback(lua_State *state) {
+static int is_active_callback(lua_State *state) {
   const auto *owner = static_cast<ticket *>(luaL_checkudata(state, 1, name));
   lua_pushboolean(state, find(owner).current != nullptr);
   return 1;
 }
 
-int paused_callback(lua_State *state) {
+static int is_paused_callback(lua_State *state) {
   const auto *owner = static_cast<ticket *>(luaL_checkudata(state, 1, name));
   const auto current = find(owner).current;
   lua_pushboolean(state, current && (current->slot & paused) != 0);
   return 1;
 }
 
-int add_callback(lua_State *state) {
+static int add_callback(lua_State *state) {
   const auto duration = period(state, 2);
-  if (lua_type(state, 3) != LUA_TFUNCTION) [[unlikely]]
-    luaL_argerror(state, 3, "callback must be a function");
+  const auto callable = lua_type(state, 3) == LUA_TFUNCTION;
+  assert(callable && "timer callback must be a function");
+  [[assume(callable)]];
 
   auto &group = *queue_of(store::owner);
   const auto reused = group.free != invalid;
-  if (group.list.size() > capacity || (!reused && group.slots.size() > capacity)) [[unlikely]]
-    return luaL_error(state, "too many timers");
-  if (store::generation == invalid) [[unlikely]]
-    return luaL_error(state, "timer generation exhausted");
+  const auto available = group.list.size() <= capacity && (reused || group.slots.size() <= capacity);
+  assert(available && "timer capacity must not be exceeded");
+  [[assume(available)]];
+  assert(store::generation != invalid && "timer generation must remain available");
+  [[assume(store::generation != invalid)]];
 
   const auto index = reused
     ? group.free
@@ -352,19 +354,9 @@ void clear() {
   }
 }
 
-int clear_callback(lua_State *) {
+static int clear_callback(lua_State *) {
   clear();
   return 0;
-}
-
-int update_callback(lua_State *state) {
-  timer::update(static_cast<double>(luaL_checknumber(state, 2)));
-  return 0;
-}
-
-void bind(lua_State *state, const char *field, lua_CFunction callback) {
-  lua_pushcfunction(state, callback);
-  lua_setfield(state, -2, field);
 }
 
 void compact(queue& group) {
@@ -495,6 +487,11 @@ scope::~scope() noexcept {
   store::owner = _prior;
 }
 
+static int update_callback(lua_State *state) {
+  timer::update(static_cast<double>(luaL_checknumber(state, 2)));
+  return 0;
+}
+
 void wire() {
   assert(store::groups.empty());
   [[maybe_unused]] const auto root = create();
@@ -504,13 +501,20 @@ void wire() {
   lua_pushstring(L, name);
   lua_setfield(L, -2, "__name");
 
-  bind(L, "cancel", cancel_callback);
-  bind(L, "pause", pause_callback);
-  bind(L, "resume", resume_callback);
-  bind(L, "reset", reset_callback);
-  bind(L, "is_active", active_callback);
-  bind(L, "is_paused", paused_callback);
-  bind(L, "__call", cancel_callback);
+  lua_pushcfunction(L, cancel_callback);
+  lua_setfield(L, -2, "cancel");
+  lua_pushcfunction(L, pause_callback);
+  lua_setfield(L, -2, "pause");
+  lua_pushcfunction(L, resume_callback);
+  lua_setfield(L, -2, "resume");
+  lua_pushcfunction(L, reset_callback);
+  lua_setfield(L, -2, "reset");
+  lua_pushcfunction(L, is_active_callback);
+  lua_setfield(L, -2, "is_active");
+  lua_pushcfunction(L, is_paused_callback);
+  lua_setfield(L, -2, "is_paused");
+  lua_pushcfunction(L, cancel_callback);
+  lua_setfield(L, -2, "__call");
 
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
@@ -519,8 +523,10 @@ void wire() {
   lua_pop(L, 1);
 
   lua_newtable(L);
-  bind(L, "add", add_callback);
-  bind(L, "clear", clear_callback);
+  lua_pushcfunction(L, add_callback);
+  lua_setfield(L, -2, "add");
+  lua_pushcfunction(L, clear_callback);
+  lua_setfield(L, -2, "clear");
   lua_pushcfunction(L, update_callback);
   lua_setfield(L, -2, "update");
   lua_setglobal(L, "timer");

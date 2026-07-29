@@ -1,8 +1,4 @@
 namespace {
-namespace lookup {
-  constexpr auto purge = "purge"_hs;
-}
-
 constexpr const char *FILENAME = "cassette.tape";
 
 struct json_deleter final {
@@ -35,7 +31,6 @@ std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_upsert;
 std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_delete;
 std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_clear;
 
-int purge = LUA_NOREF;
 
 char holder;
 char token;
@@ -112,7 +107,7 @@ static int proxy_newindex(lua_State *state) {
   return 0;
 }
 
-static int length(lua_State *state) {
+static int length_callback(lua_State *state) {
   lua_getmetatable(state, 1);
   lua_pushlightuserdata(state, &holder);
   lua_rawget(state, -2);
@@ -121,7 +116,7 @@ static int length(lua_State *state) {
   return 1;
 }
 
-static int iterate(lua_State *state) {
+static int iterate_callback(lua_State *state) {
   if (lua_toboolean(state, lua_upvalueindex(2)) == 0) {
     lua_pushvalue(state, lua_upvalueindex(1));
     lua_pushvalue(state, 2);
@@ -150,27 +145,27 @@ static int iterate(lua_State *state) {
   return 2;
 }
 
-static int pairs(lua_State *state) {
+static int pairs_callback(lua_State *state) {
   lua_getmetatable(state, 1);
   lua_pushlightuserdata(state, &holder);
   lua_rawget(state, -2);
   lua_remove(state, -2);
   lua_pushvalue(state, -1);
   lua_pushboolean(state, false);
-  lua_pushcclosure(state, iterate, 2);
+  lua_pushcclosure(state, iterate_callback, 2);
   lua_pushvalue(state, 1);
   lua_pushnil(state);
   return 3;
 }
 
-static int ipairs(lua_State *state) {
+static int ipairs_callback(lua_State *state) {
   lua_getmetatable(state, 1);
   lua_pushlightuserdata(state, &holder);
   lua_rawget(state, -2);
   lua_remove(state, -2);
   lua_pushvalue(state, -1);
   lua_pushboolean(state, true);
-  lua_pushcclosure(state, iterate, 2);
+  lua_pushcclosure(state, iterate_callback, 2);
   lua_pushvalue(state, 1);
   lua_pushinteger(state, 0);
   return 3;
@@ -211,13 +206,13 @@ static void proxify(lua_State *state, int data, int key, int root) {
   lua_pushcclosure(state, proxy_newindex, 3);
   lua_setfield(state, -2, "__newindex");
 
-  lua_pushcfunction(state, length);
+  lua_pushcfunction(state, length_callback);
   lua_setfield(state, -2, "__len");
 
-  lua_pushcfunction(state, pairs);
+  lua_pushcfunction(state, pairs_callback);
   lua_setfield(state, -2, "__pairs");
 
-  lua_pushcfunction(state, ipairs);
+  lua_pushcfunction(state, ipairs_callback);
   lua_setfield(state, -2, "__ipairs");
 
   lua_setmetatable(state, -2);
@@ -225,55 +220,49 @@ static void proxify(lua_State *state, int data, int key, int root) {
 
 }
 
-static int clear(lua_State *state) {
+static int purge_callback(lua_State *state) {
   execute(stmt_clear.get());
   return 0;
 }
 
 static int index(lua_State *state) {
   const auto key = std::string_view{luaL_checkstring(state, 2)};
-  const auto id = entt::hashed_string{key.data(), key.size()};
 
-  if (id == lookup::purge) [[unlikely]]
-    return lua_rawgeti(state, LUA_REGISTRYINDEX, purge), 1;
+  if (load(state, key)) [[likely]] {
+    auto length = 0uz;
+    const auto *json = lua_tolstring(state, -1, &length);
+    const auto document = std::unique_ptr<yyjson_doc, json_deleter>{yyjson_read(json, length, 0)};
 
-  if (!load(state, key)) [[unlikely]]
-    return lua_pushnil(state), 1;
+    marshal::decode(state, yyjson_doc_get_root(document.get()));
 
-  auto length = 0uz;
-  const auto *json = lua_tolstring(state, -1, &length);
-  const auto document = std::unique_ptr<yyjson_doc, json_deleter>{yyjson_read(json, length, 0)};
+    if (lua_type(state, -1) == LUA_TTABLE) {
+      const auto data = lua_gettop(state);
+      const auto snapshot = data - 1;
 
-  marshal::decode(state, yyjson_doc_get_root(document.get()));
+      lua_newtable(state);
+      lua_pushlightuserdata(state, &token);
+      lua_pushvalue(state, snapshot);
+      lua_rawset(state, -3);
+      lua_setmetatable(state, data);
 
-  if (lua_type(state, -1) == LUA_TTABLE) {
-    const auto data = lua_gettop(state);
-    const auto snapshot = data - 1;
+      lua_pushlstring(state, key.data(), key.size());
+      const auto root = data + 1;
+      proxify(state, data, root, data);
 
-    lua_newtable(state);
-    lua_pushlightuserdata(state, &token);
-    lua_pushvalue(state, snapshot);
-    lua_rawset(state, -3);
-    lua_setmetatable(state, data);
+      lua_replace(state, root);
+      lua_replace(state, data);
+    }
 
-    lua_pushlstring(state, key.data(), key.size());
-    const auto root = data + 1;
-    proxify(state, data, root, data);
-
-    lua_replace(state, root);
-    lua_replace(state, data);
+    return 1;
   }
 
+  lua_pushnil(state);
   return 1;
 }
 
 static int newindex(lua_State *state) {
   const auto key = std::string_view{luaL_checkstring(state, 2)};
-  const auto id = entt::hashed_string{key.data(), key.size()};
   auto value = 3;
-
-  if (id == lookup::purge) [[unlikely]]
-    return 0;
 
   if (lua_isnil(state, 3)) [[unlikely]] {
     sqlite3_bind_text(stmt_delete.get(), 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
@@ -323,20 +312,15 @@ void cassette::wire() {
     database.reset();
   });
 
-  lua_pushcfunction(L, clear);
-  purge = luaL_ref(L, LUA_REGISTRYINDEX);
+  lua_newtable(L);
+  lua_pushcfunction(L, purge_callback);
+  lua_setfield(L, -2, "purge");
 
-  luaL_newmetatable(L, "Cassette");
-  lua_pushliteral(L, "Cassette");
-  lua_setfield(L, -2, "__name");
-
+  lua_newtable(L);
   lua_pushcfunction(L, index);
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, newindex);
   lua_setfield(L, -2, "__newindex");
-  lua_pop(L, 1);
-  lua_newuserdata(L, 1);
-  luaL_getmetatable(L, "Cassette");
   lua_setmetatable(L, -2);
   lua_setglobal(L, "cassette");
 }

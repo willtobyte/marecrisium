@@ -26,25 +26,30 @@ constexpr auto indices = [] {
 }();
 }
 
-int font::render(lua_State *state, font *self, std::string_view text, float x, float y) {
+static int label_callback(lua_State *state) {
+  auto *self = *static_cast<font **>(luaL_checkudata(state, 1, "Font"));
+  std::size_t length{};
+  const auto *data = luaL_checklstring(state, 2, &length);
+  const auto text = std::string_view{data, length};
+  const auto x = static_cast<float>(luaL_checknumber(state, 3));
+  const auto y = static_cast<float>(luaL_checknumber(state, 4));
+
+  if (!lua_istable(state, 5)) [[likely]] {
+    self->draw(text, x, y);
+    return 0;
+  }
+
   static std::array<glypheffect, 256> effects;
   std::array<uint64_t, 4> active{};
   auto count = 0uz;
 
   lua_pushnil(state);
   while (lua_next(state, 5) != 0) {
-    auto valid = 0;
-    const auto raw = lua_tointegerx(state, -2, &valid);
-    if (!valid || !lua_istable(state, -1)) [[unlikely]] {
-      lua_pop(state, 1);
-      continue;
-    }
-
+    const auto raw = lua_tointeger(state, -2);
+    const auto valid = raw > 0 && raw <= static_cast<lua_Integer>(effects.size());
+    assert(valid && "glyph effect index must be valid");
+    [[assume(valid)]];
     const auto index = static_cast<std::size_t>(raw) - 1;
-    if (index >= effects.size()) {
-      lua_pop(state, 1);
-      continue;
-    }
 
     count = std::max(count, index + 1);
     active[index / 64] |= uint64_t{1} << (index % 64);
@@ -58,6 +63,10 @@ int font::render(lua_State *state, font *self, std::string_view text, float x, f
     number(state, -1, "r", effect.r);
     number(state, -1, "g", effect.g);
     number(state, -1, "b", effect.b);
+    effect.alpha = std::clamp(effect.alpha, .0f, 1.f);
+    effect.r = std::clamp(effect.r, .0f, 1.f);
+    effect.g = std::clamp(effect.g, .0f, 1.f);
+    effect.b = std::clamp(effect.b, .0f, 1.f);
 
     lua_pop(state, 1);
   }
@@ -66,30 +75,14 @@ int font::render(lua_State *state, font *self, std::string_view text, float x, f
   return 0;
 }
 
-int font::label(lua_State *state) {
-  auto *self = *static_cast<font **>(luaL_checkudata(state, 1, "Font"));
-  std::size_t length{};
-  const auto *data = luaL_checklstring(state, 2, &length);
-  const auto text = std::string_view{data, length};
-  const auto x = static_cast<float>(luaL_checknumber(state, 3));
-  const auto y = static_cast<float>(luaL_checknumber(state, 4));
-
-  if (!lua_istable(state, 5)) [[likely]] {
-    self->draw(text, x, y);
-    return 0;
-  }
-
-  return render(state, self, text, x, y);
-}
-
 void font::wire() {
   luaL_newmetatable(L, "Font");
   lua_pushliteral(L, "Font");
   lua_setfield(L, -2, "__name");
 
-  lua_newtable(L);
-  lua_pushcfunction(L, label);
+  lua_pushcfunction(L, label_callback);
   lua_setfield(L, -2, "label");
+  lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
   lua_pop(L, 1);
 }
@@ -222,6 +215,7 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
   const auto *mask = active.data();
   if constexpr (sparse) {
     const auto size = active.size();
+    assert(size == 4 && "glyph effect mask must have four words");
     [[assume(size == 4)]];
   }
 
