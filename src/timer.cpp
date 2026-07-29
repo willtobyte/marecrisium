@@ -458,8 +458,8 @@ group::group()
 
 group::~group() noexcept {
   assert(_id != store::running);
-  auto *const group = queue_of(_id);
-  if (!group) [[unlikely]]
+  auto *const queue = queue_of(_id);
+  if (!queue) [[unlikely]]
     return;
 
   if (store::active == _id)
@@ -467,7 +467,7 @@ group::~group() noexcept {
   if (store::owner == _id)
     store::owner = store::active;
 
-  luaL_unref(L, LUA_REGISTRYINDEX, group->roots);
+  luaL_unref(L, LUA_REGISTRYINDEX, queue->roots);
   store::groups[_id].reset();
 }
 

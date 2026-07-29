@@ -133,19 +133,19 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
   auto offset = header;
   const auto tilebytes = count * sizeof(uint32_t);
-  const auto load = [&](layer& layer) {
+  const auto load = [&](layer& current) {
     const std::span source{bytes + offset, tilebytes};
     offset += tilebytes;
 
     if (vacant(source)) [[unlikely]]
       return;
 
-    layer.tiles.resize(count);
+    current.tiles.resize(count);
     if constexpr (std::endian::native == std::endian::little) {
-      std::memcpy(layer.tiles.data(), source.data(), tilebytes);
+      std::memcpy(current.tiles.data(), source.data(), tilebytes);
     } else {
       for (size_t i{}; i < count; ++i)
-        layer.tiles[i] = little(source.data() + i * sizeof(uint32_t));
+        current.tiles[i] = little(source.data() + i * sizeof(uint32_t));
     }
   };
 
@@ -259,22 +259,22 @@ void tilemap::draw_foreground() {
   render(_foreground);
 }
 
-void tilemap::tessellate(layer& layer) {
+void tilemap::tessellate(layer& current) {
   const auto sc = std::max(int32_t{}, static_cast<int32_t>(viewport.x * _inverse));
   const auto sr = std::max(int32_t{}, static_cast<int32_t>(viewport.y * _inverse));
   const auto ec = std::min(_width - padding, static_cast<int32_t>((viewport.x + viewport.width) * _inverse) + padding);
   const auto er = std::min(_height - padding, static_cast<int32_t>((viewport.y + viewport.height) * _inverse) + padding);
 
   if (sc > ec || sr > er) [[unlikely]] {
-    layer.vertices.clear();
+    current.vertices.clear();
     return;
   }
 
   const auto capacity = static_cast<size_t>((ec - sc + padding) * (er - sr + padding));
-  buffers(layer, capacity);
-  layer.vertices.resize(capacity * corners);
+  buffers(current, capacity);
+  current.vertices.resize(capacity * corners);
 
-  auto* vp = layer.vertices.data();
+  auto* vp = current.vertices.data();
 
   constexpr SDL_FColor white{fullscale, fullscale, fullscale, fullscale};
 
@@ -285,12 +285,12 @@ void tilemap::tessellate(layer& layer) {
     const auto y1 = dy + _size;
 
     for (auto column = sc; column <= ec; ++column) {
-      const auto ti = layer.tiles[static_cast<size_t>(ro + column)];
+      const auto ti = current.tiles[static_cast<size_t>(ro + column)];
       if (ti == uint32_t{}) [[unlikely]]
         continue;
 
-      assert(static_cast<size_t>(ti - firsttile) < layer.uvs.size() && "tile index out of bounds");
-      const auto& uv = layer.uvs[ti - firsttile];
+      assert(static_cast<size_t>(ti - firsttile) < current.uvs.size() && "tile index out of bounds");
+      const auto& uv = current.uvs[ti - firsttile];
       const auto x0 = static_cast<float>(column) * _size - viewport.x;
       const auto x1 = x0 + _size;
 
@@ -301,5 +301,5 @@ void tilemap::tessellate(layer& layer) {
     }
   }
 
-  layer.vertices.resize(static_cast<size_t>(vp - layer.vertices.data()));
+  current.vertices.resize(static_cast<size_t>(vp - current.vertices.data()));
 }

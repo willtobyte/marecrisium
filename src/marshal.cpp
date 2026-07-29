@@ -132,8 +132,8 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
       if (is_array(state, absolute)) [[likely]] {
         auto *array = yyjson_mut_arr(document);
         const auto length = static_cast<int>(lua_objlen(state, absolute));
-        for (auto index = 0; index < length; ++index) {
-          lua_rawgeti(state, absolute, index + 1);
+        for (auto slot = 0; slot < length; ++slot) {
+          lua_rawgeti(state, absolute, slot + 1);
           yyjson_mut_arr_append(array, encode(state, -1, document));
           lua_pop(state, 1);
         }

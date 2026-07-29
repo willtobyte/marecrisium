@@ -220,7 +220,7 @@ static void proxify(lua_State *state, int data, int key, int root) {
 
 }
 
-static int purge_callback(lua_State *state) {
+static int purge_callback(lua_State*) {
   execute(stmt_clear.get());
   return 0;
 }

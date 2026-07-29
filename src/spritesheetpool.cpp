@@ -40,8 +40,8 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       clip.count = 0;
 
       const auto count = static_cast<int>(lua_objlen(state, -1));
-      for (int index = 1; index <= count; ++index) {
-        lua_rawgeti(state, -1, index);
+      for (int slot = 1; slot <= count; ++slot) {
+        lua_rawgeti(state, -1, slot);
 
         if (!lua_istable(state, -1)) [[unlikely]] {
           lua_pop(state, 1);

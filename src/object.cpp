@@ -506,8 +506,8 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
     std::pair{"on_unhover", &prototype::on_unhover},
   };
 
-  for (const auto& [name, member] : fields) {
-    lua_getfield(L, -1, name);
+  for (const auto& [field, member] : fields) {
+    lua_getfield(L, -1, field);
 
     blueprint.get()->*member = lua_isfunction(L, -1)
       ? luaL_ref(L, LUA_REGISTRYINDEX)

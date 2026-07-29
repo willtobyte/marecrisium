@@ -39,5 +39,5 @@ private:
 
   bool _dirty{true};
 
-  void tessellate(layer& layer);
+  void tessellate(layer& current);
 };
