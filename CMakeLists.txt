@@ -21,6 +21,7 @@ add_compile_definitions(
 
 set_source_files_properties(
   src/miniaudio.cpp
+  src/stb.cpp
   PROPERTIES SKIP_PRECOMPILE_HEADERS ON
 )
 
@@ -38,7 +39,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 find_package(box2d CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
-find_package(SPNG CONFIG REQUIRED)
+find_package(stb CONFIG REQUIRED)
 find_package(luajit CONFIG REQUIRED)
 find_package(miniaudio CONFIG REQUIRED)
 find_package(opusfile CONFIG REQUIRED)
@@ -52,7 +53,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   box2d::box2d
   EnTT::EnTT
   SDL3::SDL3-static
-  spng::spng_static
+  stb::stb
   miniaudio::miniaudio
   opusfile::opusfile
   luajit::luajit

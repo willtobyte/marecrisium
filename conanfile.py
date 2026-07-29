@@ -15,8 +15,8 @@ class Game(ConanFile):
             "entt/3.16.0",
             "miniaudio/0.11.22",
             "mimalloc/3.3.2",
-            "libspng/0.7.4",
             "sdl/3.4.8",
+            "stb/cci.20240531",
             "sqlite3/3.53.3",
             "luajit/2.1-20260720",
             "opusfile/0.12",
@@ -55,6 +55,13 @@ class Game(ConanFile):
                         out.write(f"{pid}\n{text}\n\n")
 
         toolchain = CMakeToolchain(self)
-
+        for definition in [
+            "STBI_NO_FAILURE_STRINGS",
+            "STBI_NO_HDR",
+            "STBI_NO_LINEAR",
+            "STBI_NO_STDIO",
+            "STBI_ONLY_PNG",
+        ]:
+            toolchain.preprocessor_definitions[definition] = None
         toolchain.generate()
         CMakeDeps(self).generate()

@@ -51,8 +51,8 @@
 #include <miniaudio.h>
 #include <opusfile.h>
 #include <SDL3/SDL.h>
-#include <spng.h>
 #include <sqlite3.h>
+#include <stb_image.h>
 #include <yyjson.h>
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>

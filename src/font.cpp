@@ -126,22 +126,9 @@ font::font(std::string_view family) {
 
   const auto buffer = io::read(std::format("blobs/fonts/{}.png", family));
 
-  auto spng = std::unique_ptr<spng_ctx, SPNG_Deleter>{spng_ctx_new(SPNG_CTX_IGNORE_ADLER32)};
-
-  spng_set_crc_action(spng.get(), SPNG_CRC_USE, SPNG_CRC_USE);
-  spng_set_png_buffer(spng.get(), buffer.data(), buffer.size());
-
-  spng_ihdr ihdr{};
-  spng_get_ihdr(spng.get(), &ihdr);
-
-  const auto width = static_cast<int>(ihdr.width);
-  const auto height = static_cast<int>(ihdr.height);
-
-  size_t length{};
-  spng_decoded_image_size(spng.get(), SPNG_FMT_RGBA8, &length);
-
-  auto decoded = std::make_unique_for_overwrite<uint8_t[]>(length);
-  spng_decode_image(spng.get(), decoded.get(), length, SPNG_FMT_RGBA8, SPNG_DECODE_TRNS);
+  int width, height;
+  auto decoded = std::unique_ptr<stbi_uc, STBI_Deleter>{stbi_load_from_memory(
+    buffer.data(), static_cast<int>(buffer.size()), &width, &height, nullptr, STBI_rgb_alpha)};
 
   _texture = std::unique_ptr<SDL_Texture, SDL_Deleter>{
     SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, width, height)};

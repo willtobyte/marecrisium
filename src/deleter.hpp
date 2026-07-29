@@ -14,11 +14,9 @@ struct SDL_Deleter final {
   }
 };
 
-struct SPNG_Deleter final {
-  void operator()(spng_ctx* context) const noexcept {
-    if (!context) [[unlikely]] return;
-
-    spng_ctx_free(context);
+struct STBI_Deleter final {
+  void operator()(stbi_uc* ptr) const noexcept {
+    stbi_image_free(ptr);
   }
 };
 
