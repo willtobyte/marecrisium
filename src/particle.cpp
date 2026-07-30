@@ -175,10 +175,10 @@ void particle::update(float delta) {
 
     avs[i] += afs[i] * delta;
 
-    auto ang = angles[i] + avs[i] * delta;
-    if (ang >= twopi) ang -= twopi;
-    if (ang < .0f) ang += twopi;
-    angles[i] = ang;
+    auto angle = angles[i] + avs[i] * delta;
+    if (angle >= twopi) angle -= twopi;
+    if (angle < .0f) angle += twopi;
+    angles[i] = angle;
 
     vxs[i] += gxs[i] * delta;
     vys[i] += gys[i] * delta;

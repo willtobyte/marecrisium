@@ -162,7 +162,7 @@ void release(queue& group, uint32_t index) noexcept {
   group.free = index;
 }
 
-void deactivate(queue& group, record& current, bool reschedule = true) {
+void deactivate(queue& group, record& current, int root, bool reschedule) {
   const auto index = current.slot & mask;
   if (reschedule && (current.slot & paused) == 0 && current.deadline == group.next)
     group.next = dirty;
@@ -170,10 +170,13 @@ void deactivate(queue& group, record& current, bool reschedule = true) {
   current.slot = invalid;
   release(group, index);
   ++group.removed;
+  erase(L, root, index);
+}
 
+void deactivate(queue& group, record& current, bool reschedule = true) {
   lua_rawgeti(L, LUA_REGISTRYINDEX, group.roots);
   const auto root = lua_gettop(L);
-  erase(L, root, index);
+  deactivate(group, current, root, reschedule);
   lua_pop(L, 1);
 }
 
@@ -471,7 +474,7 @@ bool advance(queue& group, uint32_t owner, std::size_t limit) {
         if (repeat)
           group.list[position].deadline += current.period;
         else
-          deactivate(group, group.list[position]);
+          deactivate(group, group.list[position], root.position, true);
 
         const auto base = lua_gettop(L);
         lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
