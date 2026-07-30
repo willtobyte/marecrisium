@@ -101,11 +101,9 @@ static void save(lua_State *state, std::string_view key, int index) {
   auto length = 0uz;
   const auto json = std::unique_ptr<char, json_deleter>{yyjson_mut_write(document.get(), 0, &length)};
 
-  lua_pushlstring(state, json.get(), length);
-
   auto *statement = stmt_upsert.get();
   sqlite3_bind_text(statement, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
-  sqlite3_bind_text(statement, 2, lua_tostring(state, -1), static_cast<int>(length), SQLITE_STATIC);
+  sqlite3_bind_text(statement, 2, json.get(), static_cast<int>(length), SQLITE_STATIC);
   execute(statement);
 }
 
@@ -328,7 +326,6 @@ static int newindex(lua_State *state) {
   }
 
   save(state, key, value);
-  lua_pop(state, 1);
   invalidate(state, key);
   return 0;
 }

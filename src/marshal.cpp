@@ -1,15 +1,8 @@
 namespace {
-static int absolute_index(lua_State *state, int index) {
-  return (index > 0 || index <= LUA_REGISTRYINDEX)
-    ? index
-    : lua_gettop(state) + index + 1;
-}
-
-static bool is_array(lua_State *state, int index) {
-  const auto absolute = absolute_index(state, index);
+static bool is_sequence(lua_State *state, int table) {
   auto count = 0uz;
   lua_pushnil(state);
-  while (lua_next(state, absolute) != 0) {
+  while (lua_next(state, table) != 0) {
     if (lua_type(state, -2) != LUA_TNUMBER) {
       lua_pop(state, 2);
       return false;
@@ -19,14 +12,14 @@ static bool is_array(lua_State *state, int index) {
     ++count;
   }
 
-  const auto length = lua_objlen(state, absolute);
+  const auto length = lua_objlen(state, table);
   return length > 0 && length == count;
 }
 }
 
 void marshal::decode(lua_State *state, yyjson_val *value) {
-  if (!value) [[unlikely]]
-    return lua_pushnil(state);
+  assert(value && "json value must exist");
+  [[assume(value)]];
 
   switch (yyjson_get_type(value)) {
     case YYJSON_TYPE_NULL:
@@ -50,10 +43,7 @@ void marshal::decode(lua_State *state, yyjson_val *value) {
         case YYJSON_SUBTYPE_SINT:
           lua_pushinteger(state, static_cast<lua_Integer>(yyjson_get_sint(value)));
           break;
-        case YYJSON_SUBTYPE_REAL:
-          lua_pushnumber(state, static_cast<lua_Number>(yyjson_get_real(value)));
-          break;
-        default: [[unlikely]]
+        default:
           lua_pushnumber(state, static_cast<lua_Number>(yyjson_get_real(value)));
           break;
       }
@@ -87,10 +77,22 @@ void marshal::decode(lua_State *state, yyjson_val *value) {
         const auto *name = yyjson_get_str(key);
         const auto length = yyjson_get_len(key);
         if (length >= 2 && name[0] == '\0' && name[1] == 'n') {
-          lua_pushlstring(state, name + 2, length - 2);
-          const auto number = lua_tonumber(state, -1);
-          lua_pop(state, 1);
-          lua_pushnumber(state, number);
+          auto bits = uint64_t{};
+          auto valid = length > 2 && length <= 18;
+          for (auto index = 2uz; valid && index < length; ++index) {
+            const auto character = static_cast<unsigned char>(name[index]);
+            const auto digit = static_cast<uint64_t>(character >= '0' && character <= '9'
+              ? character - '0'
+              : character - 'a' + 10);
+            valid = digit < 16;
+            bits = bits * 16 + digit;
+          }
+
+          const auto number = std::bit_cast<lua_Number>(bits);
+          valid = valid && !std::isnan(number);
+          valid
+            ? static_cast<void>(lua_pushnumber(state, number))
+            : static_cast<void>(lua_pushlstring(state, name, length));
         } else if (length >= 2 && name[0] == '\0' && name[1] == 's') {
           lua_pushlstring(state, name + 2, length - 2);
         } else {
@@ -109,17 +111,19 @@ void marshal::decode(lua_State *state, yyjson_val *value) {
 }
 
 yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *document) {
-  const auto absolute = absolute_index(state, index);
+  const auto source = (index > 0 || index <= LUA_REGISTRYINDEX)
+    ? index
+    : lua_gettop(state) + index + 1;
 
-  switch (lua_type(state, absolute)) {
+  switch (lua_type(state, source)) {
     case LUA_TNIL:
       return yyjson_mut_null(document);
 
     case LUA_TBOOLEAN:
-      return yyjson_mut_bool(document, lua_toboolean(state, absolute) != 0);
+      return yyjson_mut_bool(document, lua_toboolean(state, source) != 0);
 
     case LUA_TNUMBER: {
-      const auto value = lua_tonumber(state, absolute);
+      const auto value = lua_tonumber(state, source);
       if (value == 0 && std::signbit(value))
         return yyjson_mut_real(document, value);
 
@@ -136,16 +140,16 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
 
     case LUA_TSTRING: {
       size_t length = 0;
-      const auto *str = lua_tolstring(state, absolute, &length);
+      const auto *str = lua_tolstring(state, source, &length);
       return yyjson_mut_strn(document, str, length);
     }
 
     case LUA_TTABLE: {
-      if (is_array(state, absolute)) [[likely]] {
+      if (is_sequence(state, source)) [[likely]] {
         auto *array = yyjson_mut_arr(document);
-        const auto length = static_cast<int>(lua_objlen(state, absolute));
-        for (auto slot = 0; slot < length; ++slot) {
-          lua_rawgeti(state, absolute, slot + 1);
+        const auto size = static_cast<int>(lua_objlen(state, source));
+        for (auto slot = 1; slot <= size; ++slot) {
+          lua_rawgeti(state, source, slot);
           yyjson_mut_arr_append(array, encode(state, -1, document));
           lua_pop(state, 1);
         }
@@ -154,32 +158,47 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
       }
 
       auto *object = yyjson_mut_obj(document);
-      static std::vector<char> tagged;
       lua_pushnil(state);
-      while (lua_next(state, absolute) != 0) {
+      while (lua_next(state, source) != 0) {
         const auto type = lua_type(state, -2);
         const auto supported = type == LUA_TSTRING || type == LUA_TNUMBER;
         assert(supported && "cassette key must be a string or number");
         [[assume(supported)]];
 
-        lua_pushvalue(state, -2);
-        size_t length = 0;
-        const auto *name = lua_tolstring(state, -1, &length);
-        const auto escaped = type == LUA_TNUMBER || (length != 0 && name[0] == '\0');
         yyjson_mut_val *key;
-        if (escaped) {
-          tagged.resize(length + 2);
-          tagged[0] = '\0';
-          tagged[1] = type == LUA_TNUMBER ? 'n' : 's';
-          std::memcpy(tagged.data() + 2, name, length);
-          key = yyjson_mut_strncpy(document, tagged.data(), tagged.size());
+        if (type == LUA_TNUMBER) {
+          std::array<char, 18> tagged{};
+          tagged[1] = 'n';
+
+          const auto bits = std::bit_cast<uint64_t>(lua_tonumber(state, -2));
+          const auto result = std::to_chars(
+            tagged.data() + 2, tagged.data() + tagged.size(), bits, 16);
+          const auto valid = result.ec == std::errc{};
+          assert(valid && "cassette numeric key must fit");
+          [[assume(valid)]];
+          key = yyjson_mut_strncpy(
+            document, tagged.data(), static_cast<size_t>(result.ptr - tagged.data()));
         } else {
-          key = yyjson_mut_strn(document, name, length);
+          size_t length = 0;
+          const auto *name = lua_tolstring(state, -2, &length);
+
+          if (length != 0 && name[0] == '\0') [[unlikely]] {
+            auto *escaped = unsafe_yyjson_mut_str_alc(document, length + 2);
+            assert(escaped && "cassette key allocation must succeed");
+            [[assume(escaped)]];
+            escaped[0] = '\0';
+            escaped[1] = 's';
+            std::memcpy(escaped + 2, name, length);
+            escaped[length + 2] = '\0';
+            key = yyjson_mut_strn(document, escaped, length + 2);
+          } else {
+            key = yyjson_mut_strn(document, name, length);
+          }
         }
 
-        auto *value = encode(state, -2, document);
+        auto *value = encode(state, -1, document);
         yyjson_mut_obj_add(object, key, value);
-        lua_pop(state, 2);
+        lua_pop(state, 1);
       }
 
       return object;

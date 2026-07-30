@@ -5,6 +5,7 @@
 #include <atomic>
 #include <bit>
 #include <cassert>
+#include <charconv>
 #include <cmath>
 #include <compare>
 #include <concepts>
@@ -47,6 +48,7 @@
 #endif
 
 #include <box2d/box2d.h>
+#define ENTT_ID_TYPE std::uint64_t
 #include <entt/entt.hpp>
 #include <lua.hpp>
 #include <miniaudio.h>

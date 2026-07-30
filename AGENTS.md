@@ -8,7 +8,7 @@
 - Only create functions, methods, or similar abstractions when they will be used more than once. Prefer straightforward, top-to-bottom code, as it is easier to read, understand, and maintain.
 - Support only little-endian systems.
 - Support Apple Silicon on macOS and AMD64 on Windows.
-- Always use Linux Docker with an AMD64 userspace for builds, testing, profiling, and instrumentation.
+- Always use Linux Docker with a Rosetta-backed AMD64 userspace for builds, testing, profiling, and instrumentation.
 - Use Wine only inside Linux Docker when validating Windows builds. **Never use Wine on macOS.**
 - Target **idiomatic & modern** C++23. Prefer C++ features such as `auto`, `constexpr`, `const`, and `final` whenever appropriate.
 - Prefer `constexpr` whenever possible to enable compile-time evaluation and **eliminate unnecessary runtime overhead**.
@@ -35,3 +35,6 @@
 - Validate with unit and smoke tests, then remove any temporary tests before finishing.
 - Run all benchmarks, profiling, sanitizers, fuzzing, memory-leak detection, allocation tracking, and other instrumentation inside Linux Docker.
 - Always check for bugs, undefined behavior, memory leaks, data races, and other correctness or reliability issues. If you find any, fix them while keeping changes small, focused, and aligned with the happy path.
+- Prefer `entt::hashed_string` for runtime string identifiers and `_hs` for literals when only identity matters. They avoid allocations, compute literal hashes at compile time, and enable fast integer comparisons and lookups.
+- Construct `entt::hashed_string` from null-terminated strings without specifying the length. Use the length overload only for non-null-terminated strings or strings containing embedded nulls.
+- The binary size increasing or decreasing is irrelevant.

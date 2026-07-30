@@ -562,7 +562,7 @@ function moment() end
 -- Timer
 
 ---@class TimerHandle
----@operator call: TimerHandle
+---@field active boolean
 local TimerHandle = {}
 
 ---Cancel this timer. Idempotent.
@@ -577,21 +577,10 @@ function TimerHandle:pause() end
 ---@return TimerHandle self
 function TimerHandle:resume() end
 
----Restart the interval, optionally changing its duration.
----@param milliseconds? number Positive and finite.
----@return TimerHandle self
-function TimerHandle:reset(milliseconds) end
-
----@return boolean
-function TimerHandle:is_active() end
-
----@return boolean
-function TimerHandle:is_paused() end
-
----Single-threaded repeating timers advanced once per frame. Stage timers freeze
----while their stage is inactive; global timers continue across transitions and
----run before the active stage queue. Elapsed intervals replay without drift in
----registration order.
+---Stage-local timers advanced once per frame. Timers freeze while their stage is
+---inactive and can only run while that same stage is active. Elapsed intervals
+---of repeating timers replay without drift. Timers added by a callback begin on
+---the next advance; nested updates are ignored.
 ---@class Timer
 local Timer = {}
 
@@ -601,11 +590,17 @@ local Timer = {}
 ---@return TimerHandle
 function Timer:add(milliseconds, callback) end
 
+---Add a timer that fires once.
+---@param milliseconds number Positive and finite.
+---@param callback fun()
+---@return TimerHandle
+function Timer:singleshot(milliseconds, callback) end
+
 ---Advance timers manually. The engine already calls this once per frame.
 ---@param delta number Seconds.
 function Timer:update(delta) end
 
----Cancel every global and stage timer.
+---Cancel every timer owned by the current stage.
 function Timer:clear() end
 
 ---@type Timer
