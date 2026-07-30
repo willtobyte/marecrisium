@@ -484,6 +484,10 @@ bool advance(queue& group, uint32_t owner, std::size_t limit) {
         if (status != LUA_OK) [[unlikely]] {
           lua_remove(L, root.position);
           root.position = 0;
+          store::running = running.prior;
+          store::owner = context.prior;
+          if (group.removed != 0)
+            compact(group);
           lua_error(L);
           std::unreachable();
         }
