@@ -8,8 +8,8 @@
 
 [[nodiscard]] inline uint64_t mix(uint64_t left, uint64_t right) noexcept {
 #ifdef _MSC_VER
-  const auto lo = a * b;
-  const auto hi = __umulh(a, b);
+  const auto lo = left * right;
+  const auto hi = __umulh(left, right);
   return lo ^ hi;
 #else
   const auto product = static_cast<__uint128_t>(left) * right;
