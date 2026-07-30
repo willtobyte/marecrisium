@@ -5,5 +5,11 @@ public:
   void insert(std::string_view name);
 
 private:
-  entt::dense_map<entt::id_type, std::vector<uint8_t>> _pool;
+  struct hash final {
+    using is_transparent = void;
+
+    std::size_t operator()(std::string_view value) const noexcept;
+  };
+
+  entt::dense_map<std::string, std::vector<uint8_t>, hash, std::equal_to<>> _pool;
 };

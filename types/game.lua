@@ -191,7 +191,7 @@ cassette = nil
 ---@field y? number Defaults to 0.
 
 ---@class StageSound
----@field name string Pool name; loads `blobs/sounds/<name>.opus`.
+---@field name string Pool name; loads `blobs/sounds/<name>.ogg`.
 ---@field loop? boolean Defaults to false.
 
 ---@class StageParticle
@@ -328,7 +328,7 @@ viewport = nil
 
 ---Non-empty frame array with an optional sound.
 ---@class AnimationClip
----@field sound? string Plays `blobs/sounds/<name>.opus` when selected through `object.animation`.
+---@field sound? string Plays `blobs/sounds/<name>.ogg` when selected through `object.animation`.
 ---@field [integer] AnimationFrame `{sx, sy, width, height, duration_ms}` with optional `{collider_x, collider_y, collider_width, collider_height}`.
 
 ---Spawn configuration and shared custom behavior. Engine configuration and
@@ -531,16 +531,18 @@ user = nil
 ---@field name string Operating system name.
 ---@field cores integer Logical CPU count.
 ---@field memory integer RAM in MiB.
----@field clipboard string Clipboard text (read/write).
-local Platform = {}
+
+---@type Platform
+platform = nil
+
+---Clipboard text (read/write).
+---@type string
+clipboard = nil
 
 ---Ask the operating system to open a URL or URI.
 ---@param url string
 ---@return boolean
-function Platform:openurl(url) end
-
----@type Platform
-platform = nil
+function openurl(url) end
 
 -- Localization
 

@@ -29,6 +29,7 @@ struct queue final {
   std::vector<slot> slots;
   uint32_t free{invalid};
   std::size_t removed{};
+  std::size_t advancing{};
   double now{};
   int roots{LUA_NOREF};
 };
@@ -393,6 +394,24 @@ void compact(queue& group) {
 __attribute__((aligned(16)))
 #endif
 void advance(queue& group, uint32_t owner, std::size_t limit) {
+  struct cycle final {
+    explicit cycle(queue& target) noexcept
+        : group(target) {
+      ++group.advancing;
+    }
+
+    ~cycle() {
+      --group.advancing;
+      if (group.advancing == 0 && group.removed != 0)
+        compact(group);
+    }
+
+    cycle(const cycle&) = delete;
+    cycle& operator=(const cycle&) = delete;
+
+    queue& group;
+  } cycle{group};
+
   struct anchor final {
     anchor() = default;
 
@@ -444,10 +463,6 @@ void advance(queue& group, uint32_t owner, std::size_t limit) {
     }
   }
 
-  if (group.removed == 0) [[likely]]
-    return;
-
-  compact(group);
 }
 }
 

@@ -201,6 +201,8 @@ void gamepad::wire() {
   lua_newtable(L);
   lua_pushcfunction(L, index);
   lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, +[](lua_State*) -> int { return 0; });
+  lua_setfield(L, -2, "__newindex");
   lua_setmetatable(L, -2);
   lua_setglobal(L, "gamepad");
 }

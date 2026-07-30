@@ -25,6 +25,17 @@ set_source_files_properties(
   PROPERTIES SKIP_PRECOMPILE_HEADERS ON
 )
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set_property(SOURCE src/stb.cpp APPEND PROPERTY COMPILE_OPTIONS
+    -fno-lto
+    -Wno-error=maybe-uninitialized
+  )
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  set_property(SOURCE src/stb.cpp APPEND PROPERTY COMPILE_OPTIONS
+    -fno-sanitize=implicit-conversion
+  )
+endif()
+
 add_executable(${PROJECT_NAME})
 
 target_sources(${PROJECT_NAME} PRIVATE
@@ -42,7 +53,6 @@ find_package(SDL3 CONFIG REQUIRED)
 find_package(stb CONFIG REQUIRED)
 find_package(luajit CONFIG REQUIRED)
 find_package(miniaudio CONFIG REQUIRED)
-find_package(opusfile CONFIG REQUIRED)
 find_package(SQLite3 CONFIG REQUIRED)
 find_package(yyjson CONFIG REQUIRED)
 find_package(zstd CONFIG REQUIRED)
@@ -55,7 +65,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   SDL3::SDL3-static
   stb::stb
   miniaudio::miniaudio
-  opusfile::opusfile
   luajit::luajit
   SQLite::SQLite3
   yyjson::yyjson

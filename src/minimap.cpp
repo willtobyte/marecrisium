@@ -1,12 +1,20 @@
 static int index(lua_State *state) {
+  if (std::string_view{luaL_checkstring(state, 2)} != "visible") {
+    lua_pushnil(state);
+    return 1;
+  }
+
   auto *self = *static_cast<minimap **>(luaL_checkudata(state, 1, "Minimap"));
   lua_pushboolean(state, self->_visible);
   return 1;
 }
 
 static int newindex(lua_State *state) {
-  auto *self = *static_cast<minimap **>(luaL_checkudata(state, 1, "Minimap"));
-  self->_visible = lua_toboolean(state, 3) != 0;
+  if (std::string_view{luaL_checkstring(state, 2)} == "visible") {
+    auto *self = *static_cast<minimap **>(luaL_checkudata(state, 1, "Minimap"));
+    self->_visible = lua_toboolean(state, 3) != 0;
+  }
+
   return 0;
 }
 

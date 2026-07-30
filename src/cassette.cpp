@@ -31,9 +31,45 @@ std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_upsert;
 std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_delete;
 std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_clear;
 
-
 char holder;
-char token;
+char identity;
+int revisions{LUA_NOREF};
+uint64_t revision{};
+
+static void push_revision(lua_State* state, std::string_view key) {
+  lua_rawgeti(state, LUA_REGISTRYINDEX, revisions);
+  lua_pushlstring(state, key.data(), key.size());
+  lua_rawget(state, -2);
+  lua_remove(state, -2);
+}
+
+static void reset_revisions(lua_State* state) {
+  lua_newtable(state);
+  const auto replacement = luaL_ref(state, LUA_REGISTRYINDEX);
+  luaL_unref(state, LUA_REGISTRYINDEX, revisions);
+  revisions = replacement;
+}
+
+static void assign_revision(lua_State* state, std::string_view key) {
+  constexpr auto limit = uint64_t{1} << std::numeric_limits<lua_Number>::digits;
+  assert(revision < limit && "cassette revision limit must not be exceeded");
+  [[assume(revision < limit)]];
+  ++revision;
+  lua_rawgeti(state, LUA_REGISTRYINDEX, revisions);
+  lua_pushlstring(state, key.data(), key.size());
+  lua_pushnumber(state, static_cast<lua_Number>(revision));
+  lua_rawset(state, -3);
+  lua_pop(state, 1);
+  lua_pushnumber(state, static_cast<lua_Number>(revision));
+}
+
+static void invalidate(lua_State* state, std::string_view key) {
+  lua_rawgeti(state, LUA_REGISTRYINDEX, revisions);
+  lua_pushlstring(state, key.data(), key.size());
+  lua_pushnil(state);
+  lua_rawset(state, -3);
+  lua_pop(state, 1);
+}
 
 static void execute(sqlite3_stmt *statement) {
   [[maybe_unused]] const auto result = sqlite3_step(statement);
@@ -77,11 +113,9 @@ static int proxy_newindex(lua_State *state) {
   auto length = 0uz;
   const auto key = std::string_view{lua_tolstring(state, lua_upvalueindex(2), &length), length};
 
-  if (!load(state, key)) [[unlikely]]
-    return 0;
-
+  push_revision(state, key);
   lua_getmetatable(state, lua_upvalueindex(3));
-  lua_pushlightuserdata(state, &token);
+  lua_pushlightuserdata(state, &identity);
   lua_rawget(state, -2);
   lua_remove(state, -2);
   const auto current = lua_rawequal(state, -1, -2) != 0;
@@ -97,11 +131,12 @@ static int proxy_newindex(lua_State *state) {
   lua_pop(state, 1);
 
   save(state, key, lua_upvalueindex(3));
-  const auto snapshot = lua_gettop(state);
+  assign_revision(state, key);
+  const auto current_revision = lua_gettop(state);
 
   lua_getmetatable(state, lua_upvalueindex(3));
-  lua_pushlightuserdata(state, &token);
-  lua_pushvalue(state, snapshot);
+  lua_pushlightuserdata(state, &identity);
+  lua_pushvalue(state, current_revision);
   lua_rawset(state, -3);
   lua_pop(state, 1);
   return 0;
@@ -220,13 +255,16 @@ static void proxify(lua_State *state, int data, int key, int root) {
 
 }
 
-static int purge_callback(lua_State*) {
+static int purge_callback(lua_State* state) {
   execute(stmt_clear.get());
+  reset_revisions(state);
   return 0;
 }
 
 static int index(lua_State *state) {
-  const auto key = std::string_view{luaL_checkstring(state, 2)};
+  auto size = 0uz;
+  const auto* name = luaL_checklstring(state, 2, &size);
+  const auto key = std::string_view{name, size};
 
   if (load(state, key)) [[likely]] {
     auto length = 0uz;
@@ -237,13 +275,19 @@ static int index(lua_State *state) {
 
     if (lua_type(state, -1) == LUA_TTABLE) {
       const auto data = lua_gettop(state);
-      const auto snapshot = data - 1;
+
+      push_revision(state, key);
+      if (lua_isnil(state, -1)) {
+        lua_pop(state, 1);
+        assign_revision(state, key);
+      }
 
       lua_newtable(state);
-      lua_pushlightuserdata(state, &token);
-      lua_pushvalue(state, snapshot);
+      lua_pushlightuserdata(state, &identity);
+      lua_pushvalue(state, -3);
       lua_rawset(state, -3);
       lua_setmetatable(state, data);
+      lua_pop(state, 1);
 
       lua_pushlstring(state, key.data(), key.size());
       const auto root = data + 1;
@@ -261,12 +305,15 @@ static int index(lua_State *state) {
 }
 
 static int newindex(lua_State *state) {
-  const auto key = std::string_view{luaL_checkstring(state, 2)};
+  auto size = 0uz;
+  const auto* name = luaL_checklstring(state, 2, &size);
+  const auto key = std::string_view{name, size};
   auto value = 3;
 
   if (lua_isnil(state, 3)) [[unlikely]] {
     sqlite3_bind_text(stmt_delete.get(), 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
     execute(stmt_delete.get());
+    invalidate(state, key);
     return 0;
   }
 
@@ -282,10 +329,14 @@ static int newindex(lua_State *state) {
 
   save(state, key, value);
   lua_pop(state, 1);
+  invalidate(state, key);
   return 0;
 }
 
 void cassette::wire() {
+  lua_newtable(L);
+  revisions = luaL_ref(L, LUA_REGISTRYINDEX);
+
   sqlite3_open(FILENAME, std::out_ptr(database));
   auto *handle = database.get();
   sqlite3_exec(handle,

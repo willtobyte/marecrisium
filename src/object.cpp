@@ -50,7 +50,15 @@ namespace {
     b2Body_SetTransform(bd.id, center, b2Rot_identity);
   }
 
-  entt::dense_map<entt::id_type, std::unique_ptr<prototype>> prototypes;
+  struct prototype_hash final {
+    using is_transparent = void;
+
+    std::size_t operator()(std::string_view value) const noexcept {
+      return entt::hashed_string{value.data(), value.size()}.value();
+    }
+  };
+
+  entt::dense_map<std::string, std::unique_ptr<prototype>, prototype_hash, std::equal_to<>> prototypes;
 
   static void commit(entt::registry& registry, entt::entity entity, scriptable& component) {
     auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));
@@ -357,6 +365,7 @@ namespace {
           const auto& clip = a->sheet->clips[a->active];
           const auto callback = a->playing ? clip.identity.name : LUA_NOREF;
           const auto identity = clip.identity.hash;
+          const auto next = a->sheet->clips[i].identity.name;
           a->active = i;
           a->current = 0;
           a->elapsed = .0f;
@@ -387,7 +396,7 @@ namespace {
           if (beginning != LUA_NOREF) {
             lua_rawgeti(state, LUA_REGISTRYINDEX, beginning);
             lua_rawgeti(state, LUA_REGISTRYINDEX, handle);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, a->sheet->clips[i].identity.name);
+            lua_rawgeti(state, LUA_REGISTRYINDEX, next);
             lua_call(state, 2, 0);
           }
 
@@ -461,9 +470,7 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
   lua_pushlstring(L, name.data(), name.size());
   component.label = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  const auto identity = entt::hashed_string{kind.data(), kind.size()};
-
-  if (const auto it = prototypes.find(identity); it != prototypes.end()) [[likely]] {
+  if (const auto it = prototypes.find(kind); it != prototypes.end()) [[likely]] {
     component.blueprint = it->second.get();
     return commit(registry, entity, component);
   }
@@ -517,7 +524,7 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
   lua_pop(L, 1);
 
   component.blueprint = blueprint.get();
-  prototypes.emplace(identity, std::move(blueprint));
+  prototypes.emplace(kind, std::move(blueprint));
   commit(registry, entity, component);
 }
 

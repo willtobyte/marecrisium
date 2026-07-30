@@ -107,69 +107,48 @@ namespace {
 namespace {
   ma_result read(ma_data_source* source, void* output, ma_uint64 frames, ma_uint64* count) {
     auto* self = reinterpret_cast<sound::stream*>(source);
-    const int channels = op_channel_count(self->file, -1);
+    const auto decoded = static_cast<ma_uint64>(stb_vorbis_get_samples_float_interleaved(
+      self->file,
+      static_cast<int>(self->channels),
+      static_cast<float*>(output),
+      static_cast<int>(frames * self->channels)
+    ));
 
-    ma_uint64 total = 0;
-    while (total < frames) {
-      const auto remaining = frames - total;
-      const auto request = static_cast<int>(std::min<ma_uint64>(
-        remaining * static_cast<ma_uint64>(channels),
-        static_cast<ma_uint64>(std::numeric_limits<int>::max())
-      ));
+    self->cursor += decoded;
+    if (count) [[likely]] *count = decoded;
+    if (decoded < frames) [[unlikely]] return MA_AT_END;
 
-      auto* destination = static_cast<float*>(output) + total * static_cast<ma_uint64>(channels);
-      const int decoded = op_read_float(self->file, destination, request, nullptr);
-      if (decoded == OP_HOLE) [[unlikely]]
-        continue;
-
-      if (decoded < 0) [[unlikely]] {
-        if (count) [[likely]] *count = total;
-        return MA_ERROR;
-      }
-
-      if (decoded == 0) [[unlikely]]
-        break;
-
-      total += static_cast<ma_uint64>(decoded);
-    }
-
-    if (count) [[likely]] *count = total;
-    if (total == 0) [[unlikely]] return MA_AT_END;
-    if (total < frames) [[unlikely]] return MA_AT_END;
     return MA_SUCCESS;
   }
 
   ma_result seek(ma_data_source* source, ma_uint64 index) {
     auto* self = reinterpret_cast<sound::stream*>(source);
-    const int result = op_pcm_seek(self->file, static_cast<ogg_int64_t>(index));
-    if (result == 0) [[likely]] return MA_SUCCESS;
-    if (result == OP_ENOSEEK) [[unlikely]] return MA_INVALID_OPERATION;
-    return MA_ERROR;
+    stb_vorbis_seek(self->file, static_cast<unsigned int>(index));
+    self->cursor = index;
+    return MA_SUCCESS;
   }
 
   ma_result format(ma_data_source* source, ma_format* format, ma_uint32* channels, ma_uint32* rate, ma_channel* map, size_t capacity) {
     auto* self = reinterpret_cast<sound::stream*>(source);
-    const auto count = static_cast<ma_uint32>(op_channel_count(self->file, -1));
     if (format) *format = ma_format_f32;
-    if (channels) *channels = count;
-    if (rate) *rate = 48'000;
-    if (map) ma_channel_map_init_standard(ma_standard_channel_map_vorbis, map, capacity, count);
+    if (channels) *channels = self->channels;
+    if (rate) *rate = self->rate;
+    if (map)
+      ma_channel_map_init_standard(
+        ma_standard_channel_map_vorbis, map, capacity, self->channels);
+
     return MA_SUCCESS;
   }
 
   ma_result cursor(ma_data_source* source, ma_uint64* cursor) {
     auto* self = reinterpret_cast<sound::stream*>(source);
-    const auto offset = op_pcm_tell(self->file);
-    if (offset < 0) [[unlikely]] return MA_ERROR;
-    *cursor = static_cast<ma_uint64>(offset);
+    *cursor = self->cursor;
     return MA_SUCCESS;
   }
 
   ma_result length(ma_data_source* source, ma_uint64* length) {
     auto* self = reinterpret_cast<sound::stream*>(source);
-    const auto total = op_pcm_total(self->file, -1);
-    if (total < 0) [[unlikely]] return MA_ERROR;
-    *length = static_cast<ma_uint64>(total);
+    *length = self->length;
     return MA_SUCCESS;
   }
 
@@ -187,8 +166,14 @@ namespace {
 
 sound::sound(std::string_view filename)
   : _data{io::read(filename)} {
-  _opus.reset(op_open_memory(_data.data(), _data.size(), nullptr));
-  _stream.file = _opus.get();
+  _vorbis.reset(stb_vorbis_open_memory(
+    _data.data(), static_cast<int>(_data.size()), nullptr, nullptr));
+
+  const auto info = stb_vorbis_get_info(_vorbis.get());
+  _stream.file = _vorbis.get();
+  _stream.length = stb_vorbis_stream_length_in_samples(_vorbis.get());
+  _stream.channels = static_cast<ma_uint32>(info.channels);
+  _stream.rate = info.sample_rate;
 
   auto config = ma_data_source_config_init();
   config.vtable = &vtable;

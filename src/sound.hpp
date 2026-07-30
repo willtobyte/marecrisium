@@ -4,7 +4,11 @@ class sound final {
 public:
   struct stream final {
     ma_data_source_base base{};
-    OggOpusFile* file{};
+    stb_vorbis* file{};
+    ma_uint64 cursor{};
+    ma_uint64 length{};
+    ma_uint32 channels{};
+    ma_uint32 rate{};
   };
 
   explicit sound(std::string_view filename);
@@ -36,7 +40,7 @@ public:
 private:
   std::atomic<bool> _ended{false};
   bytes _data;
-  std::unique_ptr<OggOpusFile, OggOpusFile_Deleter> _opus{};
+  std::unique_ptr<stb_vorbis, STB_Vorbis_Deleter> _vorbis{};
   stream _stream{};
   ma_sound _sound{};
 };

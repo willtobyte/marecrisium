@@ -50,9 +50,11 @@ static int index(lua_State *state) {
 }
 
 static int newindex(lua_State *state) {
-  lua_toboolean(state, 3)
-    ? SDL_ShowCursor()
-    : SDL_HideCursor();
+  if (std::string_view{luaL_checkstring(state, 2)} == "shown") {
+    lua_toboolean(state, 3)
+      ? SDL_ShowCursor()
+      : SDL_HideCursor();
+  }
 
   return 0;
 }

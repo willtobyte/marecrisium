@@ -84,7 +84,19 @@ void marshal::decode(lua_State *state, yyjson_val *value) {
       yyjson_obj_iter_init(value, &iterator);
       yyjson_val *key;
       while ((key = yyjson_obj_iter_next(&iterator))) {
-        lua_pushlstring(state, yyjson_get_str(key), yyjson_get_len(key));
+        const auto *name = yyjson_get_str(key);
+        const auto length = yyjson_get_len(key);
+        if (length >= 2 && name[0] == '\0' && name[1] == 'n') {
+          lua_pushlstring(state, name + 2, length - 2);
+          const auto number = lua_tonumber(state, -1);
+          lua_pop(state, 1);
+          lua_pushnumber(state, number);
+        } else if (length >= 2 && name[0] == '\0' && name[1] == 's') {
+          lua_pushlstring(state, name + 2, length - 2);
+        } else {
+          lua_pushlstring(state, name, length);
+        }
+
         decode(state, yyjson_obj_iter_get_val(key));
         lua_rawset(state, -3);
       }
@@ -142,14 +154,32 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
       }
 
       auto *object = yyjson_mut_obj(document);
+      static std::vector<char> tagged;
       lua_pushnil(state);
       while (lua_next(state, absolute) != 0) {
+        const auto type = lua_type(state, -2);
+        const auto supported = type == LUA_TSTRING || type == LUA_TNUMBER;
+        assert(supported && "cassette key must be a string or number");
+        [[assume(supported)]];
+
+        lua_pushvalue(state, -2);
         size_t length = 0;
-        const auto *name = lua_tolstring(state, -2, &length);
-        auto *key = yyjson_mut_strn(document, name, length);
-        auto *value = encode(state, -1, document);
+        const auto *name = lua_tolstring(state, -1, &length);
+        const auto escaped = type == LUA_TNUMBER || (length != 0 && name[0] == '\0');
+        yyjson_mut_val *key;
+        if (escaped) {
+          tagged.resize(length + 2);
+          tagged[0] = '\0';
+          tagged[1] = type == LUA_TNUMBER ? 'n' : 's';
+          std::memcpy(tagged.data() + 2, name, length);
+          key = yyjson_mut_strncpy(document, tagged.data(), tagged.size());
+        } else {
+          key = yyjson_mut_strn(document, name, length);
+        }
+
+        auto *value = encode(state, -2, document);
         yyjson_mut_obj_add(object, key, value);
-        lua_pop(state, 1);
+        lua_pop(state, 2);
       }
 
       return object;

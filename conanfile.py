@@ -19,7 +19,6 @@ class Game(ConanFile):
             "stb/cci.20240531",
             "sqlite3/3.53.3",
             "luajit/2.1-20260720",
-            "opusfile/0.12",
             "yyjson/0.12.0",
             "zstd/1.5.7",
         ]:
@@ -33,8 +32,6 @@ class Game(ConanFile):
         api.options["mimalloc"].secure = False
         api.options["mimalloc"].override = True
         api.options["mimalloc"].single_object = api.settings.os != "Windows"
-
-        api.options["opusfile"].http = False
 
     def generate(self):
         api = cast(Any, self)
@@ -61,6 +58,9 @@ class Game(ConanFile):
             "STBI_NO_LINEAR",
             "STBI_NO_STDIO",
             "STBI_ONLY_PNG",
+            "STB_VORBIS_NO_INTEGER_CONVERSION",
+            "STB_VORBIS_NO_PUSHDATA_API",
+            "STB_VORBIS_NO_STDIO",
         ]:
             toolchain.preprocessor_definitions[definition] = None
         toolchain.generate()

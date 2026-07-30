@@ -16,6 +16,7 @@
 #include <exception>
 #include <filesystem>
 #include <format>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -49,10 +50,11 @@
 #include <entt/entt.hpp>
 #include <lua.hpp>
 #include <miniaudio.h>
-#include <opusfile.h>
 #include <SDL3/SDL.h>
 #include <sqlite3.h>
 #include <stb_image.h>
+#define STB_VORBIS_HEADER_ONLY
+#include <stb_vorbis.c>
 #include <yyjson.h>
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
@@ -102,7 +104,7 @@ extern struct viewport viewport;
 #include "spritesheetpool.hpp"
 #include "steam.hpp"
 #include "stringpool.hpp"
-#include "system.hpp"
+#include "runtime.hpp"
 #include "tilemap.hpp"
 #include "timer.hpp"
 #include "traceback.hpp"

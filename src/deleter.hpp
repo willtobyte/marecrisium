@@ -20,10 +20,8 @@ struct STBI_Deleter final {
   }
 };
 
-struct OggOpusFile_Deleter final {
-  void operator()(OggOpusFile* ptr) const noexcept {
-    if (!ptr) [[unlikely]] return;
-
-    op_free(ptr);
+struct STB_Vorbis_Deleter final {
+  void operator()(stb_vorbis* ptr) const noexcept {
+    stb_vorbis_close(ptr);
   }
 };
