@@ -74,9 +74,9 @@ extern struct resources *depot;
 
 extern struct viewport viewport;
 
-#include "xorshift.hpp"
+#include "lehmer.hpp"
 
-extern xorshift128 prng;
+extern lehmer prng;
 
 #include "achievement.hpp"
 #include "application.hpp"
