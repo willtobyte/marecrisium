@@ -1,4 +1,4 @@
-xorshift128 rng{};
+xorshift128 prng{};
 
 namespace {
 static int random_callback(lua_State *state) {
@@ -6,7 +6,7 @@ static int random_callback(lua_State *state) {
 
   switch (argc) {
     case 0:
-      lua_pushnumber(state, static_cast<lua_Number>(rng({.0f, 1.f})));
+      lua_pushnumber(state, static_cast<lua_Number>(prng({.0f, 1.f})));
       return 1;
 
     case 1: {
@@ -14,7 +14,7 @@ static int random_callback(lua_State *state) {
         luaL_checkinteger(state, 1),
         lua_Integer{1},
         static_cast<lua_Integer>(std::numeric_limits<int>::max())));
-      lua_pushinteger(state, static_cast<lua_Integer>(rng(1, maximum)));
+      lua_pushinteger(state, static_cast<lua_Integer>(prng(1, maximum)));
       return 1;
     }
 
@@ -25,7 +25,7 @@ static int random_callback(lua_State *state) {
       const auto maximum = static_cast<int>(std::clamp(luaL_checkinteger(state, 2), lower, upper));
       assert(minimum <= maximum && "random range must be ordered");
       [[assume(minimum <= maximum)]];
-      lua_pushinteger(state, static_cast<lua_Integer>(rng(minimum, maximum)));
+      lua_pushinteger(state, static_cast<lua_Integer>(prng(minimum, maximum)));
       return 1;
     }
   }
@@ -33,7 +33,7 @@ static int random_callback(lua_State *state) {
 
 static int randomseed_callback(lua_State *state) {
   const auto seed = static_cast<uint32_t>(luaL_checkinteger(state, 1));
-  rng.seed(seed);
+  prng.seed(seed);
   return 0;
 }
 }
@@ -54,7 +54,7 @@ void xorshift128::seed(uint32_t value) {
   }
 }
 
-uint32_t xorshift128::operator()() {
+uint32_t xorshift128::next() {
   auto t = state[3];
   t ^= t << 11;
   t ^= t >> 8;
@@ -70,7 +70,7 @@ uint32_t xorshift128::operator()() {
 float xorshift128::operator()(std::pair<float, float> range) {
   constexpr auto scale = 0x1.fffffep-33f;
   const auto [minimum, maximum] = range;
-  return minimum + (maximum - minimum) * (static_cast<float>((*this)()) * scale);
+  return minimum + (maximum - minimum) * (static_cast<float>(next()) * scale);
 }
 
 int xorshift128::operator()(int minimum, int maximum) {
@@ -78,17 +78,17 @@ int xorshift128::operator()(int minimum, int maximum) {
   [[assume(minimum <= maximum)]];
 
   const auto range = static_cast<uint32_t>(maximum) - static_cast<uint32_t>(minimum) + 1u;
-  auto raw = (*this)();
+  auto draw = next();
   if (range == 0) [[unlikely]]
-    return static_cast<int>(static_cast<int64_t>(minimum) + raw);
+    return static_cast<int>(static_cast<int64_t>(minimum) + draw);
 
-  auto product = static_cast<uint64_t>(raw) * static_cast<uint64_t>(range);
+  auto product = static_cast<uint64_t>(draw) * static_cast<uint64_t>(range);
   auto low = static_cast<uint32_t>(product);
   if (low < range) [[unlikely]] {
     const auto threshold = (-range) % range;
     while (low < threshold) [[unlikely]] {
-      raw = (*this)();
-      product = static_cast<uint64_t>(raw) * static_cast<uint64_t>(range);
+      draw = next();
+      product = static_cast<uint64_t>(draw) * static_cast<uint64_t>(range);
       low = static_cast<uint32_t>(product);
     }
   }

@@ -74,6 +74,10 @@ extern struct resources *depot;
 
 extern struct viewport viewport;
 
+#include "xorshift.hpp"
+
+extern xorshift128 prng;
+
 #include "achievement.hpp"
 #include "application.hpp"
 #include "cassette.hpp"
@@ -117,4 +121,3 @@ extern struct viewport viewport;
 #include "engine.hpp"
 #include "error.hpp"
 #include "user.hpp"
-#include "xorshift.hpp"

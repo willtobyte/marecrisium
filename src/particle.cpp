@@ -29,7 +29,7 @@ static T* column(T* values, size_t count) noexcept {
 }
 
 [[nodiscard]] static float sample(std::pair<float, float> range) {
-  return range.first == range.second ? range.first : rng(range);
+  return range.first == range.second ? range.first : prng(range);
 }
 
 static void sincos(float angle, float& sine, float& cosine) noexcept {
