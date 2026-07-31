@@ -54,7 +54,7 @@ void xorshift128::seed(uint32_t value) {
   }
 }
 
-[[nodiscard("RNG result should be used")]] uint32_t xorshift128::operator()() {
+uint32_t xorshift128::operator()() {
   auto t = state[3];
   t ^= t << 11;
   t ^= t >> 8;
@@ -67,13 +67,13 @@ void xorshift128::seed(uint32_t value) {
   return t;
 }
 
-[[nodiscard("RNG result should be used")]] float xorshift128::operator()(std::pair<float, float> range) {
+float xorshift128::operator()(std::pair<float, float> range) {
   constexpr auto scale = 0x1.fffffep-33f;
   const auto [minimum, maximum] = range;
   return minimum + (maximum - minimum) * (static_cast<float>((*this)()) * scale);
 }
 
-[[nodiscard("RNG result should be used")]] int xorshift128::operator()(int minimum, int maximum) {
+int xorshift128::operator()(int minimum, int maximum) {
   assert(minimum <= maximum && "random range must be ordered");
   [[assume(minimum <= maximum)]];
 
