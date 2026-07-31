@@ -38,3 +38,4 @@
 - Prefer `entt::hashed_string` for runtime string identifiers and `_hs` for literals when only identity matters. They avoid allocations, compute literal hashes at compile time, and enable fast integer comparisons and lookups.
 - Construct `entt::hashed_string` from null-terminated strings without specifying the length. Use the length overload only for non-null-terminated strings or strings containing embedded nulls.
 - The binary size increasing or decreasing is irrelevant.
+- Use `SDL_BLENDMODE_NONE` for things like backgrounds, but never scan an image’s pixels to determine whether it can be used.

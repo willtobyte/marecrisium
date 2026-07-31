@@ -65,6 +65,7 @@ void prepare(tilemap::layer& layer, std::string_view name, std::string_view path
     return;
 
   layer.atlas = depot->pixmap.get(std::format("tilemaps/{}/{}", name, path));
+  SDL_SetTextureBlendMode(static_cast<SDL_Texture*>(*layer.atlas), SDL_BLENDMODE_NONE);
 
   const auto aw = static_cast<float>(layer.atlas->width());
   const auto ah = static_cast<float>(layer.atlas->height());
