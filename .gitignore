@@ -28,5 +28,7 @@ stdout.txt
 # Fuzz
 fuzz/corpus/
 
-# Pi
+# Agents
+.cache
 .pi-subagents/
+CLAUDE.md

@@ -37,7 +37,6 @@ void scriptengine::run() {
   sound::wire();
   timer::wire();
   user::wire();
-  xorshift128::wire();
 
   lua_gc(L, LUA_GCSTOP, 0);
 

@@ -134,7 +134,6 @@ gamepad = nil
 ---also persist. Table proxies support `#`, `pairs`, and `ipairs` and become
 ---stale when their root key is replaced.
 ---@class Cassette
----@field seed? integer Project random seed.
 ---@field [string] CassetteValue|nil
 local Cassette = {}
 
@@ -615,21 +614,3 @@ timer = nil
 ---@field up boolean W, D-pad up, or left stick up.
 ---@field down boolean S, D-pad down, or left stick down.
 ---@field minimap boolean Tab or gamepad Back.
-
--- Random
-
----The shared xorshift128 generator is seeded automatically and is also used by
----particle emitters.
-
----Replace its state. The seed is truncated to 32 bits.
----@param seed integer
-function math.randomseed(seed) end
-
----With no bounds, return a number in [0, 1). With one bound, return an integer
----from 1 through that positive bound. With two, return an integer in the range.
----@overload fun(): number
----@overload fun(maximum: integer): integer
----@param minimum integer Inclusive signed 32-bit bound.
----@param maximum integer Inclusive signed 32-bit bound.
----@return integer
-function math.random(minimum, maximum) end

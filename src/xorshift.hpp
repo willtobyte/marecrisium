@@ -10,8 +10,6 @@ struct xorshift128 final {
   float operator()(std::pair<float, float> range);
   int operator()(int minimum, int maximum);
 
-  static void wire();
-
 private:
   uint32_t next();
 };
