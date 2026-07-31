@@ -1,9 +1,9 @@
 #pragma once
 
-struct lehmer final {
+struct mcg64 final {
   uint64_t state;
 
-  lehmer() { seed(std::random_device{}()); }
+  mcg64() { seed(std::random_device{}()); }
 
   constexpr void seed(uint32_t value) noexcept {
     constexpr auto increment = uint64_t{0x9E3779B97F4A7C15};

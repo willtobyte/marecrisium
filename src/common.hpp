@@ -74,9 +74,9 @@ extern struct resources *depot;
 
 extern struct viewport viewport;
 
-#include "lehmer.hpp"
+#include "mcg64.hpp"
 
-extern lehmer prng;
+extern mcg64 prng;
 
 #include "achievement.hpp"
 #include "application.hpp"
