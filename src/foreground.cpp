@@ -48,14 +48,18 @@ static int draw_callback(lua_State *state) {
     const auto cx = x + hw;
     const auto cy = y + hh;
 
-    auto sa = .0f, ca = 1.f;
-    if (angle != .0f)
-      sincos(to_radians(angle), sa, ca);
+    auto sine = .0f;
+    auto cosine = 1.f;
+    if (angle != .0f) {
+      const auto radians = angle * (std::numbers::pi_v<float> / 180.f);
+      sine = std::sin(radians);
+      cosine = std::cos(radians);
+    }
 
-    const auto dx0 = -hw * ca + hh * sa;
-    const auto dy0 = -hw * sa - hh * ca;
-    const auto dx1 = hw * ca + hh * sa;
-    const auto dy1 = hw * sa - hh * ca;
+    const auto dx0 = -hw * cosine + hh * sine;
+    const auto dy0 = -hw * sine - hh * cosine;
+    const auto dx1 = hw * cosine + hh * sine;
+    const auto dy1 = hw * sine - hh * cosine;
 
     vertices.emplace_back(SDL_Vertex{{cx + dx0, cy + dy0}, color, {.0f, .0f}});
     vertices.emplace_back(SDL_Vertex{{cx + dx1, cy + dy1}, color, {1.f, .0f}});

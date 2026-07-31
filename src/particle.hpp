@@ -1,7 +1,5 @@
 #pragma once
 
-void sincos(float x, float& sine, float& cosine);
-
 class pixmap;
 
 struct config final {

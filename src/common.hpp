@@ -89,7 +89,6 @@ extern struct viewport viewport;
 #include "keyboard.hpp"
 #include "locales.hpp"
 #include "marshal.hpp"
-#include "math.hpp"
 #include "mouse.hpp"
 #include "object.hpp"
 #include "particle.hpp"

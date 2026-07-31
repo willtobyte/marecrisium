@@ -1,7 +1,5 @@
 #pragma once
 
-void sincos(float x, float& sine, float& cosine);
-
 struct glypheffect final {
   float x_offset{.0f};
   float y_offset{.0f};

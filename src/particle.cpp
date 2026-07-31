@@ -1,4 +1,7 @@
 namespace {
+constexpr auto crossing = .7035f;
+constexpr auto curvature = -.814f;
+
 namespace lookup {
   constexpr auto active = "active"_hs;
   constexpr auto x = "x"_hs;
@@ -27,6 +30,24 @@ static T* column(T* values, size_t count) noexcept {
 
 [[nodiscard]] static float sample(std::pair<float, float> range) {
   return range.first == range.second ? range.first : rng(range);
+}
+
+static void sincos(float angle, float& sine, float& cosine) noexcept {
+  const auto raw = angle * (2.f * std::numbers::inv_pi_v<float>);
+  const auto quadrant = static_cast<int>(raw) - static_cast<int>(raw < .0f);
+  const auto reduced = raw - static_cast<float>(quadrant) - .5f;
+  const auto shared = curvature * reduced * reduced + crossing;
+  auto sin = std::bit_cast<std::uint32_t>(shared + reduced);
+  auto cos = std::bit_cast<std::uint32_t>(shared - reduced);
+  const auto index = quadrant & 3;
+  const auto selection = 0u - static_cast<std::uint32_t>(index & 1);
+  const auto difference = (sin ^ cos) & selection;
+  sin ^= difference;
+  cos ^= difference;
+  const auto ss = static_cast<std::uint32_t>(index & 2) << 30;
+  const auto cs = static_cast<std::uint32_t>((index + 1) & 2) << 30;
+  sine = std::bit_cast<float>(sin ^ ss);
+  cosine = std::bit_cast<float>(cos ^ cs);
 }
 
 static int index(lua_State* state) {
@@ -196,13 +217,13 @@ void particle::update(float delta) {
         continue;
 
       const auto radius = sample(_radius_range);
-      const auto a = sample(_angle_range);
+      const auto angle = sample(_angle_range);
 
-      float sa, ca;
-      sincos(a, sa, ca);
+      float sine, cosine;
+      sincos(angle, sine, cosine);
 
-      xs[i] = px + sample(_spawn_x_range) + radius * ca;
-      ys[i] = py + sample(_spawn_y_range) + radius * sa;
+      xs[i] = px + sample(_spawn_x_range) + radius * cosine;
+      ys[i] = py + sample(_spawn_y_range) + radius * sine;
       vxs[i] = sample(_velocity_x_range);
       vys[i] = sample(_velocity_y_range);
       gxs[i] = sample(_gravity_x_range);
@@ -211,7 +232,7 @@ void particle::update(float delta) {
       afs[i] = sample(_rotation_force_range);
       life[i] = sample(_life_range);
       scales[i] = sample(_scale_range);
-      angles[i] = a;
+      angles[i] = angle;
     }
   }
 
@@ -269,13 +290,13 @@ void particle::draw() {
     const auto sw = hw * sc;
     const auto sh = hh * sc;
 
-    float sa, ca;
-    sincos(angles[i], sa, ca);
+    float sine, cosine;
+    sincos(angles[i], sine, cosine);
 
-    const auto dx0 = -sw * ca + sh * sa;
-    const auto dy0 = -sw * sa - sh * ca;
-    const auto dx1 = sw * ca + sh * sa;
-    const auto dy1 = sw * sa - sh * ca;
+    const auto dx0 = -sw * cosine + sh * sine;
+    const auto dy0 = -sw * sine - sh * cosine;
+    const auto dx1 = sw * cosine + sh * sine;
+    const auto dy1 = sw * sine - sh * cosine;
 
     out[0].position = {px + dx0, py + dy0};
     out[0].color.a = alpha;

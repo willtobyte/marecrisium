@@ -1089,14 +1089,18 @@ void stage::draw() {
     const auto mx = px + hw;
     const auto my = py + hh;
 
-    auto sa = .0f, ca = 1.f;
-    if (tf.angle != .0f) [[unlikely]]
-      sincos(to_radians(tf.angle), sa, ca);
+    auto sine = .0f;
+    auto cosine = 1.f;
+    if (tf.angle != .0f) [[unlikely]] {
+      const auto radians = tf.angle * (std::numbers::pi_v<float> / 180.f);
+      sine = std::sin(radians);
+      cosine = std::cos(radians);
+    }
 
-    const auto dx0 = -hw * ca + hh * sa;
-    const auto dy0 = -hw * sa - hh * ca;
-    const auto dx1 = hw * ca + hh * sa;
-    const auto dy1 = hw * sa - hh * ca;
+    const auto dx0 = -hw * cosine + hh * sine;
+    const auto dy0 = -hw * sine - hh * cosine;
+    const auto dx1 = hw * cosine + hh * sine;
+    const auto dy1 = hw * sine - hh * cosine;
 
     const SDL_FColor color{1.f, 1.f, 1.f, alpha};
 
@@ -1476,9 +1480,9 @@ int stage::radar(lua_State *state, entt::entity caller, float x, float y, float 
 }
 
 int stage::raycast(lua_State* state, entt::entity caller, float x, float y, float angle, float distance) {
-  const auto radians = to_radians(angle);
-  auto sine = .0f, cosine = .0f;
-  sincos(radians, sine, cosine);
+  const auto radians = angle * (std::numbers::pi_v<float> / 180.f);
+  const auto sine = std::sin(radians);
+  const auto cosine = std::cos(radians);
   const b2Vec2 origin{x, y};
   const b2Vec2 translation{cosine * distance, sine * distance};
 
