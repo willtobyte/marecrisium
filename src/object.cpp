@@ -35,21 +35,6 @@ namespace {
     constexpr auto on_unhover = "on_unhover"_hs;
   }
 
-  static void sync_body_position(body& bd, const transform& tf, const animation* an, bool changed) {
-    const frame* frame = nullptr;
-    if (an && an->playing && an->sheet->count > 0) [[likely]]
-      frame = &an->sheet->frames[an->sheet->clips[an->active].offset + an->current];
-
-    const auto center = center_of(bd, tf, frame);
-    if (!changed) {
-      const auto current = b2Body_GetPosition(bd.id);
-      if (current.x == center.x && current.y == center.y)
-        return;
-    }
-
-    b2Body_SetTransform(bd.id, center, b2Rot_identity);
-  }
-
   struct prototype_hash final {
     using is_transparent = void;
 
@@ -283,9 +268,8 @@ namespace {
         if (changed && registry.all_of<dormant>(entity))
           registry.ctx().get<dormancy>().dirty = true;
 
-        auto* b = registry.try_get<body>(entity);
-        if (b && anchored(*b)) [[likely]]
-          sync_body_position(*b, tf, registry.try_get<animation>(entity), changed);
+        if (auto* b = registry.try_get<body>(entity); b && anchored(*b)) [[likely]]
+          b->dirty = true;
 
         return 0;
       }
@@ -298,9 +282,8 @@ namespace {
         if (changed && registry.all_of<dormant>(entity))
           registry.ctx().get<dormancy>().dirty = true;
 
-        auto* b = registry.try_get<body>(entity);
-        if (b && anchored(*b)) [[likely]]
-          sync_body_position(*b, tf, registry.try_get<animation>(entity), changed);
+        if (auto* b = registry.try_get<body>(entity); b && anchored(*b)) [[likely]]
+          b->dirty = true;
 
         return 0;
       }

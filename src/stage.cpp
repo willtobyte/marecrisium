@@ -824,6 +824,18 @@ void stage::update(float delta) {
 
   _interpolation.before = _interpolation.current;
 
+  for (auto&& [en, b, tf] : _registry.view<body, transform>().each()) {
+    if (!b.dirty) [[unlikely]]
+      continue;
+    b.dirty = false;
+    const auto* an = _registry.try_get<animation>(en);
+    const frame* frame = nullptr;
+    if (an && an->playing && an->sheet->count > 0) [[likely]]
+      frame = &an->sheet->frames[an->sheet->clips[an->active].offset + an->current];
+    const auto center = center_of(b, tf, frame);
+    b2Body_SetTransform(b.id, center, b2Rot_identity);
+  }
+
   auto steps = 0;
   while (_accumulator >= _timestep) {
     for (auto&& [en, b, an, tf] :

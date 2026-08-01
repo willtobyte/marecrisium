@@ -115,6 +115,7 @@ struct body final {
   body_type type{body_type::kinematic};
   bool events{};
   bool moving{};
+  bool dirty{};
   const frame* snapshot{};
   float target_x{};
   float target_y{};
