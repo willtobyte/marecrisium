@@ -1,5 +1,6 @@
 # Rules
 
+- **Always design with simplicity and performance in mind.**
 - Assume valid, author-provided input. Optimize for the happy path.
 - Keep changes small, focused, and minimal. Never refactor unrelated code.
 - Prefer the simplest correct solution.
