@@ -1,43 +1,13 @@
 # Rules
 
 - **Always design with simplicity and performance in mind.**
-- Assume valid, author-provided input. Optimize for the happy path.
-- Keep changes small, focused, and minimal. Never refactor unrelated code.
-- Prefer the simplest correct solution.
-- Do not create branches or commits.
-- Backward compatibility is not required for project-specific formats.
-- Only create functions, methods, or similar abstractions when they will be used more than once. Prefer straightforward, top-to-bottom code, as it is easier to read, understand, and maintain.
-- Support only little-endian systems.
-- Support Apple Silicon on macOS and AMD64 on Windows.
-- Always use Linux Docker with a Rosetta-backed AMD64 userspace for builds, testing, profiling, and instrumentation.
-- Use Wine only inside Linux Docker when validating Windows builds. **Never use Wine on macOS.**
-- Target **idiomatic & modern** C++23. Prefer C++ features such as `auto`, `constexpr`, `const`, and `final` whenever appropriate.
-- Prefer `constexpr` whenever possible to enable compile-time evaluation and **eliminate unnecessary runtime overhead**.
-- Avoid lambdas. Prefer `static` functions in an anonymous namespace, but only when doing so results in simpler code.
-- Always use `noexcept` where appropriate. Do not swallow important exceptions. Allocation failures may be ignored.
-- Add headers only to `common.hpp`, and only when necessary.
-- On Win32, `main.cpp` must include `SDL3/SDL_main.h`.
-- The code must compile and run correctly with both Clang (macOS) and MSVC (Windows) without platform-specific changes.
-- Prefer short, one word, descriptive names.
-- Local variables should be a single word whenever practical. Use abbreviations only when they remain clear (for example, `vs` for vertical space).
-- The project is strictly single-threaded. Never use mutexes or `thread_local`.
-- Minimize allocations, copies, and runtime overhead.
-- Prefer O(1), SIMD-friendly, branchless, and cache-friendly implementations whenever practical.
-- Use `[[assume]]`, `likely`, and `unlikely` only when they provide measurable improvements on the hot path.
-- Prefer `std::make_unique_for_overwrite` when appropriate.
-- Raw non-owning pointers are acceptable when ownership is explicit.
-- Never introduce memory leaks or undefined behavior.
-- Every C++ change to the Lua API must also update `types/game.lua`.
-- LuaJIT only. Keep Lua code LuaJIT-friendly and performance-oriented.
-- Measure every change in **Release*- mode before and after.
-- Always collect runtime, memory usage, and allocation metrics.
-- Inspect the generated assembly. Benchmarks alone are not sufficient.
-- Enable compiler warnings, sanitizers, and fuzzing whenever applicable.
-- Validate with unit and smoke tests, then remove any temporary tests before finishing.
-- Run all benchmarks, profiling, sanitizers, fuzzing, memory-leak detection, allocation tracking, and other instrumentation inside Linux Docker.
-- Always check for bugs, undefined behavior, memory leaks, data races, and other correctness or reliability issues. If you find any, fix them while keeping changes small, focused, and aligned with the happy path.
-- Prefer `entt::hashed_string` for runtime string identifiers and `_hs` for literals when only identity matters. They avoid allocations, compute literal hashes at compile time, and enable fast integer comparisons and lookups.
-- Construct `entt::hashed_string` from null-terminated strings without specifying the length. Use the length overload only for non-null-terminated strings or strings containing embedded nulls.
-- The binary size increasing or decreasing is irrelevant.
-- Use `SDL_BLENDMODE_NONE` for things like backgrounds, but never scan an image’s pixels to determine whether it can be used.
+- **Support only little-endian systems**.
+- **Target idiomatic & modern C++23. Prefer C++ features such as `auto`, `constexpr`, `const`, and `final` whenever appropriate.**
+- **Minimize allocations, copies, and runtime overhead.**
+- **Prefer O(1), SIMD-friendly, branchless, and cache-friendly implementations whenever practical.**
+- **Every C++ change to the Lua API must also update `types/game.lua`.**
+- **LuaJIT only. Keep Lua code LuaJIT-friendly and performance-oriented.**
 - **Every performance-related change requires empirical benchmarking. Always measure and compare the before and after results, and present the evidence demonstrating the impact.**
+- **Run all benchmarks, profiling, sanitizers, fuzzing, memory-leak detection, allocation tracking, and other instrumentation on macOS 26 using Xcode Instruments and Apple Clang.**
+- **Use `assert` and `[[assume ..` whenever appropriate, always assuming the happy path.**
+- **Always assume the happy path. Treat all inputs as safe and trusted.**
