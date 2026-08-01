@@ -67,7 +67,7 @@ private:
   b2WorldId _physics{};
   float _timestep{1.f / 60.f};
   float _accumulator{};
-  int _substeps{4};
+  int _substeps{1};
 
   struct {
     struct {

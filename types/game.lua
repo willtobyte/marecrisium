@@ -210,6 +210,7 @@ cassette = nil
 ---Stage definition and callbacks owned by the script.
 ---@class Stage
 ---@field gravity? Vector2 Defaults to {0, 0}.
+---@field substeps? integer Solver sub-steps per physics tick. Defaults to 1. Increase to 2 or 4 for stages with gravity or tight stacking.
 ---@field objects? StageObject[]
 ---@field sounds? StageSound[]
 ---@field particles? StageParticle[]

@@ -383,6 +383,11 @@ stage::stage(std::string name)
 
   lua_pop(L, 1);
 
+  lua_getfield(L, -1, "substeps");
+  if (lua_isnumber(L, -1))
+    _substeps = static_cast<int>(lua_tointeger(L, -1));
+  lua_pop(L, 1);
+
   b2WorldDef def = b2DefaultWorldDef();
   def.gravity = gravity;
   _physics = b2CreateWorld(&def);
