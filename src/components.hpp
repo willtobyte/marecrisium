@@ -112,6 +112,8 @@ struct body final {
   b2ShapeId shape{b2_nullShapeId};
   float extent_x{};
   float extent_y{};
+  float origin_x{};
+  float origin_y{};
   body_type type{body_type::kinematic};
   bool events{};
   bool moving{};
@@ -136,8 +138,8 @@ inline bool anchored(const body& b) {
 }
 
 inline b2Vec2 center_of(const body& b, const transform& tf, const frame* frame = nullptr) {
-  const auto ox = frame ? frame->bound_x : .0f;
-  const auto oy = frame ? frame->bound_y : .0f;
+  const auto ox = frame ? frame->bound_x : b.origin_x;
+  const auto oy = frame ? frame->bound_y : b.origin_y;
   return {tf.x + ox + b.extent_x, tf.y + oy + b.extent_y};
 }
 

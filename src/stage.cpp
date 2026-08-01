@@ -87,6 +87,8 @@ static void sync_body(body& b, const frame& frame, entt::entity entity, const tr
   auto created = false;
   if (b.snapshot != &frame) [[unlikely]] {
     b.snapshot = &frame;
+    b.origin_x = frame.bound_x;
+    b.origin_y = frame.bound_y;
     const auto hx = frame.bound_width * .5f;
     const auto hy = frame.bound_height * .5f;
 
@@ -830,24 +832,42 @@ void stage::update(float delta) {
     b.dirty = false;
     const auto* an = _registry.try_get<animation>(en);
     const frame* frame = nullptr;
-    if (an && an->playing && an->sheet->count > 0) [[likely]]
+    if (an && an->playing && an->sheet->count > 0) [[likely]] {
       frame = &an->sheet->frames[an->sheet->clips[an->active].offset + an->current];
+      if (B2_IS_NULL(b.shape)) [[unlikely]]
+        sync_body(b, *frame, en, tf, _timestep);
+    }
     const auto center = center_of(b, tf, frame);
     b2Body_SetTransform(b.id, center, b2Rot_identity);
   }
 
   auto steps = 0;
   while (_accumulator >= _timestep) {
-    for (auto&& [en, b, an, tf] :
-         _registry.view<body, animation, transform>(entt::exclude<dormant>).each()) {
+    for (auto&& [en, b, tf] :
+         _registry.view<body, transform>(entt::exclude<dormant>).each()) {
       if (b.type == body_type::dynamic) {
         tf.previous_x = tf.x;
         tf.previous_y = tf.y;
+        continue;
       }
 
-      const auto& frame = an.sheet->frames[an.sheet->clips[an.active].offset + an.current];
-
-      sync_body(b, frame, en, tf, _timestep);
+      if (b.type == body_type::kinematic) {
+        const auto center = b2Vec2{tf.x + b.origin_x + b.extent_x, tf.y + b.origin_y + b.extent_y};
+        if (center.x != b.target_x || center.y != b.target_y) [[unlikely]] {
+          b.target_x = center.x;
+          b.target_y = center.y;
+          b2Body_SetTargetTransform(b.id, {center, b2Rot_identity}, _timestep);
+          b.moving = true;
+          continue;
+        }
+        if (!b.moving) [[likely]]
+          continue;
+        const auto position = b2Body_GetPosition(b.id);
+        if (position.x == center.x && position.y == center.y) {
+          b2Body_SetLinearVelocity(b.id, b2Vec2_zero);
+          b.moving = false;
+        }
+      }
     }
 
     b2World_Step(_physics, _timestep, _substeps);
@@ -1328,7 +1348,7 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
 
       const auto id = b2CreateBody(_physics, &bdef);
       const auto events = op.blueprint->on_collision_begin != LUA_NOREF || op.blueprint->on_collision_end != LUA_NOREF;
-      _registry.emplace<body>(entity, id, b2_nullShapeId, .0f, .0f, type, events);
+      _registry.emplace<body>(entity, id, b2_nullShapeId, .0f, .0f, .0f, .0f, type, events, false, true);
 
       if (op.blueprint->on_screen_exit != LUA_NOREF || op.blueprint->on_screen_enter != LUA_NOREF)
         _registry.emplace<boundary>(entity);
