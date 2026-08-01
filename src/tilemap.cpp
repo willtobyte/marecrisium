@@ -12,51 +12,51 @@ constexpr auto solid = uint8_t{1};
 constexpr auto firsttile = uint32_t{1};
 constexpr auto halfscale = .5f;
 constexpr auto fullscale = 1.f;
-constexpr std::array pattern{int32_t{0}, int32_t{1}, int32_t{2}, int32_t{0}, int32_t{2}, int32_t{3}};
-
 [[nodiscard]] constexpr uint32_t little(const uint8_t* bytes) noexcept {
-  auto value = uint32_t{};
-  constexpr auto bits = std::numeric_limits<uint8_t>::digits;
-  for (size_t i{}; i < sizeof(value); ++i)
-    value |= static_cast<uint32_t>(bytes[i]) << (i * bits);
-
+  uint32_t value;
+  std::memcpy(&value, bytes, sizeof(value));
   return value;
 }
 
 [[nodiscard]] bool vacant(std::span<const uint8_t> bytes) noexcept {
-  while (bytes.size() >= sizeof(uint64_t)) {
+  const auto* p = bytes.data();
+  const auto* const end = p + bytes.size();
+  while (p + sizeof(uint64_t) <= end) {
     uint64_t word;
-    std::memcpy(&word, bytes.data(), sizeof(word));
-    if (word != uint64_t{}) [[likely]]
+    std::memcpy(&word, p, sizeof(word));
+    if (word) [[likely]]
       return false;
-
-    bytes = bytes.subspan(sizeof(word));
+    p += sizeof(word);
   }
-
-  for (const auto byte : bytes)
-    if (byte != empty) [[likely]]
+  while (p < end)
+    if (*p++) [[likely]]
       return false;
-
   return true;
 }
 
 void buffers(tilemap::layer& layer, size_t capacity) {
-  const auto first = layer.indices.size() / pattern.size();
+  constexpr auto indices = corners + corners / 2uz;
+  const auto first = layer.indices.size() / indices;
   if (first >= capacity) [[likely]]
     return;
 
   layer.vertices.reserve(capacity * corners);
-  layer.indices.resize(capacity * pattern.size());
+  layer.indices.resize(capacity * indices);
 
-  auto* output = layer.indices.data() + first * pattern.size();
+  auto* output = layer.indices.data() + first * indices;
 
   assert(output != nullptr && "tilemap index buffer must exist");
   [[assume(output != nullptr)]];
 
   for (auto i = first; i < capacity; ++i) {
     const auto base = static_cast<int32_t>(i * corners);
-    for (const auto offset : pattern)
-      *output++ = base + offset;
+    output[0] = base;
+    output[1] = base + 1;
+    output[2] = base + 2;
+    output[3] = base;
+    output[4] = base + 2;
+    output[5] = base + 3;
+    output += indices;
   }
 }
 
@@ -84,14 +84,13 @@ void prepare(tilemap::layer& layer, std::string_view name, std::string_view path
 
   layer.uvs.resize(count);
   for (size_t id = 0; id < count; ++id) {
-    const auto column = static_cast<float>(id % tpr);
-    const auto rowid = id / tpr;
-    const auto row = static_cast<float>(rowid);
+    const auto cf = static_cast<float>(id % tpr);
+    const auto rf = static_cast<float>(id / tpr);
     layer.uvs[id] = {
-      column * us + htu,
-      row * vs + htv,
-      (column + fullscale) * us - htu,
-      (row + fullscale) * vs - htv,
+      cf * us + htu,
+      rf * vs + htv,
+      (cf + fullscale) * us - htu,
+      (rf + fullscale) * vs - htv,
     };
   }
 }
@@ -101,13 +100,14 @@ void render(const tilemap::layer& layer) {
   if (vertices == 0) [[unlikely]]
     return;
 
+  constexpr auto indices = corners + corners / 2uz;
   SDL_RenderGeometry(
     renderer,
     static_cast<SDL_Texture*>(*layer.atlas),
     layer.vertices.data(),
     static_cast<int>(vertices),
     layer.indices.data(),
-    static_cast<int>(vertices / corners * pattern.size())
+    static_cast<int>(vertices / corners * indices)
   );
 }
 }
@@ -284,15 +284,15 @@ void tilemap::tessellate(layer& current) {
 
   for (auto row = sr; row <= er; ++row, ro += _width, dy += _size) {
     const auto y1 = dy + _size;
+    auto x0 = static_cast<float>(sc) * _size - viewport.x;
 
-    for (auto column = sc; column <= ec; ++column) {
+    for (auto column = sc; column <= ec; ++column, x0 += _size) {
       const auto ti = current.tiles[static_cast<size_t>(ro + column)];
       if (ti == uint32_t{}) [[unlikely]]
         continue;
 
       assert(static_cast<size_t>(ti - firsttile) < current.uvs.size() && "tile index out of bounds");
       const auto& uv = current.uvs[ti - firsttile];
-      const auto x0 = static_cast<float>(column) * _size - viewport.x;
       const auto x1 = x0 + _size;
 
       *vp++ = SDL_Vertex{{x0, dy}, white, {uv.u0, uv.v0}};
