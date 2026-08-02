@@ -53,6 +53,7 @@
 #include <lua.hpp>
 #include <miniaudio.h>
 #include <SDL3/SDL.h>
+#include <simde/x86/sse2.h>
 #include <sqlite3.h>
 #include <stb_image.h>
 #define STB_VORBIS_HEADER_ONLY

@@ -174,7 +174,7 @@ cassette = nil
 
 ---Emitter configuration read when its kind is first loaded.
 ---@class ParticleConfig
----@field count integer Must be positive.
+---@field count integer Must be a positive multiple of 4.
 ---@field spawn? ParticleSpawnConfig
 ---@field velocity? ParticleAxisConfig
 ---@field gravity? ParticleAxisConfig

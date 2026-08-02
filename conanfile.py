@@ -16,6 +16,7 @@ class Game(ConanFile):
             "miniaudio/0.11.22",
             "mimalloc/3.3.2",
             "sdl/3.4.8",
+            "simde/0.8.4-rc3",
             "stb/cci.20240531",
             "sqlite3/3.53.3",
             "luajit/2.1-20260720",
