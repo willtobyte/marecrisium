@@ -3,6 +3,8 @@ local floor = math.floor
 local format = string.format
 
 local elapsed = 0
+local timer = "00:00"
+local second = 0
 local title = _("Mare Crisium")
 local length = #title
 local effects = {}
@@ -36,6 +38,12 @@ return {
 	on_loop = function(self, delta)
 		elapsed = elapsed + delta
 
+		local current = floor(elapsed)
+		if current ~= second then
+			second = current
+			timer = format("%02d:%02d", floor(current / 60), current % 60)
+		end
+
 		for i = 1, length do
 			local offset = i - 1
 			local effect = effects[i]
@@ -47,10 +55,7 @@ return {
 	end,
 
 	on_paint = function(self)
-		local minutes = floor(elapsed / 60)
-		local seconds = floor(elapsed % 60)
-
 		self.pixel:label(title, 3, 3, effects)
-		self.pixel:label(format("%02d:%02d", minutes, seconds), 3, 18)
+		self.pixel:label(timer, 3, 18)
 	end,
 }

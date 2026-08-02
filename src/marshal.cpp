@@ -110,7 +110,10 @@ void marshal::decode(lua_State *state, yyjson_val *value) {
   }
 }
 
-yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *document) {
+yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *document, table_resolver resolve) {
+  assert(resolve && "table resolver must exist");
+  [[assume(resolve)]];
+
   const auto source = (index > 0 || index <= LUA_REGISTRYINDEX)
     ? index
     : lua_gettop(state) + index + 1;
@@ -150,7 +153,7 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
         const auto size = static_cast<int>(lua_objlen(state, source));
         for (auto slot = 1; slot <= size; ++slot) {
           lua_rawgeti(state, source, slot);
-          yyjson_mut_arr_append(array, encode(state, -1, document));
+          yyjson_mut_arr_append(array, encode(state, -1, document, resolve));
           lua_pop(state, 1);
         }
 
@@ -162,8 +165,17 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
       while (lua_next(state, source) != 0) {
         const auto type = lua_type(state, -2);
         const auto supported = type == LUA_TSTRING || type == LUA_TNUMBER;
-        assert(supported && "cassette key must be a string or number");
-        [[assume(supported)]];
+        if (!supported) [[unlikely]] {
+          lua_pop(state, 2);
+          if (resolve(state, source)) {
+            auto *value = encode(state, -1, document, resolve);
+            lua_pop(state, 1);
+            return value;
+          }
+
+          assert(supported && "cassette key must be a string or number");
+          [[assume(supported)]];
+        }
 
         yyjson_mut_val *key;
         if (type == LUA_TNUMBER) {
@@ -196,7 +208,7 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
           }
         }
 
-        auto *value = encode(state, -1, document);
+        auto *value = encode(state, -1, document, resolve);
         yyjson_mut_obj_add(object, key, value);
         lua_pop(state, 1);
       }

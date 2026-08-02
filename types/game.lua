@@ -129,10 +129,9 @@ gamepad = nil
 
 ---@alias CassetteValue boolean|number|string|table
 
----Persistent key-value storage for JSON-compatible values. Writes persist
----immediately; assigning nil deletes a key. Nested writes to returned tables
----also persist. Table proxies support `#`, `pairs`, and `ipairs` and become
----stale when their root key is replaced.
+---Persistent JSON-compatible Lua storage. Numbers use LuaJIT double precision.
+---Writes persist immediately; nil deletes. Nested writes persist. Proxies support
+---`#`, `pairs`, and `ipairs`, and become stale after root replacement.
 ---@class Cassette
 ---@field [string] CassetteValue|nil
 local Cassette = {}

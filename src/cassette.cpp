@@ -31,10 +31,21 @@ std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_upsert;
 std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_delete;
 std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_clear;
 
-char holder;
 char identity;
+char proxy_data;
 int revisions{LUA_NOREF};
 uint64_t revision{};
+
+static bool resolve_proxy(lua_State *state, int table) {
+  lua_pushlightuserdata(state, &proxy_data);
+  lua_rawget(state, table);
+
+  if (lua_istable(state, -1))
+    return true;
+
+  lua_pop(state, 1);
+  return false;
+}
 
 static void push_revision(lua_State* state, std::string_view key) {
   lua_rawgeti(state, LUA_REGISTRYINDEX, revisions);
@@ -95,7 +106,7 @@ static auto load(lua_State *state, std::string_view key) {
 
 static void save(lua_State *state, std::string_view key, int index) {
   const auto document = std::unique_ptr<yyjson_mut_doc, json_deleter>{yyjson_mut_doc_new(nullptr)};
-  auto *root = marshal::encode(state, index, document.get());
+  auto *root = marshal::encode(state, index, document.get(), resolve_proxy);
   yyjson_mut_doc_set_root(document.get(), root);
 
   auto length = 0uz;
@@ -141,10 +152,8 @@ static int proxy_newindex(lua_State *state) {
 }
 
 static int length_callback(lua_State *state) {
-  lua_getmetatable(state, 1);
-  lua_pushlightuserdata(state, &holder);
-  lua_rawget(state, -2);
-  lua_remove(state, -2);
+  lua_pushlightuserdata(state, &proxy_data);
+  lua_rawget(state, 1);
   lua_pushinteger(state, static_cast<lua_Integer>(lua_objlen(state, -1)));
   return 1;
 }
@@ -179,10 +188,8 @@ static int iterate_callback(lua_State *state) {
 }
 
 static int pairs_callback(lua_State *state) {
-  lua_getmetatable(state, 1);
-  lua_pushlightuserdata(state, &holder);
-  lua_rawget(state, -2);
-  lua_remove(state, -2);
+  lua_pushlightuserdata(state, &proxy_data);
+  lua_rawget(state, 1);
   lua_pushvalue(state, -1);
   lua_pushboolean(state, false);
   lua_pushcclosure(state, iterate_callback, 2);
@@ -192,10 +199,8 @@ static int pairs_callback(lua_State *state) {
 }
 
 static int ipairs_callback(lua_State *state) {
-  lua_getmetatable(state, 1);
-  lua_pushlightuserdata(state, &holder);
-  lua_rawget(state, -2);
-  lua_remove(state, -2);
+  lua_pushlightuserdata(state, &proxy_data);
+  lua_rawget(state, 1);
   lua_pushvalue(state, -1);
   lua_pushboolean(state, true);
   lua_pushcclosure(state, iterate_callback, 2);
@@ -215,18 +220,20 @@ static int proxy_index(lua_State *state) {
     return 1;
 
   const auto index = lua_gettop(state);
+  if (resolve_proxy(state, index))
+    lua_replace(state, index);
+
   proxify(state, index, lua_upvalueindex(2), lua_upvalueindex(3));
   return 1;
 }
 
 static void proxify(lua_State *state, int data, int key, int root) {
   lua_newtable(state);
-  lua_createtable(state, 0, 6);
-
-  lua_pushlightuserdata(state, &holder);
+  lua_pushlightuserdata(state, &proxy_data);
   lua_pushvalue(state, data);
   lua_rawset(state, -3);
 
+  lua_createtable(state, 0, 5);
   lua_pushvalue(state, data);
   lua_pushvalue(state, key);
   lua_pushvalue(state, root);
@@ -306,7 +313,6 @@ static int newindex(lua_State *state) {
   auto size = 0uz;
   const auto* name = luaL_checklstring(state, 2, &size);
   const auto key = std::string_view{name, size};
-  auto value = 3;
 
   if (lua_isnil(state, 3)) [[unlikely]] {
     sqlite3_bind_text(stmt_delete.get(), 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
@@ -315,17 +321,7 @@ static int newindex(lua_State *state) {
     return 0;
   }
 
-  if (lua_getmetatable(state, value)) {
-    lua_pushlightuserdata(state, &holder);
-    lua_rawget(state, -2);
-    lua_remove(state, -2);
-
-    lua_istable(state, -1)
-      ? static_cast<void>(value = lua_gettop(state))
-      : static_cast<void>(lua_pop(state, 1));
-  }
-
-  save(state, key, value);
+  save(state, key, 3);
   invalidate(state, key);
   return 0;
 }
