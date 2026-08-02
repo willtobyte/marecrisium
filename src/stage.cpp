@@ -1052,7 +1052,7 @@ void stage::draw() {
 
   _tilemap.draw_background();
 
-  auto view = _registry.view<const renderable, const animation, const transform>(entt::exclude<dormant>);
+  auto view = _registry.view<const renderable, const animation, transform>(entt::exclude<dormant>);
   view.use<renderable>();
 
   const auto capacity = view.size_hint();
@@ -1093,8 +1093,15 @@ void stage::draw() {
 
     const auto dw = frame.width * tf.scale;
     const auto dh = frame.height * tf.scale;
-    const auto px = std::floor(rx - viewport.x);
-    const auto py = std::floor(ry - viewport.y);
+    auto px = rx - viewport.x;
+    auto py = ry - viewport.y;
+    const auto moved = tf.moved;
+    if (moved) [[unlikely]]
+      tf.moved = false;
+    if (moved || tf.previous_x != tf.x || tf.previous_y != tf.y) [[unlikely]] {
+      px = std::floor(px);
+      py = std::floor(py);
+    }
 
     if (px + dw < .0f || px > viewport.width ||
         py + dh < .0f || py > viewport.height)

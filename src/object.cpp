@@ -264,6 +264,7 @@ namespace {
         auto& tf = registry.get<transform>(entity);
         const auto value = static_cast<float>(luaL_checknumber(state, 3));
         const auto changed = tf.x != value;
+        tf.moved = tf.moved || changed;
         tf.previous_x = tf.x = value;
         if (changed && registry.all_of<dormant>(entity))
           registry.ctx().get<dormancy>().dirty = true;
@@ -278,6 +279,7 @@ namespace {
         auto& tf = registry.get<transform>(entity);
         const auto value = static_cast<float>(luaL_checknumber(state, 3));
         const auto changed = tf.y != value;
+        tf.moved = tf.moved || changed;
         tf.previous_y = tf.y = value;
         if (changed && registry.all_of<dormant>(entity))
           registry.ctx().get<dormancy>().dirty = true;

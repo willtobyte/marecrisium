@@ -14,3 +14,4 @@
 - **All `#include` directives, of any kind, must be placed exclusively in `common.hpp` (see the current implementation), except `#include <SDL3/SDL_main.h>` in `main.cpp` and the single-header implementations in `miniaudio.cpp` and `stb.cpp`. Keep them grouped by category and sorted alphabetically. We use a precompiled header (PCH).**
 - **Only create functions, methods, or abstractions if they will be used more than once. Prefer linear code whenever possible, as it is easier to read, understand, and maintain.**
 - **All instrumentation-related code, tests, benchmarks, profiling tools, and similar artifacts must never be placed inside the project directory.**
+- **Git: Never create branches or make commits.**

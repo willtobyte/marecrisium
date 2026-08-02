@@ -20,10 +20,12 @@ struct transform final {
   float angle{};
   float alpha{255.f};
   bool shown{true};
+  bool moved{};
   mirror flip{mirror::none};
 };
 
 static_assert(std::is_trivially_copyable_v<transform>, "transform must be trivially copyable");
+static_assert(sizeof(transform) == 32, "transform must fit in 32 bytes");
 
 struct frame final {
   float x{};
