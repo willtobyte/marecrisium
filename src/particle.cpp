@@ -352,6 +352,7 @@ void particle::draw() {
       output[3].position = {x3[lane], y3[lane]};
       output[3].color.a = alpha[lane];
     }
+
     out += 16;
   }
 
