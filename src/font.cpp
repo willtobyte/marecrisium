@@ -1,11 +1,10 @@
 namespace {
 template <typename T>
-void number(lua_State *state, int table, const char *field, T &value) {
+void number(lua_State *state, int table, const char *field, T &value, T fallback = {}) {
   lua_getfield(state, table, field);
   auto valid = 0;
   const auto result = lua_tonumberx(state, -1, &valid);
-  if (valid)
-    value = static_cast<T>(result);
+  value = valid ? static_cast<T>(result) : fallback;
   lua_pop(state, 1);
 }
 
@@ -51,24 +50,27 @@ static int label_callback(lua_State *state) {
     const auto valid = raw > 0 && raw <= static_cast<lua_Integer>(effects.size());
     assert(valid && "glyph effect index must be valid");
     [[assume(valid)]];
+
     const auto index = static_cast<std::size_t>(raw) - 1;
 
-    count = std::max(count, index + 1);
     active[index / 64] |= uint64_t{1} << (index % 64);
+
     auto &effect = effects[index];
-    effect = {};
     number(state, -1, "x_offset", effect.x_offset);
     number(state, -1, "y_offset", effect.y_offset);
-    number(state, -1, "scale", effect.scale);
+    number(state, -1, "scale", effect.scale, 1.f);
     number(state, -1, "angle", effect.angle);
-    number(state, -1, "alpha", effect.alpha);
-    number(state, -1, "r", effect.r);
-    number(state, -1, "g", effect.g);
-    number(state, -1, "b", effect.b);
+    number(state, -1, "alpha", effect.alpha, 1.f);
+    number(state, -1, "r", effect.r, 1.f);
+    number(state, -1, "g", effect.g, 1.f);
+    number(state, -1, "b", effect.b, 1.f);
+
     effect.alpha = std::clamp(effect.alpha, .0f, 1.f);
     effect.r = std::clamp(effect.r, .0f, 1.f);
     effect.g = std::clamp(effect.g, .0f, 1.f);
     effect.b = std::clamp(effect.b, .0f, 1.f);
+
+    count = std::max(count, index + 1);
   }
 
   self->draw<true>(text, x, y, std::span{effects.data(), count}, active);
@@ -122,7 +124,7 @@ font::font(std::string_view family) {
 
   number(L, config, "spacing", _spacing);
   number(L, config, "leading", _leading);
-  number(L, config, "scale", _scale);
+  number(L, config, "scale", _scale, 1.f);
 
   const auto buffer = io::read(std::format("blobs/fonts/{}.png", family));
 
