@@ -280,7 +280,7 @@ void particle::draw() {
   assert(vertices != nullptr && "particle vertex storage must exist");
   [[assume(vertices != nullptr)]];
 
-  auto* out = vertices;
+  auto* output = vertices;
   const auto vx = simde_mm_set_ps1(viewport.x);
   const auto vy = simde_mm_set_ps1(viewport.y);
   const auto zeroes = simde_mm_setzero_ps();
@@ -341,22 +341,20 @@ void particle::draw() {
     simde_mm_storeu_ps(y3, simde_mm_sub_ps(py, dy1));
     simde_mm_storeu_ps(alpha, alphas);
 
-    for (auto lane = 0uz; lane < 4; ++lane) {
-      auto* output = out + lane * 4;
+    for (auto lane = 0uz; lane < 4; ++lane, output += 4) {
+      const auto a = alpha[lane];
       output[0].position = {x0[lane], y0[lane]};
-      output[0].color.a = alpha[lane];
+      output[0].color.a = a;
       output[1].position = {x1[lane], y1[lane]};
-      output[1].color.a = alpha[lane];
+      output[1].color.a = a;
       output[2].position = {x2[lane], y2[lane]};
-      output[2].color.a = alpha[lane];
+      output[2].color.a = a;
       output[3].position = {x3[lane], y3[lane]};
-      output[3].color.a = alpha[lane];
+      output[3].color.a = a;
     }
-
-    out += 16;
   }
 
-  const auto nv = static_cast<int>(out - vertices);
+  const auto nv = static_cast<int>(output - vertices);
   assert(nv > 0 && "particle vertex count must be positive");
   [[assume(nv > 0)]];
 
