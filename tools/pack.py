@@ -12,18 +12,18 @@ from pathlib import Path
 
 zstandard = importlib.import_module("zstandard")
 
-MAGIC = 0x4D4F5243
-DIRECTORY = 1
+MAGIC = b"CRO2"
+DIRECTORY = 2
 ALGO_RAW = 0
 ALGO_ZSTD_DICT = 1
-HEADER_FORMAT = "<9I"
-RECORD_FORMAT = "<4IH2B"
+HEADER_FORMAT = "<4s5I40x"
+RECORD_FORMAT = "<3IH2B"
 HEADER = struct.calcsize(HEADER_FORMAT)
 RECORD = struct.calcsize(RECORD_FORMAT)
 CAPACITY = 131072
 LEVEL = 22
 TEST_LEVEL = 9
-EMPTY = 0xFFFFFFFF
+EMPTY = 0xFFFF
 PRIME = 0x9E3779B97F4A7C15
 MASK64 = 0xFFFFFFFFFFFFFFFF
 SEED_BUDGET = 4096
@@ -65,7 +65,8 @@ def build_perfect(
     if not count:
         return 0, 4, [EMPTY] * 4
 
-    slots = 1 << max(2, (count * count // 4 - 1).bit_length())
+    target = max(32, (count * count + 15) // 16)
+    slots = 1 << (target - 1).bit_length()
     while True:
         mask = slots - 1
         buckets = [EMPTY] * slots
@@ -154,14 +155,12 @@ def main() -> int:
     trained = dictionary.as_bytes()
 
     encoder = zstandard.ZstdCompressor(level=LEVEL, dict_data=dictionary, threads=-1)
-    buffer = 0
     for current in sources:
         if current.directory:
             continue
         compressed = encoder.compress(current.data)
         if len(compressed) < len(current.data):
             current.blob = compressed
-            buffer = max(buffer, len(compressed))
         else:
             current.blob = current.data
             current.algorithm = ALGO_RAW
@@ -182,31 +181,26 @@ def main() -> int:
     prepared = [prepare(p) for p in encoded]
     seed, slots, buckets = build_perfect(prepared)
 
-    plain = zstandard.ZstdCompressor(level=LEVEL, threads=-1)
-    buckets = plain.compress(struct.pack(f"<{slots}I", *buckets))
-    strings = plain.compress(bytes(strings))
+    buckets = struct.pack(f"<{slots}H", *buckets)
 
-    base = HEADER + count * RECORD + len(buckets) + len(strings) + trainsize
+    base = HEADER + len(buckets) + count * RECORD + stringsize + trainsize
 
-    blob = bytearray()
-    blob.extend(
+    blob = bytearray(
         struct.pack(
             HEADER_FORMAT,
             MAGIC,
             count,
             stringsize,
-            len(strings),
             trainsize,
             slots,
             seed,
-            len(buckets),
-            buffer,
         )
     )
+    blob.extend(buckets)
 
     cursor = 0
     for index, current in enumerate(sources):
-        flags = DIRECTORY if current.directory else 0
+        kind = DIRECTORY if current.directory else current.algorithm
         data_offset = 0 if current.directory else base + cursor
         blob.extend(
             struct.pack(
@@ -216,13 +210,11 @@ def main() -> int:
                 len(current.data),
                 offsets[index],
                 len(encoded[index]),
-                flags,
-                current.algorithm,
+                kind,
             )
         )
         cursor += len(current.blob)
 
-    blob.extend(buckets)
     blob.extend(strings)
     blob.extend(trained)
 
