@@ -50,7 +50,7 @@ public:
 
   void dispatch_hover(float x, float y);
 
-  void dispatch_unhover(std::span<const entt::entity> current);
+  void dispatch_unhover();
 
   void dispatch_miss(int callback, float x, float y, const char* button);
 
@@ -101,7 +101,7 @@ private:
   int _on_press{LUA_NOREF};
   int _on_release{LUA_NOREF};
 
-  std::vector<entt::entity> _hovering{};
+  entt::entity _hovered{entt::null};
   uint32_t _mouse_previous_buttons{};
 
 #ifdef DEBUG

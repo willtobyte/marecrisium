@@ -348,8 +348,8 @@ viewport = nil
 ---@field on_animation_begin? fun(self: Object, clip: string) Called after a selected clip starts and after each loop.
 ---@field on_press? fun(self: Object, x: number, y: number, button: MouseButton) Called for the topmost visible collider; the picker considers up to 16 overlaps.
 ---@field on_release? fun(self: Object, x: number, y: number, button: MouseButton) Called for the topmost visible collider; the picker considers up to 16 overlaps.
----@field on_hover? fun(self: Object) Called when the cursor enters the collider.
----@field on_unhover? fun(self: Object) Called when the cursor leaves the collider.
+---@field on_hover? fun(self: Object) Called when the cursor enters the topmost visible collider.
+---@field on_unhover? fun(self: Object) Called when the cursor leaves the topmost visible collider.
 ---@field [string] any Custom fields and methods shared by every object of this kind.
 
 ---Entity handle available as `self` and through `pool`. Calling

@@ -1783,65 +1783,62 @@ void stage::dispatch_release(float x, float y, const char* button) {
 void stage::dispatch_hover(float x, float y) {
   std::array<entt::entity, picks> buffer{};
   const auto count = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
+  auto topmost = find_topmost(std::span(buffer.data(), count));
 
-  const auto hits = std::span(buffer.data(), count);
-  std::ranges::sort(hits);
+  if (topmost == _hovered) [[likely]]
+    return;
 
-  dispatch_unhover(hits);
+  dispatch_unhover();
 
-  for (const auto entity : hits) {
-    if (std::ranges::binary_search(_hovering, entity))
-      continue;
+  const auto refreshed = pick_at(x, y, buffer.data(), static_cast<uint8_t>(buffer.size()));
+  topmost = find_topmost(std::span(buffer.data(), refreshed));
+  if (topmost == entt::null) [[likely]]
+    return;
 
-    if (!_registry.valid(entity)) [[unlikely]]
-      continue;
+  _hovered = topmost;
 
-    const auto* proxy = _registry.try_get<scriptable>(entity);
-    if (!proxy || proxy->handle == LUA_NOREF || proxy->blueprint->on_hover == LUA_NOREF)
-      continue;
+  const auto* proxy = _registry.try_get<scriptable>(topmost);
+  if (!proxy || proxy->handle == LUA_NOREF || proxy->blueprint->on_hover == LUA_NOREF)
+    return;
 
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->blueprint->on_hover);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
-    {
-      const auto base = lua_gettop(L) - 1;
-      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-      lua_insert(L, base);
-      const auto status = lua_pcall(L, 1, 0, base);
-      lua_remove(L, base);
-      if (status != LUA_OK) [[unlikely]] {
-        lua_error(L);
-        std::unreachable();
-      }
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->blueprint->on_hover);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
+  {
+    const auto base = lua_gettop(L) - 1;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 1, 0, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
     }
   }
-
-  _hovering.assign(hits.begin(), hits.end());
 }
 
-void stage::dispatch_unhover(std::span<const entt::entity> current) {
-  for (const auto entity : _hovering) {
-    if (std::ranges::binary_search(current, entity))
-      continue;
+void stage::dispatch_unhover() {
+  if (_hovered == entt::null) [[likely]]
+    return;
 
-    if (!_registry.valid(entity)) [[unlikely]]
-      continue;
+  const auto entity = std::exchange(_hovered, entt::null);
+  if (!_registry.valid(entity)) [[unlikely]]
+    return;
 
-    const auto* proxy = _registry.try_get<scriptable>(entity);
-    if (!proxy || proxy->handle == LUA_NOREF || proxy->blueprint->on_unhover == LUA_NOREF)
-      continue;
+  const auto* proxy = _registry.try_get<scriptable>(entity);
+  if (!proxy || proxy->handle == LUA_NOREF || proxy->blueprint->on_unhover == LUA_NOREF)
+    return;
 
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->blueprint->on_unhover);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
-    {
-      const auto base = lua_gettop(L) - 1;
-      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-      lua_insert(L, base);
-      const auto status = lua_pcall(L, 1, 0, base);
-      lua_remove(L, base);
-      if (status != LUA_OK) [[unlikely]] {
-        lua_error(L);
-        std::unreachable();
-      }
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->blueprint->on_unhover);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, proxy->handle);
+  {
+    const auto base = lua_gettop(L) - 1;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 1, 0, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
     }
   }
 }
