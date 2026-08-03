@@ -72,8 +72,7 @@ void marshal::decode(lua_State *state, yyjson_val *value) {
       lua_createtable(state, 0, static_cast<int>(size));
       yyjson_obj_iter iterator;
       yyjson_obj_iter_init(value, &iterator);
-      yyjson_val *key;
-      while ((key = yyjson_obj_iter_next(&iterator))) {
+      for (auto *key = yyjson_obj_iter_next(&iterator); key; key = yyjson_obj_iter_next(&iterator)) {
         const auto *name = yyjson_get_str(key);
         const auto length = yyjson_get_len(key);
         if (length >= 2 && name[0] == '\0' && name[1] == 'n') {

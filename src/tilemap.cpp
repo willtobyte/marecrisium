@@ -179,7 +179,7 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
           ++rw;
 
         auto rh = cellspan;
-        while (row + rh < rows) {
+        for (; row + rh < rows; ++rh) {
           const auto co = (row + rh) * columns + column;
           auto valid = true;
 
@@ -192,8 +192,6 @@ tilemap::tilemap(std::string_view name, b2WorldId world) {
 
           if (!valid) [[unlikely]]
             break;
-
-          ++rh;
         }
 
         for (size_t dy = 0; dy < rh; ++dy) {

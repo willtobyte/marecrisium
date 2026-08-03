@@ -60,9 +60,8 @@ void format(lua_State *state, std::string &text, int index, trail &path) {
 
     std::format_to(out, "{{ ");
     const auto position = index > 0 ? index : lua_gettop(state) + index + 1;
-    lua_pushnil(state);
     auto count = 0;
-    while (lua_next(state, position) != 0) {
+    for (lua_pushnil(state); lua_next(state, position) != 0; lua_pop(state, 1)) {
       if (count >= entries) [[unlikely]] {
         std::format_to(out, "... ");
         lua_pop(state, 2);
@@ -80,7 +79,6 @@ void format(lua_State *state, std::string &text, int index, trail &path) {
       }
 
       format(state, text, -1, path);
-      lua_pop(state, 1);
       ++count;
     }
 
