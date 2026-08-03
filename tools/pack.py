@@ -7,6 +7,7 @@
 import importlib
 import struct
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 zstandard = importlib.import_module("zstandard")
@@ -15,8 +16,10 @@ MAGIC = 0x4D4F5243
 DIRECTORY = 1
 ALGO_RAW = 0
 ALGO_ZSTD_DICT = 1
-HEADER = 36
-RECORD = 20
+HEADER_FORMAT = "<9I"
+RECORD_FORMAT = "<4IH2B"
+HEADER = struct.calcsize(HEADER_FORMAT)
+RECORD = struct.calcsize(RECORD_FORMAT)
 CAPACITY = 131072
 LEVEL = 22
 TEST_LEVEL = 9
@@ -24,6 +27,15 @@ EMPTY = 0xFFFFFFFF
 PRIME = 0x9E3779B97F4A7C15
 MASK64 = 0xFFFFFFFFFFFFFFFF
 SEED_BUDGET = 4096
+
+
+@dataclass(slots=True)
+class Source:
+    path: str
+    data: bytes
+    directory: bool
+    blob: bytes = b""
+    algorithm: int = ALGO_RAW
 
 
 def prepare(data: bytes) -> tuple[tuple[int, ...], int, int]:
@@ -76,21 +88,21 @@ def build_perfect(
 
 
 def display(
-    sources: list[dict], index: int = 0, parent: str = "", prefix: str = ""
+    sources: list[Source], index: int = 0, parent: str = "", prefix: str = ""
 ) -> None:
     count = len(sources)
     while index < count:
-        path = sources[index]["path"]
+        path = sources[index].path
         folder, _, name = path.rpartition("/")
         if folder != parent:
             break
 
         end = index + 1
         stem = f"{path}/"
-        while end < count and sources[end]["path"].startswith(stem):
+        while end < count and sources[end].path.startswith(stem):
             end += 1
 
-        last = end == count or sources[end]["path"].rpartition("/")[0] != parent
+        last = end == count or sources[end].path.rpartition("/")[0] != parent
         print(f"{prefix}{'`--' if last else '|--'} {name}")
         if end > index + 1:
             display(sources, index + 1, path, prefix + ("    " if last else "|   "))
@@ -105,52 +117,30 @@ def main() -> int:
 
     root = Path(sys.argv[1])
 
-    sources: list[dict] = []
+    sources: list[Source] = []
     for current in root.rglob("*"):
         relative = current.relative_to(root)
         if any(part.startswith(".") for part in relative.parts):
             continue
 
         path = relative.as_posix()
-        if not path or path == ".":
-            continue
-
         if current.is_dir():
+            sources.append(Source(path, b"", True))
+        elif current.is_file():
             sources.append(
-                {
-                    "path": path,
-                    "data": b"",
-                    "blob": b"",
-                    "directory": True,
-                    "algorithm": ALGO_RAW,
-                }
+                Source(path, current.read_bytes(), False, algorithm=ALGO_ZSTD_DICT)
             )
-            continue
 
-        if not current.is_file():
-            continue
-
-        data = current.read_bytes()
-        sources.append(
-            {
-                "path": path,
-                "data": data,
-                "blob": b"",
-                "directory": False,
-                "algorithm": ALGO_ZSTD_DICT,
-            }
-        )
-
-    sources.sort(key=lambda current: current["path"])
+    sources.sort(key=lambda current: current.path)
 
     probe = zstandard.ZstdCompressor(level=TEST_LEVEL, threads=-1)
 
     samples = [
-        current["data"]
+        current.data
         for current in sources
-        if not current["directory"]
-        and current["data"]
-        and len(probe.compress(current["data"])) < len(current["data"])
+        if not current.directory
+        and current.data
+        and len(probe.compress(current.data)) < len(current.data)
     ]
 
     dictionary = zstandard.train_dictionary(
@@ -166,24 +156,24 @@ def main() -> int:
     encoder = zstandard.ZstdCompressor(level=LEVEL, dict_data=dictionary, threads=-1)
     buffer = 0
     for current in sources:
-        if current["directory"]:
+        if current.directory:
             continue
-        compressed = encoder.compress(current["data"])
-        if len(compressed) < len(current["data"]):
-            current["blob"] = compressed
+        compressed = encoder.compress(current.data)
+        if len(compressed) < len(current.data):
+            current.blob = compressed
             buffer = max(buffer, len(compressed))
         else:
-            current["blob"] = current["data"]
-            current["algorithm"] = ALGO_RAW
+            current.blob = current.data
+            current.algorithm = ALGO_RAW
 
     strings = bytearray()
     offsets: list[int] = []
     encoded: list[bytes] = []
     for current in sources:
-        bytes_ = current["path"].encode("utf-8")
-        encoded.append(bytes_)
+        name = current.path.encode("utf-8")
+        encoded.append(name)
         offsets.append(len(strings))
-        strings.extend(bytes_)
+        strings.extend(name)
 
     count = len(sources)
     stringsize = len(strings)
@@ -201,7 +191,7 @@ def main() -> int:
     blob = bytearray()
     blob.extend(
         struct.pack(
-            "<IIIIIIIII",
+            HEADER_FORMAT,
             MAGIC,
             count,
             stringsize,
@@ -216,28 +206,28 @@ def main() -> int:
 
     cursor = 0
     for index, current in enumerate(sources):
-        flags = DIRECTORY if current["directory"] else 0
-        data_offset = 0 if current["directory"] else base + cursor
+        flags = DIRECTORY if current.directory else 0
+        data_offset = 0 if current.directory else base + cursor
         blob.extend(
             struct.pack(
-                "<IIIIHBB",
+                RECORD_FORMAT,
                 data_offset,
-                len(current["blob"]),
-                len(current["data"]),
+                len(current.blob),
+                len(current.data),
                 offsets[index],
                 len(encoded[index]),
                 flags,
-                current["algorithm"],
+                current.algorithm,
             )
         )
-        cursor += len(current["blob"])
+        cursor += len(current.blob)
 
     blob.extend(buckets)
     blob.extend(strings)
     blob.extend(trained)
 
     for current in sources:
-        blob.extend(current["blob"])
+        blob.extend(current.blob)
 
     Path("cartridge.rom").write_bytes(blob)
 

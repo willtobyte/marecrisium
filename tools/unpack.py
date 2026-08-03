@@ -14,13 +14,14 @@ zstandard = importlib.import_module("zstandard")
 MAGIC = 0x4D4F5243
 DIRECTORY = 1
 ALGO_RAW = 0
-ALGO_ZSTD_DICT = 1
-HEADER = 36
-RECORD = 20
+HEADER_FORMAT = "<9I"
+RECORD_FORMAT = "<4IH2B"
+HEADER = struct.calcsize(HEADER_FORMAT)
+RECORD = struct.calcsize(RECORD_FORMAT)
 
 
 def main() -> int:
-    rom = Path("cartridge.rom").read_bytes()
+    rom = memoryview(Path("cartridge.rom").read_bytes())
 
     (
         magic,
@@ -32,7 +33,7 @@ def main() -> int:
         _seed,
         buckets_compressed,
         buffer,
-    ) = struct.unpack_from("<IIIIIIIII", rom, 0)
+    ) = struct.unpack_from(HEADER_FORMAT, rom, 0)
 
     if magic != MAGIC:
         print("not a cartridge.rom", file=sys.stderr)
@@ -44,7 +45,7 @@ def main() -> int:
     cursor += buckets_compressed
     strings_blob = rom[cursor : cursor + strings_compressed]
     cursor += strings_compressed
-    trained = bytes(rom[cursor : cursor + trainsize])
+    trained = rom[cursor : cursor + trainsize]
 
     strings = zstandard.ZstdDecompressor().decompress(
         strings_blob, max_output_size=stringsize
@@ -53,21 +54,23 @@ def main() -> int:
     dictionary = zstandard.ZstdCompressionDict(trained)
     decoder = zstandard.ZstdDecompressor(dict_data=dictionary)
 
-    root = Path("cartridge")
+    root = Path("cartridge").resolve()
 
-    for index in range(count):
-        (
-            position,
-            compressed,
-            uncompressed,
-            offset,
-            length,
-            flags,
-            algorithm,
-        ) = struct.unpack_from("<IIIIHBB", records, index * RECORD)
-
-        path = strings[offset : offset + length].decode("utf-8")
-        destination = root / path
+    for (
+        position,
+        compressed,
+        uncompressed,
+        offset,
+        length,
+        flags,
+        algorithm,
+    ) in struct.iter_unpack(RECORD_FORMAT, records):
+        path = Path(strings[offset : offset + length].decode("utf-8"))
+        if path.anchor or ".." in path.parts:
+            raise ValueError("cartridge entry path must be relative")
+        destination = (root / path).resolve()
+        if not destination.is_relative_to(root):
+            raise ValueError("cartridge entry path must be inside cartridge")
 
         if flags & DIRECTORY:
             destination.mkdir(parents=True, exist_ok=True)
@@ -86,9 +89,10 @@ def main() -> int:
         if compressed > buffer:
             raise ValueError("compressed payload exceeds buffer")
 
-        payload = bytes(rom[position : position + compressed])
         destination.write_bytes(
-            decoder.decompress(payload, max_output_size=uncompressed)
+            decoder.decompress(
+                rom[position : position + compressed], max_output_size=uncompressed
+            )
         )
 
     print(f"extracted {count} entries to cartridge/")
