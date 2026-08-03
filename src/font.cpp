@@ -10,7 +10,7 @@ void number(lua_State *state, int table, const char *field, T &value) {
 }
 
 std::array<SDL_Vertex, 1024> vertices;
-constexpr auto indices = [] {
+static consteval auto triangulate() {
   std::array<int, 1536> values{};
   for (auto index = 0uz; index < values.size() / 6; ++index) {
     const auto vertex = static_cast<int>(index * 4);
@@ -22,8 +22,11 @@ constexpr auto indices = [] {
     out[4] = vertex + 2;
     out[5] = vertex + 3;
   }
+
   return values;
-}();
+}
+
+constexpr auto indices = triangulate();
 }
 
 static int label_callback(lua_State *state) {
@@ -43,8 +46,7 @@ static int label_callback(lua_State *state) {
   std::array<uint64_t, 4> active{};
   auto count = 0uz;
 
-  lua_pushnil(state);
-  while (lua_next(state, 5) != 0) {
+  for (lua_pushnil(state); lua_next(state, 5) != 0; lua_pop(state, 1)) {
     const auto raw = lua_tointeger(state, -2);
     const auto valid = raw > 0 && raw <= static_cast<lua_Integer>(effects.size());
     assert(valid && "glyph effect index must be valid");
@@ -67,8 +69,6 @@ static int label_callback(lua_State *state) {
     effect.r = std::clamp(effect.r, .0f, 1.f);
     effect.g = std::clamp(effect.g, .0f, 1.f);
     effect.b = std::clamp(effect.b, .0f, 1.f);
-
-    lua_pop(state, 1);
   }
 
   self->draw<true>(text, x, y, std::span{effects.data(), count}, active);
