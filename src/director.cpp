@@ -44,6 +44,10 @@ void director::navigate(std::string name) {
 
 void director::destroy(std::string_view name) {
   const auto key = entt::hashed_string{name.data(), name.size()};
+  const auto allowed = !_pending || entt::hashed_string{_pending->data(), _pending->size()} != key;
+  assert(allowed && "pending stage must not be destroyed");
+  [[assume(allowed)]];
+
   auto it = _stages.find(key);
 
   if (it == _stages.end() || it->second.get() == _current) [[unlikely]]
@@ -63,9 +67,10 @@ void director::transition() {
   }
 
   const auto key = entt::hashed_string{_pending->data(), _pending->size()};
-  auto [it, inserted] = _stages.try_emplace(key);
-  if (inserted)
-    it->second = std::make_unique<stage>(std::move(*_pending));
+  const auto it = _stages.find(key);
+  const auto found = it != _stages.end();
+  assert(found && "stage must be enrolled before navigation");
+  [[assume(found)]];
 
   _pending.reset();
   _current = it->second.get();

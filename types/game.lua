@@ -229,15 +229,16 @@ cassette = nil
 ---@class Director
 local Director = {}
 
----Queue navigation to a cached stage, creating it if needed.
+---Queue navigation to an enrolled stage.
 ---@param name string Stage name.
 function Director.navigate(name) end
 
----Destroy a cached stage. The active stage is not destroyed.
+---Destroy a cached stage. The stage must not be active or pending.
 ---@param name string Stage name.
 function Director.destroy(name) end
 
----Create and cache a stage without navigating to it.
+---Create and cache a stage without navigation.
+---The stage name must not be enrolled.
 ---@param name string Stage name.
 function Director.enroll(name) end
 

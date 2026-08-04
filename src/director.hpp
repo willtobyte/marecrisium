@@ -14,9 +14,10 @@ public:
     requires std::convertible_to<T, std::string>
   void enroll(T&& name) {
     const auto key = entt::hashed_string{name.data(), name.size()};
-    const auto [it, inserted] = _stages.try_emplace(key);
-    if (inserted)
-      it->second = std::make_unique<stage>(std::forward<T>(name));
+    auto instance = std::make_unique<stage>(std::forward<T>(name));
+    const auto [_, inserted] = _stages.emplace(key, std::move(instance));
+    assert(inserted && "stage must not already be enrolled");
+    [[assume(inserted)]];
   }
 
   void transition();

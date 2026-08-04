@@ -468,6 +468,7 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
     const auto status = lua_pcall(L, 0, 1, base);
     lua_remove(L, base);
     if (status != LUA_OK) [[unlikely]] {
+      registry.destroy(entity);
       lua_error(L);
       std::unreachable();
     }

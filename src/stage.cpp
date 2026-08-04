@@ -322,41 +322,6 @@ stage::stage(std::string name)
     std::unreachable();
   }
 
-  lua_newtable(L);
-  _pool = luaL_ref(L, LUA_REGISTRYINDEX);
-
-  auto** owner = static_cast<stage**>(lua_newuserdata(L, sizeof(stage*)));
-  *owner = this;
-  _owner = luaL_ref(L, LUA_REGISTRYINDEX);
-
-  lua_newtable(L);
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
-  lua_pushcclosure(L, spawn_callback, 1);
-  lua_setfield(L, -2, "spawn");
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
-  lua_pushcclosure(L, destroy_callback, 1);
-  lua_setfield(L, -2, "destroy");
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
-  lua_pushcclosure(L, count_callback, 1);
-  lua_setfield(L, -2, "count");
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
-  lua_pushcclosure(L, find_callback, 1);
-  lua_setfield(L, -2, "find");
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
-  lua_pushcclosure(L, radar_callback, 1);
-  lua_setfield(L, -2, "radar");
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
-  lua_pushcclosure(L, raycast_callback, 1);
-  lua_setfield(L, -2, "raycast");
-
-  _world = luaL_ref(L, LUA_REGISTRYINDEX);
-
   {
     const auto base = lua_gettop(L);
     lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
@@ -391,6 +356,41 @@ stage::stage(std::string name)
   b2WorldDef def = b2DefaultWorldDef();
   def.gravity = gravity;
   _physics = b2CreateWorld(&def);
+
+  lua_newtable(L);
+  _pool = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  auto** owner = static_cast<stage**>(lua_newuserdata(L, sizeof(stage*)));
+  *owner = this;
+  _owner = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  lua_newtable(L);
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
+  lua_pushcclosure(L, spawn_callback, 1);
+  lua_setfield(L, -2, "spawn");
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
+  lua_pushcclosure(L, destroy_callback, 1);
+  lua_setfield(L, -2, "destroy");
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
+  lua_pushcclosure(L, count_callback, 1);
+  lua_setfield(L, -2, "count");
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
+  lua_pushcclosure(L, find_callback, 1);
+  lua_setfield(L, -2, "find");
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
+  lua_pushcclosure(L, radar_callback, 1);
+  lua_setfield(L, -2, "radar");
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _owner);
+  lua_pushcclosure(L, raycast_callback, 1);
+  lua_setfield(L, -2, "raycast");
+
+  _world = luaL_ref(L, LUA_REGISTRYINDEX);
 
   const auto largest = std::max(viewport.width, viewport.height);
   _sleep_margin = largest;
@@ -1388,8 +1388,10 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
       lua_insert(L, base);
       const auto status = lua_pcall(L, 1, 0, base);
       lua_remove(L, base);
-      if (status != LUA_OK) [[unlikely]]
+      if (status != LUA_OK) [[unlikely]] {
+        _registry.destroy(entity);
         return lua_error(L);
+      }
     }
   }
 
