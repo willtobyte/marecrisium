@@ -10,7 +10,7 @@ int application::run() {
     std::fputs(message, stderr);
     std::fputc('\n', stderr);
 
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Ink Spill Disaster", message, nullptr);
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Stampageddon", message, nullptr);
 
     return 1;
   }
