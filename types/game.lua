@@ -129,14 +129,14 @@ gamepad = nil
 
 ---@alias CassetteValue boolean|number|string|table
 
----Persistent JSON-compatible Lua storage. Numbers use LuaJIT double precision.
----Writes persist immediately; nil deletes. Nested writes persist. Proxies support
----`#`, `pairs`, and `ipairs`, and become stale after root replacement.
+---Persistent JSON-compatible Lua storage. Numbers must be finite. String values
+---and table string keys must be valid UTF-8. Writes persist immediately; nil deletes.
+---Nested writes persist. Proxies support `#`, `pairs`, and `ipairs`.
 ---@class Cassette
 ---@field [string] CassetteValue|nil
 local Cassette = {}
 
----Delete all saved keys.
+---Delete all saved keys. The `purge` key is reserved.
 function Cassette:purge() end
 
 ---@type Cassette
