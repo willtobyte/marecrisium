@@ -12,11 +12,12 @@ return {
 	scale = 3.0,
 	fullscreen = getenv("WINDOWED") ~= "1",
 	on_begin = function()
-		local seed = cassette.seed
+		local seed = tonumber(cassette.seed)
 		if not seed then
 			seed = time()
 			cassette.seed = seed
 		end
+
 		randomseed(seed)
 
 		local before = clock()
@@ -24,7 +25,5 @@ return {
 		local elapsed = (clock() - before) * 1000
 
 		print(format("[director] enrolled all scenes in %.2f ms", elapsed))
-
-		director.navigate("forest")
 	end,
 }

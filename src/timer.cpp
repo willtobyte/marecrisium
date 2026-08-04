@@ -7,6 +7,7 @@ constexpr auto retained = 64uz;
 constexpr auto none = std::numeric_limits<double>::infinity();
 constexpr auto dirty = -none;
 constexpr auto name = "TimerHandle";
+}
 
 namespace lookup {
 constexpr auto active = "active"_hs;
@@ -71,38 +72,6 @@ struct store final {
   return store::groups[group].get();
 }
 
-struct guard final {
-  explicit guard(uint32_t owner) noexcept
-      : prior(store::owner) {
-    store::owner = owner;
-  }
-
-  ~guard() {
-    store::owner = prior;
-  }
-
-  guard(const guard&) = delete;
-  guard& operator=(const guard&) = delete;
-
-  uint32_t prior;
-};
-
-struct runner final {
-  explicit runner(uint32_t owner) noexcept
-      : prior(store::running) {
-    store::running = owner;
-  }
-
-  ~runner() {
-    store::running = prior;
-  }
-
-  runner(const runner&) = delete;
-  runner& operator=(const runner&) = delete;
-
-  uint32_t prior;
-};
-
 [[nodiscard]] uint32_t create() {
   const auto available = std::find(store::groups.begin(), store::groups.end(), nullptr);
   const auto room = available != store::groups.end() || store::groups.size() < invalid;
@@ -116,9 +85,10 @@ struct runner final {
     : static_cast<uint32_t>(available - store::groups.begin());
   auto current = std::make_unique<queue>();
   current->roots = roots;
-  available == store::groups.end()
-    ? static_cast<void>(store::groups.emplace_back(std::move(current)))
-    : static_cast<void>(*available = std::move(current));
+  if (available == store::groups.end())
+    store::groups.emplace_back(std::move(current));
+  else
+    *available = std::move(current);
   return group;
 }
 
@@ -423,39 +393,13 @@ void compact(queue& group) {
 #ifndef _MSC_VER
 __attribute__((aligned(16)))
 #endif
-bool advance(queue& group, uint32_t owner, std::size_t limit) {
-  struct cycle final {
-    explicit cycle(queue& target) noexcept
-        : group(target) {
-    }
+bool update(queue& group, uint32_t owner, std::size_t limit) {
+  const auto prior_running = store::running;
+  const auto prior_owner = store::owner;
+  store::running = owner;
+  store::owner = owner;
 
-    ~cycle() {
-      if (group.removed != 0)
-        compact(group);
-    }
-
-    cycle(const cycle&) = delete;
-    cycle& operator=(const cycle&) = delete;
-
-    queue& group;
-  } cycle{group};
-
-  struct anchor final {
-    anchor() = default;
-
-    ~anchor() {
-      if (position != 0)
-        lua_settop(L, position - 1);
-    }
-
-    anchor(const anchor&) = delete;
-    anchor& operator=(const anchor&) = delete;
-
-    int position{};
-  } root;
-
-  const runner running{owner};
-  const guard context{owner};
+  int root{};
   std::size_t position{};
   while (position < limit) {
     const auto &current = group.list[position];
@@ -463,37 +407,34 @@ bool advance(queue& group, uint32_t owner, std::size_t limit) {
       const auto index = current.slot & mask;
       const auto repeat = current.repeat;
 
-      if (root.position == 0) {
+      if (root == 0) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, group.roots);
-        root.position = lua_gettop(L);
+        root = lua_gettop(L);
       }
 
-      lua_rawgeti(L, root.position, callback_slot(index));
-      {
-        store::owner = owner;
-        if (repeat)
-          group.list[position].deadline += current.period;
-        else
-          deactivate(group, group.list[position], root.position, true);
+      lua_rawgeti(L, root, callback_slot(index));
+      store::owner = owner;
+      if (repeat)
+        group.list[position].deadline += current.period;
+      else
+        deactivate(group, group.list[position], root, true);
 
-        const auto base = lua_gettop(L);
-        lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-        lua_insert(L, base);
+      const auto base = lua_gettop(L);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+      lua_insert(L, base);
 
-        const auto status = lua_pcall(L, 0, 0, base);
+      const auto status = lua_pcall(L, 0, 0, base);
 
-        lua_remove(L, base);
+      lua_remove(L, base);
 
-        if (status != LUA_OK) [[unlikely]] {
-          lua_remove(L, root.position);
-          root.position = 0;
-          store::running = running.prior;
-          store::owner = context.prior;
-          if (group.removed != 0)
-            compact(group);
-          lua_error(L);
-          std::unreachable();
-        }
+      if (status != LUA_OK) [[unlikely]] {
+        lua_remove(L, root);
+        store::running = prior_running;
+        store::owner = prior_owner;
+        if (group.removed != 0)
+          compact(group);
+        lua_error(L);
+        std::unreachable();
       }
 
       const auto &updated = group.list[position];
@@ -504,19 +445,24 @@ bool advance(queue& group, uint32_t owner, std::size_t limit) {
     }
   }
 
-  return root.position != 0;
+  const auto scheduled = root != 0;
+  store::owner = prior_owner;
+  store::running = prior_running;
+  if (root != 0)
+    lua_settop(L, root - 1);
+  if (group.removed != 0)
+    compact(group);
+  return scheduled;
 }
 
 void schedule(queue& group, uint32_t owner, std::size_t limit) {
   if (group.now < group.next) [[likely]]
     return;
 
-  group.next = advance(group, owner, limit)
+  group.next = update(group, owner, limit)
     ? (group.list.empty() ? none : group.now)
     : earliest(group);
 }
-}
-
 namespace timer {
 group::group()
     : _id(create()) {
