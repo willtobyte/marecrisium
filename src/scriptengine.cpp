@@ -1,11 +1,10 @@
 static int loader_callback(lua_State *state) {
-  const std::string_view module = luaL_checkstring(state, 1);
-  const auto filename = std::format("scripts/{}.lua", module);
+  const auto filename = std::format("scripts/{}.lua", luaL_checkstring(state, 1));
 
   const auto buffer = io::read(filename);
-  const auto label = std::format("@{}", filename);
+  const auto chunk = std::format("@{}", filename);
 
-  if (luaL_loadbuffer(state, reinterpret_cast<const char *>(buffer.data()), buffer.size(), label.c_str()) != 0)
+  if (luaL_loadbuffer(state, reinterpret_cast<const char *>(buffer.data()), buffer.size(), chunk.c_str()) != LUA_OK)
     return lua_error(state);
 
   return 1;

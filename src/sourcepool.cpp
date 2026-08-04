@@ -38,6 +38,6 @@ void sourcepool::insert(std::string_view name) {
 
   bytecode.reserve(buffer.size());
   const auto status = lua_dump(L, append, &bytecode);
-  assert(status == 0 && "Lua bytecode dump must succeed");
-  [[assume(status == 0)]];
+  assert(status == LUA_OK && "Lua bytecode dump must succeed");
+  [[assume(status == LUA_OK)]];
 }
