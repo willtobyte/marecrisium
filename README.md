@@ -11,8 +11,8 @@ are documented in `types/game.lua`.
 
 ## Building
 
-See [docs/BUILDING.md](docs/BUILDING.md) for build and run instructions.
+See [docs/BUILD.md](docs/BUILD.md) for build and run instructions.
 
 ## Design
 
-See [docs/GDD.md](docs/GDD.md) for the game design document.
+See [docs/DESIGN.md](docs/DESIGN.md) for the game design document.
