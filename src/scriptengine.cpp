@@ -36,7 +36,7 @@ void scriptengine::run() {
   timer::wire();
   user::wire();
 
-  assert(lua_gettop(L) == 0 && "Lua stack must be empty after API wiring");
+  assert(lua_gettop(L) == 0 && "Lua stack must be empty after wiring");
 
   lua_gc(L, LUA_GCSTOP, 0);
 
