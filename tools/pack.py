@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 zstandard = importlib.import_module("zstandard")
+ZstdError = zstandard.ZstdError
 
 MAGIC = b"CRO2"
 DIRECTORY = 2
@@ -144,13 +145,16 @@ def main() -> int:
         and len(probe.compress(current.data)) < len(current.data)
     ]
 
-    dictionary = zstandard.train_dictionary(
-        CAPACITY,
-        samples,
-        split_point=1.0,
-        level=LEVEL,
-        threads=-1,
-    )
+    try:
+        dictionary = zstandard.train_dictionary(
+            CAPACITY,
+            samples,
+            split_point=1.0,
+            level=LEVEL,
+            threads=-1,
+        )
+    except ZstdError:
+        dictionary = zstandard.ZstdCompressionDict(b"\0")
 
     trained = dictionary.as_bytes()
 
