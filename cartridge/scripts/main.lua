@@ -6,7 +6,7 @@ local time = os.time
 
 return {
 	title = "Mare Crisium",
-	splash = "loading",
+	-- splash = "loading",
 	width = 1920,
 	height = 1080,
 	scale = 4.0,
