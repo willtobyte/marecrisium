@@ -1,10 +1,8 @@
-local sin = math.sin
-local floor = math.floor
+local sin, floor = math.sin, math.floor
 local format = string.format
 
-local elapsed = 0
+local elapsed, second = 0, 0
 local timer = "00:00"
-local second = 0
 local title = _("Mare Crisium")
 local length = #title
 local effects = {}
