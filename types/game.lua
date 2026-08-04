@@ -136,8 +136,8 @@ gamepad = nil
 ---@field [string] CassetteValue|nil
 local Cassette = {}
 
----Delete all saved keys. The `purge` key is reserved.
-function Cassette:purge() end
+---Delete all saved keys. The `clear` key is reserved.
+function Cassette:clear() end
 
 ---@type Cassette
 cassette = nil

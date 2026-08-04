@@ -183,7 +183,7 @@ static void proxify(lua_State *state, int data, int key, int root) {
 
 }
 
-static int purge_callback(lua_State*) {
+static int clear_callback(lua_State*) {
   execute(stmt_clear.get());
   return 0;
 }
@@ -193,8 +193,8 @@ static int index(lua_State *state) {
   const auto* name = luaL_checklstring(state, 2, &size);
   const auto key = std::string_view{name, size};
 
-  if (key == "purge") {
-    lua_pushcfunction(state, purge_callback);
+  if (key == "clear") {
+    lua_pushcfunction(state, clear_callback);
     return 1;
   }
 
