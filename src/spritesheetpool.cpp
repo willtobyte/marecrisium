@@ -9,6 +9,10 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     auto entry = std::make_unique<storage>();
     entry->clips.reserve(8);
     entry->frames.reserve(128);
+    entry->sheet.pixmap = depot->pixmap.get(std::format("objects/{}", kind));
+
+    const auto iw = 1.f / static_cast<float>(entry->sheet.pixmap->width());
+    const auto ih = 1.f / static_cast<float>(entry->sheet.pixmap->height());
 
     entt::id_type dh = 0;
     lua_getfield(state, table, "default");
@@ -51,10 +55,10 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
         auto& frame = entry->frames.emplace_back();
 
         lua_rawgeti(state, -1, 1);
-        frame.x = static_cast<float>(lua_tonumber(state, -1));
+        const auto x = static_cast<float>(lua_tonumber(state, -1));
         lua_pop(state, 1);
         lua_rawgeti(state, -1, 2);
-        frame.y = static_cast<float>(lua_tonumber(state, -1));
+        const auto y = static_cast<float>(lua_tonumber(state, -1));
         lua_pop(state, 1);
         lua_rawgeti(state, -1, 3);
         frame.width = static_cast<float>(lua_tonumber(state, -1));
@@ -66,6 +70,11 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
         frame.duration = static_cast<float>(lua_tonumber(state, -1)) / 1000.f;
         lua_pop(state, 1);
 
+        frame.u0 = x * iw;
+        frame.v0 = y * ih;
+        frame.u1 = (x + frame.width) * iw;
+        frame.v1 = (y + frame.height) * ih;
+
         lua_rawgeti(state, -1, 6);
         if (lua_isnil(state, -1)) {
           lua_pop(state, 1);
@@ -74,18 +83,17 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
           continue;
         }
 
-        frame.bound_x = static_cast<float>(lua_tonumber(state, -1));
+        frame.collider.offset_x = static_cast<float>(lua_tonumber(state, -1));
         lua_pop(state, 1);
         lua_rawgeti(state, -1, 7);
-        frame.bound_y = static_cast<float>(lua_tonumber(state, -1));
+        frame.collider.offset_y = static_cast<float>(lua_tonumber(state, -1));
         lua_pop(state, 1);
         lua_rawgeti(state, -1, 8);
-        frame.bound_width = static_cast<float>(lua_tonumber(state, -1));
+        frame.collider.width = static_cast<float>(lua_tonumber(state, -1));
         lua_pop(state, 1);
         lua_rawgeti(state, -1, 9);
-        frame.bound_height = static_cast<float>(lua_tonumber(state, -1));
+        frame.collider.height = static_cast<float>(lua_tonumber(state, -1));
         lua_pop(state, 1);
-        frame.collidable = true;
         collidable = true;
 
         ++clip.count;
@@ -104,17 +112,6 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       lua_pop(state, 1);
 
       lua_pop(state, 1);
-    }
-
-    entry->sheet.pixmap = depot->pixmap.get(std::format("objects/{}", kind));
-
-    const auto iw = 1.f / static_cast<float>(entry->sheet.pixmap->width());
-    const auto ih = 1.f / static_cast<float>(entry->sheet.pixmap->height());
-    for (auto& frame : entry->frames) {
-      frame.u0 = frame.x * iw;
-      frame.v0 = frame.y * ih;
-      frame.u1 = (frame.x + frame.width) * iw;
-      frame.v1 = (frame.y + frame.height) * ih;
     }
 
     entry->sheet.clips = entry->clips.data();

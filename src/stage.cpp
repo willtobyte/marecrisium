@@ -87,10 +87,10 @@ static void sync_body(body& b, const frame& frame, entt::entity entity, const tr
   auto created = false;
   if (b.snapshot != &frame) [[unlikely]] {
     b.snapshot = &frame;
-    b.origin_x = frame.bound_x;
-    b.origin_y = frame.bound_y;
-    const auto hx = frame.bound_width * .5f;
-    const auto hy = frame.bound_height * .5f;
+    b.origin_x = frame.collider.offset_x;
+    b.origin_y = frame.collider.offset_y;
+    const auto hx = frame.collider.width * .5f;
+    const auto hy = frame.collider.height * .5f;
 
     if (B2_IS_NULL(b.shape)) {
       const auto polygon = b2MakeBox(hx, hy);
@@ -188,7 +188,7 @@ static bool collect_hits(b2ShapeId shape, void *userdata) {
   if (!ud) [[unlikely]]
     return true;
 
-  auto *hits = static_cast<std::vector<stage::hit> *>(userdata);
+  auto *hits = static_cast<std::vector<entt::entity> *>(userdata);
   hits->emplace_back(decode(ud));
   return true;
 }
@@ -395,7 +395,7 @@ stage::stage(std::string name)
   const auto largest = std::max(viewport.width, viewport.height);
   _sleep_margin = largest;
   _wake_margin = largest * .5f;
-  _hits.reserve(64);
+  _hits.reserve(8);
 
   lua_getfield(L, -1, "objects");
   if (lua_istable(L, -1)) {
@@ -893,8 +893,8 @@ void stage::update(float delta) {
       auto& tf = _registry.get<transform>(entity);
       const auto& frame = an->sheet->frames[an->sheet->clips[an->active].offset + an->current];
       const auto position = event.transform.p;
-      tf.x = position.x - frame.bound_x - b->extent_x;
-      tf.y = position.y - frame.bound_y - b->extent_y;
+      tf.x = position.x - frame.collider.offset_x - b->extent_x;
+      tf.y = position.y - frame.collider.offset_y - b->extent_y;
 
       auto &r = _registry.get<renderable>(entity);
       const auto z = static_cast<int>(tf.y + frame.height * tf.scale);
@@ -1450,7 +1450,7 @@ int stage::count(lua_State *state) {
   b2World_OverlapAABB(_physics, aabb, filter, +collect_hits, &_hits);
 
   int total = 0;
-  for (const auto& [entity, fraction] : _hits) {
+  for (const auto entity : _hits) {
     const auto* op = find_scriptable(_registry, entity);
     if (op && op->kind == kind)
       ++total;
@@ -1475,7 +1475,7 @@ int stage::find(lua_State *state) {
   lua_createtable(state, static_cast<int>(_hits.size()), 0);
   int index = 1;
 
-  for (const auto& [entity, fraction] : _hits) {
+  for (const auto entity : _hits) {
     const auto* op = find_scriptable(_registry, entity);
     if (!op || op->kind != kind)
       continue;
@@ -1508,7 +1508,7 @@ int stage::radar(lua_State *state, entt::entity caller, float x, float y, float 
   lua_createtable(state, static_cast<int>(_hits.size()), 0);
   int index = 1;
 
-  for (const auto& [entity, fraction] : _hits) {
+  for (const auto entity : _hits) {
     if (entity == caller)
       continue;
 

@@ -1,14 +1,14 @@
 #pragma once
 
 template <auto Free>
-struct Deleter final {
+struct Deleter {
   template <typename T>
   void operator()(T *ptr) const noexcept {
     Free(ptr);
   }
 };
 
-struct SDL_Deleter final {
+struct SDL_Deleter {
   template <typename T>
   void operator()(T *ptr) const noexcept {
     SDL_free(ptr);

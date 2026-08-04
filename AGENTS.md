@@ -18,3 +18,4 @@
 - **Prefer single-word variable names whenever they are unambiguous. For local-scope variables, abbreviations or acronyms are preferred over multi-word names whenever they remain clear and unambiguous.**
 - **Must use [SIMDe](https://github.com/simd-everywhere/simde) for all explicit SIMD operations. The code must be fully compatible with Apple Silicon, starting with the M1, as well as ARM64 and Intel CPUs released within the last 10 years.**
 - **Validate all newly created code using fuzzing, while always assuming the happy path.**
+- **Always review the order of struct and class members to improve memory layout and cache efficiency.**

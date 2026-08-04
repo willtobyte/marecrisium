@@ -4,11 +4,6 @@ class pixmap;
 
 class stage final {
 public:
-  struct hit final {
-    entt::entity entity{entt::null};
-    float fraction{};
-  };
-
   explicit stage(std::string name);
   ~stage();
 
@@ -78,7 +73,7 @@ private:
     bool ready{false};
   } _interpolation;
 
-  std::vector<hit> _hits{};
+  std::vector<entt::entity> _hits{};
   std::vector<entt::entity> _pending{};
 
   std::vector<SDL_Vertex> _vertices{};

@@ -28,23 +28,23 @@ static_assert(std::is_trivially_copyable_v<transform>, "transform must be trivia
 static_assert(sizeof(transform) == 32, "transform must fit in 32 bytes");
 
 struct frame final {
-  float x{};
-  float y{};
-  float width{};
-  float height{};
-  float duration{};
-  float bound_x{};
-  float bound_y{};
-  float bound_width{};
-  float bound_height{};
   float u0{};
   float v0{};
   float u1{};
   float v1{};
-  bool collidable{};
+  float width{};
+  float height{};
+  struct {
+    float offset_x{};
+    float offset_y{};
+    float width{};
+    float height{};
+  } collider;
+  float duration{};
 };
 
 static_assert(std::is_trivially_copyable_v<frame>, "frame must be trivially copyable");
+static_assert(sizeof(frame) == 44, "frame must fit in 44 bytes");
 
 struct clip final {
   struct {
@@ -140,8 +140,8 @@ inline bool anchored(const body& b) {
 }
 
 inline b2Vec2 center_of(const body& b, const transform& tf, const frame* frame = nullptr) {
-  const auto ox = frame ? frame->bound_x : b.origin_x;
-  const auto oy = frame ? frame->bound_y : b.origin_y;
+  const auto ox = frame ? frame->collider.offset_x : b.origin_x;
+  const auto oy = frame ? frame->collider.offset_y : b.origin_y;
   return {tf.x + ox + b.extent_x, tf.y + oy + b.extent_y};
 }
 
