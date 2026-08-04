@@ -25,5 +25,7 @@ return {
 		local elapsed = (clock() - before) * 1000
 
 		print(format("[director] enrolled all scenes in %.2f ms", elapsed))
+
+		director.navigate("forest")
 	end,
 }

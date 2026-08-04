@@ -266,6 +266,7 @@ void cassette::wire() {
   });
 
   lua_newtable(L);
+  lua_newtable(L);
   lua_pushcfunction(L, index);
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, newindex);
