@@ -1,27 +1,29 @@
 #pragma once
 
+template <auto Free>
+struct Deleter final {
+  template <typename T>
+  void operator()(T *ptr) const noexcept {
+    Free(ptr);
+  }
+};
+
 struct SDL_Deleter final {
   template <typename T>
-    requires requires(T* p) { SDL_CloseGamepad(p); } ||
-             requires(T* p) { SDL_DestroyTexture(p); } ||
-             requires(T* p) { SDL_free(p); }
-  void operator()(T* ptr) const noexcept {
-    if (!ptr) [[unlikely]] return;
-
-    if constexpr (requires { SDL_CloseGamepad(ptr); }) SDL_CloseGamepad(ptr);
-    else if constexpr (requires { SDL_DestroyTexture(ptr); }) SDL_DestroyTexture(ptr);
-    else if constexpr (requires { SDL_free(ptr); }) SDL_free(ptr);
+  void operator()(T *ptr) const noexcept {
+    SDL_free(ptr);
   }
+
+  void operator()(SDL_Gamepad *ptr) const noexcept { SDL_CloseGamepad(ptr); }
+  void operator()(SDL_Texture *ptr) const noexcept { SDL_DestroyTexture(ptr); }
 };
 
-struct STBI_Deleter final {
-  void operator()(stbi_uc* ptr) const noexcept {
-    stbi_image_free(ptr);
-  }
-};
-
-struct STB_Vorbis_Deleter final {
-  void operator()(stb_vorbis* ptr) const noexcept {
-    stb_vorbis_close(ptr);
-  }
-};
+using STBI_Deleter = Deleter<stbi_image_free>;
+using STB_Vorbis_Deleter = Deleter<stb_vorbis_close>;
+using SQLite_Database_Deleter = Deleter<sqlite3_close>;
+using SQLite_Statement_Deleter = Deleter<sqlite3_finalize>;
+using YYJSON_Doc_Deleter = Deleter<yyjson_doc_free>;
+using YYJSON_Mut_Doc_Deleter = Deleter<yyjson_mut_doc_free>;
+using STD_Deleter = Deleter<std::free>;
+using ZSTD_DCtx_Deleter = Deleter<ZSTD_freeDCtx>;
+using ZSTD_DDict_Deleter = Deleter<ZSTD_freeDDict>;

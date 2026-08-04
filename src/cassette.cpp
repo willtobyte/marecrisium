@@ -1,35 +1,11 @@
 namespace {
 constexpr const char *FILENAME = "cassette.tape";
 
-struct json_deleter final {
-  void operator()(yyjson_doc *document) const noexcept {
-    yyjson_doc_free(document);
-  }
-
-  void operator()(yyjson_mut_doc *document) const noexcept {
-    yyjson_mut_doc_free(document);
-  }
-
-  void operator()(char *json) const noexcept {
-    std::free(json);
-  }
-};
-
-struct sqlite_deleter final {
-  void operator()(sqlite3 *handle) const noexcept {
-    sqlite3_close(handle);
-  }
-
-  void operator()(sqlite3_stmt *statement) const noexcept {
-    sqlite3_finalize(statement);
-  }
-};
-
-std::unique_ptr<sqlite3, sqlite_deleter> database;
-std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_select;
-std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_upsert;
-std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_delete;
-std::unique_ptr<sqlite3_stmt, sqlite_deleter> stmt_clear;
+std::unique_ptr<sqlite3, SQLite_Database_Deleter> database;
+std::unique_ptr<sqlite3_stmt, SQLite_Statement_Deleter> stmt_select;
+std::unique_ptr<sqlite3_stmt, SQLite_Statement_Deleter> stmt_upsert;
+std::unique_ptr<sqlite3_stmt, SQLite_Statement_Deleter> stmt_delete;
+std::unique_ptr<sqlite3_stmt, SQLite_Statement_Deleter> stmt_clear;
 
 char identity;
 char proxy_data;
@@ -105,12 +81,12 @@ static auto load(lua_State *state, std::string_view key) {
 }
 
 static void save(lua_State *state, std::string_view key, int index) {
-  const auto document = std::unique_ptr<yyjson_mut_doc, json_deleter>{yyjson_mut_doc_new(nullptr)};
+  const auto document = std::unique_ptr<yyjson_mut_doc, YYJSON_Mut_Doc_Deleter>{yyjson_mut_doc_new(nullptr)};
   auto *root = marshal::encode(state, index, document.get(), resolve_proxy);
   yyjson_mut_doc_set_root(document.get(), root);
 
   auto length = 0uz;
-  const auto json = std::unique_ptr<char, json_deleter>{yyjson_mut_write(document.get(), 0, &length)};
+  const auto json = std::unique_ptr<char, STD_Deleter>{yyjson_mut_write(document.get(), 0, &length)};
 
   auto *statement = stmt_upsert.get();
   sqlite3_bind_text(statement, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
@@ -274,7 +250,7 @@ static int index(lua_State *state) {
   if (load(state, key)) [[likely]] {
     auto length = 0uz;
     const auto *json = lua_tolstring(state, -1, &length);
-    const auto document = std::unique_ptr<yyjson_doc, json_deleter>{yyjson_read(json, length, 0)};
+    const auto document = std::unique_ptr<yyjson_doc, YYJSON_Doc_Deleter>{yyjson_read(json, length, 0)};
 
     marshal::decode(state, yyjson_doc_get_root(document.get()));
 

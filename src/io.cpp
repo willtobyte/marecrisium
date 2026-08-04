@@ -7,13 +7,8 @@ constexpr size_t stride = 16;
 constexpr uint16_t empty = UINT16_MAX;
 constexpr uint64_t prime = 0x9e3779b97f4a7c15ull;
 
-struct zstd_deleter final {
-  void operator()(ZSTD_DCtx *context) const noexcept { ZSTD_freeDCtx(context); }
-  void operator()(ZSTD_DDict *dictionary) const noexcept { ZSTD_freeDDict(dictionary); }
-};
-
-using decoder_t = std::unique_ptr<ZSTD_DCtx, zstd_deleter>;
-using dictionary_t = std::unique_ptr<ZSTD_DDict, zstd_deleter>;
+using decoder_t = std::unique_ptr<ZSTD_DCtx, ZSTD_DCtx_Deleter>;
+using dictionary_t = std::unique_ptr<ZSTD_DDict, ZSTD_DDict_Deleter>;
 
 struct record final {
   uint32_t position;
