@@ -66,8 +66,10 @@ engine::engine() {
   SDL_RenderClear(renderer);
 
   splash.draw(
-    0, 0, static_cast<float>(splash.width()), static_cast<float>(splash.height()),
-    0, 0, static_cast<float>(width) / scale, static_cast<float>(height) / scale
+    0, 0,
+    static_cast<float>(splash.width()), static_cast<float>(splash.height()),
+    0, 0,
+    static_cast<float>(width) / scale, static_cast<float>(height) / scale
   );
 
   SDL_RenderPresent(renderer);
