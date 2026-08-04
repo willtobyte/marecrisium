@@ -125,6 +125,10 @@ void engine::run() {
   lua_gc(L, LUA_GCCOLLECT, 0);
   lua_gc(L, LUA_GCRESTART, 0);
 
+  const auto elapsed = static_cast<double>(SDL_GetPerformanceCounter() - _boot) * 1'000.0 / static_cast<double>(SDL_GetPerformanceFrequency());
+
+  std::println("[boot] ready in {:.2f}", elapsed);
+
   while (_running) [[likely]] {
     loop();
   }
