@@ -31,10 +31,10 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       }
 
       lua_pushvalue(state, -2);
-      const std::string label = lua_tostring(state, -1);
+      std::size_t length;
+      const auto* data = lua_tolstring(state, -1, &length);
+      const auto id = depot->string.get({data, length});
       lua_pop(state, 1);
-
-      const auto id = depot->string.get(label);
       const auto name = depot->string.slot(id);
 
       auto& clip = entry->clips.emplace_back();

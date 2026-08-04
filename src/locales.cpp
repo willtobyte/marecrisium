@@ -18,11 +18,11 @@ void locales::wire() {
   auto count = 0;
   const auto preferred = std::unique_ptr<SDL_Locale*[], SDL_Deleter>{SDL_GetPreferredLocales(&count)};
   if (preferred && count > 0) [[likely]] {
-    const auto filename = std::format("locales/{}.lua", preferred[0]->language);
-    if (io::exists(filename)) [[likely]] {
-      const auto buffer = io::read(filename);
-      const auto chunk = std::format("@{}", filename);
-      if (luaL_loadbuffer(L, reinterpret_cast<const char*>(buffer.data()), buffer.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
+    const auto chunk = std::format("@locales/{}.lua", preferred[0]->language);
+    const auto path = std::string_view{chunk}.substr(1);
+    if (io::exists(path)) [[likely]] {
+      const auto source = io::read(path);
+      if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
         lua_error(L);
         std::unreachable();
       }

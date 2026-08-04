@@ -313,11 +313,11 @@ stage::stage(std::string name)
   _vertices.reserve(4096);
   _indices.reserve(6144);
 
-  const auto filename = std::format("stages/{}.lua", _name);
-  const auto buffer = io::read(filename);
-  const auto chunk = std::format("@{}", filename);
+  const auto chunk = std::format("@stages/{}.lua", _name);
+  const auto path = std::string_view{chunk}.substr(1);
+  const auto source = io::read(path);
 
-  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(buffer.data()), buffer.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
+  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
     lua_error(L);
     std::unreachable();
   }
@@ -1344,10 +1344,9 @@ int stage::spawn(lua_State* state, std::string_view name, std::string_view kind,
     if (sheet->collidable) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
       lua_getfield(L, -1, "body");
-      const std::string behavior = lua_isstring(L, -1) ? lua_tostring(L, -1) : "kinematic";
+      const auto* behavior = lua_isstring(L, -1) ? lua_tostring(L, -1) : "kinematic";
+      const auto [type, b2type] = body_types(behavior);
       lua_pop(L, 2);
-
-      const auto [type, b2type] = body_types(behavior.data());
 
       b2BodyDef bdef = b2DefaultBodyDef();
       bdef.userData = encode(entity);

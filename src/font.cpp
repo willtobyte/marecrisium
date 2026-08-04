@@ -96,10 +96,10 @@ static constexpr SDL_FPoint rotate(float x, float y, float middle_x, float middl
 }
 
 font::font(std::string_view family) {
-  const auto filename = std::format("fonts/{}.lua", family);
-  const auto meta = io::read(filename);
-  const auto chunk = std::format("@{}", filename);
-  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(meta.data()), meta.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
+  const auto chunk = std::format("@fonts/{}.lua", family);
+  const auto path = std::string_view{chunk}.substr(1);
+  const auto source = io::read(path);
+  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
     lua_error(L);
     std::unreachable();
   }

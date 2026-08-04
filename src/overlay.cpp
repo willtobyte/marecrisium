@@ -71,12 +71,15 @@ void overlay::hide(std::string_view name) {
 
 void overlay::clear() {
   auto active = std::move(_active);
+  _active = std::move(_snapshot);
   _active.clear();
 
   for (auto *fg : active) {
     if (std::ranges::find(_active, fg) == _active.end())
       fg->disappear();
   }
+
+  _snapshot = std::move(active);
 }
 
 void overlay::update(float delta) {

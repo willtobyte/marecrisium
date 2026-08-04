@@ -13,8 +13,7 @@ namespace {
 }
 
 void sourcepool::insert(std::string_view name) {
-  const auto filename = std::format("objects/{}.lua", name);
-  const auto chunk = std::format("@{}", filename);
+  const auto chunk = std::format("@objects/{}.lua", name);
 
   if (const auto found = _pool.find(name); found != _pool.end()) [[likely]] {
     const auto& bytecode = found->second;
@@ -29,14 +28,15 @@ void sourcepool::insert(std::string_view name) {
   assert(inserted && "source must not already be cached");
   [[assume(inserted)]];
   auto& bytecode = it->second;
-  const auto buffer = io::read(filename);
-  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(buffer.data()), buffer.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
+  const auto path = std::string_view{chunk}.substr(1);
+  const auto source = io::read(path);
+  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
     _pool.erase(it);
     lua_error(L);
     std::unreachable();
   }
 
-  bytecode.reserve(buffer.size());
+  bytecode.reserve(source.size());
   const auto status = lua_dump(L, append, &bytecode);
   assert(status == LUA_OK && "Lua bytecode dump must succeed");
   [[assume(status == LUA_OK)]];

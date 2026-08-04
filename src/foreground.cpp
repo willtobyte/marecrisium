@@ -90,10 +90,10 @@ foreground::foreground(std::string_view name) {
   _vertices.reserve(2048);
   _indices.reserve(3072);
 
-  const auto filename = std::format("foregrounds/{}.lua", name);
-  const auto buffer = io::read(filename);
-  const auto chunk = std::format("@{}", filename);
-  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(buffer.data()), buffer.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
+  const auto chunk = std::format("@foregrounds/{}.lua", name);
+  const auto path = std::string_view{chunk}.substr(1);
+  const auto source = io::read(path);
+  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
     lua_error(L);
     std::unreachable();
   }

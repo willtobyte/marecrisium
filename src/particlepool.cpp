@@ -21,10 +21,10 @@ config* particlepool::get(std::string_view kind) {
   if (inserted) [[unlikely]] {
     auto config = std::make_unique<struct config>();
 
-    const auto filename = std::format("particles/{}.lua", kind);
-    const auto buffer = io::read(filename);
-    const auto chunk = std::format("@{}", filename);
-    if (luaL_loadbuffer(L, reinterpret_cast<const char*>(buffer.data()), buffer.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
+    const auto chunk = std::format("@particles/{}.lua", kind);
+    const auto path = std::string_view{chunk}.substr(1);
+    const auto source = io::read(path);
+    if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
       lua_error(L);
       std::unreachable();
     }

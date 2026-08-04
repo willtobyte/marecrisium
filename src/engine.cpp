@@ -34,15 +34,16 @@ engine::engine() {
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "title");
-  const std::string title = lua_tostring(L, -1);
-  lua_pop(L, 1);
+  const auto* title = lua_tostring(L, -1);
 
   static const auto window = SDL_CreateWindow(
-    title.data(),
+    title,
     width,
     height,
     fullscreen ? SDL_WINDOW_FULLSCREEN : 0
   );
+
+  lua_pop(L, 1);
 
   const auto vsync = std::getenv("NOVSYNC") == nullptr;
   const auto properties = SDL_CreateProperties();
