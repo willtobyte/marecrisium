@@ -81,6 +81,8 @@ void director::transition() {
 }
 
 void director::update(float delta) {
+  timer::update(delta);
+
   if (_current) [[likely]]
     _current->update(delta);
 }
