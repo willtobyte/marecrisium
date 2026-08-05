@@ -1,6 +1,5 @@
 static int translate_callback(lua_State *state) {
-  const auto top = lua_gettop(state);
-  const auto extras = top - 1;
+  const auto extras = lua_gettop(state) - 1;
 
   lua_pushvalue(state, lua_upvalueindex(2));
   lua_pushvalue(state, lua_upvalueindex(1));

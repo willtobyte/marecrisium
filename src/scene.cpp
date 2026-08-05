@@ -142,8 +142,7 @@ scene::scene(std::string name)
 
     lua_pop(L, 1);
 
-    if (loop)
-      instance->set_loop(true);
+    instance->set_loop(loop);
 
     lua_pop(L, 1);
   }

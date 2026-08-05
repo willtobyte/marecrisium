@@ -432,9 +432,8 @@ bool update(queue& group, uint32_t owner, std::size_t limit) {
         store::owner = prior_owner;
         if (group.removed != 0)
           compact(group);
-      }
-      if (status != LUA_OK) [[unlikely]]
         lua_error(L);
+      }
 
       const auto &updated = group.list[position];
       if (updated.slot == invalid || (updated.slot & paused) != 0 || group.now < updated.deadline)

@@ -114,5 +114,4 @@ extern mcg64 prng;
 #include "scene.hpp"
 #include "director.hpp"
 #include "engine.hpp"
-#include "error.hpp"
 #include "user.hpp"

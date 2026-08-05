@@ -25,7 +25,12 @@ int main(int, char**) {
 
   L = luaL_newstate();
   luaL_openlibs(L);
-  lua_atpanic(L, +[](lua_State* state) -> int { error::raise(state); });
+  lua_atpanic(L, +[](lua_State* state) -> int {
+    const auto* message = lua_tostring(state, -1);
+    auto exception = std::runtime_error{message ? message : "unknown lua error"};
+    lua_pop(state, 1);
+    throw exception;
+  });
   lua_pushcfunction(L, traceback::build);
   lua_rawseti(L, LUA_REGISTRYINDEX, traceback::slot);
   std::atexit([]{ lua_close(L); });

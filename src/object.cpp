@@ -249,7 +249,6 @@ namespace {
 
           const auto& clip = a->sheet->clips[a->active];
           const auto callback = clip.identity.name;
-          const auto identity = clip.identity.hash;
           const auto next = a->sheet->clips[i].identity.name;
           a->active = i;
           a->current = 0;
@@ -266,7 +265,7 @@ namespace {
           const auto ending = op.blueprint->on_animation_end;
           const auto beginning = op.blueprint->on_animation_begin;
 
-          if (callback != LUA_NOREF && identity != hash && ending != LUA_NOREF) [[unlikely]] {
+          if (ending != LUA_NOREF) [[unlikely]] {
             lua_rawgeti(state, LUA_REGISTRYINDEX, ending);
             lua_rawgeti(state, LUA_REGISTRYINDEX, handle);
             lua_rawgeti(state, LUA_REGISTRYINDEX, callback);
