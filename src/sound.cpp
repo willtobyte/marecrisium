@@ -9,8 +9,8 @@ namespace {
   static int play_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     instance->play();
-    if (instance->on_begin != LUA_NOREF) {
-      lua_rawgeti(state, LUA_REGISTRYINDEX, instance->on_begin);
+    if (instance->on_begin_ref != LUA_NOREF) {
+      lua_rawgeti(state, LUA_REGISTRYINDEX, instance->on_begin_ref);
       lua_call(state, 0, 0);
     }
 
@@ -24,10 +24,10 @@ namespace {
 
   static int on_begin_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_begin);
-    instance->on_begin = LUA_NOREF;
+    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_begin_ref);
+    instance->on_begin_ref = LUA_NOREF;
     lua_pushvalue(state, 2);
-    instance->on_begin = luaL_ref(state, LUA_REGISTRYINDEX);
+    instance->on_begin_ref = luaL_ref(state, LUA_REGISTRYINDEX);
     return 0;
   }
 
@@ -45,10 +45,10 @@ namespace {
 
   static int on_end_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_end);
-    instance->on_end = LUA_NOREF;
+    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_end_ref);
+    instance->on_end_ref = LUA_NOREF;
     lua_pushvalue(state, 2);
-    instance->on_end = luaL_ref(state, LUA_REGISTRYINDEX);
+    instance->on_end_ref = luaL_ref(state, LUA_REGISTRYINDEX);
     return 0;
   }
 
@@ -197,8 +197,8 @@ sound::~sound() {
   ma_sound_stop(&_sound);
   ma_sound_uninit(&_sound);
   ma_data_source_uninit(&_stream.base);
-  luaL_unref(L, LUA_REGISTRYINDEX, on_begin);
-  luaL_unref(L, LUA_REGISTRYINDEX, on_end);
+  luaL_unref(L, LUA_REGISTRYINDEX, on_begin_ref);
+  luaL_unref(L, LUA_REGISTRYINDEX, on_end_ref);
 }
 
 void sound::play() {
@@ -246,10 +246,10 @@ void sound::poll() {
   if (!_ended.exchange(false, std::memory_order_acquire))
     return;
 
-  if (on_end == LUA_NOREF)
+  if (on_end_ref == LUA_NOREF)
     return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, on_end);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, on_end_ref);
   {
     const auto base = lua_gettop(L);
     lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
@@ -278,9 +278,9 @@ void sound::wire() {
   lua_pushcfunction(L, fade_callback);
   lua_setfield(L, -2, "fade");
   lua_pushcfunction(L, on_begin_callback);
-  lua_setfield(L, -2, "on_begin");
+  lua_setfield(L, -2, "on_begin_ref");
   lua_pushcfunction(L, on_end_callback);
-  lua_setfield(L, -2, "on_end");
+  lua_setfield(L, -2, "on_end_ref");
   lua_pushcfunction(L, index);
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, newindex);

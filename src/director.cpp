@@ -45,15 +45,15 @@ void director::navigate(std::string name) {
 void director::destroy(std::string_view name) {
   const auto key = entt::hashed_string{name.data(), name.size()};
   const auto allowed = !_pending || entt::hashed_string{_pending->data(), _pending->size()} != key;
-  assert(allowed && "pending stage must not be destroyed");
+  assert(allowed && "pending scene must not be destroyed");
   [[assume(allowed)]];
 
-  auto it = _stages.find(key);
+  auto it = _scenes.find(key);
 
-  if (it == _stages.end() || it->second.get() == _current) [[unlikely]]
+  if (it == _scenes.end() || it->second.get() == _current) [[unlikely]]
     return;
 
-  _stages.erase(it);
+  _scenes.erase(it);
 }
 
 void director::transition() {
@@ -67,9 +67,9 @@ void director::transition() {
   }
 
   const auto key = entt::hashed_string{_pending->data(), _pending->size()};
-  const auto it = _stages.find(key);
-  const auto found = it != _stages.end();
-  assert(found && "stage must be enrolled before navigation");
+  const auto it = _scenes.find(key);
+  const auto found = it != _scenes.end();
+  assert(found && "scene must be enrolled before navigation");
   [[assume(found)]];
 
   _pending.reset();

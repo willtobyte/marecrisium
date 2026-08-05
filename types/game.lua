@@ -1,11 +1,8 @@
 ---@meta
 
----@alias BodyType "dynamic"|"kinematic"|"static"
----@alias ScreenDirection "left"|"right"|"top"|"bottom"
 ---@alias MouseButton "left"|"middle"|"right"
 ---@alias FlipMode 0|1|2|3
 ---@alias Vector2 [number, number]
----@alias RGB [integer, integer, integer] Channels from 0 to 255.
 ---@alias ParticleRange [number, number]
 ---@alias AnimationFrame [number, number, number, number, number]|[number, number, number, number, number, number, number, number, number]
 
@@ -180,66 +177,46 @@ cassette = nil
 ---@field gravity? ParticleAxisConfig
 ---@field rotation? ParticleRotationConfig
 
--- Stage (`stages/<name>.lua`)
+-- Scene (`scenes/<name>.lua`)
 
----@class StageObject
+---@class SceneObject
 ---@field name string Pool name.
 ---@field kind string Loads `objects/<kind>.lua` and `blobs/objects/<kind>.png`.
 ---@field x? number Defaults to 0.
 ---@field y? number Defaults to 0.
 
----@class StageSound
+---@class SceneSound
 ---@field name string Pool name; loads `blobs/sounds/<name>.ogg`.
 ---@field loop? boolean Defaults to false.
 
----@class StageParticle
----@field name string Pool name.
----@field kind string Loads `particles/<kind>.lua` and `blobs/particles/<kind>.png`.
----@field x? number Defaults to 0.
----@field y? number Defaults to 0.
----@field active? boolean Whether dead particles respawn. Defaults to true.
-
----@class StageMinimap
----@field solid RGB
----@field passable RGB
----@field void RGB
----@field player RGB
----@field entity RGB
-
----Stage definition and callbacks owned by the script.
----@class Stage
----@field gravity? Vector2 Defaults to {0, 0}.
----@field substeps? integer Solver sub-steps per physics tick. Defaults to 1. Increase to 2 or 4 for stages with gravity or tight stacking.
----@field objects? StageObject[]
----@field sounds? StageSound[]
----@field particles? StageParticle[]
+---Scene definition and callbacks owned by the script.
+---@class Scene
+---@field objects? SceneObject[] Declaration order sets each object's initial `z`.
+---@field sounds? SceneSound[]
 ---@field foregrounds? string[] Shown in order; later entries draw on top.
----@field tilemap? string Loads `tilemaps/<name>.tilemap`.
----@field minimap? StageMinimap Requires a tilemap.
----@field on_enter? fun(self: Stage) Called when this stage becomes active.
----@field on_leave? fun(self: Stage) Called before this stage becomes inactive.
----@field on_text? fun(self: Stage, text: string) Receives committed UTF-8 text while active.
----@field on_loop? fun(self: Stage, delta: number) Called every active frame; delta is in seconds.
----@field on_camera? fun(self: Stage): number?, number? Returns the viewport world origin; nil preserves the previous coordinate.
----@field on_press? fun(self: Stage, x: number, y: number, button: MouseButton) Called when the physics query finds no shape under the cursor; x and y are world coordinates.
----@field on_release? fun(self: Stage, x: number, y: number, button: MouseButton) Called when the physics query finds no shape under the cursor; x and y are world coordinates.
+---@field on_enter? fun(self: Scene) Called when this scene becomes active.
+---@field on_leave? fun(self: Scene) Called before this scene becomes inactive.
+---@field on_loop? fun(self: Scene, delta: number) Called every active frame; delta is in seconds.
+---@field on_camera? fun(self: Scene): number?, number? Returns the viewport world origin; nil preserves the previous coordinate.
+---@field on_press? fun(self: Scene, x: number, y: number, button: MouseButton) Called when the physics query finds no shape under the cursor; x and y are world coordinates.
+---@field on_release? fun(self: Scene, x: number, y: number, button: MouseButton) Called when the physics query finds no shape under the cursor; x and y are world coordinates.
 
 -- Director
 
 ---@class Director
 local Director = {}
 
----Queue navigation to an enrolled stage.
----@param name string Stage name.
+---Queue navigation to an enrolled scene.
+---@param name string Scene name.
 function Director.navigate(name) end
 
----Destroy a cached stage. The stage must not be active or pending.
----@param name string Stage name.
+---Destroy a cached scene. The scene must not be active or pending.
+---@param name string Scene name.
 function Director.destroy(name) end
 
----Create and cache a stage without navigation.
----The stage name must not be enrolled.
----@param name string Stage name.
+---Create and cache a scene without navigation.
+---The scene name must not be enrolled.
+---@param name string Scene name.
 function Director.enroll(name) end
 
 ---@type Director
@@ -334,17 +311,9 @@ viewport = nil
 ---Spawn configuration and shared custom behavior. Engine configuration and
 ---callbacks are consumed internally and are unavailable through `Object`.
 ---@class ObjectPrototype
----@field body? BodyType Spawn-only; defaults to "kinematic".
 ---@field animation? AnimationConfig Spawn-only animation definitions.
----@field sleepable? boolean Spawn-only; defaults to false.
 ---@field on_spawn? fun(self: Object)
----@field on_loop? fun(self: Object, delta: number) Not called while dormant.
----@field on_sleep? fun(self: Object)
----@field on_wake? fun(self: Object)
----@field on_screen_exit? fun(self: Object, direction: ScreenDirection)
----@field on_screen_enter? fun(self: Object, direction: ScreenDirection)
----@field on_collision_begin? fun(self: Object, name: string, kind: string, normal_x?: number, normal_y?: number) Normal points from self to the other object; it is nil for sensor events.
----@field on_collision_end? fun(self: Object, name: string, kind: string)
+---@field on_loop? fun(self: Object, delta: number) Called every active frame; delta is in seconds.
 ---@field on_animation_end? fun(self: Object, clip: string) Called when a clip loops or is replaced.
 ---@field on_animation_begin? fun(self: Object, clip: string) Called after a selected clip starts and after each loop.
 ---@field on_press? fun(self: Object, x: number, y: number, button: MouseButton) Called for the topmost visible collider; the picker considers up to 16 overlaps.
@@ -358,22 +327,19 @@ viewport = nil
 ---Custom writes update the shared prototype table for the object's kind.
 ---Spawn configuration and engine callbacks are not exposed.
 ---@class Object
----@field x number Transform X (read/write). Setting it teleports dynamic and static bodies.
----@field y number Transform Y (read/write). Setting it teleports dynamic and static bodies.
+---@field x number Transform X (read/write); the hitbox follows.
+---@field y number Transform Y (read/write); the hitbox follows.
 ---@field center_x number Collider center X, or x when no collider exists (read-only).
 ---@field center_y number Collider center Y, or y when no collider exists (read-only).
----@field velocity_x number Linear velocity (read; write on dynamic bodies only).
----@field velocity_y number Linear velocity (read; write on dynamic bodies only).
----@field scale number Transform scale (read/write).
+---@field scale number Transform scale (read/write); the hitbox scales with it.
 ---@field angle number Rotation in degrees (read/write).
 ---@field alpha number Opacity, clamped to 0-255 (read/write).
----@field shown boolean Visibility (read/write).
+---@field shown boolean Visibility (read/write); hidden objects are not clickable.
 ---@field flip FlipMode Render mirroring (read/write).
 ---@field name string Instance name (read-only).
 ---@field kind string Prototype kind (read-only).
----@field z integer Render order (read/write); higher values draw on top.
----@field alive boolean Lifetime state (read-only); false after destruction.
----@field dormant boolean Sleep state (read-only).
+---@field z integer Render order (read/write); defaults to the declaration index in `objects` and higher values draw on top.
+---@field alive boolean Read-only; objects live for the whole scene and turn false only after the scene is destroyed.
 ---@field animation? string Current clip (read/write); unknown names are ignored.
 ---@field [string] any Non-reserved shared prototype field or dispatched method.
 
@@ -408,68 +374,11 @@ function Sound:on_end(fn) end
 
 -- Particle emitter
 
----Stage-scoped; do not retain after its stage is destroyed.
+---Scene-scoped; do not retain after its scene is destroyed.
 ---@class Particle
 ---@field x number Emitter X (read/write).
 ---@field y number Emitter Y (read/write).
 ---@field active boolean Whether dead particles respawn (read/write).
-
--- World
-
----Stage-scoped physics API. Retained calls fail after the stage is destroyed.
----@class World
-local World = {}
-
----Spawn an object. Returns nil if `on_spawn` destroys it.
----@param name string Unique pool name.
----@param kind string Object kind.
----@param x number
----@param y number
----@return Object?
-function World.spawn(name, kind, x, y) end
-
----Destroy an object owned by this stage.
----@param object Object
-function World.destroy(object) end
-
----Return the closest object hit before the first solid tile. The caller is ignored.
----@param caller Object
----@param x number Ray origin X.
----@param y number Ray origin Y.
----@param angle number Degrees.
----@param distance number
----@return Object?
-function World.raycast(caller, x, y, angle, distance) end
-
----Return objects whose physics bodies overlap a circle, excluding the caller.
----@param caller Object
----@param x number
----@param y number
----@param radius number
----@return Object[]
-function World.radar(caller, x, y, radius) end
-
----Count objects of a kind whose physics bodies overlap a rectangle.
----@param x number
----@param y number
----@param width number
----@param height number
----@param kind string
----@return integer
-function World.count(x, y, width, height, kind) end
-
----Return objects of a kind whose physics bodies overlap a rectangle.
----@param x number
----@param y number
----@param width number
----@param height number
----@param kind string
----@return Object[]
-function World.find(x, y, width, height, kind) end
-
----Available during callbacks of the active stage; nil at runtime otherwise.
----@type World
-world = nil
 
 -- Flip
 
@@ -483,21 +392,14 @@ world = nil
 ---@type Flip
 flip = nil
 
--- Minimap
-
----Stage-scoped; do not retain after its stage is destroyed.
----@class Minimap
----@field visible boolean Visibility (read/write).
-
 -- Pool
 
 ---Mutable Lua table of handles. Replacing an entry does not destroy or rename
 ---the corresponding engine resource.
 ---@class Pool
----@field minimap? Minimap
----@field [string] Object|Sound|Particle|Minimap|nil
+---@field [string] Object|Sound|nil
 
----Available during callbacks of the active stage; nil at runtime otherwise.
+---Available during callbacks of the active scene; nil at runtime otherwise.
 ---@type Pool
 pool = nil
 
@@ -577,8 +479,8 @@ function TimerHandle:pause() end
 ---@return TimerHandle self
 function TimerHandle:resume() end
 
----Stage-local timers advanced once per frame. Timers freeze while their stage is
----inactive and can only run while that same stage is active. Elapsed intervals
+---Scene-local timers advanced once per frame. Timers freeze while their scene is
+---inactive and can only run while that same scene is active. Elapsed intervals
 ---of repeating timers replay without drift. Timers added by a callback begin on
 ---the next advance; nested updates are ignored.
 ---@class Timer
@@ -600,7 +502,7 @@ function Timer:singleshot(milliseconds, callback) end
 ---@param delta number Seconds.
 function Timer:update(delta) end
 
----Cancel every timer owned by the current stage.
+---Cancel every timer owned by the current scene.
 function Timer:clear() end
 
 ---@type Timer
@@ -614,4 +516,3 @@ timer = nil
 ---@field right boolean D, D-pad right, or left stick right.
 ---@field up boolean W, D-pad up, or left stick up.
 ---@field down boolean S, D-pad down, or left stick down.
----@field minimap boolean Tab or gamepad Back.

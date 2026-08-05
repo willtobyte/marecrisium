@@ -14,18 +14,15 @@ enum class mirror : uint8_t {
 struct transform final {
   float x{};
   float y{};
-  float previous_x{};
-  float previous_y{};
   float scale{1.f};
   float angle{};
   float alpha{255.f};
   bool shown{true};
-  bool moved{};
   mirror flip{mirror::none};
 };
 
 static_assert(std::is_trivially_copyable_v<transform>, "transform must be trivially copyable");
-static_assert(sizeof(transform) == 32, "transform must fit in 32 bytes");
+static_assert(sizeof(transform) == 24, "transform must fit in 24 bytes");
 
 struct frame final {
   float u0{};
@@ -49,7 +46,7 @@ static_assert(sizeof(frame) == 44, "frame must fit in 44 bytes");
 struct clip final {
   struct {
     entt::id_type hash{};
-    int name{LUA_NOREF};
+    int name_ref{LUA_NOREF};
   } identity;
   uint16_t offset{};
   uint8_t count{};
@@ -69,22 +66,16 @@ struct animation final {
 static_assert(std::is_trivially_copyable_v<animation>, "animation must be trivially copyable");
 
 struct prototype final {
-  int table{LUA_NOREF};
-  int kind{LUA_NOREF};
-  int on_loop{LUA_NOREF};
-  int on_animation_end{LUA_NOREF};
-  int on_animation_begin{LUA_NOREF};
-  int on_collision_begin{LUA_NOREF};
-  int on_collision_end{LUA_NOREF};
-  int on_wake{LUA_NOREF};
-  int on_sleep{LUA_NOREF};
-  int on_screen_exit{LUA_NOREF};
-  int on_screen_enter{LUA_NOREF};
-  int on_spawn{LUA_NOREF};
-  int on_press{LUA_NOREF};
-  int on_release{LUA_NOREF};
-  int on_hover{LUA_NOREF};
-  int on_unhover{LUA_NOREF};
+  int table_ref{LUA_NOREF};
+  int kind_ref{LUA_NOREF};
+  int on_loop_ref{LUA_NOREF};
+  int on_animation_end_ref{LUA_NOREF};
+  int on_animation_begin_ref{LUA_NOREF};
+  int on_spawn_ref{LUA_NOREF};
+  int on_press_ref{LUA_NOREF};
+  int on_release_ref{LUA_NOREF};
+  int on_hover_ref{LUA_NOREF};
+  int on_unhover_ref{LUA_NOREF};
 };
 
 static_assert(std::is_trivially_copyable_v<prototype>, "prototype must be trivially copyable");
@@ -95,17 +86,11 @@ struct scriptable final {
   const prototype* blueprint{};
   entt::id_type name{};
   entt::id_type kind{};
-  int handle{LUA_NOREF};
-  int label{LUA_NOREF};
+  int handle_ref{LUA_NOREF};
+  int label_ref{LUA_NOREF};
 };
 
 static_assert(std::is_trivially_copyable_v<scriptable>, "scriptable must be trivially copyable");
-
-enum class body_type : uint8_t {
-  kinematic,
-  dynamic,
-  stationary,
-};
 
 struct body final {
   static constexpr auto in_place_delete = true;
@@ -116,66 +101,14 @@ struct body final {
   float extent_y{};
   float origin_x{};
   float origin_y{};
-  body_type type{body_type::kinematic};
-  bool events{};
-  bool moving{};
-  bool dirty{};
-  const frame* snapshot{};
-  float target_x{};
-  float target_y{};
+  bool dirty{true};
 };
 
 static_assert(std::is_trivially_copyable_v<body>, "body must be trivially copyable");
 
-inline bool alive(const body& b) {
-  return b2Body_IsValid(b.id);
+[[nodiscard]] constexpr b2Vec2 center_of(const body& b, const transform& tf) {
+  return {tf.x + b.origin_x + b.extent_x, tf.y + b.origin_y + b.extent_y};
 }
-
-inline bool propelled(const body& b) {
-  return b.type == body_type::dynamic && b2Body_IsValid(b.id);
-}
-
-inline bool anchored(const body& b) {
-  return b.type != body_type::kinematic && b2Body_IsValid(b.id);
-}
-
-inline b2Vec2 center_of(const body& b, const transform& tf, const frame* frame = nullptr) {
-  const auto ox = frame ? frame->collider.offset_x : b.origin_x;
-  const auto oy = frame ? frame->collider.offset_y : b.origin_y;
-  return {tf.x + ox + b.extent_x, tf.y + oy + b.extent_y};
-}
-
-struct boundary final {
-  static constexpr auto in_place_delete = true;
-
-  uint8_t previous{};
-
-  static constexpr uint8_t left = 1 << 0;
-  static constexpr uint8_t right = 1 << 1;
-  static constexpr uint8_t top = 1 << 2;
-  static constexpr uint8_t bottom = 1 << 3;
-};
-
-static_assert(std::is_trivially_copyable_v<boundary>, "boundary must be trivially copyable");
-
-struct sleepable final {
-  static constexpr auto in_place_delete = true;
-};
-
-static_assert(std::is_trivially_copyable_v<sleepable>, "sleepable must be trivially copyable");
-
-struct dormant final {
-  static constexpr auto in_place_delete = true;
-};
-
-static_assert(std::is_trivially_copyable_v<dormant>, "dormant must be trivially copyable");
-
-struct dormancy final {
-  struct viewport viewport{};
-  bool dirty{true};
-};
-
-static_assert(std::is_trivially_copyable_v<dormancy>, "dormancy must be trivially copyable");
 
 struct renderable final {
   int z{};

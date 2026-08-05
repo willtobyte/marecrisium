@@ -246,7 +246,7 @@ int add(lua_State *state) {
   [[assume(callable)]];
 
   auto *const current = queue_of(store::owner);
-  assert(current && "timer requires an active stage");
+  assert(current && "timer requires an active scene");
   [[assume(current)]];
 
   auto &group = *current;

@@ -4,10 +4,7 @@ namespace {
     constexpr auto x = "x"_hs;
     constexpr auto y = "y"_hs;
     constexpr auto z = "z"_hs;
-    constexpr auto velocity_x = "velocity_x"_hs;
-    constexpr auto velocity_y = "velocity_y"_hs;
     constexpr auto flip = "flip"_hs;
-    constexpr auto dormant = "dormant"_hs;
     constexpr auto animation = "animation"_hs;
     constexpr auto shown = "shown"_hs;
     constexpr auto scale = "scale"_hs;
@@ -17,16 +14,8 @@ namespace {
     constexpr auto kind = "kind"_hs;
     constexpr auto center_x = "center_x"_hs;
     constexpr auto center_y = "center_y"_hs;
-    constexpr auto body = "body"_hs;
-    constexpr auto sleepable = "sleepable"_hs;
     constexpr auto on_spawn = "on_spawn"_hs;
     constexpr auto on_loop = "on_loop"_hs;
-    constexpr auto on_sleep = "on_sleep"_hs;
-    constexpr auto on_wake = "on_wake"_hs;
-    constexpr auto on_screen_exit = "on_screen_exit"_hs;
-    constexpr auto on_screen_enter = "on_screen_enter"_hs;
-    constexpr auto on_collision_begin = "on_collision_begin"_hs;
-    constexpr auto on_collision_end = "on_collision_end"_hs;
     constexpr auto on_animation_begin = "on_animation_begin"_hs;
     constexpr auto on_animation_end = "on_animation_end"_hs;
     constexpr auto on_press = "on_press"_hs;
@@ -49,7 +38,7 @@ namespace {
     auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));
     luaL_getmetatable(L, "Object");
     lua_setmetatable(L, -2);
-    component.handle = luaL_ref(L, LUA_REGISTRYINDEX);
+    component.handle_ref = luaL_ref(L, LUA_REGISTRYINDEX);
     *memory = proxy{
       .registry = &registry,
       .entity = entity,
@@ -85,25 +74,15 @@ namespace {
 
       case lookup::center_x: {
         const auto& tf = registry.get<transform>(entity);
-        const auto* a = registry.try_get<animation>(entity);
         const auto* b = registry.try_get<body>(entity);
-        const frame* frame = (a && a->playing && a->sheet->count > 0)
-          ? &a->sheet->frames[a->sheet->clips[a->active].offset + a->current]
-          : nullptr;
-        const auto value = (b && frame) ? center_of(*b, tf, frame).x : tf.x;
-        lua_pushnumber(state, static_cast<lua_Number>(value));
+        lua_pushnumber(state, static_cast<lua_Number>(b ? center_of(*b, tf).x : tf.x));
         return 1;
       }
 
       case lookup::center_y: {
         const auto& tf = registry.get<transform>(entity);
-        const auto* a = registry.try_get<animation>(entity);
         const auto* b = registry.try_get<body>(entity);
-        const frame* frame = (a && a->playing && a->sheet->count > 0)
-          ? &a->sheet->frames[a->sheet->clips[a->active].offset + a->current]
-          : nullptr;
-        const auto value = (b && frame) ? center_of(*b, tf, frame).y : tf.y;
-        lua_pushnumber(state, static_cast<lua_Number>(value));
+        lua_pushnumber(state, static_cast<lua_Number>(b ? center_of(*b, tf).y : tf.y));
         return 1;
       }
 
@@ -111,32 +90,8 @@ namespace {
         lua_pushinteger(state, static_cast<lua_Integer>(registry.get<renderable>(entity).z));
         return 1;
 
-      case lookup::velocity_x: {
-        const auto* b = registry.try_get<body>(entity);
-        if (b && alive(*b)) [[likely]] {
-          lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(b->id).x));
-          return 1;
-        }
-        lua_pushnumber(state, .0);
-        return 1;
-      }
-
-      case lookup::velocity_y: {
-        const auto* b = registry.try_get<body>(entity);
-        if (b && alive(*b)) [[likely]] {
-          lua_pushnumber(state, static_cast<lua_Number>(b2Body_GetLinearVelocity(b->id).y));
-          return 1;
-        }
-        lua_pushnumber(state, .0);
-        return 1;
-      }
-
       case lookup::flip:
         lua_pushinteger(state, static_cast<lua_Integer>(registry.get<transform>(entity).flip));
-        return 1;
-
-      case lookup::dormant:
-        lua_pushboolean(state, registry.all_of<dormant>(entity));
         return 1;
 
       case lookup::animation: {
@@ -144,7 +99,7 @@ namespace {
         if (!a || !a->playing || a->sheet->count == 0) [[unlikely]]
           return lua_pushnil(state), 1;
 
-        lua_rawgeti(state, LUA_REGISTRYINDEX, a->sheet->clips[a->active].identity.name);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, a->sheet->clips[a->active].identity.name_ref);
         return 1;
       }
 
@@ -165,23 +120,15 @@ namespace {
         return 1;
 
       case lookup::name:
-        lua_rawgeti(state, LUA_REGISTRYINDEX, registry.get<scriptable>(entity).label);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, registry.get<scriptable>(entity).label_ref);
         return 1;
 
       case lookup::kind:
-        lua_rawgeti(state, LUA_REGISTRYINDEX, registry.get<scriptable>(entity).blueprint->kind);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, registry.get<scriptable>(entity).blueprint->kind_ref);
         return 1;
 
-      case lookup::body:
-      case lookup::sleepable:
       case lookup::on_spawn:
       case lookup::on_loop:
-      case lookup::on_sleep:
-      case lookup::on_wake:
-      case lookup::on_screen_exit:
-      case lookup::on_screen_enter:
-      case lookup::on_collision_begin:
-      case lookup::on_collision_end:
       case lookup::on_animation_begin:
       case lookup::on_animation_end:
       case lookup::on_press:
@@ -192,9 +139,9 @@ namespace {
 
       default: {
         const auto& op = registry.get<scriptable>(entity);
-        assert(op.blueprint && op.blueprint->table != LUA_NOREF && "object must have an object reference");
+        assert(op.blueprint && op.blueprint->table_ref != LUA_NOREF && "object must have an object reference");
 
-        lua_rawgeti(state, LUA_REGISTRYINDEX, op.blueprint->table);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, op.blueprint->table_ref);
         lua_getfield(state, -1, key);
         if (!lua_isnil(state, -1)) [[likely]] {
           lua_remove(state, -2);
@@ -218,12 +165,6 @@ namespace {
         switch (entt::hashed_string{buffer.data()}) {
           case lookup::on_spawn:
           case lookup::on_loop:
-          case lookup::on_sleep:
-          case lookup::on_wake:
-          case lookup::on_screen_exit:
-          case lookup::on_screen_enter:
-          case lookup::on_collision_begin:
-          case lookup::on_collision_end:
           case lookup::on_animation_begin:
           case lookup::on_animation_end:
           case lookup::on_press:
@@ -264,12 +205,9 @@ namespace {
         auto& tf = registry.get<transform>(entity);
         const auto value = static_cast<float>(luaL_checknumber(state, 3));
         const auto changed = tf.x != value;
-        tf.moved = tf.moved || changed;
-        tf.previous_x = tf.x = value;
-        if (changed && registry.all_of<dormant>(entity))
-          registry.ctx().get<dormancy>().dirty = true;
+        tf.x = value;
 
-        if (auto* b = registry.try_get<body>(entity); b && anchored(*b)) [[likely]]
+        if (auto* b = registry.try_get<body>(entity); b) [[likely]]
           b->dirty = true;
 
         return 0;
@@ -279,12 +217,9 @@ namespace {
         auto& tf = registry.get<transform>(entity);
         const auto value = static_cast<float>(luaL_checknumber(state, 3));
         const auto changed = tf.y != value;
-        tf.moved = tf.moved || changed;
-        tf.previous_y = tf.y = value;
-        if (changed && registry.all_of<dormant>(entity))
-          registry.ctx().get<dormancy>().dirty = true;
+        tf.y = value;
 
-        if (auto* b = registry.try_get<body>(entity); b && anchored(*b)) [[likely]]
+        if (auto* b = registry.try_get<body>(entity); b) [[likely]]
           b->dirty = true;
 
         return 0;
@@ -298,32 +233,6 @@ namespace {
 
         r.z = value;
         registry.ctx().get<reorder>().dirty = true;
-
-        return 0;
-      }
-
-      case lookup::velocity_x: {
-        auto* b = registry.try_get<body>(entity);
-        if (b && propelled(*b)) [[likely]] {
-          const auto value = static_cast<float>(luaL_checknumber(state, 3));
-          const auto current = b2Body_GetLinearVelocity(b->id);
-          if (current.x != value ||
-              ((value != .0f || current.y != .0f) && !b2Body_IsAwake(b->id)))
-            b2Body_SetLinearVelocity(b->id, {value, current.y});
-        }
-
-        return 0;
-      }
-
-      case lookup::velocity_y: {
-        auto* b = registry.try_get<body>(entity);
-        if (b && propelled(*b)) [[likely]] {
-          const auto value = static_cast<float>(luaL_checknumber(state, 3));
-          const auto current = b2Body_GetLinearVelocity(b->id);
-          if (current.y != value ||
-              ((current.x != .0f || value != .0f) && !b2Body_IsAwake(b->id)))
-            b2Body_SetLinearVelocity(b->id, {current.x, value});
-        }
 
         return 0;
       }
@@ -348,26 +257,27 @@ namespace {
             continue;
 
           const auto& clip = a->sheet->clips[a->active];
-          const auto callback = a->playing ? clip.identity.name : LUA_NOREF;
+          const auto callback = a->playing ? clip.identity.name_ref : LUA_NOREF;
           const auto identity = clip.identity.hash;
-          const auto next = a->sheet->clips[i].identity.name;
+          const auto next = a->sheet->clips[i].identity.name_ref;
           a->active = i;
           a->current = 0;
           a->elapsed = .0f;
           a->playing = true;
-          if (registry.all_of<dormant>(entity))
-            registry.ctx().get<dormancy>().dirty = true;
+
+          if (auto* b = registry.try_get<body>(entity); b) [[unlikely]]
+            b->dirty = true;
 
           if (a->sheet->clips[i].effect)
             a->sheet->clips[i].effect->play();
 
           const auto& op = registry.get<scriptable>(entity);
-          if (op.handle == LUA_NOREF)
+          if (op.handle_ref == LUA_NOREF)
             return 0;
 
-          const auto handle = op.handle;
-          const auto ending = op.blueprint->on_animation_end;
-          const auto beginning = op.blueprint->on_animation_begin;
+          const auto handle = op.handle_ref;
+          const auto ending = op.blueprint->on_animation_end_ref;
+          const auto beginning = op.blueprint->on_animation_begin_ref;
 
           if (callback != LUA_NOREF && identity != hash && ending != LUA_NOREF) [[unlikely]] {
             lua_rawgeti(state, LUA_REGISTRYINDEX, ending);
@@ -375,8 +285,6 @@ namespace {
             lua_rawgeti(state, LUA_REGISTRYINDEX, callback);
             lua_call(state, 2, 0);
           }
-
-          if (!registry.valid(entity)) return 0;
 
           if (beginning != LUA_NOREF) {
             lua_rawgeti(state, LUA_REGISTRYINDEX, beginning);
@@ -394,9 +302,11 @@ namespace {
       case lookup::scale: {
         auto& tf = registry.get<transform>(entity);
         const auto value = static_cast<float>(luaL_checknumber(state, 3));
-        if (tf.scale != value && registry.all_of<dormant>(entity))
-          registry.ctx().get<dormancy>().dirty = true;
         tf.scale = value;
+
+        if (auto* b = registry.try_get<body>(entity); b) [[likely]]
+          b->dirty = true;
+
         return 0;
       }
 
@@ -409,26 +319,28 @@ namespace {
           static_cast<float>(luaL_checknumber(state, 3)), .0f, 255.f);
         return 0;
 
-      case lookup::shown:
-        registry.get<transform>(entity).shown = lua_toboolean(state, 3) != 0;
+      case lookup::shown: {
+        auto& tf = registry.get<transform>(entity);
+        const auto value = lua_toboolean(state, 3) != 0;
+        if (tf.shown == value)
+          return 0;
+
+        tf.shown = value;
+
+        if (auto* b = registry.try_get<body>(entity);
+            b) [[likely]]
+          value ? b2Body_Enable(b->id) : b2Body_Disable(b->id);
+
         return 0;
+      }
 
       case lookup::center_x:
       case lookup::center_y:
       case lookup::name:
       case lookup::kind:
       case lookup::alive:
-      case lookup::dormant:
-      case lookup::body:
-      case lookup::sleepable:
       case lookup::on_spawn:
       case lookup::on_loop:
-      case lookup::on_sleep:
-      case lookup::on_wake:
-      case lookup::on_screen_exit:
-      case lookup::on_screen_enter:
-      case lookup::on_collision_begin:
-      case lookup::on_collision_end:
       case lookup::on_animation_begin:
       case lookup::on_animation_end:
       case lookup::on_press:
@@ -439,9 +351,9 @@ namespace {
 
       default: {
         const auto& op = registry.get<scriptable>(entity);
-        assert(op.blueprint && op.blueprint->table != LUA_NOREF && "object must have an object reference");
+        assert(op.blueprint && op.blueprint->table_ref != LUA_NOREF && "object must have an object reference");
 
-        lua_rawgeti(state, LUA_REGISTRYINDEX, op.blueprint->table);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, op.blueprint->table_ref);
         lua_pushvalue(state, 3);
         lua_setfield(state, -2, key);
         lua_pop(state, 1);
@@ -453,7 +365,7 @@ namespace {
 
 void object::bind(entt::registry& registry, entt::entity entity, scriptable& component, std::string_view name, std::string_view kind) {
   lua_pushlstring(L, name.data(), name.size());
-  component.label = luaL_ref(L, LUA_REGISTRYINDEX);
+  component.label_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   if (const auto it = prototypes.find(kind); it != prototypes.end()) [[likely]] {
     component.blueprint = it->second.get();
@@ -468,35 +380,28 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
     const auto status = lua_pcall(L, 0, 1, base);
     lua_remove(L, base);
     if (status != LUA_OK) [[unlikely]] {
-      registry.destroy(entity);
       lua_error(L);
       std::unreachable();
     }
   }
 
   auto blueprint = std::make_unique<prototype>();
-  blueprint->table = luaL_ref(L, LUA_REGISTRYINDEX);
+  blueprint->table_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_pushlstring(L, kind.data(), kind.size());
-  blueprint->kind = luaL_ref(L, LUA_REGISTRYINDEX);
+  blueprint->kind_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint->table);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint->table_ref);
 
   constexpr std::array fields{
-    std::pair{"on_loop", &prototype::on_loop},
-    std::pair{"on_animation_end", &prototype::on_animation_end},
-    std::pair{"on_animation_begin", &prototype::on_animation_begin},
-    std::pair{"on_collision_begin", &prototype::on_collision_begin},
-    std::pair{"on_collision_end", &prototype::on_collision_end},
-    std::pair{"on_wake", &prototype::on_wake},
-    std::pair{"on_sleep", &prototype::on_sleep},
-    std::pair{"on_screen_exit", &prototype::on_screen_exit},
-    std::pair{"on_screen_enter", &prototype::on_screen_enter},
-    std::pair{"on_spawn", &prototype::on_spawn},
-    std::pair{"on_press", &prototype::on_press},
-    std::pair{"on_release", &prototype::on_release},
-    std::pair{"on_hover", &prototype::on_hover},
-    std::pair{"on_unhover", &prototype::on_unhover},
+    std::pair{"on_loop", &prototype::on_loop_ref},
+    std::pair{"on_animation_end", &prototype::on_animation_end_ref},
+    std::pair{"on_animation_begin", &prototype::on_animation_begin_ref},
+    std::pair{"on_spawn", &prototype::on_spawn_ref},
+    std::pair{"on_press", &prototype::on_press_ref},
+    std::pair{"on_release", &prototype::on_release_ref},
+    std::pair{"on_hover", &prototype::on_hover_ref},
+    std::pair{"on_unhover", &prototype::on_unhover_ref},
   };
 
   for (const auto& [field, member] : fields) {

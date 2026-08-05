@@ -1,6 +1,6 @@
 #pragma once
 
-class stage;
+class scene;
 
 class director final {
 public:
@@ -14,9 +14,9 @@ public:
     requires std::convertible_to<T, std::string>
   void enroll(T&& name) {
     const auto key = entt::hashed_string{name.data(), name.size()};
-    auto instance = std::make_unique<stage>(std::forward<T>(name));
-    const auto [_, inserted] = _stages.emplace(key, std::move(instance));
-    assert(inserted && "stage must not already be enrolled");
+    auto instance = std::make_unique<scene>(std::forward<T>(name));
+    const auto [_, inserted] = _scenes.emplace(key, std::move(instance));
+    assert(inserted && "scene must not already be enrolled");
     [[assume(inserted)]];
   }
 
@@ -27,10 +27,10 @@ public:
   void draw();
 
 private:
-  stage *_current{nullptr};
+  scene *_current{nullptr};
   overlay _overlay{};
 
   std::optional<std::string> _pending;
 
-  entt::dense_map<entt::id_type, std::unique_ptr<stage>> _stages;
+  entt::dense_map<entt::id_type, std::unique_ptr<scene>> _scenes;
 };

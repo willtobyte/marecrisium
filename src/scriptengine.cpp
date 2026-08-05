@@ -25,7 +25,6 @@ void scriptengine::run() {
   gamepad::wire();
   keyboard::wire();
   locales::wire();
-  minimap::wire();
   mouse::wire();
   object::wire();
   overlay::wire();

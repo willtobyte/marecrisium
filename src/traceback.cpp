@@ -1,6 +1,7 @@
 namespace {
 constexpr auto depth = 6uz;
 constexpr auto entries = 10;
+}
 
 struct trail final {
   std::array<const void *, depth> tables{};
@@ -112,8 +113,6 @@ void format(lua_State *state, std::string &text, int index, trail &path) {
     std::format_to(out, "({})", lua_typename(state, type));
     break;
   }
-}
-
 }
 
 namespace traceback {

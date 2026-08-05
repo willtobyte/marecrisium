@@ -34,8 +34,8 @@ public:
 
   void poll();
 
-  int on_begin{LUA_NOREF};
-  int on_end{LUA_NOREF};
+  int on_begin_ref{LUA_NOREF};
+  int on_end_ref{LUA_NOREF};
 
 private:
   std::atomic<bool> _ended{false};

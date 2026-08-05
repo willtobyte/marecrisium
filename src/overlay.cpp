@@ -15,16 +15,16 @@ overlay::overlay() {
   *instance = this;
   luaL_getmetatable(L, "Foregrounds");
   lua_setmetatable(L, -2);
-  _userdata = luaL_ref(L, LUA_REGISTRYINDEX);
+  _userdata_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_ref);
   lua_setglobal(L, "foregrounds");
 }
 
 overlay::~overlay() noexcept(false) {
   if (std::uncaught_exceptions() == 0)
     clear();
-  luaL_unref(L, LUA_REGISTRYINDEX, _userdata);
+  luaL_unref(L, LUA_REGISTRYINDEX, _userdata_ref);
 }
 
 void overlay::wire() {

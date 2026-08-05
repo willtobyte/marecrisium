@@ -16,7 +16,7 @@ public:
 
   void disappear();
 
-  int _table{LUA_NOREF};
+  int _table_ref{LUA_NOREF};
 
   pixmap *_texture{nullptr};
   std::vector<SDL_Vertex> _vertices;
@@ -24,8 +24,8 @@ public:
 
 private:
   bool _visible{false};
-  int _on_loop{LUA_NOREF};
-  int _on_paint{LUA_NOREF};
-  int _on_appear{LUA_NOREF};
-  int _on_disappear{LUA_NOREF};
+  int _on_loop_ref{LUA_NOREF};
+  int _on_paint_ref{LUA_NOREF};
+  int _on_appear_ref{LUA_NOREF};
+  int _on_disappear_ref{LUA_NOREF};
 };
