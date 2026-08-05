@@ -1,95 +1,122 @@
-static int newindex(lua_State *state) {
-  auto *self = *static_cast<overlay **>(luaL_checkudata(state, 1, "Foregrounds"));
-  std::size_t length;
-  const std::string_view name{luaL_checklstring(state, 2, &length), length};
+overlay::overlay(std::string_view name) {
+  const auto chunk = std::format("@overlays/{}.lua", name);
+  const auto path = std::string_view{chunk}.substr(1);
+  const auto source = io::read(path);
+  error::check(L, luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()));
 
-  lua_toboolean(state, 3)
-    ? self->show(name)
-    : self->hide(name);
+  const auto top = lua_gettop(L);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+  lua_insert(L, top);
+  const auto status = lua_pcall(L, 0, 1, top);
+  lua_remove(L, top);
+  error::check(L, status);
 
-  return 0;
-}
+  lua_getfield(L, top, "fonts");
+  const auto fonts = static_cast<int>(lua_objlen(L, -1));
 
-overlay::overlay() {
-  auto **instance = static_cast<overlay **>(lua_newuserdata(L, sizeof(overlay *)));
-  *instance = this;
-  luaL_getmetatable(L, "Foregrounds");
-  lua_setmetatable(L, -2);
-  _userdata_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  for (auto i = 1; i <= fonts; ++i) {
+    lua_rawgeti(L, -1, i);
+    const auto *family = luaL_checkstring(L, -1);
+    auto **memory = static_cast<font **>(lua_newuserdata(L, sizeof(font *)));
+    *memory = depot->font.get(family);
+    luaL_getmetatable(L, "Font");
+    lua_setmetatable(L, -2);
+    lua_setfield(L, top, family);
+    lua_pop(L, 1);
+  }
+  lua_pop(L, 1);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _userdata_ref);
-  lua_setglobal(L, "foregrounds");
-}
+  _table = luaL_ref(L, LUA_REGISTRYINDEX);
 
-overlay::~overlay() noexcept(false) {
-  if (std::uncaught_exceptions() == 0)
-    clear();
-  luaL_unref(L, LUA_REGISTRYINDEX, _userdata_ref);
-}
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
 
-void overlay::wire() {
-  luaL_newmetatable(L, "Foregrounds");
-  lua_pushliteral(L, "Foregrounds");
-  lua_setfield(L, -2, "__name");
+  lua_getfield(L, -1, "on_appear");
+  _on_appear = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
-  lua_pushcfunction(L, newindex);
-  lua_setfield(L, -2, "__newindex");
+  lua_getfield(L, -1, "on_disappear");
+  _on_disappear = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+
+  lua_getfield(L, -1, "on_loop");
+  _on_loop = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+
+  lua_getfield(L, -1, "on_paint");
+  _on_paint = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+
   lua_pop(L, 1);
 }
 
-void overlay::show(std::string_view name) {
-  const auto key = entt::hashed_string{name.data(), name.size()};
-  auto it = _foregrounds.find(key);
-  if (it == _foregrounds.end()) {
-    auto fg = std::make_unique<foreground>(name);
-    it = _foregrounds.try_emplace(key, std::move(fg)).first;
-  }
-
-  auto *fg = it->second.get();
-
-  if (std::ranges::find(_active, fg) != _active.end()) [[unlikely]]
-    return;
-
-  _active.emplace_back(fg);
-  fg->appear();
+overlay::~overlay() {
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_paint);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_disappear);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_appear);
+  luaL_unref(L, LUA_REGISTRYINDEX, _table);
 }
 
-void overlay::hide(std::string_view name) {
-  const auto key = entt::hashed_string{name.data(), name.size()};
-  const auto it = _foregrounds.find(key);
-  if (it == _foregrounds.end()) [[unlikely]]
-    return;
+void overlay::appear() {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
+  const auto top = lua_gettop(L);
+  lua_getfield(L, top, "fonts");
+  const auto fonts = static_cast<int>(lua_objlen(L, top + 1));
+  lua_getglobal(L, "pool");
 
-  auto *foreground = it->second.get();
-  const auto active = std::ranges::find(_active, foreground);
-  if (active == _active.end())
-    return;
+  for (auto i = 1; i <= fonts; ++i) {
+    lua_rawgeti(L, top + 1, i);
+    const auto *family = luaL_checkstring(L, -1);
+    lua_getfield(L, top, family);
+    lua_setfield(L, top + 2, family);
+    lua_pop(L, 1);
+  }
+  lua_pop(L, 3);
 
-  _active.erase(active);
-  foreground->disappear();
+  if (_on_appear != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_appear);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
+    const auto top = lua_gettop(L) - 1;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, top);
+    const auto status = lua_pcall(L, 1, 0, top);
+    lua_remove(L, top);
+    error::check(L, status);
+  }
 }
 
-void overlay::clear() {
-  auto active = std::move(_active);
-  _active = std::move(_snapshot);
-  _active.clear();
-
-  for (auto *fg : active) {
-    if (std::ranges::find(_active, fg) == _active.end())
-      fg->disappear();
+void overlay::disappear() {
+  if (_on_disappear != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disappear);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
+    const auto top = lua_gettop(L) - 1;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, top);
+    const auto status = lua_pcall(L, 1, 0, top);
+    lua_remove(L, top);
+    error::check(L, status);
   }
-
-  _snapshot = std::move(active);
 }
 
 void overlay::update(float delta) {
-  _snapshot.assign(_active.begin(), _active.end());
-  for (auto *foreground : _snapshot)
-    foreground->update(delta);
+  if (_on_loop != LUA_NOREF) [[likely]] {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
+    lua_pushnumber(L, static_cast<lua_Number>(delta));
+    const auto top = lua_gettop(L) - 2;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, top);
+    const auto status = lua_pcall(L, 2, 0, top);
+    lua_remove(L, top);
+    error::check(L, status);
+  }
 }
 
 void overlay::draw() {
-  _snapshot.assign(_active.begin(), _active.end());
-  for (auto *foreground : _snapshot)
-    foreground->draw();
+  if (_on_paint != LUA_NOREF) [[likely]] {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
+    const auto top = lua_gettop(L) - 1;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, top);
+    const auto status = lua_pcall(L, 1, 0, top);
+    lua_remove(L, top);
+    error::check(L, status);
+  }
 }

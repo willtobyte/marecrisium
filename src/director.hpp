@@ -28,8 +28,6 @@ public:
 
 private:
   scene *_current{nullptr};
-  overlay _overlay{};
-
   std::optional<std::string> _pending;
 
   entt::dense_map<entt::id_type, std::unique_ptr<scene>> _scenes;

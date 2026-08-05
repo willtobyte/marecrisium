@@ -28,7 +28,7 @@ static consteval auto triangulate() {
 constexpr auto indices = triangulate();
 }
 
-static int label_callback(lua_State *state) {
+static int draw_callback(lua_State *state) {
   auto *self = *static_cast<font **>(luaL_checkudata(state, 1, "Font"));
   std::size_t length{};
   const auto *data = luaL_checklstring(state, 2, &length);
@@ -82,8 +82,8 @@ void font::wire() {
   lua_pushliteral(L, "Font");
   lua_setfield(L, -2, "__name");
 
-  lua_pushcfunction(L, label_callback);
-  lua_setfield(L, -2, "label");
+  lua_pushcfunction(L, draw_callback);
+  lua_setfield(L, -2, "draw");
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
   lua_pop(L, 1);
@@ -99,30 +99,23 @@ font::font(std::string_view family) {
   const auto chunk = std::format("@fonts/{}.lua", family);
   const auto path = std::string_view{chunk}.substr(1);
   const auto source = io::read(path);
-  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
-    lua_error(L);
-    std::unreachable();
-  }
+  error::check(L, luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()));
 
-  const auto base = lua_gettop(L);
+  const auto top = lua_gettop(L);
   lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-  lua_insert(L, base);
-  const auto status = lua_pcall(L, 0, 1, base);
-  lua_remove(L, base);
-  if (status != LUA_OK) [[unlikely]] {
-    lua_error(L);
-    std::unreachable();
-  }
+  lua_insert(L, top);
+  const auto status = lua_pcall(L, 0, 1, top);
+  lua_remove(L, top);
+  error::check(L, status);
 
-  const auto config = lua_gettop(L);
-  lua_getfield(L, config, "glyphs");
+  lua_getfield(L, top, "glyphs");
   std::size_t count{};
   const auto *data = lua_isstring(L, -1) ? lua_tolstring(L, -1, &count) : nullptr;
   const auto glyphs = data ? std::string_view{data, count} : std::string_view{};
 
-  number(L, config, "spacing", _spacing);
-  number(L, config, "leading", _leading);
-  number(L, config, "scale", _scale, 1.f);
+  number(L, top, "spacing", _spacing);
+  number(L, top, "leading", _leading);
+  number(L, top, "scale", _scale, 1.f);
 
   const auto buffer = io::read(std::format("blobs/fonts/{}.png", family));
 

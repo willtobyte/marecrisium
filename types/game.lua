@@ -193,7 +193,6 @@ cassette = nil
 ---@class Scene
 ---@field objects? SceneObject[] Declaration order sets each object's initial `z`.
 ---@field sounds? SceneSound[]
----@field foregrounds? string[] Shown in order; later entries draw on top.
 ---@field on_enter? fun(self: Scene) Called when this scene becomes active.
 ---@field on_leave? fun(self: Scene) Called before this scene becomes inactive.
 ---@field on_loop? fun(self: Scene, delta: number) Called every active frame; delta is in seconds.
@@ -222,15 +221,7 @@ function Director.enroll(name) end
 ---@type Director
 director = nil
 
--- Foreground (`foregrounds/<name>.lua`)
-
----Mutable Lua snapshot; writes never affect the texture.
----@class ForegroundPixmap
----@field width integer Texture width.
----@field height integer Texture height.
-
----@class ForegroundConfig
----@field fonts? string[] Font families from `fonts/<name>.lua`.
+-- Overlay (`overlays/<scene-name>.lua`)
 
 ---@class FontConfig
 ---@field glyphs string Single-byte glyphs in texture order.
@@ -257,34 +248,17 @@ local Font = {}
 ---@param x number
 ---@param y number
 ---@param effects? table<integer, GlyphEffect>
-function Font:label(text, x, y, effects) end
+function Font:draw(text, x, y, effects) end
 
----Script-owned configuration, callbacks, and custom state (read/write).
----@class ForegroundState: ForegroundConfig
----@field pixmap? ForegroundPixmap Available when the pixmap texture exists.
----@field on_appear? fun(self: ForegroundState) Called each time the foreground becomes visible.
----@field on_disappear? fun(self: ForegroundState) Called each time the foreground becomes hidden.
----@field on_loop? fun(self: ForegroundState, delta: number) Called every visible frame before painting; delta is in seconds.
----@field on_paint? fun(self: Foreground) Called every visible frame with the drawable state.
----@field [string] any Script fields and loaded fonts.
-
----Mutable foreground state passed directly to `on_paint`.
----@class Foreground: ForegroundState
-local Foreground = {}
-
----Draw textured quads immediately from the foreground pixmap. `buffer` repeats
----`{x, y, width, height, angle_degrees, alpha_0_to_255}`.
----@param buffer number[]
----@param count integer Number of buffer elements; must be a positive multiple of 6.
-function Foreground:draw(buffer, count) end
-
----Write-only foreground visibility. Assign true to show; false or nil to hide.
----Foregrounds draw in activation order, with the latest on top.
----@class Foregrounds
----@field [string] boolean|nil
-
----@type Foregrounds
-foregrounds = nil
+---Script-owned callbacks and custom state.
+---@class Overlay
+---@field fonts? string[] Font families loaded into `pool` by family name.
+---@field on_appear? fun(self: Overlay) Called when the overlay becomes active.
+---@field on_disappear? fun(self: Overlay) Called when the overlay becomes inactive.
+---@field on_loop? fun(self: Overlay, delta: number) Called each frame before painting; delta is in seconds.
+---@field on_paint? fun(self: Overlay) Called each frame.
+---@field [string] any Script fields.
+local Overlay = {}
 
 -- Viewport
 
@@ -324,8 +298,8 @@ viewport = nil
 
 ---Entity handle available as `self` and through `pool`. Calling
 ---`object:foo(...)` falls back to a non-reserved `on_foo(self, ...)` method.
----Custom writes update the shared prototype table for the object's kind.
----Spawn configuration and engine callbacks are not exposed.
+---Each object stores custom writes independently and reads missing fields from
+---the shared prototype. Spawn configuration and engine callbacks are not exposed.
 ---@class Object
 ---@field x number Transform X (read/write); the hitbox follows.
 ---@field y number Transform Y (read/write); the hitbox follows.
@@ -341,7 +315,7 @@ viewport = nil
 ---@field z integer Render order (read/write); defaults to the declaration index in `objects` and higher values draw on top.
 ---@field alive boolean Read-only; objects live for the whole scene and turn false only after the scene is destroyed.
 ---@field animation? string Current clip (read/write); unknown names are ignored.
----@field [string] any Non-reserved shared prototype field or dispatched method.
+---@field [string] any Per-object field or dispatched prototype method.
 
 -- Sound
 
@@ -394,12 +368,13 @@ flip = nil
 
 -- Pool
 
----Mutable Lua table of handles. Replacing an entry does not destroy or rename
----the corresponding engine resource.
+---Mutable table shared by the active scene, its objects, and its overlay.
+---Replacing a resource entry does not destroy or rename the engine resource.
 ---@class Pool
----@field [string] Object|Sound|nil
+---@field pixel Font
+---@field [string] any
 
----Available during callbacks of the active scene; nil at runtime otherwise.
+---Available during callbacks of the active scene, its objects, and its overlay.
 ---@type Pool
 pool = nil
 

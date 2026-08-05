@@ -4,7 +4,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
 
   if (inserted) [[unlikely]] {
     lua_pushvalue(state, index);
-    const auto table = lua_gettop(state);
+    const auto top = lua_gettop(state);
 
     auto entry = std::make_unique<storage>();
     entry->clips.reserve(8);
@@ -15,7 +15,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     const auto ih = 1.f / static_cast<float>(entry->sheet.pixmap->height());
 
     entt::id_type dh = 0;
-    lua_getfield(state, table, "default");
+    lua_getfield(state, top, "default");
     if (lua_isstring(state, -1))
       dh = entt::hashed_string{lua_tostring(state, -1)};
     lua_pop(state, 1);
@@ -23,7 +23,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     uint8_t initial = 0;
 
     lua_pushnil(state);
-    while (lua_next(state, table)) {
+    while (lua_next(state, top)) {
       if (!lua_istable(state, -1)) [[unlikely]] {
         lua_pop(state, 1);
         continue;
@@ -38,7 +38,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
 
       auto& clip = entry->clips.emplace_back();
       clip.identity.hash = id;
-      clip.identity.name_ref = name;
+      clip.identity.name = name;
       clip.offset = static_cast<uint16_t>(entry->frames.size());
       clip.count = 0;
 

@@ -1,9 +1,12 @@
 #pragma once
 
+class sound;
+
 class soundpool final {
 public:
   sound* get(std::string_view name);
 
+  void poll();
   void clear();
 
 private:

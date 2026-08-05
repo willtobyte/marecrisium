@@ -1,5 +1,6 @@
 static int translate_callback(lua_State *state) {
-  const auto extras = lua_gettop(state) - 1;
+  const auto top = lua_gettop(state);
+  const auto extras = top - 1;
 
   lua_pushvalue(state, lua_upvalueindex(2));
   lua_pushvalue(state, lua_upvalueindex(1));
@@ -22,10 +23,7 @@ void locales::wire() {
     const auto path = std::string_view{chunk}.substr(1);
     if (io::exists(path)) [[likely]] {
       const auto source = io::read(path);
-      if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
-        lua_error(L);
-        std::unreachable();
-      }
+      error::check(L, luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()));
 
       lua_call(L, 0, 1);
 

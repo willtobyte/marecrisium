@@ -24,20 +24,14 @@ config* particlepool::get(std::string_view kind) {
     const auto chunk = std::format("@particles/{}.lua", kind);
     const auto path = std::string_view{chunk}.substr(1);
     const auto source = io::read(path);
-    if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
-      lua_error(L);
-      std::unreachable();
-    }
+    error::check(L, luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()));
 
-    const auto base = lua_gettop(L);
+    const auto top = lua_gettop(L);
     lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-    lua_insert(L, base);
-    const auto status = lua_pcall(L, 0, 1, base);
-    lua_remove(L, base);
-    if (status != LUA_OK) [[unlikely]] {
-      lua_error(L);
-      std::unreachable();
-    }
+    lua_insert(L, top);
+    const auto status = lua_pcall(L, 0, 1, top);
+    lua_remove(L, top);
+    error::check(L, status);
 
     lua_getfield(L, -1, "count");
     config->count = lua_isnumber(L, -1) ? static_cast<size_t>(lua_tonumber(L, -1)) : 0uz;

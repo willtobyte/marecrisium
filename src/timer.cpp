@@ -145,8 +145,8 @@ void deactivate(queue& group, record& current, int root, bool reschedule) {
 
 void deactivate(queue& group, record& current, bool reschedule = true) {
   lua_rawgeti(L, LUA_REGISTRYINDEX, group.roots);
-  const auto root = lua_gettop(L);
-  deactivate(group, current, root, reschedule);
+  const auto top = lua_gettop(L);
+  deactivate(group, current, top, reschedule);
   lua_pop(L, 1);
 }
 
@@ -315,7 +315,7 @@ void compact(queue& group);
 void discard(queue& group) {
   if (group.removed != group.list.size()) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, group.roots);
-    const auto root = lua_gettop(L);
+    const auto top = lua_gettop(L);
 
     for (auto &current : group.list) {
       if (current.slot == invalid)
@@ -324,7 +324,7 @@ void discard(queue& group) {
       const auto index = current.slot & mask;
       current.slot = invalid;
       release(group, index);
-      erase(L, root, index);
+      erase(L, top, index);
     }
 
     lua_pop(L, 1);
@@ -399,7 +399,7 @@ bool update(queue& group, uint32_t owner, std::size_t limit) {
   store::running = owner;
   store::owner = owner;
 
-  int root{};
+  int top{};
   std::size_t position{};
   while (position < limit) {
     const auto &current = group.list[position];
@@ -407,35 +407,34 @@ bool update(queue& group, uint32_t owner, std::size_t limit) {
       const auto index = current.slot & mask;
       const auto repeat = current.repeat;
 
-      if (root == 0) {
+      if (top == 0) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, group.roots);
-        root = lua_gettop(L);
+        top = lua_gettop(L);
       }
 
-      lua_rawgeti(L, root, callback_slot(index));
+      lua_rawgeti(L, top, callback_slot(index));
       store::owner = owner;
       if (repeat)
         group.list[position].deadline += current.period;
       else
-        deactivate(group, group.list[position], root, true);
+        deactivate(group, group.list[position], top, true);
 
-      const auto base = lua_gettop(L);
+      const auto call = top + 1;
       lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-      lua_insert(L, base);
+      lua_insert(L, call);
 
-      const auto status = lua_pcall(L, 0, 0, base);
+      const auto status = lua_pcall(L, 0, 0, call);
 
-      lua_remove(L, base);
+      lua_remove(L, call);
 
       if (status != LUA_OK) [[unlikely]] {
-        lua_remove(L, root);
+        lua_remove(L, top);
         store::running = prior_running;
         store::owner = prior_owner;
         if (group.removed != 0)
           compact(group);
-        lua_error(L);
-        std::unreachable();
       }
+      error::check(L, status);
 
       const auto &updated = group.list[position];
       if (updated.slot == invalid || (updated.slot & paused) != 0 || group.now < updated.deadline)
@@ -445,11 +444,11 @@ bool update(queue& group, uint32_t owner, std::size_t limit) {
     }
   }
 
-  const auto scheduled = root != 0;
+  const auto scheduled = top != 0;
   store::owner = prior_owner;
   store::running = prior_running;
-  if (root != 0)
-    lua_settop(L, root - 1);
+  if (top != 0)
+    lua_settop(L, top - 1);
   if (group.removed != 0)
     compact(group);
   return scheduled;

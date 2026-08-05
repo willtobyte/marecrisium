@@ -38,7 +38,11 @@ namespace {
     auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));
     luaL_getmetatable(L, "Object");
     lua_setmetatable(L, -2);
-    component.handle_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    lua_newtable(L);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, component.blueprint->table);
+    lua_setmetatable(L, -2);
+    lua_setfenv(L, -2);
+    component.handle = luaL_ref(L, LUA_REGISTRYINDEX);
     *memory = proxy{
       .registry = &registry,
       .entity = entity,
@@ -98,7 +102,7 @@ namespace {
 
       case lookup::animation: {
         const auto& a = registry.get<animation>(entity);
-        lua_rawgeti(state, LUA_REGISTRYINDEX, a.sheet->clips[a.active].identity.name_ref);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, a.sheet->clips[a.active].identity.name);
         return 1;
       }
 
@@ -119,11 +123,11 @@ namespace {
         return 1;
 
       case lookup::name:
-        lua_rawgeti(state, LUA_REGISTRYINDEX, registry.get<scriptable>(entity).label_ref);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, registry.get<scriptable>(entity).label);
         return 1;
 
       case lookup::kind:
-        lua_rawgeti(state, LUA_REGISTRYINDEX, registry.get<scriptable>(entity).blueprint->kind_ref);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, registry.get<scriptable>(entity).blueprint->kind);
         return 1;
 
       case lookup::on_spawn:
@@ -137,11 +141,9 @@ namespace {
         return lua_pushnil(state), 1;
 
       default: {
-        const auto& op = registry.get<scriptable>(entity);
-        assert(op.blueprint && op.blueprint->table_ref != LUA_NOREF && "object must have an object reference");
-
-        lua_rawgeti(state, LUA_REGISTRYINDEX, op.blueprint->table_ref);
-        lua_getfield(state, -1, key);
+        lua_getfenv(state, 1);
+        lua_pushvalue(state, 2);
+        lua_gettable(state, -2);
         if (!lua_isnil(state, -1)) [[likely]] {
           lua_remove(state, -2);
           return 1;
@@ -246,9 +248,9 @@ namespace {
             continue;
 
           const auto& clip = a->sheet->clips[a->active];
-          const auto callback = clip.identity.name_ref;
+          const auto callback = clip.identity.name;
           const auto identity = clip.identity.hash;
-          const auto next = a->sheet->clips[i].identity.name_ref;
+          const auto next = a->sheet->clips[i].identity.name;
           a->active = i;
           a->current = 0;
           a->elapsed = .0f;
@@ -257,12 +259,12 @@ namespace {
             a->sheet->clips[i].effect->play();
 
           const auto& op = registry.get<scriptable>(entity);
-          if (op.handle_ref == LUA_NOREF)
+          if (op.handle == LUA_NOREF)
             return 0;
 
-          const auto handle = op.handle_ref;
-          const auto ending = op.blueprint->on_animation_end_ref;
-          const auto beginning = op.blueprint->on_animation_begin_ref;
+          const auto handle = op.handle;
+          const auto ending = op.blueprint->on_animation_end;
+          const auto beginning = op.blueprint->on_animation_begin;
 
           if (callback != LUA_NOREF && identity != hash && ending != LUA_NOREF) [[unlikely]] {
             lua_rawgeti(state, LUA_REGISTRYINDEX, ending);
@@ -327,57 +329,57 @@ namespace {
       case lookup::on_unhover:
         return 0;
 
-      default: {
-        const auto& op = registry.get<scriptable>(entity);
-        assert(op.blueprint && op.blueprint->table_ref != LUA_NOREF && "object must have an object reference");
-
-        lua_rawgeti(state, LUA_REGISTRYINDEX, op.blueprint->table_ref);
+      default:
+        lua_getfenv(state, 1);
+        lua_pushvalue(state, 2);
         lua_pushvalue(state, 3);
-        lua_setfield(state, -2, key);
+        lua_rawset(state, -3);
         lua_pop(state, 1);
         return 0;
-      }
     }
   }
 }
 
 void object::bind(entt::registry& registry, entt::entity entity, scriptable& component, std::string_view name, std::string_view kind) {
   lua_pushlstring(L, name.data(), name.size());
-  component.label_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  component.label = luaL_ref(L, LUA_REGISTRYINDEX);
 
   if (const auto it = prototypes.find(kind); it != prototypes.end()) [[likely]] {
     component.blueprint = it->second.get();
     return commit(registry, entity, component);
   }
 
-  depot->source.insert(kind);
-  const auto base = lua_gettop(L);
+  const auto chunk = std::format("@objects/{}.lua", kind);
+  const auto path = std::string_view{chunk}.substr(1);
+  const auto source = io::read(path);
+  error::check(L, luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()));
+
+  const auto top = lua_gettop(L);
   lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-  lua_insert(L, base);
-  const auto status = lua_pcall(L, 0, 1, base);
-  lua_remove(L, base);
-  if (status != LUA_OK) [[unlikely]] {
-    lua_error(L);
-    std::unreachable();
-  }
+  lua_insert(L, top);
+  const auto status = lua_pcall(L, 0, 1, top);
+  lua_remove(L, top);
+  error::check(L, status);
 
   auto blueprint = std::make_unique<prototype>();
-  blueprint->table_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  blueprint->table = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_pushlstring(L, kind.data(), kind.size());
-  blueprint->kind_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  blueprint->kind = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint->table_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint->table);
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -2, "__index");
 
   constexpr std::array fields{
-    std::pair{"on_loop", &prototype::on_loop_ref},
-    std::pair{"on_animation_end", &prototype::on_animation_end_ref},
-    std::pair{"on_animation_begin", &prototype::on_animation_begin_ref},
-    std::pair{"on_spawn", &prototype::on_spawn_ref},
-    std::pair{"on_press", &prototype::on_press_ref},
-    std::pair{"on_release", &prototype::on_release_ref},
-    std::pair{"on_hover", &prototype::on_hover_ref},
-    std::pair{"on_unhover", &prototype::on_unhover_ref},
+    std::pair{"on_loop", &prototype::on_loop},
+    std::pair{"on_animation_end", &prototype::on_animation_end},
+    std::pair{"on_animation_begin", &prototype::on_animation_begin},
+    std::pair{"on_spawn", &prototype::on_spawn},
+    std::pair{"on_press", &prototype::on_press},
+    std::pair{"on_release", &prototype::on_release},
+    std::pair{"on_hover", &prototype::on_hover},
+    std::pair{"on_unhover", &prototype::on_unhover},
   };
 
   for (const auto& [field, member] : fields) {

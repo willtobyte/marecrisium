@@ -1,27 +1,25 @@
 #pragma once
 
-class foreground;
-
 class overlay final {
 public:
-  overlay();
-  ~overlay() noexcept(false);
+  explicit overlay(std::string_view name);
+  ~overlay();
 
-  static void wire();
-
-  void show(std::string_view name);
-
-  void hide(std::string_view name);
-
-  void clear();
+  overlay(const overlay&) = delete;
+  overlay& operator=(const overlay&) = delete;
 
   void update(float delta);
 
   void draw();
 
+  void appear();
+
+  void disappear();
+
 private:
-  entt::dense_map<entt::id_type, std::unique_ptr<foreground>> _foregrounds;
-  std::vector<foreground *> _active;
-  std::vector<foreground *> _snapshot;
-  int _userdata_ref{LUA_NOREF};
+  int _table{LUA_NOREF};
+  int _on_loop{LUA_NOREF};
+  int _on_paint{LUA_NOREF};
+  int _on_appear{LUA_NOREF};
+  int _on_disappear{LUA_NOREF};
 };

@@ -61,10 +61,8 @@ void director::transition() {
     return;
   }
 
-  if (_current) [[likely]] {
+  if (_current) [[likely]]
     _current->on_leave();
-    _overlay.clear();
-  }
 
   const auto key = entt::hashed_string{_pending->data(), _pending->size()};
   const auto it = _scenes.find(key);
@@ -76,27 +74,18 @@ void director::transition() {
   _current = it->second.get();
   _current->_timer.activate();
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _current->_pool_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _current->_pool);
   lua_setglobal(L, "pool");
-
-  for (const auto &name : _current->_foregrounds)
-    _overlay.show(name);
 
   _current->on_enter();
 }
 
 void director::update(float delta) {
-  if (_current) [[likely]] {
+  if (_current) [[likely]]
     _current->update(delta);
-  }
-
-  _overlay.update(delta);
 }
 
 void director::draw() {
-  if (_current) [[likely]] {
+  if (_current) [[likely]]
     _current->draw();
-  }
-
-  _overlay.draw();
 }

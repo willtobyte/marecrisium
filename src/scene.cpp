@@ -8,32 +8,28 @@ void push(int reference) { lua_rawgeti(L, LUA_REGISTRYINDEX, reference); }
 template<pushable... Args>
   requires (sizeof...(Args) > 0)
 void invoke(int callback, Args... args) {
-  const auto handler = lua_gettop(L) + 1;
+  const auto top = lua_gettop(L) + 1;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
   lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
   (push(args), ...);
 
-  const auto status = lua_pcall(L, static_cast<int>(sizeof...(Args)), 0, handler);
-  lua_remove(L, handler);
-
-  if (status != LUA_OK) [[unlikely]] {
-    lua_error(L);
-    std::unreachable();
-  }
+  const auto status = lua_pcall(L, static_cast<int>(sizeof...(Args)), 0, top);
+  lua_remove(L, top);
+  error::check(L, status);
 }
 
 static void release_scriptable(entt::registry& registry, entt::entity entity) {
   auto& op = registry.get<scriptable>(entity);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
   auto* handle = static_cast<proxy*>(luaL_testudata(L, -1, "Object"));
   if (handle)
     handle->registry = nullptr;
   lua_pop(L, 1);
 
-  luaL_unref(L, LUA_REGISTRYINDEX, op.label_ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, op.handle_ref);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.label);
+  luaL_unref(L, LUA_REGISTRYINDEX, op.handle);
 }
 
 static bool by_depth(const renderable& lhs, const renderable& rhs) {
@@ -43,7 +39,8 @@ static bool by_depth(const renderable& lhs, const renderable& rhs) {
 }
 
 scene::scene(std::string name)
-    : _name(std::move(name)) {
+    : _name(std::move(name)),
+      _overlay(_name) {
   const timer::scope scope{_timer};
 
   _registry.on_destroy<scriptable>().connect<&release_scriptable>();
@@ -53,185 +50,164 @@ scene::scene(std::string name)
   const auto path = std::string_view{chunk}.substr(1);
   const auto source = io::read(path);
 
-  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]] {
-    lua_error(L);
-    std::unreachable();
-  }
+  error::check(L, luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()));
 
-  const auto base = lua_gettop(L);
+  const auto top = lua_gettop(L);
   lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-  lua_insert(L, base);
-  const auto status = lua_pcall(L, 0, 1, base);
-  lua_remove(L, base);
-  if (status != LUA_OK) [[unlikely]] {
-    lua_error(L);
-    std::unreachable();
-  }
+  lua_insert(L, top);
+  const auto status = lua_pcall(L, 0, 1, top);
+  lua_remove(L, top);
+  error::check(L, status);
 
   lua_newtable(L);
-  _pool_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  _pool = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  lua_getglobal(L, "pool");
+  const auto previous_pool = luaL_ref(L, LUA_REGISTRYINDEX);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
+  lua_setglobal(L, "pool");
 
   lua_getfield(L, -1, "objects");
-  if (lua_istable(L, -1)) {
-    const auto count = static_cast<int>(lua_objlen(L, -1));
+  const auto objects = static_cast<int>(lua_objlen(L, -1));
+  const auto capacity = static_cast<std::size_t>(objects);
+  _registry.storage<animation>();
+  _registry.storage<renderable>();
+  _registry.storage<scriptable>();
+  _registry.storage<transform>();
+  _registry.storage<entt::entity>().reserve(capacity);
+  for (auto&& [_, storage] : _registry.storage())
+    storage.reserve(capacity);
 
-    for (int i = 1; i <= count; ++i) {
-      lua_rawgeti(L, -1, i);
+  for (auto i = 1; i <= objects; ++i) {
+    lua_rawgeti(L, -1, i);
 
-      lua_getfield(L, -1, "name");
-      const std::string label{lua_isstring(L, -1) ? lua_tostring(L, -1) : ""};
-      lua_pop(L, 1);
+    lua_getfield(L, -1, "name");
+    const std::string label{luaL_checkstring(L, -1)};
+    lua_pop(L, 1);
 
-      lua_getfield(L, -1, "kind");
-      const std::string kind{lua_isstring(L, -1) ? lua_tostring(L, -1) : ""};
-      lua_pop(L, 1);
+    lua_getfield(L, -1, "kind");
+    const std::string kind{luaL_checkstring(L, -1)};
+    lua_pop(L, 1);
 
-      lua_getfield(L, -1, "x");
-      const auto ox = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
-      lua_pop(L, 1);
+    lua_getfield(L, -1, "x");
+    const auto ox = static_cast<float>(luaL_optnumber(L, -1, .0));
+    lua_pop(L, 1);
 
-      lua_getfield(L, -1, "y");
-      const auto oy = lua_isnumber(L, -1) ? static_cast<float>(lua_tonumber(L, -1)) : .0f;
-      lua_pop(L, 1);
+    lua_getfield(L, -1, "y");
+    const auto oy = static_cast<float>(luaL_optnumber(L, -1, .0));
+    lua_pop(L, 1);
 
-      lua_pop(L, 1);
+    lua_pop(L, 1);
 
-      const auto entity = _registry.create();
-      _registry.emplace<renderable>(entity, static_cast<int>(_registry.storage<renderable>().size()));
+    const auto entity = _registry.create();
+    _registry.emplace<renderable>(entity, static_cast<int>(_registry.storage<renderable>().size()));
 
-      auto& tf = _registry.emplace<transform>(entity);
-      tf.x = ox;
-      tf.y = oy;
+    auto& tf = _registry.emplace<transform>(entity);
+    tf.x = ox;
+    tf.y = oy;
 
-      auto& op = _registry.emplace<scriptable>(entity);
-      object::bind(_registry, entity, op, label, kind);
-      const auto prototype = op.blueprint->table_ref;
-      const auto handle = op.handle_ref;
-      const auto on_spawn = op.blueprint->on_spawn_ref;
+    auto& op = _registry.emplace<scriptable>(entity);
+    object::bind(_registry, entity, op, label, kind);
+    const auto prototype = op.blueprint->table;
+    const auto handle = op.handle;
+    const auto on_spawn = op.blueprint->on_spawn;
 
-      lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
-      lua_getfield(L, -1, "animation");
-      assert(lua_istable(L, -1) && "object must define an animation table");
+    lua_rawgeti(L, LUA_REGISTRYINDEX, prototype);
+    lua_getfield(L, -1, "animation");
+    assert(lua_istable(L, -1) && "object must define an animation table");
 
-      const auto* sheet = depot->spritesheet.get(kind, L, -1);
-      auto& a = _registry.emplace<animation>(entity);
-      a.sheet = sheet;
-      a.active = sheet->initial;
+    const auto* sheet = depot->spritesheet.get(kind, L, -1);
+    auto& a = _registry.emplace<animation>(entity);
+    a.sheet = sheet;
+    a.active = sheet->initial;
 
-      lua_pop(L, 2);
+    lua_pop(L, 2);
 
-      if (on_spawn != LUA_NOREF) [[unlikely]]
-        invoke(on_spawn, handle);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
+    lua_setfield(L, -2, label.c_str());
+    lua_pop(L, 1);
 
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
-      lua_setfield(L, -2, label.c_str());
-      lua_pop(L, 1);
-    }
+    if (on_spawn != LUA_NOREF) [[unlikely]]
+      invoke(on_spawn, handle);
   }
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "sounds");
-  if (lua_istable(L, -1)) {
-    const auto count = static_cast<int>(lua_objlen(L, -1));
-    _sounds.reserve(static_cast<size_t>(count));
+  const auto sounds = static_cast<int>(lua_objlen(L, -1));
 
-    for (auto i = 1; i <= count; ++i) {
-      lua_rawgeti(L, -1, i);
+  for (auto i = 1; i <= sounds; ++i) {
+    lua_rawgeti(L, -1, i);
 
-      if (!lua_istable(L, -1)) {
-        lua_pop(L, 1);
-        continue;
-      }
+    lua_getfield(L, -1, "name");
+    const std::string label{luaL_checkstring(L, -1)};
+    lua_pop(L, 1);
 
-      lua_getfield(L, -1, "name");
-      const std::string label{lua_isstring(L, -1) ? lua_tostring(L, -1) : ""};
-      lua_pop(L, 1);
+    lua_getfield(L, -1, "loop");
+    const auto loop = lua_toboolean(L, -1) != 0;
+    lua_pop(L, 1);
 
-      lua_getfield(L, -1, "loop");
-      const auto loop = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : false;
-      lua_pop(L, 1);
+    const auto key = std::format("sounds/{}", label);
+    auto *instance = depot->sound.get(key);
+    auto **memory = static_cast<class sound **>(lua_newuserdata(L, sizeof(class sound *)));
+    *memory = instance;
+    luaL_getmetatable(L, "Sound");
+    lua_setmetatable(L, -2);
 
-      const auto key = std::format("sounds/{}", label);
-      auto *instance = depot->sound.get(key);
-      auto **memory = static_cast<class sound **>(lua_newuserdata(L, sizeof(class sound *)));
-      *memory = instance;
-      luaL_getmetatable(L, "Sound");
-      lua_setmetatable(L, -2);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
+    lua_pushvalue(L, -2);
+    lua_setfield(L, -2, label.c_str());
+    lua_pop(L, 1);
 
-      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool_ref);
-      lua_pushvalue(L, -2);
-      lua_setfield(L, -2, label.c_str());
-      lua_pop(L, 1);
+    lua_pop(L, 1);
 
-      _sounds.emplace_back(instance);
-      lua_pop(L, 1);
+    if (loop)
+      instance->set_loop(true);
 
-      if (loop)
-        instance->set_loop(true);
-
-
-      lua_pop(L, 1);
-    }
+    lua_pop(L, 1);
   }
   lua_pop(L, 1);
 
-  lua_getfield(L, -1, "foregrounds");
-  if (lua_istable(L, -1)) {
-    const auto count = static_cast<int>(lua_objlen(L, -1));
-    _foregrounds.reserve(static_cast<std::size_t>(count));
+  _table = luaL_ref(L, LUA_REGISTRYINDEX);
 
-    for (int i = 1; i <= count; ++i) {
-      lua_rawgeti(L, -1, i);
-      if (lua_isstring(L, -1))
-        _foregrounds.emplace_back(lua_tostring(L, -1));
-      lua_pop(L, 1);
-    }
-  }
-  lua_pop(L, 1);
-
-  if (luaL_newmetatable(L, "Scene")) {
-    lua_pushliteral(L, "Scene");
-    lua_setfield(L, -2, "__name");
-  }
-  lua_setmetatable(L, -2);
-
-  _table_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _table_ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
 
   lua_getfield(L, -1, "on_loop");
-  _on_loop_ref = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  _on_loop = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_camera");
-  _on_camera_ref = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  _on_camera = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_enter");
-  _on_enter_ref = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  _on_enter = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_leave");
-  _on_leave_ref = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  _on_leave = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_press");
-  _on_press_ref = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  _on_press = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_getfield(L, -1, "on_release");
-  _on_release_ref = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
+  _on_release = lua_isfunction(L, -1) ? luaL_ref(L, LUA_REGISTRYINDEX) : (lua_pop(L, 1), LUA_NOREF);
 
   lua_pop(L, 1);
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, previous_pool);
+  lua_setglobal(L, "pool");
+  luaL_unref(L, LUA_REGISTRYINDEX, previous_pool);
 }
 
 scene::~scene() {
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_release_ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_press_ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_leave_ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_enter_ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_camera_ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, _on_loop_ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, _pool_ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, _table_ref);
-
   _registry.clear();
+
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_release);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_press);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_leave);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_enter);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_camera);
+  luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
+  luaL_unref(L, LUA_REGISTRYINDEX, _pool);
+  luaL_unref(L, LUA_REGISTRYINDEX, _table);
 }
 
 void scene::update(float delta) {
@@ -248,20 +224,20 @@ void scene::update(float delta) {
     const auto* left = _hovered == entt::null ? nullptr : &_registry.get<scriptable>(_hovered);
     _hovered = object;
 
-    if (left && left->blueprint->on_unhover_ref != LUA_NOREF)
-      invoke(left->blueprint->on_unhover_ref, left->handle_ref);
+    if (left && left->blueprint->on_unhover != LUA_NOREF)
+      invoke(left->blueprint->on_unhover, left->handle);
 
-    if (over && over->blueprint->on_hover_ref != LUA_NOREF)
-      invoke(over->blueprint->on_hover_ref, over->handle_ref);
+    if (over && over->blueprint->on_hover != LUA_NOREF)
+      invoke(over->blueprint->on_hover, over->handle);
   }
 
   const auto toggled = (buttons ^ _mouse_previous_buttons)
     & (SDL_BUTTON_LMASK | SDL_BUTTON_MMASK | SDL_BUTTON_RMASK);
   _mouse_previous_buttons = buttons;
 
-  const auto self = over ? over->handle_ref : _table_ref;
-  const auto press = over ? over->blueprint->on_press_ref : _on_press_ref;
-  const auto release = over ? over->blueprint->on_release_ref : _on_release_ref;
+  const auto self = over ? over->handle : _table;
+  const auto press = over ? over->blueprint->on_press : _on_press;
+  const auto release = over ? over->blueprint->on_release : _on_release;
 
   for (auto bits = toggled; bits; bits &= bits - 1) {
     const auto index = static_cast<size_t>(std::countr_zero(bits));
@@ -271,14 +247,14 @@ void scene::update(float delta) {
       invoke(slot, self, mx, my, mouse::labels[index]);
   }
 
-  if (_on_loop_ref != LUA_NOREF) [[likely]]
-    invoke(_on_loop_ref, _table_ref, delta);
+  if (_on_loop != LUA_NOREF) [[likely]]
+    invoke(_on_loop, _table, delta);
 
   for (auto&& [e, op] : _registry.view<scriptable>().each()) {
     const auto& bp = *op.blueprint;
 
-    if (bp.on_loop_ref != LUA_NOREF)
-      invoke(bp.on_loop_ref, op.handle_ref, delta);
+    if (bp.on_loop != LUA_NOREF)
+      invoke(bp.on_loop, op.handle, delta);
 
     auto* a = _registry.try_get<animation>(e);
     if (!a) [[unlikely]]
@@ -297,27 +273,23 @@ void scene::update(float delta) {
 
     a->current = 0;
 
-    if (bp.on_animation_end_ref != LUA_NOREF)
-      invoke(bp.on_animation_end_ref, op.handle_ref, clip.identity.name_ref);
+    if (bp.on_animation_end != LUA_NOREF)
+      invoke(bp.on_animation_end, op.handle, clip.identity.name);
 
-    if (bp.on_animation_begin_ref != LUA_NOREF)
-      invoke(bp.on_animation_begin_ref, op.handle_ref, clip.identity.name_ref);
+    if (bp.on_animation_begin != LUA_NOREF)
+      invoke(bp.on_animation_begin, op.handle, clip.identity.name);
   }
 
-  if (_on_camera_ref != LUA_NOREF) [[likely]] {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera_ref);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _table_ref);
+  if (_on_camera != LUA_NOREF) [[likely]] {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
 
-    const auto base = lua_gettop(L) - 1;
+    const auto top = lua_gettop(L) - 1;
     lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-    lua_insert(L, base);
-    const auto status = lua_pcall(L, 1, 2, base);
-    lua_remove(L, base);
-
-    if (status != LUA_OK) [[unlikely]] {
-      lua_error(L);
-      std::unreachable();
-    }
+    lua_insert(L, top);
+    const auto status = lua_pcall(L, 1, 2, top);
+    lua_remove(L, top);
+    error::check(L, status);
 
     if (lua_isnumber(L, -2))
       viewport.x = std::floor(static_cast<float>(lua_tonumber(L, -2)) * viewport.scale) / viewport.scale;
@@ -326,14 +298,15 @@ void scene::update(float delta) {
     lua_pop(L, 2);
   }
 
-  for (auto* sound : _sounds)
-    sound->poll();
+  depot->sound.poll();
 
   auto& order = _registry.ctx().get<reorder>();
   if (order.dirty) [[unlikely]] {
     _registry.sort<renderable>(by_depth, entt::insertion_sort{});
     order.dirty = false;
   }
+
+  _overlay.update(delta);
 }
 
 void scene::draw() {
@@ -361,16 +334,22 @@ void scene::draw() {
       static_cast<uint8_t>(std::clamp(tf.alpha, .0f, 255.f)),
       tf.flip);
   }
+
+  _overlay.draw();
 }
 
 void scene::on_enter() {
-  if (_on_enter_ref != LUA_NOREF)
-    invoke(_on_enter_ref, _table_ref);
+  _overlay.appear();
+
+  if (_on_enter != LUA_NOREF)
+    invoke(_on_enter, _table);
 }
 
 void scene::on_leave() {
-  if (_on_leave_ref != LUA_NOREF)
-    invoke(_on_leave_ref, _table_ref);
+  if (_on_leave != LUA_NOREF)
+    invoke(_on_leave, _table);
+
+  _overlay.disappear();
 }
 
 entt::entity scene::pick(float x, float y) noexcept {

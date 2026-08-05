@@ -34,11 +34,10 @@ public:
 
   void poll();
 
-  int on_begin_ref{LUA_NOREF};
-  int on_end_ref{LUA_NOREF};
+  int on_begin{LUA_NOREF};
+  int on_end{LUA_NOREF};
 
 private:
-  std::atomic<bool> _ended{false};
   bytes _data;
   std::unique_ptr<stb_vorbis, STB_Vorbis_Deleter> _vorbis{};
   stream _stream{};

@@ -3,9 +3,7 @@ static int loader_callback(lua_State *state) {
   const auto path = std::string_view{chunk}.substr(1);
   const auto source = io::read(path);
 
-  if (luaL_loadbuffer(state, reinterpret_cast<const char *>(source.data()), source.size(), chunk.c_str()) != LUA_OK)
-    return lua_error(state);
-
+  error::check(state, luaL_loadbuffer(state, reinterpret_cast<const char *>(source.data()), source.size(), chunk.c_str()));
   return 1;
 }
 
@@ -27,7 +25,6 @@ void scriptengine::run() {
   locales::wire();
   mouse::wire();
   object::wire();
-  overlay::wire();
   particle::wire();
   platform::wire();
   runtime::wire();

@@ -46,7 +46,7 @@ static_assert(sizeof(frame) == 44, "frame must fit in 44 bytes");
 struct clip final {
   struct {
     entt::id_type hash{};
-    int name_ref{LUA_NOREF};
+    int name{LUA_NOREF};
   } identity;
   uint16_t offset{};
   uint8_t count{};
@@ -65,16 +65,16 @@ struct animation final {
 static_assert(std::is_trivially_copyable_v<animation>, "animation must be trivially copyable");
 
 struct prototype final {
-  int table_ref{LUA_NOREF};
-  int kind_ref{LUA_NOREF};
-  int on_loop_ref{LUA_NOREF};
-  int on_animation_end_ref{LUA_NOREF};
-  int on_animation_begin_ref{LUA_NOREF};
-  int on_spawn_ref{LUA_NOREF};
-  int on_press_ref{LUA_NOREF};
-  int on_release_ref{LUA_NOREF};
-  int on_hover_ref{LUA_NOREF};
-  int on_unhover_ref{LUA_NOREF};
+  int table{LUA_NOREF};
+  int kind{LUA_NOREF};
+  int on_loop{LUA_NOREF};
+  int on_animation_end{LUA_NOREF};
+  int on_animation_begin{LUA_NOREF};
+  int on_spawn{LUA_NOREF};
+  int on_press{LUA_NOREF};
+  int on_release{LUA_NOREF};
+  int on_hover{LUA_NOREF};
+  int on_unhover{LUA_NOREF};
 };
 
 static_assert(std::is_trivially_copyable_v<prototype>, "prototype must be trivially copyable");
@@ -83,8 +83,8 @@ struct scriptable final {
   static constexpr auto in_place_delete = true;
 
   const prototype* blueprint{};
-  int handle_ref{LUA_NOREF};
-  int label_ref{LUA_NOREF};
+  int handle{LUA_NOREF};
+  int label{LUA_NOREF};
 };
 
 static_assert(std::is_trivially_copyable_v<scriptable>, "scriptable must be trivially copyable");

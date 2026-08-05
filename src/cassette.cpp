@@ -142,11 +142,11 @@ static int proxy_index(lua_State *state) {
   if (lua_type(state, -1) != LUA_TTABLE) [[likely]]
     return 1;
 
-  const auto index = lua_gettop(state);
-  if (resolve_proxy(state, index))
-    lua_replace(state, index);
+  const auto top = lua_gettop(state);
+  if (resolve_proxy(state, top))
+    lua_replace(state, top);
 
-  proxify(state, index, lua_upvalueindex(2), lua_upvalueindex(3));
+  proxify(state, top, lua_upvalueindex(2), lua_upvalueindex(3));
   return 1;
 }
 
@@ -206,14 +206,14 @@ static int index(lua_State *state) {
     marshal::decode(state, yyjson_doc_get_root(document.get()));
 
     if (lua_type(state, -1) == LUA_TTABLE) {
-      const auto data = lua_gettop(state);
+      const auto top = lua_gettop(state);
 
       lua_pushlstring(state, key.data(), key.size());
-      const auto root = data + 1;
-      proxify(state, data, root, data);
+      const auto root = top + 1;
+      proxify(state, top, root, top);
 
       lua_replace(state, root);
-      lua_replace(state, data);
+      lua_replace(state, top);
     }
 
     return 1;

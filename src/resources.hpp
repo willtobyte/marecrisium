@@ -5,7 +5,6 @@ struct resources final {
   particlepool particle;
   pixmappool pixmap;
   soundpool sound;
-  sourcepool source;
   spritesheetpool spritesheet;
   stringpool string;
 };

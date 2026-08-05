@@ -9,8 +9,8 @@ namespace {
   static int play_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     instance->play();
-    if (instance->on_begin_ref != LUA_NOREF) {
-      lua_rawgeti(state, LUA_REGISTRYINDEX, instance->on_begin_ref);
+    if (instance->on_begin != LUA_NOREF) {
+      lua_rawgeti(state, LUA_REGISTRYINDEX, instance->on_begin);
       lua_call(state, 0, 0);
     }
 
@@ -18,16 +18,17 @@ namespace {
   }
 
   static int stop_callback(lua_State* state) {
-    (*static_cast<sound**>(luaL_checkudata(state, 1, "Sound")))->stop();
+    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+    instance->stop();
     return 0;
   }
 
   static int on_begin_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_begin_ref);
-    instance->on_begin_ref = LUA_NOREF;
+    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_begin);
+    instance->on_begin = LUA_NOREF;
     lua_pushvalue(state, 2);
-    instance->on_begin_ref = luaL_ref(state, LUA_REGISTRYINDEX);
+    instance->on_begin = luaL_ref(state, LUA_REGISTRYINDEX);
     return 0;
   }
 
@@ -45,10 +46,10 @@ namespace {
 
   static int on_end_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_end_ref);
-    instance->on_end_ref = LUA_NOREF;
+    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_end);
+    instance->on_end = LUA_NOREF;
     lua_pushvalue(state, 2);
-    instance->on_end_ref = luaL_ref(state, LUA_REGISTRYINDEX);
+    instance->on_end = luaL_ref(state, LUA_REGISTRYINDEX);
     return 0;
   }
 
@@ -186,19 +187,14 @@ sound::sound(std::string_view filename)
     nullptr,
     &_sound
   );
-
-  ma_sound_set_end_callback(&_sound, +[](void* self, ma_sound*) {
-    static_cast<sound*>(self)->_ended.store(true, std::memory_order_release);
-  }, this);
 }
 
 sound::~sound() {
-  ma_sound_set_end_callback(&_sound, nullptr, nullptr);
   ma_sound_stop(&_sound);
   ma_sound_uninit(&_sound);
   ma_data_source_uninit(&_stream.base);
-  luaL_unref(L, LUA_REGISTRYINDEX, on_begin_ref);
-  luaL_unref(L, LUA_REGISTRYINDEX, on_end_ref);
+  luaL_unref(L, LUA_REGISTRYINDEX, on_begin);
+  luaL_unref(L, LUA_REGISTRYINDEX, on_end);
 }
 
 void sound::play() {
@@ -243,25 +239,21 @@ void sound::fade(float from, float to, uint64_t ms) {
 }
 
 void sound::poll() {
-  if (!_ended.exchange(false, std::memory_order_acquire))
+  if (ma_sound_at_end(&_sound) != MA_TRUE)
     return;
 
-  if (on_end_ref == LUA_NOREF)
+  ma_sound_seek_to_pcm_frame(&_sound, 0);
+  if (on_end == LUA_NOREF)
     return;
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, on_end_ref);
-  const auto base = lua_gettop(L);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, on_end);
+  const auto top = lua_gettop(L);
   lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-  lua_insert(L, base);
+  lua_insert(L, top);
 
-  const auto status = lua_pcall(L, 0, 0, base);
-
-  lua_remove(L, base);
-
-  if (status != LUA_OK) [[unlikely]] {
-    lua_error(L);
-    std::unreachable();
-  }
+  const auto status = lua_pcall(L, 0, 0, top);
+  lua_remove(L, top);
+  error::check(L, status);
 }
 
 void sound::wire() {
@@ -276,9 +268,9 @@ void sound::wire() {
   lua_pushcfunction(L, fade_callback);
   lua_setfield(L, -2, "fade");
   lua_pushcfunction(L, on_begin_callback);
-  lua_setfield(L, -2, "on_begin_ref");
+  lua_setfield(L, -2, "on_begin");
   lua_pushcfunction(L, on_end_callback);
-  lua_setfield(L, -2, "on_end_ref");
+  lua_setfield(L, -2, "on_end");
   lua_pushcfunction(L, index);
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, newindex);
