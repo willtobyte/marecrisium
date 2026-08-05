@@ -96,8 +96,6 @@ engine::engine() {
   lua_setfield(L, -2, "scale");
   lua_setglobal(L, "viewport");
 
-  b2SetLengthUnitsPerMeter(100.f);
-
   _director.wire();
 
   lua_getfield(L, -1, "on_begin");

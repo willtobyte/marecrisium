@@ -75,7 +75,9 @@ void director::transition() {
   _pending.reset();
   _current = it->second.get();
   _current->_timer.activate();
-  _current->expose();
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _current->_pool_ref);
+  lua_setglobal(L, "pool");
 
   for (const auto &name : _current->_foregrounds)
     _overlay.show(name);

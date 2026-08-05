@@ -8,7 +8,6 @@ struct spritesheet final {
   const frame* frames{};
   uint8_t count{};
   uint8_t initial{};
-  bool collidable{};
 };
 
 static_assert(std::is_trivially_copyable_v<spritesheet>, "spritesheet must be trivially copyable");

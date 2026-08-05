@@ -21,7 +21,6 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     lua_pop(state, 1);
 
     uint8_t initial = 0;
-    bool collidable = false;
 
     lua_pushnil(state);
     while (lua_next(state, table)) {
@@ -94,7 +93,6 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
         lua_rawgeti(state, -1, 9);
         frame.collider.height = static_cast<float>(lua_tonumber(state, -1));
         lua_pop(state, 1);
-        collidable = true;
 
         ++clip.count;
         lua_pop(state, 1);
@@ -118,7 +116,6 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     entry->sheet.frames = entry->frames.data();
     entry->sheet.count = static_cast<uint8_t>(entry->clips.size());
     entry->sheet.initial = initial;
-    entry->sheet.collidable = collidable;
 
     it->second = std::move(entry);
     lua_pop(state, 1);

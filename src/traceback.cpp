@@ -48,6 +48,18 @@ void format(lua_State *state, std::string &text, int index, trail &path) {
     break;
 
   case LUA_TTABLE: {
+    if (lua_getmetatable(state, index)) {
+      lua_pushliteral(state, "__name");
+      lua_rawget(state, -2);
+      if (lua_isstring(state, -1)) [[unlikely]] {
+        std::format_to(out, "({})", lua_tostring(state, -1));
+        lua_pop(state, 2);
+        break;
+      }
+
+      lua_pop(state, 2);
+    }
+
     const auto *table = lua_topointer(state, index);
     if (path.contains(table)) [[unlikely]] {
       std::format_to(out, "(circular)");

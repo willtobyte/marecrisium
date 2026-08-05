@@ -15,25 +15,7 @@ public:
 
   void on_leave();
 
-  void expose();
-
-  void conceal();
-
-  void spawn(std::string_view name, std::string_view kind, float x, float y);
-
-  [[nodiscard]] uint8_t pick_at(float x, float y, entt::entity* buffer, uint8_t capacity) const noexcept;
-
-  [[nodiscard]] entt::entity find_topmost(std::span<const entt::entity> hits) const noexcept;
-
-  void dispatch_press(float x, float y, const char* button);
-
-  void dispatch_release(float x, float y, const char* button);
-
-  void dispatch_hover(float x, float y);
-
-  void dispatch_unhover();
-
-  void dispatch_miss(int callback, float x, float y, const char* button);
+  [[nodiscard]] entt::entity pick(float x, float y) noexcept;
 
 private:
   entt::registry _registry{};
@@ -41,8 +23,6 @@ private:
   std::vector<std::string> _foregrounds{};
 
   std::vector<sound*> _sounds{};
-
-  b2WorldId _world{};
 
   friend class director;
 

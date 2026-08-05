@@ -19,3 +19,4 @@
 - **Must use [SIMDe](https://github.com/simd-everywhere/simde) for all explicit SIMD operations. The code must be fully compatible with Apple Silicon, starting with the M1, as well as ARM64 and Intel CPUs released within the last 10 years.**
 - **Validate all newly created code using fuzzing, while always assuming the happy path.**
 - **Always review the order of struct and class members to improve memory layout and cache efficiency.**
+- **Intern LuaJIT strings that are pushed frequently, such as those used in every loop iteration or every mouse move event. One-off strings do not need to be interned.**

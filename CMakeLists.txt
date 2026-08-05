@@ -47,7 +47,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
   WIN32_EXECUTABLE $<$<PLATFORM_ID:Windows>:$<NOT:$<CONFIG:Debug>>>
 )
 
-find_package(box2d CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(simde CONFIG REQUIRED)
@@ -61,7 +60,6 @@ find_package(mimalloc CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
   $<$<NOT:$<CONFIG:Debug>>:mimalloc-static>
-  box2d::box2d
   EnTT::EnTT
   SDL3::SDL3-static
   simde::simde

@@ -47,7 +47,6 @@
 #include <unistd.h>
 #endif
 
-#include <box2d/box2d.h>
 #define ENTT_ID_TYPE std::uint64_t
 #include <entt/entt.hpp>
 #include <lua.hpp>

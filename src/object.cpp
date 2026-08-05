@@ -74,15 +74,17 @@ namespace {
 
       case lookup::center_x: {
         const auto& tf = registry.get<transform>(entity);
-        const auto* b = registry.try_get<body>(entity);
-        lua_pushnumber(state, static_cast<lua_Number>(b ? center_of(*b, tf).x : tf.x));
+        const auto& a = registry.get<animation>(entity);
+        const auto box = bounds_of(a.sheet->frames[a.sheet->clips[a.active].offset + a.current], tf);
+        lua_pushnumber(state, static_cast<lua_Number>(box.x + box.width * .5f));
         return 1;
       }
 
       case lookup::center_y: {
         const auto& tf = registry.get<transform>(entity);
-        const auto* b = registry.try_get<body>(entity);
-        lua_pushnumber(state, static_cast<lua_Number>(b ? center_of(*b, tf).y : tf.y));
+        const auto& a = registry.get<animation>(entity);
+        const auto box = bounds_of(a.sheet->frames[a.sheet->clips[a.active].offset + a.current], tf);
+        lua_pushnumber(state, static_cast<lua_Number>(box.y + box.height * .5f));
         return 1;
       }
 
@@ -95,11 +97,8 @@ namespace {
         return 1;
 
       case lookup::animation: {
-        const auto* a = registry.try_get<animation>(entity);
-        if (!a || !a->playing || a->sheet->count == 0) [[unlikely]]
-          return lua_pushnil(state), 1;
-
-        lua_rawgeti(state, LUA_REGISTRYINDEX, a->sheet->clips[a->active].identity.name_ref);
+        const auto& a = registry.get<animation>(entity);
+        lua_rawgeti(state, LUA_REGISTRYINDEX, a.sheet->clips[a.active].identity.name_ref);
         return 1;
       }
 
@@ -204,24 +203,14 @@ namespace {
       case lookup::x: {
         auto& tf = registry.get<transform>(entity);
         const auto value = static_cast<float>(luaL_checknumber(state, 3));
-        const auto changed = tf.x != value;
         tf.x = value;
-
-        if (auto* b = registry.try_get<body>(entity); b) [[likely]]
-          b->dirty = true;
-
         return 0;
       }
 
       case lookup::y: {
         auto& tf = registry.get<transform>(entity);
         const auto value = static_cast<float>(luaL_checknumber(state, 3));
-        const auto changed = tf.y != value;
         tf.y = value;
-
-        if (auto* b = registry.try_get<body>(entity); b) [[likely]]
-          b->dirty = true;
-
         return 0;
       }
 
@@ -249,7 +238,7 @@ namespace {
         [[assume(a != nullptr)]];
 
         const auto hash = entt::hashed_string{luaL_checkstring(state, 3)};
-        if (a->playing && a->sheet->clips[a->active].identity.hash == hash)
+        if (a->sheet->clips[a->active].identity.hash == hash)
           return 0;
 
         for (uint8_t i = 0; i < a->sheet->count; ++i) {
@@ -257,16 +246,12 @@ namespace {
             continue;
 
           const auto& clip = a->sheet->clips[a->active];
-          const auto callback = a->playing ? clip.identity.name_ref : LUA_NOREF;
+          const auto callback = clip.identity.name_ref;
           const auto identity = clip.identity.hash;
           const auto next = a->sheet->clips[i].identity.name_ref;
           a->active = i;
           a->current = 0;
           a->elapsed = .0f;
-          a->playing = true;
-
-          if (auto* b = registry.try_get<body>(entity); b) [[unlikely]]
-            b->dirty = true;
 
           if (a->sheet->clips[i].effect)
             a->sheet->clips[i].effect->play();
@@ -304,8 +289,6 @@ namespace {
         const auto value = static_cast<float>(luaL_checknumber(state, 3));
         tf.scale = value;
 
-        if (auto* b = registry.try_get<body>(entity); b) [[likely]]
-          b->dirty = true;
 
         return 0;
       }
@@ -326,11 +309,6 @@ namespace {
           return 0;
 
         tf.shown = value;
-
-        if (auto* b = registry.try_get<body>(entity);
-            b) [[likely]]
-          value ? b2Body_Enable(b->id) : b2Body_Disable(b->id);
-
         return 0;
       }
 

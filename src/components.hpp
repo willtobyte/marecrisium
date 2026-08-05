@@ -60,7 +60,6 @@ struct animation final {
   float elapsed{};
   uint8_t active{};
   uint8_t current{};
-  bool playing{};
 };
 
 static_assert(std::is_trivially_copyable_v<animation>, "animation must be trivially copyable");
@@ -84,30 +83,26 @@ struct scriptable final {
   static constexpr auto in_place_delete = true;
 
   const prototype* blueprint{};
-  entt::id_type name{};
-  entt::id_type kind{};
   int handle_ref{LUA_NOREF};
   int label_ref{LUA_NOREF};
 };
 
 static_assert(std::is_trivially_copyable_v<scriptable>, "scriptable must be trivially copyable");
 
-struct body final {
-  static constexpr auto in_place_delete = true;
-
-  b2BodyId id{b2_nullBodyId};
-  b2ShapeId shape{b2_nullShapeId};
-  float extent_x{};
-  float extent_y{};
-  float origin_x{};
-  float origin_y{};
-  bool dirty{true};
+struct bounds final {
+  float x{};
+  float y{};
+  float width{};
+  float height{};
 };
 
-static_assert(std::is_trivially_copyable_v<body>, "body must be trivially copyable");
-
-[[nodiscard]] constexpr b2Vec2 center_of(const body& b, const transform& tf) {
-  return {tf.x + b.origin_x + b.extent_x, tf.y + b.origin_y + b.extent_y};
+[[nodiscard]] constexpr bounds bounds_of(const frame& current, const transform& tf) {
+  return {
+    tf.x + current.collider.offset_x * tf.scale,
+    tf.y + current.collider.offset_y * tf.scale,
+    current.collider.width * tf.scale,
+    current.collider.height * tf.scale,
+  };
 }
 
 struct renderable final {
