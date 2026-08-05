@@ -104,16 +104,14 @@ font::font(std::string_view family) {
     std::unreachable();
   }
 
-  {
-    const auto base = lua_gettop(L);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-    lua_insert(L, base);
-    const auto status = lua_pcall(L, 0, 1, base);
-    lua_remove(L, base);
-    if (status != LUA_OK) [[unlikely]] {
-      lua_error(L);
-      std::unreachable();
-    }
+  const auto base = lua_gettop(L);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+  lua_insert(L, base);
+  const auto status = lua_pcall(L, 0, 1, base);
+  lua_remove(L, base);
+  if (status != LUA_OK) [[unlikely]] {
+    lua_error(L);
+    std::unreachable();
   }
 
   const auto config = lua_gettop(L);

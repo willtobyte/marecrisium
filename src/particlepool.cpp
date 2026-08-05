@@ -29,16 +29,14 @@ config* particlepool::get(std::string_view kind) {
       std::unreachable();
     }
 
-    {
-      const auto base = lua_gettop(L);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-      lua_insert(L, base);
-      const auto status = lua_pcall(L, 0, 1, base);
-      lua_remove(L, base);
-      if (status != LUA_OK) [[unlikely]] {
-        lua_error(L);
-        std::unreachable();
-      }
+    const auto base = lua_gettop(L);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 0, 1, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
     }
 
     lua_getfield(L, -1, "count");

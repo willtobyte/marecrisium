@@ -98,16 +98,14 @@ foreground::foreground(std::string_view name) {
     std::unreachable();
   }
 
-  {
-    const auto base = lua_gettop(L);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-    lua_insert(L, base);
-    const auto status = lua_pcall(L, 0, 1, base);
-    lua_remove(L, base);
-    if (status != LUA_OK) [[unlikely]] {
-      lua_error(L);
-      std::unreachable();
-    }
+  const auto base = lua_gettop(L);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+  lua_insert(L, base);
+  const auto status = lua_pcall(L, 0, 1, base);
+  lua_remove(L, base);
+  if (status != LUA_OK) [[unlikely]] {
+    lua_error(L);
+    std::unreachable();
   }
 
   const auto pp = std::format("foregrounds/{}/pixmap", name);
@@ -184,16 +182,14 @@ void foreground::appear() {
   if (_on_appear_ref != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_appear_ref);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table_ref);
-    {
-      const auto base = lua_gettop(L) - 1;
-      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-      lua_insert(L, base);
-      const auto status = lua_pcall(L, 1, 0, base);
-      lua_remove(L, base);
-      if (status != LUA_OK) [[unlikely]] {
-        lua_error(L);
-        std::unreachable();
-      }
+    const auto base = lua_gettop(L) - 1;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 1, 0, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
     }
   }
 }
@@ -227,16 +223,14 @@ void foreground::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop_ref);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table_ref);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
-    {
-      const auto base = lua_gettop(L) - 2;
-      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-      lua_insert(L, base);
-      const auto status = lua_pcall(L, 2, 0, base);
-      lua_remove(L, base);
-      if (status != LUA_OK) [[unlikely]] {
-        lua_error(L);
-        std::unreachable();
-      }
+    const auto base = lua_gettop(L) - 2;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 2, 0, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
     }
   }
 }
@@ -248,16 +242,14 @@ void foreground::draw() {
   if (_on_paint_ref != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint_ref);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table_ref);
-    {
-      const auto base = lua_gettop(L) - 1;
-      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-      lua_insert(L, base);
-      const auto status = lua_pcall(L, 1, 0, base);
-      lua_remove(L, base);
-      if (status != LUA_OK) [[unlikely]] {
-        lua_error(L);
-        std::unreachable();
-      }
+    const auto base = lua_gettop(L) - 1;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+    lua_insert(L, base);
+    const auto status = lua_pcall(L, 1, 0, base);
+    lua_remove(L, base);
+    if (status != LUA_OK) [[unlikely]] {
+      lua_error(L);
+      std::unreachable();
     }
   }
 }
