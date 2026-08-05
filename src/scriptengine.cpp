@@ -3,7 +3,8 @@ static int loader_callback(lua_State *state) {
   const auto path = std::string_view{chunk}.substr(1);
   const auto source = io::read(path);
 
-  error::check(state, luaL_loadbuffer(state, reinterpret_cast<const char *>(source.data()), source.size(), chunk.c_str()));
+  if (luaL_loadbuffer(state, reinterpret_cast<const char *>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
+    return lua_error(state);
   return 1;
 }
 

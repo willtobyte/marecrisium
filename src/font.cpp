@@ -99,14 +99,12 @@ font::font(std::string_view family) {
   const auto chunk = std::format("@fonts/{}.lua", family);
   const auto path = std::string_view{chunk}.substr(1);
   const auto source = io::read(path);
-  error::check(L, luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()));
+  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
+    lua_error(L);
 
   const auto top = lua_gettop(L);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-  lua_insert(L, top);
-  const auto status = lua_pcall(L, 0, 1, top);
-  lua_remove(L, top);
-  error::check(L, status);
+  if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
+    lua_error(L);
 
   lua_getfield(L, top, "glyphs");
   std::size_t count{};

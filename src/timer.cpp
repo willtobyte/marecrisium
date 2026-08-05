@@ -424,7 +424,6 @@ bool update(queue& group, uint32_t owner, std::size_t limit) {
       lua_insert(L, call);
 
       const auto status = lua_pcall(L, 0, 0, call);
-
       lua_remove(L, call);
 
       if (status != LUA_OK) [[unlikely]] {
@@ -434,7 +433,8 @@ bool update(queue& group, uint32_t owner, std::size_t limit) {
         if (group.removed != 0)
           compact(group);
       }
-      error::check(L, status);
+      if (status != LUA_OK) [[unlikely]]
+        lua_error(L);
 
       const auto &updated = group.list[position];
       if (updated.slot == invalid || (updated.slot & paused) != 0 || group.now < updated.deadline)

@@ -1,24 +1,4 @@
 namespace {
-template<typename T>
-concept pushable = std::floating_point<T> || std::same_as<T, int>;
-
-void push(float value) { lua_pushnumber(L, static_cast<lua_Number>(value)); }
-void push(int reference) { lua_rawgeti(L, LUA_REGISTRYINDEX, reference); }
-
-template<pushable... Args>
-  requires (sizeof...(Args) > 0)
-void invoke(int callback, Args... args) {
-  const auto top = lua_gettop(L) + 1;
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
-  (push(args), ...);
-
-  const auto status = lua_pcall(L, static_cast<int>(sizeof...(Args)), 0, top);
-  lua_remove(L, top);
-  error::check(L, status);
-}
-
 static void release_scriptable(entt::registry& registry, entt::entity entity) {
   auto& op = registry.get<scriptable>(entity);
 
@@ -50,14 +30,11 @@ scene::scene(std::string name)
   const auto path = std::string_view{chunk}.substr(1);
   const auto source = io::read(path);
 
-  error::check(L, luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()));
+  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
+    lua_error(L);
 
-  const auto top = lua_gettop(L);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-  lua_insert(L, top);
-  const auto status = lua_pcall(L, 0, 1, top);
-  lua_remove(L, top);
-  error::check(L, status);
+  if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
+    lua_error(L);
 
   lua_newtable(L);
   _pool = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -128,8 +105,12 @@ scene::scene(std::string name)
     lua_setfield(L, -2, label.c_str());
     lua_pop(L, 1);
 
-    if (on_spawn != LUA_NOREF) [[unlikely]]
-      invoke(on_spawn, handle);
+    if (on_spawn != LUA_NOREF) [[unlikely]] {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, on_spawn);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, handle);
+      if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
   }
   lua_pop(L, 1);
 
@@ -224,11 +205,19 @@ void scene::update(float delta) {
     const auto* left = _hovered == entt::null ? nullptr : &_registry.get<scriptable>(_hovered);
     _hovered = object;
 
-    if (left && left->blueprint->on_unhover != LUA_NOREF)
-      invoke(left->blueprint->on_unhover, left->handle);
+    if (left && left->blueprint->on_unhover != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, left->blueprint->on_unhover);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, left->handle);
+      if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
 
-    if (over && over->blueprint->on_hover != LUA_NOREF)
-      invoke(over->blueprint->on_hover, over->handle);
+    if (over && over->blueprint->on_hover != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, over->blueprint->on_hover);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, over->handle);
+      if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
   }
 
   const auto toggled = (buttons ^ _mouse_previous_buttons)
@@ -243,18 +232,35 @@ void scene::update(float delta) {
     const auto index = static_cast<size_t>(std::countr_zero(bits));
     const auto slot = (buttons >> index) & 1u ? press : release;
 
-    if (slot != LUA_NOREF)
-      invoke(slot, self, mx, my, mouse::labels[index]);
+    if (slot != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, slot);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, self);
+      lua_pushnumber(L, static_cast<lua_Number>(mx));
+      lua_pushnumber(L, static_cast<lua_Number>(my));
+      lua_rawgeti(L, LUA_REGISTRYINDEX, mouse::labels[index]);
+      if (lua_pcall(L, 4, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
   }
 
-  if (_on_loop != LUA_NOREF) [[likely]]
-    invoke(_on_loop, _table, delta);
+  if (_on_loop != LUA_NOREF) [[likely]] {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
+    lua_pushnumber(L, static_cast<lua_Number>(delta));
+    if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
+      lua_error(L);
+  }
 
   for (auto&& [e, op] : _registry.view<scriptable>().each()) {
     const auto& bp = *op.blueprint;
 
-    if (bp.on_loop != LUA_NOREF)
-      invoke(bp.on_loop, op.handle, delta);
+    if (bp.on_loop != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_loop);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+      lua_pushnumber(L, static_cast<lua_Number>(delta));
+      if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
 
     auto* a = _registry.try_get<animation>(e);
     if (!a) [[unlikely]]
@@ -273,23 +279,29 @@ void scene::update(float delta) {
 
     a->current = 0;
 
-    if (bp.on_animation_end != LUA_NOREF)
-      invoke(bp.on_animation_end, op.handle, clip.identity.name);
+    if (bp.on_animation_end != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_end);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, clip.identity.name);
+      if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
 
-    if (bp.on_animation_begin != LUA_NOREF)
-      invoke(bp.on_animation_begin, op.handle, clip.identity.name);
+    if (bp.on_animation_begin != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_begin);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, clip.identity.name);
+      if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
   }
 
   if (_on_camera != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
 
-    const auto top = lua_gettop(L) - 1;
-    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-    lua_insert(L, top);
-    const auto status = lua_pcall(L, 1, 2, top);
-    lua_remove(L, top);
-    error::check(L, status);
+    if (lua_pcall(L, 1, 2, 0) != LUA_OK) [[unlikely]]
+      lua_error(L);
 
     if (lua_isnumber(L, -2))
       viewport.x = std::floor(static_cast<float>(lua_tonumber(L, -2)) * viewport.scale) / viewport.scale;
@@ -341,13 +353,21 @@ void scene::draw() {
 void scene::on_enter() {
   _overlay.appear();
 
-  if (_on_enter != LUA_NOREF)
-    invoke(_on_enter, _table);
+  if (_on_enter != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_enter);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
+    if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+      lua_error(L);
+  }
 }
 
 void scene::on_leave() {
-  if (_on_leave != LUA_NOREF)
-    invoke(_on_leave, _table);
+  if (_on_leave != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_leave);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
+    if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+      lua_error(L);
+  }
 
   _overlay.disappear();
 }

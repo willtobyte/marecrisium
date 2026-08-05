@@ -7,6 +7,7 @@
 - **Prefer O(1), SIMD-friendly, branchless, and cache-friendly implementations whenever practical.**
 - **Every C++ change to the Lua API must also update `types/game.lua`.**
 - **LuaJIT only. Keep Lua code LuaJIT-friendly and performance-oriented.**
+- **Always use `lua_pcall()` to call Lua functions. Never use `lua_call()`. Check each status and propagate each Lua error to the `catch` block in `src/application.cpp`.**
 - **Every performance-related change requires empirical benchmarking. Always measure and compare the before and after results, and present the evidence demonstrating the impact.**
 - **Use `assert` and `[[assume ..` whenever appropriate, always assuming the happy path. Every `assert` must include a simple, clear, and direct error message in English.**
 - **Always assume the happy path. Treat all inputs as safe and trusted.**

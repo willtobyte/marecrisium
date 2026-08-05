@@ -11,7 +11,8 @@ namespace {
     instance->play();
     if (instance->on_begin != LUA_NOREF) {
       lua_rawgeti(state, LUA_REGISTRYINDEX, instance->on_begin);
-      lua_call(state, 0, 0);
+      if (lua_pcall(state, 0, 0, 0) != LUA_OK) [[unlikely]]
+        return lua_error(state);
     }
 
     return 0;
@@ -239,21 +240,16 @@ void sound::fade(float from, float to, uint64_t ms) {
 }
 
 void sound::poll() {
-  if (ma_sound_at_end(&_sound) != MA_TRUE)
+  if (on_end == LUA_NOREF || ma_sound_at_end(&_sound) != MA_TRUE)
     return;
 
-  ma_sound_seek_to_pcm_frame(&_sound, 0);
-  if (on_end == LUA_NOREF)
-    return;
+  ma_sound_stop(&_sound);
+  ma_sound_start(&_sound);
+  ma_sound_stop(&_sound);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, on_end);
-  const auto top = lua_gettop(L);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-  lua_insert(L, top);
-
-  const auto status = lua_pcall(L, 0, 0, top);
-  lua_remove(L, top);
-  error::check(L, status);
+  if (lua_pcall(L, 0, 0, 0) != LUA_OK) [[unlikely]]
+    lua_error(L);
 }
 
 void sound::wire() {

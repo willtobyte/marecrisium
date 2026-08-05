@@ -11,7 +11,8 @@ static int translate_callback(lua_State *state) {
   for (auto index = 0; index < extras; ++index)
     lua_pushvalue(state, 2 + index);
 
-  lua_call(state, 1 + extras, 1);
+  if (lua_pcall(state, 1 + extras, 1, 0) != LUA_OK) [[unlikely]]
+    return lua_error(state);
   return 1;
 }
 
@@ -23,9 +24,11 @@ void locales::wire() {
     const auto path = std::string_view{chunk}.substr(1);
     if (io::exists(path)) [[likely]] {
       const auto source = io::read(path);
-      error::check(L, luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()));
+      if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
+        lua_error(L);
 
-      lua_call(L, 0, 1);
+      if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
 
       lua_getglobal(L, "string");
       lua_getfield(L, -1, "format");

@@ -8,12 +8,6 @@ sound* soundpool::get(std::string_view name) {
 }
 
 void soundpool::poll() {
-  for (auto&& [_, instance] : _pool) {
-    if (instance->playing())
-      instance->poll();
-  }
-}
-
-void soundpool::clear() {
-  _pool.clear();
+  for (auto&& [_, instance] : _pool)
+    instance->poll();
 }

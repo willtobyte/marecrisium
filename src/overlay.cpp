@@ -2,14 +2,12 @@ overlay::overlay(std::string_view name) {
   const auto chunk = std::format("@overlays/{}.lua", name);
   const auto path = std::string_view{chunk}.substr(1);
   const auto source = io::read(path);
-  error::check(L, luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()));
+  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
+    lua_error(L);
 
   const auto top = lua_gettop(L);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-  lua_insert(L, top);
-  const auto status = lua_pcall(L, 0, 1, top);
-  lua_remove(L, top);
-  error::check(L, status);
+  if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
+    lua_error(L);
 
   lua_getfield(L, top, "fonts");
   const auto fonts = static_cast<int>(lua_objlen(L, -1));
@@ -72,12 +70,8 @@ void overlay::appear() {
   if (_on_appear != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_appear);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
-    const auto top = lua_gettop(L) - 1;
-    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-    lua_insert(L, top);
-    const auto status = lua_pcall(L, 1, 0, top);
-    lua_remove(L, top);
-    error::check(L, status);
+    if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+      lua_error(L);
   }
 }
 
@@ -85,12 +79,8 @@ void overlay::disappear() {
   if (_on_disappear != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disappear);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
-    const auto top = lua_gettop(L) - 1;
-    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-    lua_insert(L, top);
-    const auto status = lua_pcall(L, 1, 0, top);
-    lua_remove(L, top);
-    error::check(L, status);
+    if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+      lua_error(L);
   }
 }
 
@@ -99,12 +89,8 @@ void overlay::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
-    const auto top = lua_gettop(L) - 2;
-    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-    lua_insert(L, top);
-    const auto status = lua_pcall(L, 2, 0, top);
-    lua_remove(L, top);
-    error::check(L, status);
+    if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
+      lua_error(L);
   }
 }
 
@@ -112,11 +98,7 @@ void overlay::draw() {
   if (_on_paint != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
-    const auto top = lua_gettop(L) - 1;
-    lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
-    lua_insert(L, top);
-    const auto status = lua_pcall(L, 1, 0, top);
-    lua_remove(L, top);
-    error::check(L, status);
+    if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+      lua_error(L);
   }
 }

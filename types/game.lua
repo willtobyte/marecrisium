@@ -149,7 +149,7 @@ cassette = nil
 ---@field splash string Splash image name: `blobs/splashes/<name>.png`.
 ---@field scale number Render scale; logical viewport size is width/scale by height/scale.
 ---@field fullscreen? boolean Defaults to false.
----@field on_begin? fun() Runs once after engine initialization.
+---@field on_begin fun() Runs once after engine initialization.
 
 -- Particle config (`particles/<kind>.lua`)
 
