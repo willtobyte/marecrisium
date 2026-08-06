@@ -69,6 +69,7 @@ struct prototype final {
   int on_loop{LUA_NOREF};
   int on_animation_end{LUA_NOREF};
   int on_animation_begin{LUA_NOREF};
+  int on_spawn{LUA_NOREF};
   int on_press{LUA_NOREF};
   int on_release{LUA_NOREF};
   int on_hover{LUA_NOREF};

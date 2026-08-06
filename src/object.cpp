@@ -12,8 +12,7 @@ namespace {
     constexpr auto alpha = "alpha"_hs;
     constexpr auto name = "name"_hs;
     constexpr auto kind = "kind"_hs;
-    constexpr auto center_x = "center_x"_hs;
-    constexpr auto center_y = "center_y"_hs;
+    constexpr auto on_spawn = "on_spawn"_hs;
     constexpr auto on_loop = "on_loop"_hs;
     constexpr auto on_animation_begin = "on_animation_begin"_hs;
     constexpr auto on_animation_end = "on_animation_end"_hs;
@@ -75,22 +74,6 @@ namespace {
         lua_pushnumber(state, static_cast<lua_Number>(registry.get<transform>(entity).y));
         return 1;
 
-      case lookup::center_x: {
-        const auto& tf = registry.get<transform>(entity);
-        const auto& a = registry.get<animation>(entity);
-        const auto box = bounds_of(a.sheet->frames[a.sheet->clips[a.active].offset + a.current], tf);
-        lua_pushnumber(state, static_cast<lua_Number>(box.x + box.width * .5f));
-        return 1;
-      }
-
-      case lookup::center_y: {
-        const auto& tf = registry.get<transform>(entity);
-        const auto& a = registry.get<animation>(entity);
-        const auto box = bounds_of(a.sheet->frames[a.sheet->clips[a.active].offset + a.current], tf);
-        lua_pushnumber(state, static_cast<lua_Number>(box.y + box.height * .5f));
-        return 1;
-      }
-
       case lookup::z:
         lua_pushinteger(state, static_cast<lua_Integer>(registry.get<renderable>(entity).z));
         return 1;
@@ -98,12 +81,6 @@ namespace {
       case lookup::flip:
         lua_pushinteger(state, static_cast<lua_Integer>(registry.get<transform>(entity).flip));
         return 1;
-
-      case lookup::animation: {
-        const auto& a = registry.get<animation>(entity);
-        lua_rawgeti(state, LUA_REGISTRYINDEX, a.sheet->clips[a.active].identity.name);
-        return 1;
-      }
 
       case lookup::shown:
         lua_pushboolean(state, registry.get<transform>(entity).shown);
@@ -129,6 +106,8 @@ namespace {
         lua_rawgeti(state, LUA_REGISTRYINDEX, registry.get<scriptable>(entity).blueprint->kind);
         return 1;
 
+      case lookup::animation:
+      case lookup::on_spawn:
       case lookup::on_loop:
       case lookup::on_animation_begin:
       case lookup::on_animation_end:
@@ -162,6 +141,7 @@ namespace {
         buffer[prefix + size] = '\0';
 
         switch (entt::hashed_string{buffer.data()}) {
+          case lookup::on_spawn:
           case lookup::on_loop:
           case lookup::on_animation_begin:
           case lookup::on_animation_end:
@@ -231,56 +211,6 @@ namespace {
         return 0;
       }
 
-      case lookup::animation: {
-        auto* a = registry.try_get<animation>(entity);
-        assert(a != nullptr && "object must have animation");
-        [[assume(a != nullptr)]];
-
-        const auto hash = entt::hashed_string{luaL_checkstring(state, 3)};
-        if (a->sheet->clips[a->active].identity.hash == hash)
-          return 0;
-
-        for (uint8_t i = 0; i < a->sheet->count; ++i) {
-          if (a->sheet->clips[i].identity.hash != hash)
-            continue;
-
-          const auto& clip = a->sheet->clips[a->active];
-          const auto callback = clip.identity.name;
-          const auto next = a->sheet->clips[i].identity.name;
-          a->active = i;
-          a->current = 0;
-          a->elapsed = .0f;
-
-          const auto& op = registry.get<scriptable>(entity);
-          if (op.handle == LUA_NOREF)
-            return 0;
-
-          const auto handle = op.handle;
-          const auto ending = op.blueprint->on_animation_end;
-          const auto beginning = op.blueprint->on_animation_begin;
-
-          if (ending != LUA_NOREF) [[unlikely]] {
-            lua_rawgeti(state, LUA_REGISTRYINDEX, ending);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, handle);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, callback);
-            if (lua_pcall(state, 2, 0, 0) != LUA_OK) [[unlikely]]
-              return lua_error(state);
-          }
-
-          if (beginning != LUA_NOREF) {
-            lua_rawgeti(state, LUA_REGISTRYINDEX, beginning);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, handle);
-            lua_rawgeti(state, LUA_REGISTRYINDEX, next);
-            if (lua_pcall(state, 2, 0, 0) != LUA_OK) [[unlikely]]
-              return lua_error(state);
-          }
-
-          return 0;
-        }
-
-        return 0;
-      }
-
       case lookup::scale: {
         auto& tf = registry.get<transform>(entity);
         const auto value = static_cast<float>(luaL_checknumber(state, 3));
@@ -309,11 +239,11 @@ namespace {
         return 0;
       }
 
-      case lookup::center_x:
-      case lookup::center_y:
       case lookup::name:
       case lookup::kind:
       case lookup::alive:
+      case lookup::animation:
+      case lookup::on_spawn:
       case lookup::on_loop:
       case lookup::on_animation_begin:
       case lookup::on_animation_end:
@@ -366,6 +296,7 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
     std::pair{"on_loop", &prototype::on_loop},
     std::pair{"on_animation_end", &prototype::on_animation_end},
     std::pair{"on_animation_begin", &prototype::on_animation_begin},
+    std::pair{"on_spawn", &prototype::on_spawn},
     std::pair{"on_press", &prototype::on_press},
     std::pair{"on_release", &prototype::on_release},
     std::pair{"on_hover", &prototype::on_hover},

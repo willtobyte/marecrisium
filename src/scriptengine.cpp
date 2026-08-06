@@ -1,3 +1,17 @@
+namespace {
+int protect(lua_State* state, lua_CFunction function) {
+  try {
+    return function(state);
+  } catch (const char* message) {
+    lua_pushstring(state, message);
+  } catch (const std::exception& exception) {
+    lua_pushstring(state, exception.what());
+  }
+
+  return lua_error(state);
+}
+}
+
 static int loader_callback(lua_State *state) {
   const auto chunk = std::format("@scripts/{}.lua", luaL_checkstring(state, 1));
   const auto path = std::string_view{chunk}.substr(1);
@@ -9,6 +23,10 @@ static int loader_callback(lua_State *state) {
 }
 
 void scriptengine::run() {
+  lua_pushlightuserdata(L, reinterpret_cast<void*>(protect));
+  luaJIT_setmode(L, -1, LUAJIT_MODE_WRAPCFUNC | LUAJIT_MODE_ON);
+  lua_pop(L, 1);
+
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "loaders");
 

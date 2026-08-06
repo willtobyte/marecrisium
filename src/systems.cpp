@@ -1,5 +1,4 @@
 namespace {
-
 static void release(entt::registry& registry, entt::entity entity) {
   auto& op = registry.get<scriptable>(entity);
 
@@ -16,7 +15,6 @@ static void release(entt::registry& registry, entt::entity entity) {
 constexpr bool by_depth(const renderable& lhs, const renderable& rhs) noexcept {
   return lhs.z < rhs.z;
 }
-
 }
 
 void systems::prepare(std::size_t capacity) {
@@ -58,6 +56,21 @@ entt::entity systems::spawn(int pool, std::string_view kind, const std::string& 
   lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
   lua_setfield(L, -2, label.c_str());
   lua_pop(L, 1);
+
+  if (op.blueprint->on_spawn != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_spawn);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+    if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+      lua_error(L);
+  }
+
+  if (op.blueprint->on_animation_begin != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_animation_begin);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, sheet->clips[a.active].identity.name);
+    if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
+      lua_error(L);
+  }
 
   return entity;
 }

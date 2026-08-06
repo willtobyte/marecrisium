@@ -285,7 +285,7 @@ viewport = nil
 ---callbacks are consumed internally and are unavailable through `Object`.
 ---@class ObjectPrototype
 ---@field animation? AnimationConfig Spawn-only animation definitions.
----@field on_spawn? fun(self: Object)
+---@field on_spawn? fun(self: Object) Called once after the object is complete and available in `pool`.
 ---@field on_loop? fun(self: Object, delta: number) Called every active frame; delta is in seconds.
 ---@field on_animation_end? fun(self: Object, clip: string) Called when a clip loops or is replaced.
 ---@field on_animation_begin? fun(self: Object, clip: string) Called after a selected clip starts and after each loop.
@@ -302,8 +302,6 @@ viewport = nil
 ---@class Object
 ---@field x number Transform X (read/write); the hitbox follows.
 ---@field y number Transform Y (read/write); the hitbox follows.
----@field center_x number Collider center X, or x when no collider exists (read-only).
----@field center_y number Collider center Y, or y when no collider exists (read-only).
 ---@field scale number Transform scale (read/write); the hitbox scales with it.
 ---@field angle number Rotation in degrees (read/write).
 ---@field alpha number Opacity, clamped to 0-255 (read/write).
@@ -313,7 +311,6 @@ viewport = nil
 ---@field kind string Prototype kind (read-only).
 ---@field z integer Render order (read/write); defaults to the declaration index in `objects` and higher values draw on top.
 ---@field alive boolean Read-only; objects live for the whole scene and turn false only after the scene is destroyed.
----@field animation? string Current clip (read/write); unknown names are ignored.
 ---@field [string] any Per-object field or dispatched prototype method.
 
 -- Sound

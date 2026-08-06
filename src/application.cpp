@@ -4,8 +4,8 @@ int application::run() {
 
     scriptengine se;
     se.run();
-  } catch (const std::exception& exc) {
-    const auto message = exc.what();
+  } catch (const std::exception& exception) {
+    const auto message = exception.what();
 
     std::fputs(message, stderr);
     std::fputc('\n', stderr);

@@ -50,6 +50,7 @@
 #define ENTT_ID_TYPE std::uint64_t
 #include <entt/entt.hpp>
 #include <lua.hpp>
+#include <luajit.h>
 #include <miniaudio.h>
 #include <SDL3/SDL.h>
 #include <simde/x86/sse2.h>
