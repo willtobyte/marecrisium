@@ -1,0 +1,4 @@
+If:
+  PathMatch: src/common.hpp
+Diagnostics:
+  UnusedIncludes: None
