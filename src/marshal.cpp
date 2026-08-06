@@ -1,19 +1,12 @@
 namespace {
 static bool is_sequence(lua_State *state, int table) {
-  auto count = 0uz;
-  lua_pushnil(state);
-  while (lua_next(state, table) != 0) {
-    if (lua_type(state, -2) != LUA_TNUMBER) {
-      lua_pop(state, 2);
-      return false;
-    }
-
-    lua_pop(state, 1);
-    ++count;
-  }
-
   const auto length = lua_objlen(state, table);
-  return length > 0 && length == count;
+  if (length == 0) return false;
+
+  lua_rawgeti(state, table, static_cast<int>(length) + 1);
+  const auto ok = lua_isnil(state, -1);
+  lua_pop(state, 1);
+  return ok;
 }
 }
 
