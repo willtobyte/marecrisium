@@ -21,13 +21,11 @@ void systems::prepare(std::size_t capacity) {
   _registry.on_destroy<scriptable>().connect<&release>();
   _registry.ctx().emplace<reorder>();
 
-  _registry.storage<animation>();
-  _registry.storage<renderable>();
-  _registry.storage<scriptable>();
-  _registry.storage<transform>();
   _registry.storage<entt::entity>().reserve(capacity);
-  for (auto&& [_, storage] : _registry.storage())
-    storage.reserve(capacity);
+  _registry.storage<animation>().reserve(capacity);
+  _registry.storage<renderable>().reserve(capacity);
+  _registry.storage<scriptable>().reserve(capacity);
+  _registry.storage<transform>().reserve(capacity);
 }
 
 entt::entity systems::spawn(int pool, std::string_view kind, const std::string& label, float x, float y) {
