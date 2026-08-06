@@ -2,6 +2,7 @@ static int navigate_callback(lua_State *state) {
   std::string name = luaL_checkstring(state, 1);
   auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
   self->navigate(std::move(name));
+
   return 0;
 }
 
@@ -9,6 +10,7 @@ static int destroy_callback(lua_State *state) {
   const std::string_view name = luaL_checkstring(state, 1);
   auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
   self->destroy(name);
+
   return 0;
 }
 
