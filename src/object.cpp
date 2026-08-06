@@ -254,7 +254,7 @@ namespace {
           a->current = 0;
           a->elapsed = .0f;
 
-          if (a->sheet->clips[i].effect)
+          if (a->sheet->clips[i].effect) [[unlikely]]
             a->sheet->clips[i].effect->play();
 
           const auto& op = registry.get<scriptable>(entity);
