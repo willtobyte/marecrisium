@@ -88,7 +88,13 @@ struct scriptable final {
 
 static_assert(std::is_trivially_copyable_v<scriptable>, "scriptable must be trivially copyable");
 
-struct loopable final {};
+struct loopable final {
+  int callback{LUA_NOREF};
+  int handle{LUA_NOREF};
+};
+
+static_assert(std::is_trivially_copyable_v<loopable>, "loopable must be trivially copyable");
+static_assert(sizeof(loopable) == 8, "loopable must fit in 8 bytes");
 
 struct bounds final {
   float x{};
