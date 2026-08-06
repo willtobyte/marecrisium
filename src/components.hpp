@@ -88,6 +88,8 @@ struct scriptable final {
 
 static_assert(std::is_trivially_copyable_v<scriptable>, "scriptable must be trivially copyable");
 
+struct loopable final {};
+
 struct bounds final {
   float x{};
   float y{};

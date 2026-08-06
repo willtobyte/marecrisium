@@ -39,6 +39,9 @@ entt::entity systems::spawn(int pool, std::string_view kind, const std::string& 
   auto& op = _registry.emplace<scriptable>(entity);
   object::bind(_registry, entity, op, label, kind);
 
+  if (op.blueprint->on_loop != LUA_NOREF)
+    _registry.emplace<loopable>(entity);
+
   lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->table);
   lua_getfield(L, -1, "animation");
   assert(lua_istable(L, -1) && "object must define an animation table");
@@ -119,16 +122,12 @@ void systems::hover(entt::entity& hovered, entt::entity picked) {
 }
 
 void systems::loop(float delta) {
-  for (auto&& [e, op] : _registry.view<scriptable>().each()) {
-    const auto& bp = *op.blueprint;
-
-    if (bp.on_loop != LUA_NOREF) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_loop);
-      lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
-      lua_pushnumber(L, static_cast<lua_Number>(delta));
-      if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
-        lua_error(L);
-    }
+  for (auto&& [_, op] : _registry.view<scriptable, loopable>().each()) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, op.blueprint->on_loop);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, op.handle);
+    lua_pushnumber(L, static_cast<lua_Number>(delta));
+    if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
+      lua_error(L);
   }
 }
 
