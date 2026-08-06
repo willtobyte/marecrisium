@@ -6,13 +6,13 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     lua_pushvalue(state, index);
     const auto top = lua_gettop(state);
 
-    auto entry = std::make_unique<storage>();
-    entry->clips.reserve(8);
-    entry->frames.reserve(128);
-    entry->sheet.pixmap = depot->pixmap.get(std::format("objects/{}", kind));
+    auto storage = std::make_unique<class storage>();
+    storage->clips.reserve(8);
+    storage->frames.reserve(128);
+    storage->sheet.pixmap = depot->pixmap.get(std::format("objects/{}", kind));
 
-    const auto iw = 1.f / static_cast<float>(entry->sheet.pixmap->width());
-    const auto ih = 1.f / static_cast<float>(entry->sheet.pixmap->height());
+    const auto iw = 1.f / static_cast<float>(storage->sheet.pixmap->width());
+    const auto ih = 1.f / static_cast<float>(storage->sheet.pixmap->height());
 
     entt::id_type dh = 0;
     lua_getfield(state, top, "default");
@@ -36,10 +36,10 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       lua_pop(state, 1);
       const auto name = depot->string.slot(id);
 
-      auto& clip = entry->clips.emplace_back();
+      auto& clip = storage->clips.emplace_back();
       clip.identity.hash = id;
       clip.identity.name = name;
-      clip.offset = static_cast<uint16_t>(entry->frames.size());
+      clip.offset = static_cast<uint16_t>(storage->frames.size());
       clip.count = 0;
 
       const auto count = static_cast<int>(lua_objlen(state, -1));
@@ -51,7 +51,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
           continue;
         }
 
-        auto& frame = entry->frames.emplace_back();
+        auto& frame = storage->frames.emplace_back();
 
         lua_rawgeti(state, -1, 1);
         const auto x = static_cast<float>(lua_tonumber(state, -1));
@@ -102,7 +102,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       [[assume(clip.count > 0)]];
 
       if (id == dh)
-        initial = static_cast<uint8_t>(entry->clips.size() - 1);
+        initial = static_cast<uint8_t>(storage->clips.size() - 1);
 
       lua_getfield(state, -1, "sound");
       if (lua_isstring(state, -1))
@@ -112,12 +112,12 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       lua_pop(state, 1);
     }
 
-    entry->sheet.clips = entry->clips.data();
-    entry->sheet.frames = entry->frames.data();
-    entry->sheet.count = static_cast<uint8_t>(entry->clips.size());
-    entry->sheet.initial = initial;
+    storage->sheet.clips = storage->clips.data();
+    storage->sheet.frames = storage->frames.data();
+    storage->sheet.count = static_cast<uint8_t>(storage->clips.size());
+    storage->sheet.initial = initial;
 
-    it->second = std::move(entry);
+    it->second = std::move(storage);
     lua_pop(state, 1);
   }
 
