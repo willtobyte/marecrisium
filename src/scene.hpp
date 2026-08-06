@@ -18,6 +18,7 @@ public:
 private:
   entt::registry _registry{};
   std::string _name{};
+  std::unique_ptr<pixmap> _background{};
   overlay _overlay;
 
   friend class director;

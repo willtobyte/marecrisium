@@ -20,8 +20,11 @@ static bool by_depth(const renderable& lhs, const renderable& rhs) {
 
 scene::scene(std::string name)
     : _name(std::move(name)),
+      _background(std::make_unique<pixmap>(std::format("blobs/scenes/{}/background.png", _name))),
       _overlay(_name) {
   const timer::scope scope{_timer};
+
+  SDL_SetTextureBlendMode(*_background, SDL_BLENDMODE_NONE);
 
   _registry.on_destroy<scriptable>().connect<&release_scriptable>();
   _registry.ctx().emplace<reorder>();
@@ -321,6 +324,13 @@ void scene::update(float delta) {
 }
 
 void scene::draw() {
+  _background->draw(
+    .0f, .0f,
+    static_cast<float>(_background->width()), static_cast<float>(_background->height()),
+    .0f, .0f,
+    viewport.width, viewport.height
+  );
+
   auto view = _registry.view<const renderable, const animation, const transform>();
   view.use<renderable>();
 
