@@ -107,6 +107,7 @@ extern mcg64 prng;
 #include "spritesheetpool.hpp"
 #include "steam.hpp"
 #include "stringpool.hpp"
+#include "systems.hpp"
 #include "runtime.hpp"
 #include "timer.hpp"
 #include "traceback.hpp"

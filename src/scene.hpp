@@ -13,10 +13,9 @@ public:
 
   void on_leave();
 
-  [[nodiscard]] entt::entity pick(float x, float y) noexcept;
-
 private:
   entt::registry _registry{};
+  systems _systems{_registry};
   std::string _name{};
   std::unique_ptr<pixmap> _background{};
   overlay _overlay;

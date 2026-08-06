@@ -14,7 +14,6 @@ namespace {
     constexpr auto kind = "kind"_hs;
     constexpr auto center_x = "center_x"_hs;
     constexpr auto center_y = "center_y"_hs;
-    constexpr auto on_spawn = "on_spawn"_hs;
     constexpr auto on_loop = "on_loop"_hs;
     constexpr auto on_animation_begin = "on_animation_begin"_hs;
     constexpr auto on_animation_end = "on_animation_end"_hs;
@@ -130,7 +129,6 @@ namespace {
         lua_rawgeti(state, LUA_REGISTRYINDEX, registry.get<scriptable>(entity).blueprint->kind);
         return 1;
 
-      case lookup::on_spawn:
       case lookup::on_loop:
       case lookup::on_animation_begin:
       case lookup::on_animation_end:
@@ -164,7 +162,6 @@ namespace {
         buffer[prefix + size] = '\0';
 
         switch (entt::hashed_string{buffer.data()}) {
-          case lookup::on_spawn:
           case lookup::on_loop:
           case lookup::on_animation_begin:
           case lookup::on_animation_end:
@@ -317,7 +314,6 @@ namespace {
       case lookup::name:
       case lookup::kind:
       case lookup::alive:
-      case lookup::on_spawn:
       case lookup::on_loop:
       case lookup::on_animation_begin:
       case lookup::on_animation_end:
@@ -370,7 +366,6 @@ void object::bind(entt::registry& registry, entt::entity entity, scriptable& com
     std::pair{"on_loop", &prototype::on_loop},
     std::pair{"on_animation_end", &prototype::on_animation_end},
     std::pair{"on_animation_begin", &prototype::on_animation_begin},
-    std::pair{"on_spawn", &prototype::on_spawn},
     std::pair{"on_press", &prototype::on_press},
     std::pair{"on_release", &prototype::on_release},
     std::pair{"on_hover", &prototype::on_hover},
