@@ -104,11 +104,6 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       if (id == dh)
         initial = static_cast<uint8_t>(storage->clips.size() - 1);
 
-      lua_getfield(state, -1, "sound");
-      if (lua_isstring(state, -1))
-        clip.effect = depot->sound.get(std::format("sounds/{}", lua_tostring(state, -1)));
-      lua_pop(state, 1);
-
       lua_pop(state, 1);
     }
 

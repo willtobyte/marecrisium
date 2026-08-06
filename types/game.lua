@@ -277,9 +277,8 @@ viewport = nil
 ---@field default? string Initial clip. Without it, the first parsed clip is used.
 ---@field [string] AnimationClip|string
 
----Non-empty frame array with an optional sound.
+---Non-empty frame array.
 ---@class AnimationClip
----@field sound? string Plays `blobs/sounds/<name>.ogg` when selected through `object.animation`.
 ---@field [integer] AnimationFrame `{sx, sy, width, height, duration_ms}` with optional `{collider_x, collider_y, collider_width, collider_height}`.
 
 ---Spawn configuration and shared custom behavior. Engine configuration and

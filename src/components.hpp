@@ -50,7 +50,6 @@ struct clip final {
   } identity;
   uint16_t offset{};
   uint8_t count{};
-  sound* effect{};
 };
 
 static_assert(std::is_trivially_copyable_v<clip>, "clip must be trivially copyable");
