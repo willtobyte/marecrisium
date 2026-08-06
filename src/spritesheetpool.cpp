@@ -14,10 +14,10 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     const auto iw = 1.f / static_cast<float>(storage->sheet.pixmap->width());
     const auto ih = 1.f / static_cast<float>(storage->sheet.pixmap->height());
 
-    entt::id_type dh = 0;
+    entt::id_type primary = 0;
     lua_getfield(state, top, "default");
     if (lua_isstring(state, -1))
-      dh = entt::hashed_string{lua_tostring(state, -1)};
+      primary = entt::hashed_string{lua_tostring(state, -1)};
     lua_pop(state, 1);
 
     uint8_t initial = 0;
@@ -101,7 +101,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       assert(clip.count > 0 && "animation clip must contain at least one frame");
       [[assume(clip.count > 0)]];
 
-      if (id == dh)
+      if (id == primary)
         initial = static_cast<uint8_t>(storage->clips.size() - 1);
 
       lua_pop(state, 1);
