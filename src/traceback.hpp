@@ -5,4 +5,5 @@ namespace traceback {
 inline constexpr int slot{-3};
 
 int build(lua_State* state);
+int panic(lua_State* state);
 }

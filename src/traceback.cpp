@@ -128,6 +128,13 @@ void format(lua_State *state, std::string &text, int index, trail &path) {
 }
 
 namespace traceback {
+int panic(lua_State* state) {
+  const auto* message = lua_tostring(state, -1);
+  auto exception = std::runtime_error{message ? message : "unknown lua error"};
+  lua_pop(state, 1);
+  throw exception;
+}
+
 int build(lua_State* state) {
   luaL_traceback(state, state, lua_tostring(state, 1), 1);
 
