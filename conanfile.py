@@ -41,24 +41,22 @@ class Game(ConanFile):
                 if dep.is_build_context or not dep.package_folder:
                     continue
 
-                pid = f"{dep.ref.name}/{dep.ref.version}"
+                ref = f"{dep.ref.name}/{dep.ref.version}"
                 licenses: set[str] = set()
                 for file in Path(dep.package_folder).rglob("*"):
                     if not file.is_file():
                         continue
 
                     name = file.name.lower()
-                    if name.startswith(("license", "copying", "copyright")):
-                        license = file.read_text(
-                            encoding="utf-8",
-                            errors="ignore",
-                        ).strip()
+                    if not name.startswith(("license", "copying", "copyright")):
+                        continue
 
-                        if license in licenses:
-                            continue
+                    license = file.read_text("utf-8", errors="ignore").strip()
+                    if license in licenses:
+                        continue
 
-                        licenses.add(license)
-                        out.write(f"{pid}\n{license}\n\n")
+                    licenses.add(license)
+                    out.write(f"{ref}\n{license}\n\n")
 
         toolchain = CMakeToolchain(self)
         for definition in [
