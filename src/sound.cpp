@@ -25,6 +25,7 @@ namespace {
   }
 
   static int on_begin_callback(lua_State* state) {
+    luaL_checktype(state, 2, LUA_TFUNCTION);
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     luaL_unref(state, LUA_REGISTRYINDEX, instance->on_begin);
     instance->on_begin = LUA_NOREF;
@@ -35,7 +36,7 @@ namespace {
 
   static int fade_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    const auto from = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
+    const auto from = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), -1.f, 1.f);
     const auto to = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
     const auto duration = std::clamp(
       luaL_checkinteger(state, 4),
@@ -46,6 +47,7 @@ namespace {
   }
 
   static int on_end_callback(lua_State* state) {
+    luaL_checktype(state, 2, LUA_TFUNCTION);
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     luaL_unref(state, LUA_REGISTRYINDEX, instance->on_end);
     instance->on_end = LUA_NOREF;

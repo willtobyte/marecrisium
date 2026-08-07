@@ -115,8 +115,8 @@ static bool on_event(void *, SDL_Event *event) {
 }
 
 static int rumble_callback(lua_State *state) {
-  const auto low = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
-  const auto high = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
+  const auto low = std::clamp(std::fmax(static_cast<float>(luaL_checknumber(state, 2)), .0f), .0f, 1.f);
+  const auto high = std::clamp(std::fmax(static_cast<float>(luaL_checknumber(state, 3)), .0f), .0f, 1.f);
   const auto duration = std::clamp(
     luaL_checkinteger(state, 4),
     lua_Integer{},
@@ -136,9 +136,9 @@ static int rumble_callback(lua_State *state) {
 }
 
 static int led_callback(lua_State *state) {
-  const auto red = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), .0f, 1.f);
-  const auto green = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
-  const auto blue = std::clamp(static_cast<float>(luaL_checknumber(state, 4)), .0f, 1.f);
+  const auto red = std::clamp(std::fmax(static_cast<float>(luaL_checknumber(state, 2)), .0f), .0f, 1.f);
+  const auto green = std::clamp(std::fmax(static_cast<float>(luaL_checknumber(state, 3)), .0f), .0f, 1.f);
+  const auto blue = std::clamp(std::fmax(static_cast<float>(luaL_checknumber(state, 4)), .0f), .0f, 1.f);
 
   constexpr auto range = static_cast<float>(std::numeric_limits<uint8_t>::max());
   const auto r = static_cast<uint8_t>(red * range);
