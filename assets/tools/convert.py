@@ -88,8 +88,8 @@ for name, frames in groups.items():
         {
             "name": name,
             "frames": [
-                frame(data, durations[name][index])
-                for index, (_, data) in enumerate(frames)
+                frame(data, duration)
+                for duration, (_, data) in zip(durations[name], frames)
             ],
         }
     )
