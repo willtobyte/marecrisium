@@ -42,6 +42,7 @@ class Game(ConanFile):
                     continue
 
                 pid = f"{dep.ref.name}/{dep.ref.version}"
+                licenses: set[str] = set()
                 for file in Path(dep.package_folder).rglob("*"):
                     if not file.is_file():
                         continue
@@ -49,6 +50,10 @@ class Game(ConanFile):
                     name = file.name.lower()
                     if name.startswith(("license", "copying", "copyright")):
                         text = file.read_text(encoding="utf-8", errors="ignore").strip()
+                        if text in licenses:
+                            continue
+
+                        licenses.add(text)
                         out.write(f"{pid}\n{text}\n\n")
 
         toolchain = CMakeToolchain(self)
