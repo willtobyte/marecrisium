@@ -186,7 +186,7 @@ cassette = nil
 ---@field y? number Defaults to 0.
 
 ---@class SceneSound
----@field name string Pool name; loads `blobs/sounds/<name>.ogg`.
+---@field name string Pool name; shares `blobs/sounds/<name>.ogg` with other scenes.
 ---@field loop? boolean Defaults to false.
 
 ---Scene definition and callbacks owned by the script.
@@ -334,11 +334,11 @@ function Sound:stop() end
 ---@param ms integer Duration in milliseconds; negative values become 0.
 function Sound:fade(from, to, ms) end
 
----Replace the playback-start callback.
+---Replace the playback-start callback until the scene leaves.
 ---@param fn fun()
 function Sound:on_begin(fn) end
 
----Replace the playback-end callback.
+---Replace the playback-end callback until the scene leaves.
 ---@param fn fun()
 function Sound:on_end(fn) end
 

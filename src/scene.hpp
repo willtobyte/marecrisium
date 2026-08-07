@@ -19,6 +19,7 @@ private:
   std::string _name{};
   std::unique_ptr<pixmap> _background{};
   overlay _overlay;
+  std::vector<sound*> _sounds{};
 
   friend class director;
 

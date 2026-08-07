@@ -56,6 +56,7 @@ scene::scene(std::string name)
 
   lua_getfield(L, -1, "sounds");
   const auto sounds = static_cast<int>(lua_objlen(L, -1));
+  _sounds.reserve(static_cast<std::size_t>(sounds));
 
   for (auto i = 1; i <= sounds; ++i) {
     lua_rawgeti(L, -1, i);
@@ -70,6 +71,7 @@ scene::scene(std::string name)
 
     const auto key = std::format("sounds/{}", label);
     auto *instance = depot->sound.get(key);
+    _sounds.emplace_back(instance);
     auto **memory = static_cast<class sound **>(lua_newuserdata(L, sizeof(class sound *)));
     *memory = instance;
     luaL_getmetatable(L, "Sound");
@@ -167,7 +169,8 @@ void scene::update(float delta) {
     lua_pop(L, 2);
   }
 
-  depot->sound.poll();
+  for (auto* sound : _sounds)
+    sound->poll();
 
   _systems.sort();
 
@@ -207,4 +210,12 @@ void scene::on_leave() {
   }
 
   _overlay.disappear();
+
+  for (auto* sound : _sounds) {
+    sound->stop();
+    sound->play();
+    sound->stop();
+    luaL_unref(L, LUA_REGISTRYINDEX, std::exchange(sound->on_begin, LUA_NOREF));
+    luaL_unref(L, LUA_REGISTRYINDEX, std::exchange(sound->on_end, LUA_NOREF));
+  }
 }

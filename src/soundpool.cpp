@@ -6,8 +6,3 @@ sound* soundpool::get(std::string_view name) {
 
   return it->second.get();
 }
-
-void soundpool::poll() {
-  for (auto&& [_, instance] : _pool)
-    instance->poll();
-}
