@@ -5,7 +5,7 @@
 - **Target idiomatic & modern C++23. Prefer C++ features such as `auto`, `constexpr`, `const`, and `final` whenever appropriate.**
 - **Minimize allocations, copies, and runtime overhead.**
 - **Prefer O(1), SIMD-friendly, branchless, and cache-friendly implementations whenever practical.**
-- **Every C++ change to the Lua API must also update `types/game.lua`.**
+- **Every C++ change to the Lua API must also update `types/carimbo.lua`.**
 - **LuaJIT only. Keep Lua code LuaJIT-friendly and performance-oriented.**
 - **Always use `lua_pcall()` to call Lua functions. Never use `lua_call()`. Check each status and propagate each Lua error to the `catch` block in `src/application.cpp`.**
 - **Every performance-related change requires empirical benchmarking. Always measure and compare the before and after results, and present the evidence demonstrating the impact.**
