@@ -49,12 +49,14 @@ class Game(ConanFile):
 
                     name = file.name.lower()
                     if name.startswith(("license", "copying", "copyright")):
-                        text = file.read_text(encoding="utf-8", errors="ignore").strip()
-                        if text in licenses:
+                        license = file.read_text(
+                            encoding="utf-8", errors="ignore"
+                        ).strip()
+                        if license in licenses:
                             continue
 
-                        licenses.add(text)
-                        out.write(f"{pid}\n{text}\n\n")
+                        licenses.add(license)
+                        out.write(f"{pid}\n{license}\n\n")
 
         toolchain = CMakeToolchain(self)
         for definition in [
