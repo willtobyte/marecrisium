@@ -31,7 +31,7 @@ clean: ## Cleans build artifacts
 	rm -rf build ~/.conan2/p
 
 conan: ## Installs dependencies
-	conan export recipes/luajit --version=2.1-20260720
+	conan export recipes/luajit --version=2.1-20260803
 	conan install . \
 		--output-folder=build \
 		--build=missing \

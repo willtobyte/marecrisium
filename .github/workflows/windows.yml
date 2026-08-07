@@ -63,7 +63,7 @@ jobs:
 
       - name: Export local recipes
         run: |
-          uv tool run conan export recipes/luajit --version=2.1-20260720
+          uv tool run conan export recipes/luajit --version=2.1-20260803
 
       - name: Install dependencies
         run: uv tool run conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release --settings compiler.runtime=static
