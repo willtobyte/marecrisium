@@ -5,7 +5,6 @@ SHELL := /usr/bin/env bash
 
 PROFILE   ?= $(or $(profile),default)
 BUILDTYPE ?= $(or $(buildtype),Debug)
-CARTRIDGE ?= ./cartridge
 NCPUS     ?= $(shell sysctl -n hw.ncpu 2>/dev/null | awk '{print $$1 - 1}')
 
 SANITIZER_FLAGS := \
@@ -52,8 +51,7 @@ build: ## Builds the project
 		--verbose
 
 run: build ## Builds and runs the project
-	rm -f cartridge.rom
-	./tools/pack.py $(CARTRIDGE)
+	./tools/pack.py
 	WINDOWED=1 lldb -o run -- ./build/carimbo
 
 help: ## Shows available commands

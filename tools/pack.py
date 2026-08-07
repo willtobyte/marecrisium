@@ -113,11 +113,9 @@ def display(
 
 
 def main() -> int:
-    if len(sys.argv) < 2:
-        print("usage: pack <dir>", file=sys.stderr)
-        return 1
-
-    root = Path(sys.argv[1])
+    root = Path("cartridge")
+    output = Path("cartridge.rom")
+    output.unlink(missing_ok=True)
 
     sources: list[Source] = []
     for current in root.rglob("*"):
@@ -225,7 +223,7 @@ def main() -> int:
     for current in sources:
         blob.extend(current.blob)
 
-    Path("cartridge.rom").write_bytes(blob)
+    output.write_bytes(blob)
 
     display(sources)
     print(f"created cartridge.rom ({count} entries, {len(blob)} bytes)")
