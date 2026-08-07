@@ -10,10 +10,7 @@ struct Deleter {
 
 struct SDL_Deleter {
   template <typename T>
-  void operator()(T *ptr) const noexcept {
-    SDL_free(ptr);
-  }
-
+  void operator()(T *ptr) const noexcept { SDL_free(ptr); }
   void operator()(SDL_Gamepad *ptr) const noexcept { SDL_CloseGamepad(ptr); }
   void operator()(SDL_Texture *ptr) const noexcept { SDL_DestroyTexture(ptr); }
 };
