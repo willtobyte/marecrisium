@@ -50,8 +50,10 @@ class Game(ConanFile):
                     name = file.name.lower()
                     if name.startswith(("license", "copying", "copyright")):
                         license = file.read_text(
-                            encoding="utf-8", errors="ignore"
+                            encoding="utf-8",
+                            errors="ignore",
                         ).strip()
+
                         if license in licenses:
                             continue
 
