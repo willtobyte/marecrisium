@@ -1,6 +1,6 @@
 #pragma once
 
-struct resources final {
+struct depot final {
   template<typename T, typename... Args>
   decltype(auto) get(Args&&... args) {
     if constexpr (std::same_as<T, ::font>)

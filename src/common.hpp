@@ -68,8 +68,8 @@ extern lua_State* L;
 extern SDL_Renderer* renderer;
 extern ma_engine audio;
 
-struct resources;
-extern struct resources *depot;
+struct depot;
+extern struct depot *depot;
 
 #include "viewport.hpp"
 
@@ -112,7 +112,7 @@ extern mcg64 prng;
 #include "runtime.hpp"
 #include "timer.hpp"
 #include "traceback.hpp"
-#include "resources.hpp"
+#include "depot.hpp"
 #include "scene.hpp"
 #include "director.hpp"
 #include "engine.hpp"

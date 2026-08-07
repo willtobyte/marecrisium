@@ -38,8 +38,8 @@ int main(int, char**) {
   SteamAPI_InitSafe();
   std::atexit([]{ SteamAPI_Shutdown(); });
 
-  resources storage;
-  depot = &storage;
+  struct depot store;
+  depot = &store;
 
   application app;
   return app.run();
