@@ -98,7 +98,7 @@ void engine::run() {
   lua_gc(L, LUA_GCCOLLECT, 0);
   lua_gc(L, LUA_GCRESTART, 0);
 
-  const auto elapsed = static_cast<double>(SDL_GetPerformanceCounter() - _boot) * 1'000.0 / static_cast<double>(SDL_GetPerformanceFrequency());
+  const auto elapsed = static_cast<double>(SDL_GetTicks() - _boot);
 
   std::println("[boot] ready in {:.2f}", elapsed);
 
@@ -133,16 +133,15 @@ void engine::loop() {
     }
   }
 
-  const auto now = SDL_GetPerformanceCounter();
+  const auto now = SDL_GetTicks();
   static auto prior = now;
-  static const auto frequency = static_cast<double>(SDL_GetPerformanceFrequency());
-  const auto delta = std::min(static_cast<float>(static_cast<double>(now - prior) / frequency), 1.f / 30.f);
+  const auto delta = std::min(static_cast<float>(now - prior) * .001f, 1.f / 30.f);
   prior = now;
 
   static auto tick = now;
   static auto frames = 0;
   ++frames;
-  const auto elapsed = static_cast<double>(now - tick) / frequency;
+  const auto elapsed = static_cast<double>(now - tick) * .001;
 
   if (elapsed >= 1.0) [[unlikely]] {
     const auto fps = frames / elapsed;
@@ -151,8 +150,6 @@ void engine::loop() {
     frames = 0;
     tick = now;
   }
-
-  _director.transition();
 
   _director.update(delta);
 

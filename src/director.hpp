@@ -20,8 +20,6 @@ public:
     [[assume(inserted)]];
   }
 
-  void transition();
-
   void update(float delta);
 
   void draw();

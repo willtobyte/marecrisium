@@ -59,31 +59,27 @@ void director::destroy(std::string_view name) {
   _scenes.erase(it);
 }
 
-void director::transition() {
-  if (!_pending) [[likely]] {
-    return;
+void director::update(float delta) {
+  if (_pending) [[unlikely]] {
+    if (_current) [[likely]]
+      _current->on_leave();
+
+    const auto key = entt::hashed_string{_pending->data(), _pending->size()};
+    const auto it = _scenes.find(key);
+    const auto found = it != _scenes.end();
+    assert(found && "scene must be enrolled before navigation");
+    [[assume(found)]];
+
+    _pending.reset();
+    _current = it->second.get();
+    _current->_timer.activate();
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _current->_pool);
+    lua_setglobal(L, "pool");
+
+    _current->on_enter();
   }
 
-  if (_current) [[likely]]
-    _current->on_leave();
-
-  const auto key = entt::hashed_string{_pending->data(), _pending->size()};
-  const auto it = _scenes.find(key);
-  const auto found = it != _scenes.end();
-  assert(found && "scene must be enrolled before navigation");
-  [[assume(found)]];
-
-  _pending.reset();
-  _current = it->second.get();
-  _current->_timer.activate();
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _current->_pool);
-  lua_setglobal(L, "pool");
-
-  _current->on_enter();
-}
-
-void director::update(float delta) {
   timer::update(delta);
 
   if (_current) [[likely]]
