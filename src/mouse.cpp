@@ -75,7 +75,7 @@ void mouse::wire() {
   lua_setmetatable(L, -2);
   lua_setglobal(L, "mouse");
 
-  labels[0] = depot->string.slot(depot->string.get("left"));
-  labels[1] = depot->string.slot(depot->string.get("middle"));
-  labels[2] = depot->string.slot(depot->string.get("right"));
+  labels[0] = depot->string.slot(depot->get("left"));
+  labels[1] = depot->string.slot(depot->get("middle"));
+  labels[2] = depot->string.slot(depot->get("right"));
 }

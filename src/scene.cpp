@@ -70,7 +70,7 @@ scene::scene(std::string name)
     lua_pop(L, 1);
 
     const auto key = std::format("sounds/{}", label);
-    auto *instance = depot->sound.get(key);
+    auto *instance = depot->get<sound>(key);
     _sounds.emplace_back(instance);
     auto **memory = static_cast<class sound **>(lua_newuserdata(L, sizeof(class sound *)));
     *memory = instance;

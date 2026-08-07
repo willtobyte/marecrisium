@@ -3,9 +3,9 @@ particle* particlesystem::add(std::string_view name, std::string_view kind, floa
   if (const auto it = _particles.find(key); it != _particles.end())
     return it->second.get();
 
-  const auto *config = depot->particle.get(kind);
-  const auto *texture = depot->pixmap.get(std::format("particles/{}", kind));
-  auto instance = std::make_unique<particle>(*config, *texture, x, y, active);
+  const auto *cfg = depot->get<config>(kind);
+  const auto *texture = depot->get<pixmap>(std::format("particles/{}", kind));
+  auto instance = std::make_unique<particle>(*cfg, *texture, x, y, active);
   return _particles.emplace(key, std::move(instance)).first->second.get();
 }
 

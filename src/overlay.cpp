@@ -16,7 +16,7 @@ overlay::overlay(std::string_view name) {
     lua_rawgeti(L, -1, i);
     const auto *family = luaL_checkstring(L, -1);
     auto **memory = static_cast<font **>(lua_newuserdata(L, sizeof(font *)));
-    *memory = depot->font.get(family);
+    *memory = depot->get<font>(family);
     luaL_getmetatable(L, "Font");
     lua_setmetatable(L, -2);
     lua_setfield(L, top, family);

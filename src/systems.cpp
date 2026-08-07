@@ -47,7 +47,7 @@ entt::entity systems::spawn(int pool, std::string_view kind, const std::string& 
   lua_getfield(L, -1, "animation");
   assert(lua_istable(L, -1) && "object must define an animation table");
 
-  const auto* sheet = depot->spritesheet.get(kind, L, -1);
+  const auto* sheet = depot->get<spritesheet>(kind, L, -1);
   auto& a = _registry.emplace<animation>(entity);
   a.sheet = sheet;
   a.active = sheet->initial;

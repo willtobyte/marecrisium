@@ -9,7 +9,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     auto storage = std::make_unique<class storage>();
     storage->clips.reserve(8);
     storage->frames.reserve(128);
-    storage->sheet.pixmap = depot->pixmap.get(std::format("objects/{}", kind));
+    storage->sheet.pixmap = depot->get<pixmap>(std::format("objects/{}", kind));
 
     const auto iw = 1.f / static_cast<float>(storage->sheet.pixmap->width());
     const auto ih = 1.f / static_cast<float>(storage->sheet.pixmap->height());
@@ -32,7 +32,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       lua_pushvalue(state, -2);
       std::size_t length;
       const auto* data = lua_tolstring(state, -1, &length);
-      const auto id = depot->string.get({data, length});
+      const auto id = depot->get(std::string_view{data, length});
       lua_pop(state, 1);
       const auto name = depot->string.slot(id);
 
