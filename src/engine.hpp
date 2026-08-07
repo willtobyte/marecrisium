@@ -8,7 +8,7 @@ public:
   void loop();
 
 private:
-  const std::uint64_t _boot{SDL_GetTicks()};
+  const std::uint64_t _boot{SDL_GetPerformanceCounter()};
   director _director;
   bool _running{true};
 };
