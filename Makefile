@@ -1,30 +1,31 @@
 SHELL := /usr/bin/env bash
 
-.SHELLFLAGS := -eu -o pipefail -c
+.SHELLFLAGS := -euo pipefail -c
 .DEFAULT_GOAL := help
 
-PROFILE   := $(or $(profile),default)
-BUILDTYPE := $(or $(buildtype),Debug)
-CARTRIDGE := $(or $(CARTRIDGE),./cartridge)
-NCPUS     := $(shell sysctl -n hw.ncpu 2>/dev/null | awk '{print $$1 - 1}')
+PROFILE   ?= $(or $(profile),default)
+BUILDTYPE ?= $(or $(buildtype),Debug)
+CARTRIDGE ?= ./cartridge
+NCPUS     ?= $(shell sysctl -n hw.ncpu 2>/dev/null | awk '{print $$1 - 1}')
+
+SANITIZER_FLAGS := \
+	-fsanitize=address,undefined,nullability,implicit-conversion,float-divide-by-zero,local-bounds \
+	-fsanitize-address-use-after-scope \
+	-fno-omit-frame-pointer
 
 DEBUG_CFLAGS := \
 	-g3 -O0 \
 	-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
-	-fsanitize=address,undefined,nullability,implicit-conversion,float-divide-by-zero,local-bounds \
-	-fsanitize-address-use-after-scope \
-	-fno-omit-frame-pointer \
+	$(SANITIZER_FLAGS) \
 	-fstack-protector-strong \
 	-ftrivial-auto-var-init=pattern
 
 DEBUG_LDFLAGS := \
 	-g3 \
 	-fno-optimize-sibling-calls \
-	-fsanitize=address,undefined,nullability,implicit-conversion,float-divide-by-zero,local-bounds \
-	-fsanitize-address-use-after-scope \
-	-fno-omit-frame-pointer
+	$(SANITIZER_FLAGS)
 
-.PHONY: clean conan build run help
+.PHONY: build clean conan help run
 
 clean: ## Cleans build artifacts
 	rm -rf build ~/.conan2/p
@@ -51,8 +52,9 @@ build: ## Builds the project
 		--verbose
 
 run: build ## Builds and runs the project
+	rm -f cartridge.rom
 	./tools/pack.py $(CARTRIDGE)
 	WINDOWED=1 lldb -o run -- ./build/carimbo
 
-help:
+help: ## Shows available commands
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
