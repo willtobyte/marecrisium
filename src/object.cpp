@@ -2,6 +2,9 @@ namespace {
 std::unordered_map<std::string, std::unique_ptr<prototype>, transparent_string_hash, std::equal_to<>> prototypes;
 
 [[nodiscard]] constexpr bool is_callback(std::string_view key) noexcept {
+  if (!key.starts_with("on_"))
+    return false;
+
   return key == "on_spawn" ||
     key == "on_loop" ||
     key == "on_animation_begin" ||
@@ -29,18 +32,12 @@ static void attach(object& object, bool& dirty) {
 }
 
 static int index(lua_State* state) {
-  const auto* self = static_cast<proxy*>(luaL_checkudata(state, 1, "Object"));
+  const auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
   auto length = 0uz;
-  const auto* data = luaL_checklstring(state, 2, &length);
+  const auto* data = lua_tolstring(state, 2, &length);
   const std::string_view key{data, length};
-  const auto valid = self->object != nullptr;
 
-  if (key == "alive") {
-    lua_pushboolean(state, valid);
-    return 1;
-  }
-
-  if (!valid) [[unlikely]]
+  if (!self->object) [[unlikely]]
     return lua_pushnil(state), 1;
 
   const auto& object = *self->object;
@@ -85,6 +82,11 @@ static int index(lua_State* state) {
     return 1;
   }
 
+  if (key == "alive") {
+    lua_pushboolean(state, 1);
+    return 1;
+  }
+
   if (key == "name") {
     lua_rawgeti(state, LUA_REGISTRYINDEX, object.script.label);
     return 1;
@@ -119,12 +121,13 @@ static int index(lua_State* state) {
   std::memcpy(buffer.data() + prefix, data, size);
   buffer[prefix + size] = '\0';
 
-  if (is_callback(buffer.data())) {
+  if (is_callback({buffer.data(), prefix + size})) {
     lua_pop(state, 1);
     return lua_pushnil(state), 1;
   }
 
-  lua_getfield(state, -1, buffer.data());
+  lua_pushlstring(state, buffer.data(), prefix + size);
+  lua_gettable(state, -2);
   lua_remove(state, -2);
   if (!lua_isnil(state, -1))
     return 1;
@@ -134,9 +137,9 @@ static int index(lua_State* state) {
 }
 
 static int newindex(lua_State* state) {
-  auto* self = static_cast<proxy*>(luaL_checkudata(state, 1, "Object"));
+  auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
   auto length = 0uz;
-  const auto* data = luaL_checklstring(state, 2, &length);
+  const auto* data = lua_tolstring(state, 2, &length);
   std::string_view key{data, length};
 
   if (!self->object) [[unlikely]]

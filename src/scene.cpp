@@ -37,14 +37,6 @@ scene::scene(std::string_view name)
   for (auto i = 1; i <= objects; ++i) {
     lua_rawgeti(L, -1, i);
 
-    lua_getfield(L, -1, "name");
-    const std::string label{luaL_checkstring(L, -1)};
-    lua_pop(L, 1);
-
-    lua_getfield(L, -1, "kind");
-    const std::string kind{luaL_checkstring(L, -1)};
-    lua_pop(L, 1);
-
     lua_getfield(L, -1, "x");
     const auto ox = static_cast<float>(luaL_optnumber(L, -1, .0));
     lua_pop(L, 1);
@@ -53,10 +45,14 @@ scene::scene(std::string_view name)
     const auto oy = static_cast<float>(luaL_optnumber(L, -1, .0));
     lua_pop(L, 1);
 
-    lua_pop(L, 1);
+    lua_getfield(L, -1, "name");
+    const auto* label = luaL_checkstring(L, -1);
+
+    lua_getfield(L, -2, "kind");
+    const auto* kind = luaL_checkstring(L, -1);
 
     const auto id = static_cast<uint32_t>(_objects.size());
-    _order.emplace(_order.begin(), id);
+    _order.emplace_back(id);
 
     auto& object = _objects.emplace_back();
     object.sprite.z = static_cast<int>(id);
@@ -79,7 +75,7 @@ scene::scene(std::string_view name)
 
     lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
     lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
-    lua_setfield(L, -2, label.c_str());
+    lua_setfield(L, -2, label);
     lua_pop(L, 1);
 
     const auto& blueprint = *object.script.blueprint;
@@ -97,7 +93,10 @@ scene::scene(std::string_view name)
       if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
         lua_error(L);
     }
+
+    lua_pop(L, 3);
   }
+  std::reverse(_order.begin(), _order.end());
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "sounds");
@@ -108,10 +107,9 @@ scene::scene(std::string_view name)
     lua_rawgeti(L, -1, i);
 
     lua_getfield(L, -1, "name");
-    const std::string label{luaL_checkstring(L, -1)};
-    lua_pop(L, 1);
+    const auto* label = luaL_checkstring(L, -1);
 
-    lua_getfield(L, -1, "loop");
+    lua_getfield(L, -2, "loop");
     const auto loop = lua_toboolean(L, -1) != 0;
     lua_pop(L, 1);
 
@@ -125,14 +123,14 @@ scene::scene(std::string_view name)
 
     lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
     lua_pushvalue(L, -2);
-    lua_setfield(L, -2, label.c_str());
+    lua_setfield(L, -2, label);
     lua_pop(L, 1);
 
     lua_pop(L, 1);
 
     instance->set_loop(loop);
 
-    lua_pop(L, 1);
+    lua_pop(L, 2);
   }
   lua_pop(L, 1);
 

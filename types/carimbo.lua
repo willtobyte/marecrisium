@@ -310,7 +310,7 @@ viewport = nil
 ---@field name string Instance name (read-only).
 ---@field kind string Prototype kind (read-only).
 ---@field z integer Render order (read/write); defaults to the declaration index in `objects` and higher values draw on top.
----@field alive boolean Read-only; objects live for the whole scene and turn false only after the scene is destroyed.
+---@field alive boolean|nil Read-only; true while the object lives, nil after the scene is destroyed.
 ---@field [string] any Per-object field or dispatched prototype method.
 
 -- Sound
