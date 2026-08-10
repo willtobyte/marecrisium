@@ -281,8 +281,9 @@ viewport = nil
 ---@class AnimationClip
 ---@field [integer] AnimationFrame `{sx, sy, width, height, duration_ms}` with optional `{collider_x, collider_y, collider_width, collider_height}`.
 
----Spawn configuration and shared custom behavior. Engine configuration and
----callbacks are consumed internally and are unavailable through `Object`.
+---Spawn configuration and shared custom behavior. The engine dispatches the
+---reserved callbacks from references cached at load time. A write to a reserved
+---callback through `Object` does not change the engine dispatch.
 ---@class ObjectPrototype
 ---@field animation? AnimationConfig Spawn-only animation definitions.
 ---@field on_spawn? fun(self: Object) Called once after the object is complete and available in `pool`.
@@ -296,9 +297,9 @@ viewport = nil
 ---@field [string] any Custom fields and methods shared by every object of this kind.
 
 ---Entity handle available as `self` and through `pool`. Calling
----`object:foo(...)` falls back to a non-reserved `on_foo(self, ...)` method.
+---`object:foo(...)` falls back to the prototype's `on_foo(self, ...)`.
 ---Each object stores custom writes independently and reads missing fields from
----the shared prototype. Spawn configuration and engine callbacks are not exposed.
+---the shared prototype.
 ---@class Object
 ---@field x number Transform X (read/write); the hitbox follows.
 ---@field y number Transform Y (read/write); the hitbox follows.

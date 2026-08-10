@@ -1,20 +1,6 @@
 namespace {
 std::unordered_map<std::string, std::unique_ptr<prototype>, transparent_string_hash, std::equal_to<>> prototypes;
 
-[[nodiscard]] constexpr bool is_callback(std::string_view key) noexcept {
-  if (!key.starts_with("on_"))
-    return false;
-
-  return key == "on_spawn" ||
-    key == "on_loop" ||
-    key == "on_animation_begin" ||
-    key == "on_animation_end" ||
-    key == "on_press" ||
-    key == "on_release" ||
-    key == "on_hover" ||
-    key == "on_unhover";
-}
-
 static void attach(object& object, bool& dirty) {
   auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));
   luaL_getmetatable(L, "Object");
@@ -97,9 +83,6 @@ static int index(lua_State* state) {
     return 1;
   }
 
-  if (key == "animation" || is_callback(key))
-    return lua_pushnil(state), 1;
-
   lua_getfenv(state, 1);
   lua_pushvalue(state, 2);
   lua_gettable(state, -2);
@@ -121,80 +104,62 @@ static int index(lua_State* state) {
   std::memcpy(buffer.data() + prefix, data, size);
   buffer[prefix + size] = '\0';
 
-  if (is_callback({buffer.data(), prefix + size})) {
-    lua_pop(state, 1);
-    return lua_pushnil(state), 1;
-  }
-
   lua_pushlstring(state, buffer.data(), prefix + size);
   lua_gettable(state, -2);
   lua_remove(state, -2);
-  if (!lua_isnil(state, -1))
-    return 1;
-  lua_pop(state, 1);
-
-  return lua_pushnil(state), 1;
+  return 1;
 }
 
 static int newindex(lua_State* state) {
   auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
-  auto length = 0uz;
-  const auto* data = lua_tolstring(state, 2, &length);
-  std::string_view key{data, length};
-
-  if (!self->object) [[unlikely]]
-    return 0;
+  const std::string_view key{lua_tostring(state, 2)};
 
   auto& object = *self->object;
 
-  for (;;) {
-    if (key == "x") {
-      object.sprite.x = static_cast<float>(luaL_checknumber(state, 3));
-      return 0;
+  if (key == "x") {
+    object.sprite.x = static_cast<float>(luaL_checknumber(state, 3));
+    return 0;
+  }
+
+  if (key == "y") {
+    object.sprite.y = static_cast<float>(luaL_checknumber(state, 3));
+    return 0;
+  }
+
+  if (key == "z") {
+    const auto value = static_cast<int>(luaL_checkinteger(state, 3));
+    if (object.sprite.z != value) {
+      object.sprite.z = value;
+      *self->dirty = true;
     }
 
-    if (key == "y") {
-      object.sprite.y = static_cast<float>(luaL_checknumber(state, 3));
-      return 0;
-    }
+    return 0;
+  }
 
-    if (key == "z") {
-      const auto value = static_cast<int>(luaL_checkinteger(state, 3));
-      if (object.sprite.z != value) {
-        object.sprite.z = value;
-        *self->dirty = true;
-      }
+  if (key == "flip") {
+    const auto value = std::clamp(luaL_checkinteger(state, 3), lua_Integer{}, lua_Integer{3});
+    object.sprite.flip = static_cast<mirror>(value);
+    return 0;
+  }
 
-      return 0;
-    }
-    if (key == "flip") {
-      const auto value = std::clamp(luaL_checkinteger(state, 3), lua_Integer{}, lua_Integer{3});
-      object.sprite.flip = static_cast<mirror>(value);
-      return 0;
-    }
-    if (key == "scale") {
-      object.sprite.scale = static_cast<float>(luaL_checknumber(state, 3));
-      return 0;
-    }
-    if (key == "angle") {
-      object.sprite.angle = static_cast<float>(luaL_checknumber(state, 3));
-      return 0;
-    }
-    if (key == "alpha") {
-      object.sprite.alpha = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 255.f);
-      return 0;
-    }
-    if (key == "shown") {
-      object.sprite.shown = lua_toboolean(state, 3) != 0;
-      return 0;
-    }
-    if (key == "name" || key == "kind" || key == "alive" || key == "animation" || is_callback(key))
-      return 0;
+  if (key == "scale") {
+    object.sprite.scale = static_cast<float>(luaL_checknumber(state, 3));
+    return 0;
+  }
 
-    const auto* end = static_cast<const char*>(std::memchr(key.data(), '\0', key.size()));
-    if (!end)
-      break;
-    key = {key.data(), static_cast<std::size_t>(end - key.data())};
+  if (key == "angle") {
+    object.sprite.angle = static_cast<float>(luaL_checknumber(state, 3));
+    return 0;
+  }
+
+  if (key == "alpha") {
+    object.sprite.alpha = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 255.f);
+    return 0;
+  }
+
+  if (key == "shown") {
+    object.sprite.shown = lua_toboolean(state, 3) != 0;
+    return 0;
   }
 
   lua_getfenv(state, 1);
