@@ -110,9 +110,7 @@ font::font(std::string_view family) {
   const auto defined = lua_isstring(L, -1);
   assert(defined && "font must define a glyphs string");
   [[assume(defined)]];
-  std::size_t count{};
-  const auto *data = lua_tolstring(L, -1, &count);
-  const std::string_view glyphs{data, count};
+  const std::string_view glyphs{lua_tostring(L, -1)};
 
   number(L, top, "spacing", _spacing);
   number(L, top, "leading", _leading);
