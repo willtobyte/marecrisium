@@ -388,7 +388,7 @@ function Achievement:unlock(id) end
 achievement = nil
 
 ---@class Friend
----@field id number Steam ID.
+---@field id integer Steam account ID, the low 32 bits of the SteamID64.
 ---@field name string Display name.
 
 ---@class User
