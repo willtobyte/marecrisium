@@ -2,7 +2,7 @@
 
 class scene final {
 public:
-  explicit scene(std::string name);
+  explicit scene(std::string_view name);
   ~scene();
 
   void update(float delta);
@@ -16,7 +16,6 @@ public:
 private:
   static constexpr auto none = std::numeric_limits<uint32_t>::max();
 
-  std::string _name{};
   std::unique_ptr<pixmap> _background{};
   overlay _overlay;
   std::vector<sound*> _sounds{};

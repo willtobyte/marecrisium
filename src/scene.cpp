@@ -1,12 +1,11 @@
-scene::scene(std::string name)
-    : _name(std::move(name)),
-      _background(std::make_unique<pixmap>(std::format("blobs/scenes/{}/background.png", _name))),
-      _overlay(_name) {
+scene::scene(std::string_view name)
+    : _background(std::make_unique<pixmap>(std::format("blobs/scenes/{}/background.png", name))),
+      _overlay(name) {
   const timer::scope scope{_timer};
 
   SDL_SetTextureBlendMode(*_background, SDL_BLENDMODE_NONE);
 
-  const auto chunk = std::format("@scenes/{}.lua", _name);
+  const auto chunk = std::format("@scenes/{}.lua", name);
   const auto path = std::string_view{chunk}.substr(1);
   const auto source = io::read(path);
 
