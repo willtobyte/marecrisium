@@ -111,7 +111,7 @@ struct archive final {
   uint32_t seed{};
 
   explicit archive(std::string_view filename)
-    : source{filename} {
+      : source{filename} {
     std::array<uint32_t, 6> fields;
     std::memcpy(fields.data(), source.data, sizeof(fields));
 
