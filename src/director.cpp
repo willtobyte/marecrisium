@@ -46,12 +46,11 @@ void director::navigate(std::string name) {
 }
 
 void director::destroy(std::string_view name) {
-  const auto key = entt::hashed_string{name.data(), name.size()};
-  const auto allowed = !_pending || entt::hashed_string{_pending->data(), _pending->size()} != key;
+  const auto allowed = !_pending || *_pending != name;
   assert(allowed && "pending scene must not be destroyed");
   [[assume(allowed)]];
 
-  auto it = _scenes.find(key);
+  auto it = _scenes.find(name);
 
   if (it == _scenes.end() || it->second.get() == _current) [[unlikely]]
     return;
@@ -64,8 +63,7 @@ void director::update(float delta) {
     if (_current) [[likely]]
       _current->on_leave();
 
-    const auto key = entt::hashed_string{_pending->data(), _pending->size()};
-    const auto it = _scenes.find(key);
+    const auto it = _scenes.find(*_pending);
     const auto found = it != _scenes.end();
     assert(found && "scene must be enrolled before navigation");
     [[assume(found)]];

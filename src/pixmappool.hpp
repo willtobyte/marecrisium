@@ -7,5 +7,5 @@ public:
   void clear();
 
 private:
-  entt::dense_map<entt::id_type, std::unique_ptr<pixmap>> _pool;
+  std::unordered_map<std::string, std::unique_ptr<pixmap>, transparent_string_hash, std::equal_to<>> _pool;
 };

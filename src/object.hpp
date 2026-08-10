@@ -1,13 +1,91 @@
 #pragma once
 
+struct spritesheet;
+
+enum class mirror : uint8_t {
+  none = SDL_FLIP_NONE,
+  horizontal = SDL_FLIP_HORIZONTAL,
+  vertical = SDL_FLIP_VERTICAL,
+  both = SDL_FLIP_HORIZONTAL | SDL_FLIP_VERTICAL,
+};
+
+struct frame final {
+  float u0{};
+  float v0{};
+  float u1{};
+  float v1{};
+  float width{};
+  float height{};
+  struct {
+    float offset_x{};
+    float offset_y{};
+    float width{};
+    float height{};
+  } collider;
+  float duration{};
+};
+
+static_assert(std::is_trivially_copyable_v<frame>, "frame must be trivially copyable");
+
+struct clip final {
+  int name{LUA_NOREF};
+  uint16_t offset{};
+  uint8_t count{};
+};
+
+static_assert(std::is_trivially_copyable_v<clip>, "clip must be trivially copyable");
+
+struct prototype final {
+  int table{LUA_NOREF};
+  int kind{LUA_NOREF};
+  int on_loop{LUA_NOREF};
+  int on_animation_end{LUA_NOREF};
+  int on_animation_begin{LUA_NOREF};
+  int on_spawn{LUA_NOREF};
+  int on_press{LUA_NOREF};
+  int on_release{LUA_NOREF};
+  int on_hover{LUA_NOREF};
+  int on_unhover{LUA_NOREF};
+};
+
+static_assert(std::is_trivially_copyable_v<prototype>, "prototype must be trivially copyable");
+
+struct object final {
+  struct sprite final {
+    const spritesheet* sheet{};
+    float x{};
+    float y{};
+    float scale{1.f};
+    float angle{};
+    float alpha{255.f};
+    int z{};
+    bool shown{true};
+    mirror flip{mirror::none};
+  } sprite;
+
+  struct script final {
+    const prototype* blueprint{};
+    int handle{LUA_NOREF};
+    int label{LUA_NOREF};
+  } script;
+
+  struct motion final {
+    float elapsed{};
+    uint8_t active{};
+    uint8_t current{};
+  } motion;
+};
+
+static_assert(std::is_trivially_copyable_v<object>, "object must be trivially copyable");
+
 struct proxy final {
-  entt::registry* registry{};
-  entt::entity entity{entt::null};
+  object* object{};
+  bool* dirty{};
 };
 
 static_assert(std::is_trivially_copyable_v<proxy>, "proxy must be trivially copyable");
 
-namespace object {
+namespace objects {
   void wire();
-  void bind(entt::registry& registry, entt::entity entity, scriptable& component, std::string_view name, std::string_view kind);
+  void bind(object& object, bool& dirty, std::string_view name, std::string_view kind);
 }

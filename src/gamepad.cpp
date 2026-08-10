@@ -1,62 +1,32 @@
-namespace {
-  namespace lookup {
-    constexpr auto connected = "connected"_hs;
-    constexpr auto name = "name"_hs;
-    constexpr auto left_x = "left_x"_hs;
-    constexpr auto left_y = "left_y"_hs;
-    constexpr auto right_x = "right_x"_hs;
-    constexpr auto right_y = "right_y"_hs;
-    constexpr auto trigger_left = "trigger_left"_hs;
-    constexpr auto trigger_right = "trigger_right"_hs;
-    constexpr auto south = "south"_hs;
-    constexpr auto east = "east"_hs;
-    constexpr auto west = "west"_hs;
-    constexpr auto north = "north"_hs;
-    constexpr auto back = "back"_hs;
-    constexpr auto guide = "guide"_hs;
-    constexpr auto start = "start"_hs;
-    constexpr auto shoulder_left = "shoulder_left"_hs;
-    constexpr auto shoulder_right = "shoulder_right"_hs;
-    constexpr auto stick_left = "stick_left"_hs;
-    constexpr auto stick_right = "stick_right"_hs;
-    constexpr auto up = "up"_hs;
-    constexpr auto down = "down"_hs;
-    constexpr auto left = "left"_hs;
-    constexpr auto right = "right"_hs;
-  }
+static SDL_GamepadAxis axis(std::string_view key) {
+  if (key == "left_x") return SDL_GAMEPAD_AXIS_LEFTX;
+  if (key == "left_y") return SDL_GAMEPAD_AXIS_LEFTY;
+  if (key == "right_x") return SDL_GAMEPAD_AXIS_RIGHTX;
+  if (key == "right_y") return SDL_GAMEPAD_AXIS_RIGHTY;
+  if (key == "trigger_left") return SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
+  if (key == "trigger_right") return SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
+
+  return SDL_GAMEPAD_AXIS_INVALID;
 }
 
-static SDL_GamepadAxis axis(entt::id_type id) {
-  switch (id) {
-    case lookup::left_x: return SDL_GAMEPAD_AXIS_LEFTX;
-    case lookup::left_y: return SDL_GAMEPAD_AXIS_LEFTY;
-    case lookup::right_x: return SDL_GAMEPAD_AXIS_RIGHTX;
-    case lookup::right_y: return SDL_GAMEPAD_AXIS_RIGHTY;
-    case lookup::trigger_left: return SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
-    case lookup::trigger_right: return SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
-    default: return SDL_GAMEPAD_AXIS_INVALID;
-  }
-}
+static SDL_GamepadButton button(std::string_view key) {
+  if (key == "south") return SDL_GAMEPAD_BUTTON_SOUTH;
+  if (key == "east") return SDL_GAMEPAD_BUTTON_EAST;
+  if (key == "west") return SDL_GAMEPAD_BUTTON_WEST;
+  if (key == "north") return SDL_GAMEPAD_BUTTON_NORTH;
+  if (key == "back") return SDL_GAMEPAD_BUTTON_BACK;
+  if (key == "guide") return SDL_GAMEPAD_BUTTON_GUIDE;
+  if (key == "start") return SDL_GAMEPAD_BUTTON_START;
+  if (key == "shoulder_left") return SDL_GAMEPAD_BUTTON_LEFT_SHOULDER;
+  if (key == "shoulder_right") return SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER;
+  if (key == "stick_left") return SDL_GAMEPAD_BUTTON_LEFT_STICK;
+  if (key == "stick_right") return SDL_GAMEPAD_BUTTON_RIGHT_STICK;
+  if (key == "up") return SDL_GAMEPAD_BUTTON_DPAD_UP;
+  if (key == "down") return SDL_GAMEPAD_BUTTON_DPAD_DOWN;
+  if (key == "left") return SDL_GAMEPAD_BUTTON_DPAD_LEFT;
+  if (key == "right") return SDL_GAMEPAD_BUTTON_DPAD_RIGHT;
 
-static SDL_GamepadButton button(entt::id_type id) {
-  switch (id) {
-    case lookup::south: return SDL_GAMEPAD_BUTTON_SOUTH;
-    case lookup::east: return SDL_GAMEPAD_BUTTON_EAST;
-    case lookup::west: return SDL_GAMEPAD_BUTTON_WEST;
-    case lookup::north: return SDL_GAMEPAD_BUTTON_NORTH;
-    case lookup::back: return SDL_GAMEPAD_BUTTON_BACK;
-    case lookup::guide: return SDL_GAMEPAD_BUTTON_GUIDE;
-    case lookup::start: return SDL_GAMEPAD_BUTTON_START;
-    case lookup::shoulder_left: return SDL_GAMEPAD_BUTTON_LEFT_SHOULDER;
-    case lookup::shoulder_right: return SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER;
-    case lookup::stick_left: return SDL_GAMEPAD_BUTTON_LEFT_STICK;
-    case lookup::stick_right: return SDL_GAMEPAD_BUTTON_RIGHT_STICK;
-    case lookup::up: return SDL_GAMEPAD_BUTTON_DPAD_UP;
-    case lookup::down: return SDL_GAMEPAD_BUTTON_DPAD_DOWN;
-    case lookup::left: return SDL_GAMEPAD_BUTTON_DPAD_LEFT;
-    case lookup::right: return SDL_GAMEPAD_BUTTON_DPAD_RIGHT;
-    default: return SDL_GAMEPAD_BUTTON_INVALID;
-  }
+  return SDL_GAMEPAD_BUTTON_INVALID;
 }
 
 static constexpr auto threshold = .1f;
@@ -156,36 +126,33 @@ static int led_callback(lua_State *state) {
 }
 
 static int index(lua_State *state) {
-  const auto id = entt::hashed_string::value(luaL_checkstring(state, 2));
+  const std::string_view key{luaL_checkstring(state, 2)};
   auto *const gamepad = ptr.load();
 
-  if (const auto value = axis(id); value != SDL_GAMEPAD_AXIS_INVALID) [[likely]] {
+  if (const auto value = axis(key); value != SDL_GAMEPAD_AXIS_INVALID) [[likely]] {
     lua_pushnumber(state, gamepad
       ? static_cast<lua_Number>(deadzone(SDL_GetGamepadAxis(gamepad, value)))
       : lua_Number{});
     return 1;
   }
 
-  if (const auto value = button(id); value != SDL_GAMEPAD_BUTTON_INVALID) [[likely]] {
+  if (const auto value = button(key); value != SDL_GAMEPAD_BUTTON_INVALID) [[likely]] {
     lua_pushboolean(state, gamepad && SDL_GetGamepadButton(gamepad, value));
     return 1;
   }
 
-  switch (id) {
-    case lookup::connected:
-      lua_pushboolean(state, gamepad != nullptr);
-      return 1;
-
-    case lookup::name: {
-      const auto *value = gamepad ? SDL_GetGamepadName(gamepad) : nullptr;
-      lua_pushstring(state, value ? value : "");
-      return 1;
-    }
-
-    default:
-      lua_pushnil(state);
-      return 1;
+  if (key == "connected") {
+    lua_pushboolean(state, gamepad != nullptr);
+    return 1;
   }
+  if (key == "name") {
+    const auto *value = gamepad ? SDL_GetGamepadName(gamepad) : nullptr;
+    lua_pushstring(state, value ? value : "");
+    return 1;
+  }
+
+  lua_pushnil(state);
+  return 1;
 }
 
 void gamepad::wire() {

@@ -2,6 +2,8 @@
 
 class spritesheetpool final {
 public:
+  ~spritesheetpool();
+
   const spritesheet* get(std::string_view kind, lua_State* state, int index);
 
   void clear();
@@ -13,5 +15,5 @@ private:
     spritesheet sheet;
   };
 
-  entt::dense_map<entt::id_type, std::unique_ptr<storage>> _pool;
+  std::unordered_map<std::string, std::unique_ptr<storage>, transparent_string_hash, std::equal_to<>> _pool;
 };

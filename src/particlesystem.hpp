@@ -12,5 +12,6 @@ public:
   void clear();
 
 private:
-  entt::dense_map<entt::id_type, std::unique_ptr<particle>> _particles;
+  std::unordered_map<std::string, std::unique_ptr<particle>, transparent_string_hash, std::equal_to<>> _particles;
+  std::vector<particle*> _order;
 };

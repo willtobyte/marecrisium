@@ -7,5 +7,5 @@ public:
   void clear();
 
 private:
-  entt::dense_map<entt::id_type, std::unique_ptr<config>> _pool;
+  std::unordered_map<std::string, std::unique_ptr<config>, transparent_string_hash, std::equal_to<>> _pool;
 };

@@ -1,43 +1,64 @@
-static const auto mapping = [] {
-  constexpr auto entries = std::to_array<std::pair<entt::id_type, SDL_Scancode>>({
-    {"a"_hs, SDL_SCANCODE_A}, {"b"_hs, SDL_SCANCODE_B}, {"c"_hs, SDL_SCANCODE_C},
-    {"d"_hs, SDL_SCANCODE_D}, {"e"_hs, SDL_SCANCODE_E}, {"f"_hs, SDL_SCANCODE_F},
-    {"g"_hs, SDL_SCANCODE_G}, {"h"_hs, SDL_SCANCODE_H}, {"i"_hs, SDL_SCANCODE_I},
-    {"j"_hs, SDL_SCANCODE_J}, {"k"_hs, SDL_SCANCODE_K}, {"l"_hs, SDL_SCANCODE_L},
-    {"m"_hs, SDL_SCANCODE_M}, {"n"_hs, SDL_SCANCODE_N}, {"o"_hs, SDL_SCANCODE_O},
-    {"p"_hs, SDL_SCANCODE_P}, {"q"_hs, SDL_SCANCODE_Q}, {"r"_hs, SDL_SCANCODE_R},
-    {"s"_hs, SDL_SCANCODE_S}, {"t"_hs, SDL_SCANCODE_T}, {"u"_hs, SDL_SCANCODE_U},
-    {"v"_hs, SDL_SCANCODE_V}, {"w"_hs, SDL_SCANCODE_W}, {"x"_hs, SDL_SCANCODE_X},
-    {"y"_hs, SDL_SCANCODE_Y}, {"z"_hs, SDL_SCANCODE_Z},
-    {"0"_hs, SDL_SCANCODE_0}, {"1"_hs, SDL_SCANCODE_1}, {"2"_hs, SDL_SCANCODE_2},
-    {"3"_hs, SDL_SCANCODE_3}, {"4"_hs, SDL_SCANCODE_4}, {"5"_hs, SDL_SCANCODE_5},
-    {"6"_hs, SDL_SCANCODE_6}, {"7"_hs, SDL_SCANCODE_7}, {"8"_hs, SDL_SCANCODE_8},
-    {"9"_hs, SDL_SCANCODE_9},
-    {"up"_hs, SDL_SCANCODE_UP}, {"down"_hs, SDL_SCANCODE_DOWN},
-    {"left"_hs, SDL_SCANCODE_LEFT}, {"right"_hs, SDL_SCANCODE_RIGHT},
-    {"shift"_hs, SDL_SCANCODE_LSHIFT}, {"ctrl"_hs, SDL_SCANCODE_LCTRL},
-    {"escape"_hs, SDL_SCANCODE_ESCAPE}, {"space"_hs, SDL_SCANCODE_SPACE},
-    {"enter"_hs, SDL_SCANCODE_RETURN}, {"backspace"_hs, SDL_SCANCODE_BACKSPACE},
-    {"tab"_hs, SDL_SCANCODE_TAB},
-  });
+static SDL_Scancode to_scancode(std::string_view key) {
+  if (key == "a") return SDL_SCANCODE_A;
+  if (key == "b") return SDL_SCANCODE_B;
+  if (key == "c") return SDL_SCANCODE_C;
+  if (key == "d") return SDL_SCANCODE_D;
+  if (key == "e") return SDL_SCANCODE_E;
+  if (key == "f") return SDL_SCANCODE_F;
+  if (key == "g") return SDL_SCANCODE_G;
+  if (key == "h") return SDL_SCANCODE_H;
+  if (key == "i") return SDL_SCANCODE_I;
+  if (key == "j") return SDL_SCANCODE_J;
+  if (key == "k") return SDL_SCANCODE_K;
+  if (key == "l") return SDL_SCANCODE_L;
+  if (key == "m") return SDL_SCANCODE_M;
+  if (key == "n") return SDL_SCANCODE_N;
+  if (key == "o") return SDL_SCANCODE_O;
+  if (key == "p") return SDL_SCANCODE_P;
+  if (key == "q") return SDL_SCANCODE_Q;
+  if (key == "r") return SDL_SCANCODE_R;
+  if (key == "s") return SDL_SCANCODE_S;
+  if (key == "t") return SDL_SCANCODE_T;
+  if (key == "u") return SDL_SCANCODE_U;
+  if (key == "v") return SDL_SCANCODE_V;
+  if (key == "w") return SDL_SCANCODE_W;
+  if (key == "x") return SDL_SCANCODE_X;
+  if (key == "y") return SDL_SCANCODE_Y;
+  if (key == "z") return SDL_SCANCODE_Z;
+  if (key == "0") return SDL_SCANCODE_0;
+  if (key == "1") return SDL_SCANCODE_1;
+  if (key == "2") return SDL_SCANCODE_2;
+  if (key == "3") return SDL_SCANCODE_3;
+  if (key == "4") return SDL_SCANCODE_4;
+  if (key == "5") return SDL_SCANCODE_5;
+  if (key == "6") return SDL_SCANCODE_6;
+  if (key == "7") return SDL_SCANCODE_7;
+  if (key == "8") return SDL_SCANCODE_8;
+  if (key == "9") return SDL_SCANCODE_9;
+  if (key == "up") return SDL_SCANCODE_UP;
+  if (key == "down") return SDL_SCANCODE_DOWN;
+  if (key == "left") return SDL_SCANCODE_LEFT;
+  if (key == "right") return SDL_SCANCODE_RIGHT;
+  if (key == "shift") return SDL_SCANCODE_LSHIFT;
+  if (key == "ctrl") return SDL_SCANCODE_LCTRL;
+  if (key == "escape") return SDL_SCANCODE_ESCAPE;
+  if (key == "space") return SDL_SCANCODE_SPACE;
+  if (key == "enter") return SDL_SCANCODE_RETURN;
+  if (key == "backspace") return SDL_SCANCODE_BACKSPACE;
+  if (key == "tab") return SDL_SCANCODE_TAB;
 
-  entt::dense_map<entt::id_type, SDL_Scancode> result{entries.size()};
-  result.reserve(entries.size());
-  result.insert(entries.cbegin(), entries.cend());
-
-  return result;
-}();
+  return SDL_SCANCODE_UNKNOWN;
+}
 
 static int index(lua_State *state) {
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
-  const auto it = mapping.find(id);
-  if (it == mapping.end()) [[unlikely]] {
+  const auto code = to_scancode(luaL_checkstring(state, 2));
+  if (code == SDL_SCANCODE_UNKNOWN) {
     lua_pushboolean(state, 0);
     return 1;
   }
 
   const auto *keyboard = SDL_GetKeyboardState(nullptr);
-  lua_pushboolean(state, !!keyboard[it->second]);
+  lua_pushboolean(state, !!keyboard[code]);
   return 1;
 }
 

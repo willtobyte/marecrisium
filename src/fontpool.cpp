@@ -1,10 +1,11 @@
 font* fontpool::get(std::string_view family) {
-  const auto key = entt::hashed_string{family.data(), family.size()};
-  const auto [it, inserted] = _pool.try_emplace(key, nullptr);
-  if (inserted) [[unlikely]]
-    it->second = std::make_unique<font>(family);
+  if (const auto it = _pool.find(family); it != _pool.end()) [[likely]]
+    return it->second.get();
 
-  return it->second.get();
+  auto instance = std::make_unique<font>(family);
+  auto* result = instance.get();
+  _pool.emplace(family, std::move(instance));
+  return result;
 }
 
 void fontpool::clear() {

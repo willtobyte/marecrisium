@@ -11,7 +11,6 @@ class Game(ConanFile):
     def requirements(self):
         api = cast(Any, self)
         for package in [
-            "entt/3.16.0",
             "miniaudio/0.11.22",
             "mimalloc/3.3.2",
             "sdl/3.4.8",

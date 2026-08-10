@@ -16,62 +16,59 @@ static std::pair<float, float> read_range(lua_State* state, const char* field) {
 }
 
 config* particlepool::get(std::string_view kind) {
-  const auto key = entt::hashed_string{kind.data(), kind.size()};
-  const auto [it, inserted] = _pool.try_emplace(key, nullptr);
-  if (inserted) [[unlikely]] {
-    auto config = std::make_unique<struct config>();
+  if (const auto it = _pool.find(kind); it != _pool.end()) [[likely]]
+    return it->second.get();
 
-    const auto chunk = std::format("@particles/{}.lua", kind);
-    const auto path = std::string_view{chunk}.substr(1);
-    const auto source = io::read(path);
-    if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
-      lua_error(L);
+  auto instance = std::make_unique<struct config>();
+  const auto chunk = std::format("@particles/{}.lua", kind);
+  const auto path = std::string_view{chunk}.substr(1);
+  const auto source = io::read(path);
+  if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
+    lua_error(L);
 
-    if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
-      lua_error(L);
+  if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
+    lua_error(L);
 
-    lua_getfield(L, -1, "count");
-    config->count = lua_isnumber(L, -1) ? static_cast<size_t>(lua_tonumber(L, -1)) : 0uz;
-    lua_pop(L, 1);
+  lua_getfield(L, -1, "count");
+  instance->count = lua_isnumber(L, -1) ? static_cast<size_t>(lua_tonumber(L, -1)) : 0uz;
+  lua_pop(L, 1);
 
-    lua_getfield(L, -1, "spawn");
-    if (lua_istable(L, -1)) {
-      config->spawn_x = read_range(L, "x");
-      config->spawn_y = read_range(L, "y");
-      config->radius = read_range(L, "radius");
-      config->angle = read_range(L, "angle");
-      config->scale = read_range(L, "scale");
-      config->life = read_range(L, "life");
-    }
-    lua_pop(L, 1);
-
-    lua_getfield(L, -1, "velocity");
-    if (lua_istable(L, -1)) {
-      config->velocity_x = read_range(L, "x");
-      config->velocity_y = read_range(L, "y");
-    }
-    lua_pop(L, 1);
-
-    lua_getfield(L, -1, "gravity");
-    if (lua_istable(L, -1)) {
-      config->gravity_x = read_range(L, "x");
-      config->gravity_y = read_range(L, "y");
-    }
-    lua_pop(L, 1);
-
-    lua_getfield(L, -1, "rotation");
-    if (lua_istable(L, -1)) {
-      config->rotation_force = read_range(L, "force");
-      config->rotation_velocity = read_range(L, "velocity");
-    }
-    lua_pop(L, 1);
-
-    lua_pop(L, 1);
-
-    it->second = std::move(config);
+  lua_getfield(L, -1, "spawn");
+  if (lua_istable(L, -1)) {
+    instance->spawn_x = read_range(L, "x");
+    instance->spawn_y = read_range(L, "y");
+    instance->radius = read_range(L, "radius");
+    instance->angle = read_range(L, "angle");
+    instance->scale = read_range(L, "scale");
+    instance->life = read_range(L, "life");
   }
+  lua_pop(L, 1);
 
-  return it->second.get();
+  lua_getfield(L, -1, "velocity");
+  if (lua_istable(L, -1)) {
+    instance->velocity_x = read_range(L, "x");
+    instance->velocity_y = read_range(L, "y");
+  }
+  lua_pop(L, 1);
+
+  lua_getfield(L, -1, "gravity");
+  if (lua_istable(L, -1)) {
+    instance->gravity_x = read_range(L, "x");
+    instance->gravity_y = read_range(L, "y");
+  }
+  lua_pop(L, 1);
+
+  lua_getfield(L, -1, "rotation");
+  if (lua_istable(L, -1)) {
+    instance->rotation_force = read_range(L, "force");
+    instance->rotation_velocity = read_range(L, "velocity");
+  }
+  lua_pop(L, 1);
+  lua_pop(L, 1);
+
+  auto* result = instance.get();
+  _pool.emplace(kind, std::move(instance));
+  return result;
 }
 
 void particlepool::clear() {

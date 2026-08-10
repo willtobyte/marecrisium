@@ -27,7 +27,13 @@ scene::scene(std::string name)
   lua_getfield(L, -1, "objects");
   const auto objects = static_cast<int>(lua_objlen(L, -1));
   const auto capacity = static_cast<std::size_t>(objects);
-  _systems.prepare(capacity);
+  const auto available = capacity < none;
+  assert(available && "scene object capacity must fit in a 32-bit index");
+  [[assume(available)]];
+
+  _objects.reserve(capacity);
+  _order.reserve(capacity);
+  _loops.reserve(capacity);
 
   for (auto i = 1; i <= objects; ++i) {
     lua_rawgeti(L, -1, i);
@@ -50,7 +56,48 @@ scene::scene(std::string name)
 
     lua_pop(L, 1);
 
-    _systems.spawn(_pool, kind, label, ox, oy);
+    const auto id = static_cast<uint32_t>(_objects.size());
+    _order.emplace(_order.begin(), id);
+
+    auto& object = _objects.emplace_back();
+    object.sprite.z = static_cast<int>(id);
+    object.sprite.x = ox;
+    object.sprite.y = oy;
+
+    objects::bind(object, _dirty, label, kind);
+    if (object.script.blueprint->on_loop != LUA_NOREF)
+      _loops.emplace_back(id);
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.blueprint->table);
+    lua_getfield(L, -1, "animation");
+    assert(lua_istable(L, -1) && "object must define an animation table");
+
+    const auto* sheet = depot->get<spritesheet>(kind, L, -1);
+    object.sprite.sheet = sheet;
+    object.motion.active = sheet->initial;
+
+    lua_pop(L, 2);
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
+    lua_setfield(L, -2, label.c_str());
+    lua_pop(L, 1);
+
+    const auto& blueprint = *object.script.blueprint;
+    if (blueprint.on_spawn != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint.on_spawn);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
+      if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
+
+    if (blueprint.on_animation_begin != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint.on_animation_begin);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, sheet->clips[object.motion.active].name);
+      if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
   }
   lua_pop(L, 1);
 
@@ -120,7 +167,18 @@ scene::scene(std::string name)
 }
 
 scene::~scene() {
-  _registry.clear();
+  for (auto& object : _objects) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
+    auto* handle = static_cast<proxy*>(luaL_testudata(L, -1, "Object"));
+    if (handle) {
+      handle->object = nullptr;
+      handle->dirty = nullptr;
+    }
+    lua_pop(L, 1);
+
+    luaL_unref(L, LUA_REGISTRYINDEX, object.script.label);
+    luaL_unref(L, LUA_REGISTRYINDEX, object.script.handle);
+  }
 
   luaL_unref(L, LUA_REGISTRYINDEX, _on_release);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_press);
@@ -139,10 +197,66 @@ void scene::update(float delta) {
   mx += viewport.x;
   my += viewport.y;
 
-  const auto object = _systems.pick(mx, my);
-  _systems.hover(_hovered, object);
+  auto target = none;
+  for (auto it = _order.rbegin(); it != _order.rend(); ++it) {
+    const auto& object = _objects[*it];
+    if (!object.sprite.shown || object.sprite.alpha <= .0f) [[unlikely]]
+      continue;
 
-  _systems.press(_hovered, _table, _mouse_previous_buttons, buttons, mx, my, _on_press, _on_release);
+    const auto& frame = object.sprite.sheet->frames[object.sprite.sheet->clips[object.motion.active].offset + object.motion.current];
+    const auto x = object.sprite.x + frame.collider.offset_x * object.sprite.scale;
+    const auto y = object.sprite.y + frame.collider.offset_y * object.sprite.scale;
+    if (mx < x || mx >= x + frame.collider.width * object.sprite.scale) [[likely]]
+      continue;
+    if (my < y || my >= y + frame.collider.height * object.sprite.scale) [[likely]]
+      continue;
+
+    target = *it;
+    break;
+  }
+
+  if (target != _hovered) {
+    const auto* left = _hovered < _objects.size() ? &_objects[_hovered] : nullptr;
+    const auto* over = target < _objects.size() ? &_objects[target] : nullptr;
+    _hovered = target;
+
+    if (left && left->script.blueprint->on_unhover != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, left->script.blueprint->on_unhover);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, left->script.handle);
+      if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
+
+    if (over && over->script.blueprint->on_hover != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, over->script.blueprint->on_hover);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, over->script.handle);
+      if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
+  }
+
+  const auto toggled = (buttons ^ _mouse_previous_buttons) & (SDL_BUTTON_LMASK | SDL_BUTTON_MMASK | SDL_BUTTON_RMASK);
+  _mouse_previous_buttons = buttons;
+
+  const auto* over = _hovered < _objects.size() ? &_objects[_hovered] : nullptr;
+  const auto self = over ? over->script.handle : _table;
+  const auto press = over ? over->script.blueprint->on_press : _on_press;
+  const auto release = over ? over->script.blueprint->on_release : _on_release;
+
+  for (auto bits = toggled; bits; bits &= bits - 1) {
+    const auto index = static_cast<size_t>(std::countr_zero(bits));
+    const auto slot = (buttons >> index) & 1u ? press : release;
+
+    if (slot != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, slot);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, self);
+      lua_pushnumber(L, static_cast<lua_Number>(mx));
+      lua_pushnumber(L, static_cast<lua_Number>(my));
+      lua_rawgeti(L, LUA_REGISTRYINDEX, mouse::labels[index]);
+      if (lua_pcall(L, 4, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
+  }
 
   if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
@@ -152,8 +266,48 @@ void scene::update(float delta) {
       lua_error(L);
   }
 
-  _systems.loop(delta);
-  _systems.animate(delta);
+  for (auto it = _loops.rbegin(); it != _loops.rend(); ++it) {
+    const auto& object = _objects[*it];
+    const auto callback = object.script.blueprint->on_loop;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
+    lua_pushnumber(L, static_cast<lua_Number>(delta));
+    if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
+      lua_error(L);
+  }
+
+  for (auto it = _objects.rbegin(); it != _objects.rend(); ++it) {
+    auto& object = *it;
+    const auto& bp = *object.script.blueprint;
+    const auto& clip = object.sprite.sheet->clips[object.motion.active];
+    const auto& frame = object.sprite.sheet->frames[clip.offset + object.motion.current];
+
+    object.motion.elapsed += delta;
+    if (object.motion.elapsed < frame.duration) [[likely]]
+      continue;
+
+    object.motion.elapsed -= frame.duration;
+    if (++object.motion.current < clip.count)
+      continue;
+
+    object.motion.current = 0;
+
+    if (bp.on_animation_end != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_end);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, clip.name);
+      if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
+
+    if (bp.on_animation_begin != LUA_NOREF) {
+      lua_rawgeti(L, LUA_REGISTRYINDEX, bp.on_animation_begin);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, clip.name);
+      if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
+        lua_error(L);
+    }
+  }
 
   if (_on_camera != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_camera);
@@ -172,7 +326,19 @@ void scene::update(float delta) {
   for (auto* sound : _sounds)
     sound->poll();
 
-  _systems.sort();
+  if (_dirty) [[unlikely]] {
+    for (auto i = 1uz; i < _order.size(); ++i) {
+      const auto value = _order[i];
+      auto j = i;
+      while (j && _objects[value].sprite.z < _objects[_order[j - 1]].sprite.z) {
+        _order[j] = _order[j - 1];
+        --j;
+      }
+      _order[j] = value;
+    }
+
+    _dirty = false;
+  }
 
   _overlay.update(delta);
 }
@@ -185,7 +351,28 @@ void scene::draw() {
     viewport.width, viewport.height
   );
 
-  _systems.draw();
+  for (const auto id : _order) {
+    const auto& object = _objects[id];
+    if (!object.sprite.shown) [[unlikely]]
+      continue;
+
+    const auto& clip = object.sprite.sheet->clips[object.motion.active];
+    const auto& frame = object.sprite.sheet->frames[clip.offset + object.motion.current];
+    const auto* sheet = object.sprite.sheet->pixmap;
+
+    sheet->draw(
+      frame.u0 * static_cast<float>(sheet->width()),
+      frame.v0 * static_cast<float>(sheet->height()),
+      frame.width,
+      frame.height,
+      std::floor(object.sprite.x - viewport.x),
+      std::floor(object.sprite.y - viewport.y),
+      frame.width * object.sprite.scale,
+      frame.height * object.sprite.scale,
+      object.sprite.angle,
+      static_cast<uint8_t>(std::clamp(object.sprite.alpha, .0f, 255.f)),
+      object.sprite.flip);
+  }
 
   _overlay.draw();
 }

@@ -1,11 +1,4 @@
 namespace {
-  namespace lookup {
-    constexpr auto volume = "volume"_hs;
-    constexpr auto pan = "pan"_hs;
-    constexpr auto loop = "loop"_hs;
-    constexpr auto playing = "playing"_hs;
-  }
-
   static int play_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     instance->play();
@@ -58,53 +51,45 @@ namespace {
 
   static int index(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
+    const std::string_view key{luaL_checkstring(state, 2)};
 
-    switch (id) {
-      case lookup::volume:
-        lua_pushnumber(state, static_cast<lua_Number>(instance->volume()));
-        return 1;
-
-      case lookup::pan:
-        lua_pushnumber(state, static_cast<lua_Number>(instance->pan()));
-        return 1;
-
-      case lookup::loop:
-        lua_pushboolean(state, instance->loop());
-        return 1;
-
-      case lookup::playing:
-        lua_pushboolean(state, instance->playing());
-        return 1;
-
-      default:
-        lua_getmetatable(state, 1);
-        lua_pushvalue(state, 2);
-        lua_rawget(state, -2);
-        return 1;
+    if (key == "volume") {
+      lua_pushnumber(state, static_cast<lua_Number>(instance->volume()));
+      return 1;
     }
+
+    if (key == "pan") {
+      lua_pushnumber(state, static_cast<lua_Number>(instance->pan()));
+      return 1;
+    }
+
+    if (key == "loop") {
+      lua_pushboolean(state, instance->loop());
+      return 1;
+    }
+
+    if (key == "playing") {
+      lua_pushboolean(state, instance->playing());
+      return 1;
+    }
+
+    lua_getmetatable(state, 1);
+    lua_pushvalue(state, 2);
+    lua_rawget(state, -2);
+    return 1;
   }
 
   static int newindex(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
+    const std::string_view key{luaL_checkstring(state, 2)};
 
-    switch (id) {
-      case lookup::volume:
-        instance->set_volume(static_cast<float>(luaL_checknumber(state, 3)));
-        return 0;
-
-      case lookup::pan:
-        instance->set_pan(static_cast<float>(luaL_checknumber(state, 3)));
-        return 0;
-
-      case lookup::loop:
-        instance->set_loop(lua_toboolean(state, 3) != 0);
-        return 0;
-
-      default:
-        return 0;
-    }
+    if (key == "volume")
+      instance->set_volume(static_cast<float>(luaL_checknumber(state, 3)));
+    else if (key == "pan")
+      instance->set_pan(static_cast<float>(luaL_checknumber(state, 3)));
+    else if (key == "loop")
+      instance->set_loop(lua_toboolean(state, 3) != 0);
+    return 0;
   }
 }
 

@@ -13,9 +13,9 @@ public:
   template<typename T>
     requires std::convertible_to<T, std::string>
   void enroll(T&& name) {
-    const auto key = entt::hashed_string{name.data(), name.size()};
+    std::string key{name};
     auto instance = std::make_unique<scene>(std::forward<T>(name));
-    const auto [_, inserted] = _scenes.emplace(key, std::move(instance));
+    const auto [_, inserted] = _scenes.emplace(std::move(key), std::move(instance));
     assert(inserted && "scene must not already be enrolled");
     [[assume(inserted)]];
   }
@@ -28,5 +28,5 @@ private:
   scene *_current{nullptr};
   std::optional<std::string> _pending;
 
-  entt::dense_map<entt::id_type, std::unique_ptr<scene>> _scenes;
+  std::unordered_map<std::string, std::unique_ptr<scene>, transparent_string_hash, std::equal_to<>> _scenes;
 };

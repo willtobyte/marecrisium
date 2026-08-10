@@ -9,13 +9,6 @@ constexpr auto dirty = -none;
 constexpr auto name = "TimerHandle";
 }
 
-namespace lookup {
-constexpr auto active = "active"_hs;
-constexpr auto cancel = "cancel"_hs;
-constexpr auto pause = "pause"_hs;
-constexpr auto resume = "resume"_hs;
-}
-
 struct ticket final {
   uint32_t group{invalid};
   uint32_t slot{invalid};
@@ -227,14 +220,18 @@ static int active_callback(lua_State *state) {
 }
 
 static int index_callback(lua_State *state) {
-  const auto value = entt::hashed_string{luaL_checkstring(state, 2)};
-  switch (value) {
-    case lookup::active: return active_callback(state);
-    case lookup::cancel: lua_pushvalue(state, lua_upvalueindex(1)); break;
-    case lookup::pause: lua_pushvalue(state, lua_upvalueindex(2)); break;
-    case lookup::resume: lua_pushvalue(state, lua_upvalueindex(3)); break;
-    default: lua_pushnil(state); break;
-  }
+  const std::string_view key{luaL_checkstring(state, 2)};
+  if (key == "active")
+    return active_callback(state);
+  if (key == "cancel")
+    lua_pushvalue(state, lua_upvalueindex(1));
+  else if (key == "pause")
+    lua_pushvalue(state, lua_upvalueindex(2));
+  else if (key == "resume")
+    lua_pushvalue(state, lua_upvalueindex(3));
+  else
+    lua_pushnil(state);
+
   return 1;
 }
 

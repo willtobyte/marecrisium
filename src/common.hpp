@@ -32,6 +32,7 @@
 #include <string_view>
 #include <type_traits>
 #include <typeinfo>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -47,8 +48,6 @@
 #include <unistd.h>
 #endif
 
-#define ENTT_ID_TYPE std::uint64_t
-#include <entt/entt.hpp>
 #include <lua.hpp>
 #include <luajit.h>
 #include <miniaudio.h>
@@ -61,8 +60,6 @@
 #include <yyjson.h>
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
-
-using namespace entt::literals;
 
 extern lua_State* L;
 extern SDL_Renderer* renderer;
@@ -83,9 +80,9 @@ extern mcg64 prng;
 #include "application.hpp"
 #include "cassette.hpp"
 #include "compat.hpp"
-#include "components.hpp"
 #include "deleter.hpp"
 #include "font.hpp"
+#include "stringhash.hpp"
 #include "fontpool.hpp"
 #include "gamepad.hpp"
 #include "io.hpp"
@@ -107,8 +104,6 @@ extern mcg64 prng;
 #include "spritesheet.hpp"
 #include "spritesheetpool.hpp"
 #include "steam.hpp"
-#include "stringpool.hpp"
-#include "systems.hpp"
 #include "runtime.hpp"
 #include "timer.hpp"
 #include "traceback.hpp"

@@ -17,18 +17,9 @@ struct depot final {
       static_assert(std::same_as<T, void>, "resource type is not supported");
   }
 
-  entt::id_type get(std::string_view value) {
-    return string.get(value);
-  }
-
-  const char* get(entt::id_type key) const {
-    return string.get(key);
-  }
-
   fontpool font;
   particlepool particle;
   pixmappool pixmap;
   soundpool sound;
   spritesheetpool spritesheet;
-  stringpool string;
 };

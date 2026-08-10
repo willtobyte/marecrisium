@@ -43,7 +43,7 @@ void scriptengine::run() {
   keyboard::wire();
   locales::wire();
   mouse::wire();
-  object::wire();
+  objects::wire();
   particle::wire();
   platform::wire();
   runtime::wire();

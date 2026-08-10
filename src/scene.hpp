@@ -14,12 +14,15 @@ public:
   void on_leave();
 
 private:
-  entt::registry _registry{};
-  systems _systems{_registry};
+  static constexpr auto none = std::numeric_limits<uint32_t>::max();
+
   std::string _name{};
   std::unique_ptr<pixmap> _background{};
   overlay _overlay;
   std::vector<sound*> _sounds{};
+  std::vector<object> _objects{};
+  std::vector<uint32_t> _order{};
+  std::vector<uint32_t> _loops{};
 
   friend class director;
 
@@ -32,8 +35,9 @@ private:
   int _on_press{LUA_NOREF};
   int _on_release{LUA_NOREF};
 
-  entt::entity _hovered{entt::null};
+  uint32_t _hovered{none};
   uint32_t _mouse_previous_buttons{};
+  bool _dirty{true};
 
   timer::group _timer{};
 };

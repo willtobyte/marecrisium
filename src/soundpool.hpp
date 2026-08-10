@@ -7,5 +7,5 @@ public:
   sound* get(std::string_view name);
 
 private:
-  entt::dense_map<entt::id_type, std::unique_ptr<sound>> _pool;
+  std::unordered_map<std::string, std::unique_ptr<sound>, transparent_string_hash, std::equal_to<>> _pool;
 };

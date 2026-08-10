@@ -2,12 +2,6 @@ namespace {
 constexpr auto crossing = .7035f;
 constexpr auto curvature = -.814f;
 
-namespace lookup {
-  constexpr auto active = "active"_hs;
-  constexpr auto x = "x"_hs;
-  constexpr auto y = "y"_hs;
-}
-
 enum class slot : size_t {
   x,
   y,
@@ -52,46 +46,37 @@ static void sincos(float angle, float& sine, float& cosine) noexcept {
 
 static int index(lua_State* state) {
   const auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
+  const std::string_view key{luaL_checkstring(state, 2)};
 
-  switch (id) {
-    case lookup::active:
-      lua_pushboolean(state, self->active());
-      return 1;
-
-    case lookup::x:
-      lua_pushnumber(state, static_cast<lua_Number>(self->x()));
-      return 1;
-
-    case lookup::y:
-      lua_pushnumber(state, static_cast<lua_Number>(self->y()));
-      return 1;
-
-    default:
-      return lua_pushnil(state), 1;
+  if (key == "active") {
+    lua_pushboolean(state, self->active());
+    return 1;
   }
+
+  if (key == "x") {
+    lua_pushnumber(state, static_cast<lua_Number>(self->x()));
+    return 1;
+  }
+
+  if (key == "y") {
+    lua_pushnumber(state, static_cast<lua_Number>(self->y()));
+    return 1;
+  }
+
+  return lua_pushnil(state), 1;
 }
 
 static int newindex(lua_State* state) {
   auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
-  const auto id = entt::hashed_string{luaL_checkstring(state, 2)};
+  const std::string_view key{luaL_checkstring(state, 2)};
 
-  switch (id) {
-    case lookup::active:
-      self->set_active(lua_toboolean(state, 3) != 0);
-      return 0;
-
-    case lookup::x:
-      self->set_x(static_cast<float>(luaL_checknumber(state, 3)));
-      return 0;
-
-    case lookup::y:
-      self->set_y(static_cast<float>(luaL_checknumber(state, 3)));
-      return 0;
-
-    default:
-      return 0;
-  }
+  if (key == "active")
+    self->set_active(lua_toboolean(state, 3) != 0);
+  else if (key == "x")
+    self->set_x(static_cast<float>(luaL_checknumber(state, 3)));
+  else if (key == "y")
+    self->set_y(static_cast<float>(luaL_checknumber(state, 3)));
+  return 0;
 }
 }
 
