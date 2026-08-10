@@ -466,8 +466,9 @@ group::group()
 group::~group() noexcept {
   assert(_id != store::running);
   auto *const queue = queue_of(_id);
-  if (!queue) [[unlikely]]
-    return;
+  const auto valid = queue != nullptr;
+  assert(valid && "timer group must exist until its destructor runs");
+  [[assume(valid)]];
 
   if (store::active == _id)
     store::active = invalid;

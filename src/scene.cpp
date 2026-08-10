@@ -166,11 +166,12 @@ scene::scene(std::string_view name)
 scene::~scene() {
   for (auto& object : _objects) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
-    auto* handle = static_cast<proxy*>(luaL_testudata(L, -1, "Object"));
-    if (handle) {
-      handle->object = nullptr;
-      handle->dirty = nullptr;
-    }
+    auto* handle = static_cast<proxy*>(lua_touserdata(L, -1));
+    const auto valid = handle != nullptr;
+    assert(valid && "object handle must be an Object userdata");
+    [[assume(valid)]];
+    handle->object = nullptr;
+    handle->dirty = nullptr;
     lua_pop(L, 1);
 
     luaL_unref(L, LUA_REGISTRYINDEX, object.script.label);

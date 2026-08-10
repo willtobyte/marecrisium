@@ -43,10 +43,9 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     for (int slot = 1; slot <= count; ++slot) {
       lua_rawgeti(state, -1, slot);
 
-      if (!lua_istable(state, -1)) [[unlikely]] {
-        lua_pop(state, 1);
-        continue;
-      }
+      const auto istable = lua_istable(state, -1);
+      assert(istable && "animation frame must be a table");
+      [[assume(istable)]];
 
       auto& frame = storage->frames.emplace_back();
 

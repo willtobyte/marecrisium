@@ -23,8 +23,9 @@ static int index(lua_State* state) {
   const auto* data = lua_tolstring(state, 2, &length);
   const std::string_view key{data, length};
 
-  if (!self->object) [[unlikely]]
-    return lua_pushnil(state), 1;
+  const auto alive = self->object != nullptr;
+  assert(alive && "object must be alive when a property is read");
+  [[assume(alive)]];
 
   const auto& object = *self->object;
 
@@ -68,11 +69,6 @@ static int index(lua_State* state) {
     return 1;
   }
 
-  if (key == "alive") {
-    lua_pushboolean(state, 1);
-    return 1;
-  }
-
   if (key == "name") {
     lua_rawgeti(state, LUA_REGISTRYINDEX, object.script.label);
     return 1;
@@ -113,6 +109,10 @@ static int index(lua_State* state) {
 static int newindex(lua_State* state) {
   auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
   const std::string_view key{lua_tostring(state, 2)};
+
+  const auto alive = self->object != nullptr;
+  assert(alive && "object must be alive when a property is written");
+  [[assume(alive)]];
 
   auto& object = *self->object;
 
