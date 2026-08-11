@@ -135,20 +135,22 @@ def main() -> int:
 
     probe = zstandard.ZstdCompressor(level=TEST_LEVEL, threads=-1)
 
-    samples = [
-        current.data
-        for current in sources
-        if not current.directory
-        and current.data
-        and len(probe.compress(current.data)) < len(current.data)
-    ]
+    samples: list[bytes] = []
+    for current in sources:
+        if current.directory:
+            continue
+        if current.data and len(probe.compress(current.data)) < len(current.data):
+            samples.append(current.data)
+        else:
+            current.blob = current.data
+            current.algorithm = ALGO_RAW
 
     try:
         dictionary = zstandard.train_dictionary(
             CAPACITY,
             samples,
             split_point=1.0,
-            level=LEVEL,
+            level=TEST_LEVEL,
             threads=-1,
         )
     except ZstdError:
@@ -158,7 +160,7 @@ def main() -> int:
 
     encoder = zstandard.ZstdCompressor(level=LEVEL, dict_data=dictionary, threads=-1)
     for current in sources:
-        if current.directory:
+        if current.directory or current.algorithm == ALGO_RAW:
             continue
         compressed = encoder.compress(current.data)
         if len(compressed) < len(current.data):
