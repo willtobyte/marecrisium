@@ -25,7 +25,7 @@ engine::engine() {
   lua_getfield(L, -1, "title");
   const auto* title = lua_tostring(L, -1);
 
-  static const auto window = SDL_CreateWindow(
+  const auto window = SDL_CreateWindow(
     title,
     width,
     height,
@@ -111,10 +111,6 @@ void engine::loop() {
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
-      case SDL_EVENT_QUIT:
-        _running = false;
-        break;
-
       case SDL_EVENT_KEY_UP:
         switch (event.key.key) {
           case SDLK_F11: {
@@ -126,6 +122,10 @@ void engine::loop() {
           default:
             break;
         }
+        break;
+
+      case SDL_EVENT_QUIT:
+        _running = false;
         break;
 
       default:
