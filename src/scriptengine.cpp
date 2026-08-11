@@ -25,7 +25,7 @@ static int loader_callback(lua_State *state) {
 }
 
 void scriptengine::run() {
-  lua_pushlightuserdata(L, reinterpret_cast<void*>(protect));
+  lua_pushlightuserdata(L, reinterpret_cast<void *>(protect));
   luaJIT_setmode(L, -1, LUAJIT_MODE_WRAPCFUNC | LUAJIT_MODE_ON);
   lua_pop(L, 1);
 
