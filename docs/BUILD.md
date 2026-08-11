@@ -1,6 +1,6 @@
 # Building
 
-Install the repository-declared tools, then set up the Conan profile and dependencies:
+Install the repository-declared tools using [mise](https://mise.jdx.dev), then set up the Conan profile and dependencies:
 
 ```shell
 mise install
@@ -11,7 +11,7 @@ make conan
 Build and run:
 
 ```shell
-make run # debug
+make run # for debug builds
 # or
-make conan build buildtype=Release && ./build/carimbo
+make conan build buildtype=Release && ./build/carimbo # for release
 ```
