@@ -44,7 +44,7 @@ def main() -> int:
     root = Path("cartridge").resolve()
 
     for (
-        _digest,
+        _,
         position,
         compressed,
         uncompressed,
