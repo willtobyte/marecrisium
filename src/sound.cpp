@@ -96,13 +96,9 @@ namespace {
 namespace {
   ma_result read(ma_data_source* source, void* output, ma_uint64 frames, ma_uint64* count) {
     auto* self = reinterpret_cast<sound::stream*>(source);
-    const auto decoded = static_cast<ma_uint64>(stb_vorbis_get_samples_float_interleaved(
-      self->file,
-      static_cast<int>(self->channels),
-      static_cast<float*>(output),
-      static_cast<int>(frames * self->channels)
-    ));
-
+    const auto remaining = self->length - self->cursor;
+    const auto decoded = frames < remaining ? frames : remaining;
+    std::memcpy(output, self->pcm + self->cursor * self->channels, static_cast<size_t>(decoded * self->channels) * sizeof(float));
     self->cursor += decoded;
     if (count) [[likely]] *count = decoded;
     if (decoded < frames) [[unlikely]] return MA_AT_END;
@@ -112,7 +108,6 @@ namespace {
 
   ma_result seek(ma_data_source* source, ma_uint64 index) {
     auto* self = reinterpret_cast<sound::stream*>(source);
-    stb_vorbis_seek(self->file, static_cast<unsigned int>(index));
     self->cursor = index;
     return MA_SUCCESS;
   }
@@ -153,16 +148,29 @@ namespace {
 
 }
 
-sound::sound(std::string_view filename)
-  : _data{io::read(filename)} {
-  _vorbis.reset(stb_vorbis_open_memory(
-    _data.data(), static_cast<int>(_data.size()), nullptr, nullptr));
+sound::sound(std::string_view filename) {
+  const auto data = io::read(filename);
+  const std::unique_ptr<stb_vorbis, STB_Vorbis_Deleter> vorbis{stb_vorbis_open_memory(
+    data.data(), static_cast<int>(data.size()), nullptr, nullptr)};
 
-  const auto info = stb_vorbis_get_info(_vorbis.get());
-  _stream.file = _vorbis.get();
-  _stream.length = stb_vorbis_stream_length_in_samples(_vorbis.get());
+  const auto info = stb_vorbis_get_info(vorbis.get());
+  _stream.length = stb_vorbis_stream_length_in_samples(vorbis.get());
   _stream.channels = static_cast<ma_uint32>(info.channels);
   _stream.rate = info.sample_rate;
+
+  _pcm.resize(static_cast<std::size_t>(_stream.length) * _stream.channels);
+  const auto decoded = stb_vorbis_get_samples_float_interleaved(
+    vorbis.get(),
+    static_cast<int>(_stream.channels),
+    _pcm.data(),
+    static_cast<int>(_pcm.size())
+  );
+
+  const auto complete = static_cast<ma_uint64>(decoded) == _stream.length;
+  assert(complete && "sound must decode entirely at load time");
+  [[assume(complete)]];
+
+  _stream.pcm = _pcm.data();
 
   auto config = ma_data_source_config_init();
   config.vtable = &vtable;

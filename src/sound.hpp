@@ -4,7 +4,7 @@ class sound final {
 public:
   struct stream final {
     ma_data_source_base base{};
-    stb_vorbis* file{};
+    const float* pcm{};
     ma_uint64 cursor{};
     ma_uint64 length{};
     ma_uint32 channels{};
@@ -38,8 +38,7 @@ public:
   int on_end{LUA_NOREF};
 
 private:
-  bytes _data;
-  std::unique_ptr<stb_vorbis, STB_Vorbis_Deleter> _vorbis{};
+  std::vector<float> _pcm;
   stream _stream{};
   ma_sound _sound{};
 };
