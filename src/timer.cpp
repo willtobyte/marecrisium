@@ -220,7 +220,9 @@ static int active_callback(lua_State *state) {
 }
 
 static int index_callback(lua_State *state) {
-  const std::string_view key{luaL_checkstring(state, 2)};
+  std::size_t length;
+  const auto* data = luaL_checklstring(state, 2, &length);
+  const std::string_view key{data, length};
   if (key == "active")
     return active_callback(state);
   if (key == "cancel")

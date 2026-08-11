@@ -2,7 +2,7 @@ namespace {
 template <typename T>
 void number(lua_State *state, int table, const char *field, T &value, T fallback = {}) {
   lua_getfield(state, table, field);
-  auto valid = 0;
+  int valid;
   const auto result = lua_tonumberx(state, -1, &valid);
   value = valid ? static_cast<T>(result) : fallback;
   lua_pop(state, 1);
@@ -30,7 +30,7 @@ constexpr auto indices = triangulate();
 
 static int draw_callback(lua_State *state) {
   auto *self = *static_cast<font **>(luaL_checkudata(state, 1, "Font"));
-  std::size_t length{};
+  std::size_t length;
   const auto *data = luaL_checklstring(state, 2, &length);
   const auto text = std::string_view{data, length};
   const auto x = static_cast<float>(luaL_checknumber(state, 3));
@@ -110,7 +110,9 @@ font::font(std::string_view family) {
   const auto defined = lua_isstring(L, -1);
   assert(defined && "font must define a glyphs string");
   [[assume(defined)]];
-  const std::string_view glyphs{lua_tostring(L, -1)};
+  std::size_t length;
+  const auto* data = lua_tolstring(L, -1, &length);
+  const std::string_view glyphs{data, length};
 
   number(L, top, "spacing", _spacing);
   number(L, top, "leading", _leading);

@@ -14,13 +14,16 @@ overlay::overlay(std::string_view name) {
 
   for (auto i = 1; i <= fonts; ++i) {
     lua_rawgeti(L, -1, i);
-    const auto *family = luaL_checkstring(L, -1);
+    std::size_t length;
+    const auto *family = luaL_checklstring(L, -1, &length);
     auto **memory = static_cast<font **>(lua_newuserdata(L, sizeof(font *)));
-    *memory = depot->get<font>(family);
+    *memory = depot->get<font>(std::string_view{family, length});
     luaL_getmetatable(L, "Font");
     lua_setmetatable(L, -2);
-    lua_setfield(L, top, family);
-    lua_pop(L, 1);
+    lua_pushvalue(L, -2);
+    lua_pushvalue(L, -2);
+    lua_settable(L, top);
+    lua_pop(L, 2);
   }
   lua_pop(L, 1);
 
@@ -60,9 +63,10 @@ void overlay::appear() {
 
   for (auto i = 1; i <= fonts; ++i) {
     lua_rawgeti(L, top + 1, i);
-    const auto *family = luaL_checkstring(L, -1);
-    lua_getfield(L, top, family);
-    lua_setfield(L, top + 2, family);
+    lua_pushvalue(L, -1);
+    lua_pushvalue(L, -1);
+    lua_gettable(L, top);
+    lua_settable(L, top + 2);
     lua_pop(L, 1);
   }
   lua_pop(L, 3);

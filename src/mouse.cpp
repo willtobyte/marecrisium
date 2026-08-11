@@ -1,5 +1,7 @@
 static int index(lua_State *state) {
-  const std::string_view key{luaL_checkstring(state, 2)};
+  std::size_t length;
+  const auto* data = luaL_checklstring(state, 2, &length);
+  const std::string_view key{data, length};
 
   if (key == "shown") [[unlikely]] {
     lua_pushboolean(state, SDL_CursorVisible());
@@ -41,12 +43,7 @@ static int index(lua_State *state) {
 }
 
 static int newindex(lua_State *state) {
-  if (std::string_view{luaL_checkstring(state, 2)} == "shown") {
-    lua_toboolean(state, 3)
-      ? SDL_ShowCursor()
-      : SDL_HideCursor();
-  }
-
+  lua_toboolean(state, 3) ? SDL_ShowCursor() : SDL_HideCursor();
   return 0;
 }
 

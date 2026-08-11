@@ -13,7 +13,9 @@ int protect(lua_State* state, lua_CFunction function) {
 }
 
 static int loader_callback(lua_State *state) {
-  const auto chunk = std::format("@scripts/{}.lua", luaL_checkstring(state, 1));
+  std::size_t length;
+  const auto* data = luaL_checklstring(state, 1, &length);
+  const auto chunk = std::format("@scripts/{}.lua", std::string_view{data, length});
   const auto path = std::string_view{chunk}.substr(1);
   const auto source = io::read(path);
 

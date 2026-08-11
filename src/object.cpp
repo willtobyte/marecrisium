@@ -19,7 +19,7 @@ static void attach(object& object, bool& dirty) {
 
 static int index(lua_State* state) {
   const auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
-  auto length = 0uz;
+  std::size_t length;
   const auto* data = lua_tolstring(state, 2, &length);
   const std::string_view key{data, length};
 
@@ -108,7 +108,9 @@ static int index(lua_State* state) {
 
 static int newindex(lua_State* state) {
   auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
-  const std::string_view key{lua_tostring(state, 2)};
+  std::size_t length;
+  const auto* data = lua_tolstring(state, 2, &length);
+  const std::string_view key{data, length};
 
   const auto alive = self->object != nullptr;
   assert(alive && "object must be alive when a property is written");

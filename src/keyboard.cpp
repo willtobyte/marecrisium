@@ -51,7 +51,9 @@ static SDL_Scancode to_scancode(std::string_view key) {
 }
 
 static int index(lua_State *state) {
-  const auto code = to_scancode(luaL_checkstring(state, 2));
+  std::size_t length;
+  const auto* data = luaL_checklstring(state, 2, &length);
+  const auto code = to_scancode({data, length});
   if (code == SDL_SCANCODE_UNKNOWN) {
     lua_pushboolean(state, 0);
     return 1;

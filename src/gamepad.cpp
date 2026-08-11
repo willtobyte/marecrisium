@@ -126,7 +126,9 @@ static int led_callback(lua_State *state) {
 }
 
 static int index(lua_State *state) {
-  const std::string_view key{luaL_checkstring(state, 2)};
+  std::size_t length;
+  const auto* data = luaL_checklstring(state, 2, &length);
+  const std::string_view key{data, length};
   auto *const gamepad = ptr.load();
 
   if (const auto value = axis(key); value != SDL_GAMEPAD_AXIS_INVALID) [[likely]] {

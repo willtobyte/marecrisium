@@ -31,9 +31,11 @@ void format(lua_State *state, std::string &text, int index, trail &path) {
   auto out = std::back_inserter(text);
 
   switch (type) {
-  case LUA_TSTRING:
-    std::format_to(out, "\"{}\"", lua_tostring(state, index));
-    break;
+  case LUA_TSTRING: {
+    std::size_t length;
+    const auto* data = lua_tolstring(state, index, &length);
+    std::format_to(out, R"("{}")", std::string_view{data, length});
+  } break;
 
   case LUA_TNUMBER:
     std::format_to(out, "{:.14g}", lua_tonumber(state, index));
@@ -52,7 +54,9 @@ void format(lua_State *state, std::string &text, int index, trail &path) {
       lua_pushliteral(state, "__name");
       lua_rawget(state, -2);
       if (lua_isstring(state, -1)) [[unlikely]] {
-        std::format_to(out, "({})", lua_tostring(state, -1));
+        std::size_t length;
+        const auto* data = lua_tolstring(state, -1, &length);
+        std::format_to(out, "({})", std::string_view{data, length});
         lua_pop(state, 2);
         break;
       }
@@ -86,7 +90,9 @@ void format(lua_State *state, std::string &text, int index, trail &path) {
 
       const auto key = lua_type(state, -2);
       if (key == LUA_TSTRING) [[likely]] {
-        std::format_to(out, "{} = ", lua_tostring(state, -2));
+        std::size_t length;
+        const auto* data = lua_tolstring(state, -2, &length);
+        std::format_to(out, "{} = ", std::string_view{data, length});
       } else if (key == LUA_TNUMBER) {
         std::format_to(out, "[{:.14g}] = ", lua_tonumber(state, -2));
       }
@@ -113,7 +119,9 @@ void format(lua_State *state, std::string &text, int index, trail &path) {
       break;
     }
 
-    std::format_to(out, "({})", lua_tostring(state, -1));
+    std::size_t length;
+    const auto* data = lua_tolstring(state, -1, &length);
+    std::format_to(out, "({})", std::string_view{data, length});
     lua_pop(state, 2);
   } break;
 
@@ -138,7 +146,9 @@ int panic(lua_State* state) {
 int build(lua_State* state) {
   luaL_traceback(state, state, lua_tostring(state, 1), 1);
 
-  std::string trace = lua_tostring(state, -1);
+  std::size_t length;
+  const auto* data = lua_tolstring(state, -1, &length);
+  std::string trace{data, length};
   lua_pop(state, 1);
   trace.reserve(trace.size() + 256);
 

@@ -51,7 +51,9 @@ namespace {
 
   static int index(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    const std::string_view key{luaL_checkstring(state, 2)};
+    std::size_t length;
+    const auto* data = luaL_checklstring(state, 2, &length);
+    const std::string_view key{data, length};
 
     if (key == "volume") {
       lua_pushnumber(state, static_cast<lua_Number>(instance->volume()));
@@ -81,7 +83,9 @@ namespace {
 
   static int newindex(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    const std::string_view key{luaL_checkstring(state, 2)};
+    std::size_t length;
+    const auto* data = luaL_checklstring(state, 2, &length);
+    const std::string_view key{data, length};
 
     if (key == "volume")
       instance->set_volume(static_cast<float>(luaL_checknumber(state, 3)));

@@ -45,11 +45,16 @@ scene::scene(std::string_view name)
     const auto oy = static_cast<float>(luaL_optnumber(L, -1, .0));
     lua_pop(L, 1);
 
+    std::size_t length;
+    const char* data;
+
     lua_getfield(L, -1, "name");
-    const auto* label = luaL_checkstring(L, -1);
+    data = luaL_checklstring(L, -1, &length);
+    const std::string_view label{data, length};
 
     lua_getfield(L, -2, "kind");
-    const auto* kind = luaL_checkstring(L, -1);
+    data = luaL_checklstring(L, -1, &length);
+    const std::string_view kind{data, length};
 
     const auto id = static_cast<uint32_t>(_objects.size());
     _order.emplace_back(id);
@@ -74,8 +79,9 @@ scene::scene(std::string_view name)
     lua_pop(L, 2);
 
     lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
+    lua_pushvalue(L, -3);
     lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
-    lua_setfield(L, -2, label);
+    lua_rawset(L, -3);
     lua_pop(L, 1);
 
     const auto& blueprint = *object.script.blueprint;
@@ -107,7 +113,9 @@ scene::scene(std::string_view name)
     lua_rawgeti(L, -1, i);
 
     lua_getfield(L, -1, "name");
-    const auto* label = luaL_checkstring(L, -1);
+    std::size_t length;
+    const auto* data = luaL_checklstring(L, -1, &length);
+    const std::string_view label{data, length};
 
     lua_getfield(L, -2, "loop");
     const auto loop = lua_toboolean(L, -1) != 0;
@@ -122,8 +130,9 @@ scene::scene(std::string_view name)
     lua_setmetatable(L, -2);
 
     lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
-    lua_pushvalue(L, -2);
-    lua_setfield(L, -2, label);
+    lua_pushvalue(L, -3);
+    lua_pushvalue(L, -3);
+    lua_rawset(L, -3);
     lua_pop(L, 1);
 
     lua_pop(L, 1);

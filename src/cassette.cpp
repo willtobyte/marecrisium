@@ -48,7 +48,7 @@ static void save(lua_State *state, std::string_view key, int index) {
   auto *root = marshal::encode(state, index, document.get(), resolve_proxy);
   yyjson_mut_doc_set_root(document.get(), root);
 
-  auto length = 0uz;
+  std::size_t length;
   const auto json = std::unique_ptr<char, STD_Deleter>{yyjson_mut_write(document.get(), 0, &length)};
   const auto *data = json.get();
   assert(data && "cassette value must be valid JSON");
@@ -61,7 +61,7 @@ static void save(lua_State *state, std::string_view key, int index) {
 }
 
 static int proxy_newindex(lua_State *state) {
-  auto length = 0uz;
+  std::size_t length;
   const auto key = std::string_view{lua_tolstring(state, lua_upvalueindex(2), &length), length};
 
   lua_pushvalue(state, lua_upvalueindex(1));
@@ -189,7 +189,7 @@ static int clear_callback(lua_State*) {
 }
 
 static int index(lua_State *state) {
-  auto size = 0uz;
+  std::size_t size;
   const auto* name = luaL_checklstring(state, 2, &size);
   const auto key = std::string_view{name, size};
 
@@ -199,7 +199,7 @@ static int index(lua_State *state) {
   }
 
   if (load(state, key)) [[likely]] {
-    auto length = 0uz;
+    std::size_t length;
     const auto *json = lua_tolstring(state, -1, &length);
     const auto document = std::unique_ptr<yyjson_doc, YYJSON_Doc_Deleter>{yyjson_read(json, length, 0)};
 
@@ -224,7 +224,7 @@ static int index(lua_State *state) {
 }
 
 static int newindex(lua_State *state) {
-  auto size = 0uz;
+  std::size_t size;
   const auto* name = luaL_checklstring(state, 2, &size);
   const auto key = std::string_view{name, size};
 

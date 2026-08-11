@@ -46,7 +46,9 @@ static void sincos(float angle, float& sine, float& cosine) noexcept {
 
 static int index(lua_State* state) {
   const auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
-  const std::string_view key{luaL_checkstring(state, 2)};
+  std::size_t length;
+  const auto* data = luaL_checklstring(state, 2, &length);
+  const std::string_view key{data, length};
 
   if (key == "active") {
     lua_pushboolean(state, self->active());
@@ -68,7 +70,9 @@ static int index(lua_State* state) {
 
 static int newindex(lua_State* state) {
   auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
-  const std::string_view key{luaL_checkstring(state, 2)};
+  std::size_t length;
+  const auto* data = luaL_checklstring(state, 2, &length);
+  const std::string_view key{data, length};
 
   if (key == "active")
     self->set_active(lua_toboolean(state, 3) != 0);
