@@ -109,6 +109,7 @@ int GetFriendCount() {
 uint64_t GetFriendByIndex(int index) {
   if (pGetFriendByIndex) [[likely]]
     if (auto friends = SteamFriends()) [[likely]]
+      // k_EFriendFlagImmediate = 0x04
       return pGetFriendByIndex(friends, index, 0x04);
 
   return 0;
