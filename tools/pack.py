@@ -13,7 +13,7 @@ from pathlib import Path
 zstandard = importlib.import_module("zstandard")
 ZstdError = zstandard.ZstdError
 
-MAGIC = b"CRO2"
+MAGIC = b"CROM"
 DIRECTORY = 2
 ALGO_RAW = 0
 ALGO_ZSTD_DICT = 1

@@ -11,7 +11,7 @@ from pathlib import Path
 
 zstandard = importlib.import_module("zstandard")
 
-MAGIC = b"CRO2"
+MAGIC = b"CROM"
 DIRECTORY = 2
 ALGO_RAW = 0
 HEADER_FORMAT = "<4s5I40x"
