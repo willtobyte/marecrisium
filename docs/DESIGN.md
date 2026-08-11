@@ -1,125 +1,15 @@
 # Intro
 
-After a series of apocalyptic AI events on Earth and numerous failed attempts
-by billionaires to colonize Mars, the Moon became both a refuge and a source
-of valuable metals and gases used in the production of advanced chips.
+Demons
+Aliens
+Cyborgs
+Mutants
+Ghouls
 
-You inherit it from your great-great-grandfather, an astronaut
-and the first man to buy land on the Moon—specifically in a dark and mysterious
-crater called Mare Crisium.
+They all fight to obtain a unique metal called Uru. In the entire universe, only Ultratech produces it.
 
-The Earth is in a nuclear winter.
+Uru is made from human flesh combined with other supermetals in a forge hotter than hell.
 
 ## Ambiance
 
-The game takes place in a crater with the same name as the title—dark,
-gloomy, and solitary, yet rich in precious metals.
-
 ## Gameplay
-
-It is a game about exploring and gathering resources.
-
-There are minerals on the moon that merchants are willing to pay relatively
-high prices for. With that money, you can buy better equipment, improve
-your infrastructure, and collect more and more resources
-
-## Economy
-
-Bitcoin?
-
-## Resources
-
-### Minerals
-
-* Xenotime — High rarity
-* Monazite — Medium rarity
-* Cerite — Low rarity
-
-### Gases
-
-* Argon-40
-
-### Gathering resources
-
-Rare minerals can be mined using the Quantum Shatterer, while noble
-gases require a probe that collects them automatically.
-
-## Energy
-
-Obtained from solar panels, they work well during the long
-lunar daylight period. During the long lunar night, batteries
-are required to keep everything running.
-
-## Tools & Weapons
-
-Quantum Shatterer.
-
-This is a tool and defensive weapon specifically designed for
-microgravity environments, where the use of force, projectiles,
-lasers, or any other conventional method is inefficient.
-
-It can break rocks within seconds and inflict semi-lethal damage.
-
-Its operating mode is based on a fired quantum beam.
-Upon hitting the target, it deconstructs millions
-of atoms, making it a perfect disintegration tool.
-
-This tool consumes electrical energy; the
-higher the tier, the lower the consumption.
-
-### Upgrades
-
-* 0x00x -
-* 0x01x -
-* 0x02x -
-* 0x03x -
-
-## Enemies
-
-* Johnny 5 with a drill.
-* Zombie snail (infected by a parasite)
-
-## Relationships
-
-## Biomes
-
-### Basalt Wastes
-
-An unforgiving volcanic wasteland of blackened basalt
-and obsidian shards, carved by ancient eruptions and
-constant bombardment. The ground is unstable in
-places, with hidden fissures, heat pockets, and
-mineral-rich veins—making it both dangerous and
-valuable for extraction.
-
-### Subsurface Fungal
-
-A subterranean biome where symbiotic fungi
-and chemosynthetic microorganisms thrive in geothermal
-caves and volcanic systems, forming vast, glowing
-networks of fluorescent mycelium.
-
-### Glacial Cryo Plains
-
-A vast frozen expanse of crystalline cryo-lattice
-ice and compacted regolith, where temperatures
-remain perpetually near absolute extremes.
-The ice forms complex geometric structures that
-refract light into shifting patterns, distorting
-depth and distance.
-
-## Bosses
-
-My name is Legion, for we are many.
-
-## Minimap
-
-Simple, generated from the tilemap.
-
-## Inventory
-
-The inventory starts with a quick-access bar of 9 slots
-and a backpack that, at level 1, contains only one
-row of 9 slots. It can be upgraded to hold up to 3 rows.
-Some items can stack up to 999, while others
-have lower stack limits.
