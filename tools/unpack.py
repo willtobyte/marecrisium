@@ -75,7 +75,8 @@ def main() -> int:
 
         destination.write_bytes(
             decoder.decompress(
-                rom[position : position + compressed], max_output_size=uncompressed
+                rom[position : position + compressed],
+                max_output_size=uncompressed,
             )
         )
 
