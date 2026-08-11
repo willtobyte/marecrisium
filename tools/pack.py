@@ -7,6 +7,7 @@
 import importlib
 import struct
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -98,6 +99,7 @@ def display(
 
 
 def main() -> int:
+    start = time.perf_counter()
     root = Path("cartridge")
     output = Path("cartridge.rom")
     output.unlink(missing_ok=True)
@@ -223,7 +225,11 @@ def main() -> int:
     output.write_bytes(blob)
 
     display(sources)
-    print(f"created cartridge.rom ({count} entries, {len(blob)} bytes)")
+    elapsed = (time.perf_counter() - start) * 1000
+    print(
+        f"cartridge.rom ({count} entries, {len(blob)} bytes)"
+        f" in {elapsed:.0f} milliseconds"
+    )
     return 0
 
 
