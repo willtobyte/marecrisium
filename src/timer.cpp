@@ -22,14 +22,14 @@ struct record final {
   bool repeat;
 };
 
-struct slot final {
+struct locator final {
   uint32_t position{invalid};
   uint32_t generation{};
 };
 
 struct queue final {
   std::vector<record> list;
-  std::vector<slot> slots;
+  std::vector<locator> locators;
   uint32_t free{invalid};
   int roots{LUA_NOREF};
   std::size_t removed{};
@@ -40,7 +40,7 @@ struct queue final {
 static_assert(sizeof(unsigned) == sizeof(uint32_t));
 static_assert(sizeof(ticket) == 12);
 static_assert(sizeof(record) == 24);
-static_assert(sizeof(slot) == 8);
+static_assert(sizeof(locator) == 8);
 static_assert(sizeof(queue) == 80);
 
 struct store final {
@@ -100,10 +100,10 @@ struct found final {
 
 [[nodiscard]] found find(const ticket *owner) noexcept {
   auto *const group = queue_of(owner->group);
-  if (!group || owner->slot >= group->slots.size()) [[unlikely]]
+  if (!group || owner->slot >= group->locators.size()) [[unlikely]]
     return {};
 
-  const auto &location = group->slots[owner->slot];
+  const auto &location = group->locators[owner->slot];
   if (location.generation != owner->generation) [[unlikely]]
     return {};
 
@@ -118,7 +118,7 @@ void erase(lua_State *state, int root, uint32_t index) {
 }
 
 void release(queue& group, uint32_t index) noexcept {
-  group.slots[index] = {
+  group.locators[index] = {
     .position = group.free,
     .generation = invalid,
   };
@@ -145,7 +145,7 @@ void deactivate(queue& group, record& current, bool reschedule = true) {
 
 void reset(queue& group) {
   std::vector<record>{}.swap(group.list);
-  std::vector<slot>{}.swap(group.slots);
+  std::vector<locator>{}.swap(group.locators);
   group.removed = 0;
   group.free = invalid;
   group.next = none;
@@ -175,7 +175,7 @@ void cancel(ticket *owner) {
     group->next = none;
 
   if (group->list.empty() &&
-      (group->list.capacity() > retained || group->slots.capacity() > retained))
+      (group->list.capacity() > retained || group->locators.capacity() > retained))
     reset(*group);
 }
 
@@ -250,7 +250,7 @@ int add(lua_State *state) {
 
   auto &group = *current;
   const auto reused = group.free != invalid;
-  const auto available = group.list.size() <= capacity && (reused || group.slots.size() <= capacity);
+  const auto available = group.list.size() <= capacity && (reused || group.locators.size() <= capacity);
 
   assert(available && "timer capacity must not be exceeded");
   [[assume(available)]];
@@ -260,7 +260,7 @@ int add(lua_State *state) {
 
   const auto index = reused
     ? group.free
-    : static_cast<uint32_t>(group.slots.size());
+    : static_cast<uint32_t>(group.locators.size());
   const auto position = static_cast<uint32_t>(group.list.size());
   const auto deadline = group.now + duration;
 
@@ -276,7 +276,7 @@ int add(lua_State *state) {
   lua_rawseti(state, -3, callback_slot(index));
 
   if (!reused) {
-    group.slots.push_back({
+    group.locators.push_back({
       .position = position,
       .generation = owner->generation,
     });
@@ -290,8 +290,8 @@ int add(lua_State *state) {
   });
 
   if (reused) {
-    group.free = group.slots[index].position;
-    group.slots[index] = {
+    group.free = group.locators[index].position;
+    group.locators[index] = {
       .position = position,
       .generation = owner->generation,
     };
@@ -356,7 +356,7 @@ void compact(queue& group) {
   if (group.removed == size) {
     group.list.clear();
     group.removed = 0;
-    if (group.list.capacity() > retained || group.slots.capacity() > retained)
+    if (group.list.capacity() > retained || group.locators.capacity() > retained)
       reset(group);
     return;
   }
@@ -369,7 +369,7 @@ void compact(queue& group) {
     if (write != read) {
       group.list[write] = group.list[read];
       const auto index = group.list[write].slot & mask;
-      group.slots[index].position = static_cast<uint32_t>(write);
+      group.locators[index].position = static_cast<uint32_t>(write);
     }
 
     ++write;
@@ -419,7 +419,7 @@ bool update(queue& group, uint32_t owner, std::size_t limit) {
         deactivate(group, group.list[position], top, true);
 
       const auto call = top + 1;
-      lua_rawgeti(L, LUA_REGISTRYINDEX, traceback::slot);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, slot);
       lua_insert(L, call);
 
       const auto status = lua_pcall(L, 0, 0, call);
@@ -431,7 +431,7 @@ bool update(queue& group, uint32_t owner, std::size_t limit) {
         store::owner = prior_owner;
         if (group.removed != 0)
           compact(group);
-        lua_error(L);
+        throw std::runtime_error{lua_tostring(L, -1)};
       }
 
       const auto &updated = group.list[position];

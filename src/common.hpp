@@ -65,6 +65,9 @@ extern lua_State* L;
 extern SDL_Renderer* renderer;
 extern ma_engine audio;
 
+// luaL_ref allocates positive slots; -1 and -2 are its sentinels.
+inline constexpr int slot{-3};
+
 struct depot;
 extern struct depot *depot;
 

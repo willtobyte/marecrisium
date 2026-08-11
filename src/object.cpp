@@ -186,10 +186,10 @@ void objects::bind(object& object, bool& dirty, std::string_view name, std::stri
   const auto path = std::string_view{chunk}.substr(1);
   const auto source = io::read(path);
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
-    lua_error(L);
+    throw std::runtime_error{lua_tostring(L, -1)};
 
   if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
-    lua_error(L);
+    throw std::runtime_error{lua_tostring(L, -1)};
 
   auto blueprint = std::make_unique<prototype>();
   blueprint->table = luaL_ref(L, LUA_REGISTRYINDEX);

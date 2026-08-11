@@ -25,9 +25,8 @@ int main(int, char**) {
 
   L = luaL_newstate();
   luaL_openlibs(L);
-  lua_atpanic(L, traceback::panic);
-  lua_pushcfunction(L, traceback::build);
-  lua_rawseti(L, LUA_REGISTRYINDEX, traceback::slot);
+  lua_pushcfunction(L, build);
+  lua_rawseti(L, LUA_REGISTRYINDEX, slot);
   std::atexit([]{ lua_close(L); });
 
   SteamAPI_InitSafe();

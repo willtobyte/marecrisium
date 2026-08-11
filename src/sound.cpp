@@ -248,7 +248,7 @@ void sound::poll() {
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, on_end);
   if (lua_pcall(L, 0, 0, 0) != LUA_OK) [[unlikely]]
-    lua_error(L);
+    throw std::runtime_error{lua_tostring(L, -1)};
 }
 
 void sound::wire() {

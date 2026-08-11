@@ -24,10 +24,10 @@ void locales::wire() {
     if (io::exists(path)) [[likely]] {
       const auto source = io::read(path);
       if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
-        lua_error(L);
+        throw std::runtime_error{lua_tostring(L, -1)};
 
       if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
-        lua_error(L);
+        throw std::runtime_error{lua_tostring(L, -1)};
 
       lua_getglobal(L, "string");
       lua_getfield(L, -1, "format");

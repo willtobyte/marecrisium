@@ -3,11 +3,11 @@ overlay::overlay(std::string_view name) {
   const auto path = std::string_view{chunk}.substr(1);
   const auto source = io::read(path);
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
-    lua_error(L);
+    throw std::runtime_error{lua_tostring(L, -1)};
 
   const auto top = lua_gettop(L);
   if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
-    lua_error(L);
+    throw std::runtime_error{lua_tostring(L, -1)};
 
   lua_getfield(L, top, "fonts");
   const auto fonts = static_cast<int>(lua_objlen(L, -1));
@@ -75,7 +75,7 @@ void overlay::appear() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_appear);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
-      lua_error(L);
+      throw std::runtime_error{lua_tostring(L, -1)};
   }
 }
 
@@ -84,7 +84,7 @@ void overlay::disappear() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disappear);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
-      lua_error(L);
+      throw std::runtime_error{lua_tostring(L, -1)};
   }
 }
 
@@ -94,7 +94,7 @@ void overlay::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
     if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
-      lua_error(L);
+      throw std::runtime_error{lua_tostring(L, -1)};
   }
 }
 
@@ -103,6 +103,6 @@ void overlay::draw() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_paint);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
-      lua_error(L);
+      throw std::runtime_error{lua_tostring(L, -1)};
   }
 }

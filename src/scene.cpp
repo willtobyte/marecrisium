@@ -10,10 +10,10 @@ scene::scene(std::string_view name)
   const auto source = io::read(path);
 
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
-    lua_error(L);
+    throw std::runtime_error{lua_tostring(L, -1)};
 
   if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
-    lua_error(L);
+    throw std::runtime_error{lua_tostring(L, -1)};
 
   lua_newtable(L);
   _pool = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -89,7 +89,7 @@ scene::scene(std::string_view name)
       lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint.on_spawn);
       lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
       if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
-        lua_error(L);
+        throw std::runtime_error{lua_tostring(L, -1)};
     }
 
     if (blueprint.on_animation_begin != LUA_NOREF) {
@@ -97,7 +97,7 @@ scene::scene(std::string_view name)
       lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
       lua_rawgeti(L, LUA_REGISTRYINDEX, sheet->clips[object.motion.active].name);
       if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
-        lua_error(L);
+        throw std::runtime_error{lua_tostring(L, -1)};
     }
 
     lua_pop(L, 3);
@@ -231,14 +231,14 @@ void scene::update(float delta) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, left->script.blueprint->on_unhover);
       lua_rawgeti(L, LUA_REGISTRYINDEX, left->script.handle);
       if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
-        lua_error(L);
+        throw std::runtime_error{lua_tostring(L, -1)};
     }
 
     if (over && over->script.blueprint->on_hover != LUA_NOREF) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, over->script.blueprint->on_hover);
       lua_rawgeti(L, LUA_REGISTRYINDEX, over->script.handle);
       if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
-        lua_error(L);
+        throw std::runtime_error{lua_tostring(L, -1)};
     }
   }
 
@@ -261,7 +261,7 @@ void scene::update(float delta) {
       lua_pushnumber(L, static_cast<lua_Number>(my));
       lua_rawgeti(L, LUA_REGISTRYINDEX, mouse::labels[index]);
       if (lua_pcall(L, 4, 0, 0) != LUA_OK) [[unlikely]]
-        lua_error(L);
+        throw std::runtime_error{lua_tostring(L, -1)};
     }
   }
 
@@ -270,7 +270,7 @@ void scene::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
     if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
-      lua_error(L);
+      throw std::runtime_error{lua_tostring(L, -1)};
   }
 
   for (auto it = _loops.rbegin(); it != _loops.rend(); ++it) {
@@ -280,7 +280,7 @@ void scene::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
     if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
-      lua_error(L);
+      throw std::runtime_error{lua_tostring(L, -1)};
   }
 
   for (auto it = _objects.rbegin(); it != _objects.rend(); ++it) {
@@ -304,7 +304,7 @@ void scene::update(float delta) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
       lua_rawgeti(L, LUA_REGISTRYINDEX, clip.name);
       if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
-        lua_error(L);
+        throw std::runtime_error{lua_tostring(L, -1)};
     }
 
     if (bp.on_animation_begin != LUA_NOREF) {
@@ -312,7 +312,7 @@ void scene::update(float delta) {
       lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.handle);
       lua_rawgeti(L, LUA_REGISTRYINDEX, clip.name);
       if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
-        lua_error(L);
+        throw std::runtime_error{lua_tostring(L, -1)};
     }
   }
 
@@ -321,7 +321,7 @@ void scene::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
 
     if (lua_pcall(L, 1, 2, 0) != LUA_OK) [[unlikely]]
-      lua_error(L);
+      throw std::runtime_error{lua_tostring(L, -1)};
 
     if (lua_isnumber(L, -2))
       viewport.x = std::floor(static_cast<float>(lua_tonumber(L, -2)) * viewport.scale) / viewport.scale;
@@ -391,7 +391,7 @@ void scene::on_enter() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_enter);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
-      lua_error(L);
+      throw std::runtime_error{lua_tostring(L, -1)};
   }
 }
 
@@ -400,7 +400,7 @@ void scene::on_leave() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_leave);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
-      lua_error(L);
+      throw std::runtime_error{lua_tostring(L, -1)};
   }
 
   _overlay.disappear();

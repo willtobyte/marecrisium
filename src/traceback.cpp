@@ -1,7 +1,6 @@
 namespace {
-constexpr auto depth = 6uz;
-constexpr auto entries = 10;
-}
+constexpr auto depth = 8uz;
+constexpr auto breadth = 16;
 
 struct trail final {
   std::array<const void *, depth> tables{};
@@ -79,7 +78,7 @@ void format(lua_State *state, std::string &text, int index, trail &path) {
     const auto position = index > 0 ? index : lua_gettop(state) + index + 1;
     auto count = 0;
     for (lua_pushnil(state); lua_next(state, position) != 0; lua_pop(state, 1)) {
-      if (count >= entries) [[unlikely]] {
+      if (count >= breadth) [[unlikely]] {
         std::format_to(out, "... ");
         lua_pop(state, 2);
         break;
@@ -134,13 +133,6 @@ void format(lua_State *state, std::string &text, int index, trail &path) {
     break;
   }
 }
-
-namespace traceback {
-int panic(lua_State* state) {
-  const auto* message = lua_tostring(state, -1);
-  auto exception = std::runtime_error{message ? message : "unknown lua error"};
-  lua_pop(state, 1);
-  throw exception;
 }
 
 int build(lua_State* state) {
@@ -184,6 +176,4 @@ int build(lua_State* state) {
 
   lua_pushlstring(state, trace.data(), trace.size());
   return 1;
-}
-
 }
