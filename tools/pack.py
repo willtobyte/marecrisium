@@ -18,7 +18,7 @@ DIRECTORY = 2
 ALGO_RAW = 0
 ALGO_ZSTD_DICT = 1
 HEADER_FORMAT = "<4s5I40x"
-RECORD_FORMAT = "<3IH2B"
+RECORD_FORMAT = "<Q4I2B6x"
 HEADER = struct.calcsize(HEADER_FORMAT)
 RECORD = struct.calcsize(RECORD_FORMAT)
 CAPACITY = 131072
@@ -27,7 +27,6 @@ TEST_LEVEL = 9
 EMPTY = 0xFFFF
 PRIME = 0x9E3779B97F4A7C15
 MASK64 = 0xFFFFFFFFFFFFFFFF
-SEED_BUDGET = 4096
 
 
 @dataclass(slots=True)
@@ -59,34 +58,20 @@ def hashfn(prepared: tuple[tuple[int, ...], int, int], seed: int) -> int:
     return h
 
 
-def build_perfect(
-    prepared: list[tuple[tuple[int, ...], int, int]],
-) -> tuple[int, int, list[int]]:
-    count = len(prepared)
-    if not count:
-        return 0, 4, [EMPTY] * 4
-
-    target = max(32, (count * count + 15) // 16)
-    slots = 1 << (target - 1).bit_length()
-    while True:
-        mask = slots - 1
-        buckets = [EMPTY] * slots
-        touched: list[int] = []
-        for seed in range(SEED_BUDGET):
-            ok = True
-            for index, p in enumerate(prepared):
-                slot = hashfn(p, seed) & mask
-                if buckets[slot] != EMPTY:
-                    ok = False
-                    break
-                buckets[slot] = index
-                touched.append(slot)
-            if ok:
-                return seed, slots, buckets
-            for s in touched:
-                buckets[s] = EMPTY
-            touched.clear()
+def build_table(digests: list[int]) -> tuple[int, list[int]]:
+    count = len(digests)
+    slots = 4
+    while slots < count * 2:
         slots *= 2
+
+    mask = slots - 1
+    buckets = [EMPTY] * slots
+    for index, value in enumerate(digests):
+        slot = value & mask
+        while buckets[slot] != EMPTY:
+            slot = (slot + 1) & mask
+        buckets[slot] = index
+    return slots, buckets
 
 
 def display(
@@ -182,8 +167,17 @@ def main() -> int:
     stringsize = len(strings)
     trainsize = len(trained)
 
-    prepared = [prepare(p) for p in encoded]
-    seed, slots, buckets = build_perfect(prepared)
+    digests = [hashfn(prepare(p), 0) for p in encoded]
+
+    seen: dict[int, str] = {}
+    for value, current in zip(digests, sources):
+        if value in seen:
+            print(f"hash collision: {seen[value]} and {current.path}", file=sys.stderr)
+            return 1
+        seen[value] = current.path
+
+    seed = 0
+    slots, buckets = build_table(digests)
 
     buckets = struct.pack(f"<{slots}H", *buckets)
 
@@ -209,6 +203,7 @@ def main() -> int:
         blob.extend(
             struct.pack(
                 RECORD_FORMAT,
+                digests[index],
                 data_offset,
                 len(current.blob),
                 len(current.data),

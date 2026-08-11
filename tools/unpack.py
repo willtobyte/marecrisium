@@ -15,7 +15,7 @@ MAGIC = b"CRO2"
 DIRECTORY = 2
 ALGO_RAW = 0
 HEADER_FORMAT = "<4s5I40x"
-RECORD_FORMAT = "<3IH2B"
+RECORD_FORMAT = "<Q4I2B6x"
 HEADER = struct.calcsize(HEADER_FORMAT)
 RECORD = struct.calcsize(RECORD_FORMAT)
 
@@ -44,6 +44,7 @@ def main() -> int:
     root = Path("cartridge").resolve()
 
     for (
+        _digest,
         position,
         compressed,
         uncompressed,

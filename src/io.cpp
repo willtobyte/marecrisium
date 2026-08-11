@@ -3,7 +3,7 @@ constexpr uint8_t raw = 0;
 constexpr uint8_t zstd = 1;
 constexpr uint8_t directory = 2;
 constexpr size_t header = 64;
-constexpr size_t stride = 16;
+constexpr size_t stride = 32;
 constexpr uint16_t empty = UINT16_MAX;
 constexpr uint64_t prime = 0x9e3779b97f4a7c15ull;
 
@@ -11,15 +11,17 @@ using decoder_t = std::unique_ptr<ZSTD_DCtx, ZSTD_DCtx_Deleter>;
 using dictionary_t = std::unique_ptr<ZSTD_DDict, ZSTD_DDict_Deleter>;
 
 struct record final {
+  uint64_t digest;
   uint32_t position;
   uint32_t compressed;
   uint32_t uncompressed;
-  uint16_t offset;
+  uint32_t offset;
   uint8_t length;
   uint8_t kind;
 };
 
 static_assert(sizeof(record) == stride, "record stride must match on-disk size");
+static_assert(offsetof(record, digest) == 0, "record digest must lead for probing loads");
 
 struct mapping final {
   const uint8_t *data{};
@@ -108,7 +110,6 @@ struct archive final {
   const uint8_t *buckets{};
   const uint8_t *strings{};
   size_t mask{};
-  uint32_t seed{};
 
   explicit archive(std::string_view filename)
       : source{filename} {
@@ -120,7 +121,6 @@ struct archive final {
     const auto trainsize = fields[3];
     const auto slots = fields[4];
     mask = slots - 1;
-    seed = fields[5];
 
     const auto *data = source.data;
     buckets = data + header;
@@ -141,18 +141,14 @@ std::optional<archive> content;
   return current;
 }
 
-[[nodiscard]] inline std::string_view path_of(const archive *cartridge, const record &current) noexcept {
-  return {reinterpret_cast<const char *>(cartridge->strings + current.offset), current.length};
-}
-
-[[nodiscard]] inline uint64_t hashfn(std::string_view name, uint64_t seed) noexcept {
+[[nodiscard]] inline uint64_t hashfn(std::string_view name) noexcept {
   const auto *cursor = reinterpret_cast<const uint8_t *>(name.data());
   auto remaining = name.size();
-  uint64_t hash = seed ^ remaining;
+  uint64_t digest = remaining;
   while (remaining >= 8) {
     uint64_t chunk;
     std::memcpy(&chunk, cursor, 8);
-    hash = mix(hash ^ chunk, prime);
+    digest = mix(digest ^ chunk, prime);
     cursor += 8;
     remaining -= 8;
   }
@@ -162,19 +158,25 @@ std::optional<archive> content;
   for (unsigned shift = 0; remaining > 0; shift += 8, --remaining)
     tail |= static_cast<uint64_t>(*cursor++) << shift;
 
-  return rem == 0 ? hash : mix(hash ^ tail, prime);
+  return rem == 0 ? digest : mix(digest ^ tail, prime);
 }
 
 [[nodiscard]] size_t locate(const archive *cartridge, std::string_view name) noexcept {
-  const auto hash = hashfn(name, cartridge->seed);
-  const auto slot = static_cast<size_t>(hash) & cartridge->mask;
-  uint16_t index;
-  std::memcpy(&index, cartridge->buckets + slot * sizeof(index), sizeof(index));
-  if (index == empty) [[unlikely]]
-    return SIZE_MAX;
+  const auto digest = hashfn(name);
+  auto slot = static_cast<size_t>(digest) & cartridge->mask;
+  for (;;) {
+    uint16_t index;
+    std::memcpy(&index, cartridge->buckets + slot * sizeof(index), sizeof(index));
+    if (index == empty) [[unlikely]]
+      return SIZE_MAX;
 
-  const auto current = record_at(cartridge, index);
-  return path_of(cartridge, current) == name ? index : SIZE_MAX;
+    uint64_t candidate;
+    std::memcpy(&candidate, cartridge->records + index * stride, sizeof(candidate));
+    if (candidate == digest) [[likely]]
+      return index;
+
+    slot = (slot + 1) & cartridge->mask;
+  }
 }
 }
 
@@ -196,8 +198,9 @@ bytes io::read(std::string_view filename) {
   [[assume(mounted)]];
   auto *cartridge = &*content;
   const auto index = locate(cartridge, filename);
-  if (index == SIZE_MAX) [[unlikely]]
-    throw std::runtime_error{std::format("[io::read] file not found: {}", filename)};
+  const auto found = index != SIZE_MAX;
+  assert(found && "cartridge file must exist");
+  [[assume(found)]];
 
   const auto current = record_at(cartridge, index);
   assert(current.kind != directory && "cartridge entry must be a file");
