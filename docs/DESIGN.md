@@ -20,6 +20,8 @@ The year is 2000.
 
 After the `great collapse` caused by *artificial intelligence* and countless failed attempts to colonize Mars, humanity turned its eyes to the Moon, searching for precious supermetals to continue advancing *artificial intelligence*.
 
+Connected and automated systems were banned or considered too dangerous. As a result, the factory relies on human operators, isolated terminals, and manual bureaucratic processes.
+
 Ultratech already had bases scattered across the Moon, some of them overrun by demons, aliens, cyborgs, mutants, ghouls, and other unidentified creatures.
 
 Ultratech decided to lure humans into working at the Mare Crisium factory. That's when it all began. Ultratech started growing humans in pods to later use them as raw material for producing AUR.
@@ -41,6 +43,8 @@ The three metals are incompatible with one another. When melted together, they d
 Everything is frozen to *absolute zero*. Then, in a fraction of a second, it is melted together in a furnace heated to the temperature of the *Sun's core*.
 
 After 36 hours of all the ingredients burning and mixing together, only *666* grams of AUR is produced.
+
+## WhoIAM
 
 ## Ambiance
 
