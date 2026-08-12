@@ -1,10 +1,14 @@
 # Intro
 
-Demons
-Aliens
-Cyborgs
-Mutants
-Ghouls
+Ultratech discovers the three materials in Mare Crisium.
+
+1. The first batch of AUR is successfully produced.
+2. The first spatial-distortion test tears open something beyond physical space.
+3. Aliens detect the emission and arrive on the Moon.
+4. Demons cross through the rifts opened by the material.
+5. Workers exposed to AUR's toxicity become mutants.
+6. Discarded bodies and defective batches give rise to ghouls.
+7. Ultratech creates hybrid-cyborgs to defend and operate the factory.
 
 They all fight to obtain a unique metal called AUR, *Advanced Ultraalloy*. In the entire universe, only Ultratech can produce it.
 
@@ -49,3 +53,9 @@ After 36 hours of all the ingredients burning and mixing together, only *666* gr
 ## Ambiance
 
 ## Gameplay
+
+Demons
+Aliens
+Cyborgs
+Mutants
+Ghouls
