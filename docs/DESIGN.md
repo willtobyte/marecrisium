@@ -22,7 +22,7 @@ It's the only material that makes faster-than-light travel possible. AUR is self
 
 The year is 2000.
 
-After the `Great Collapse` caused by *artificial intelligence* and countless failed attempts to colonize Mars, humanity turned its eyes to the Moon, searching for precious supermetals to continue advancing *artificial intelligence*.
+After the `Great Collapse` caused by *artificial intelligence* and countless failed attempts to colonize Mars, humanity turned its eyes to the Moon, searching for precious supermetals to continue advancing artificial intelligence.
 
 Connected and automated systems were banned or considered too dangerous. As a result, the factory relies on human operators, isolated terminals, and manual bureaucratic processes.
 
