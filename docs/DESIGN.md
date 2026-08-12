@@ -61,9 +61,10 @@ The following events occur:
 2. The first spatial-distortion test tears open something beyond physical space.
 3. Aliens detect the resulting emission and arrive on the Moon.
 4. Demons cross through the rifts opened by the material.
-5. Workers exposed to AUR's toxicity become mutants.
-6. Discarded bodies and defective batches give rise to ghouls.
-7. Ultratech creates hybrid cyborgs to defend and operate the factory.
+5. Unknown organisms emerge from the rifts and begin copying the biology and behavior of nearby beings, becoming known as xenoforms.
+6. Workers exposed to AUR's toxicity become mutants.
+7. Discarded bodies and defective batches give rise to ghouls.
+8. Ultratech creates hybrid cyborgs to defend and operate the factory.
 
 These events transform the Mare Crisium factory into a battleground. Demons, aliens, cyborgs, mutants, and ghouls all fight to control AUR and the only facility capable of producing it.
 
@@ -120,6 +121,7 @@ The factions fighting for control of AUR are:
 * Cyborgs are half-human, half-machine, possessing immense strength.
 * Mutants are former humans exposed to extreme toxicity. They are severely deformed.
 * Ghouls have lost consciousness and are aggressive.
+* Xenoforms are mysterious organisms capable of imitating the appearance and behavior of other beings.
 
 ## Ambiance
 
