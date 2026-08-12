@@ -36,7 +36,7 @@ It requires three supermetals:
 
 And... `fresh human flesh`, harvested on the *spot*.
 
-Everything is melted together in a furnace heated to the temperature of the Sun's core.
+Everything is melted together in a furnace heated to the temperature of the *Sun's core*.
 
 ## Ambiance
 
