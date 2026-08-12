@@ -27,7 +27,7 @@ It possesses extraordinary properties:
 
 The year is **3000**.
 
-After the `great collapse`, caused by *artificial intelligence*, and countless failed attempts to colonize Mars, humanity turned its attention to the Moon. There, it began searching for precious supermetals that could sustain further advances in artificial intelligence.
+After the `great collapse`, caused by *superintelligence*, and countless failed attempts to colonize Mars, humanity turned its attention to the Moon. There, it began searching for precious supermetals that could sustain further advances in artificial intelligence.
 
 Following the disaster, connected and automated systems were banned or considered too dangerous. As a result, the factory relies on:
 
