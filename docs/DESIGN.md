@@ -34,9 +34,11 @@ It requires three supermetals:
 * `hyperelastic exotic lattice` — A metal with a crystalline structure that spontaneously returns to its original configuration when deformed or broken. It gives AUR its self-healing properties. In its pure state, broken fragments slowly attempt to rejoin each other.
 * `neutron-exposed xenometal` — An extremely dense and radioactive metal formed by unknown processes beneath the lunar surface. It makes AUR extraordinarily resistant and virtually indestructible.
 
-And... `fresh human flesh`, harvested on the *spot*.
+And... `fresh human flesh`, harvested on the spot.
 
 Everything is melted together in a furnace heated to the temperature of the *Sun's core*.
+
+After 36 hours of all the ingredients burning and mixing together, only *666* grams of AUR is produced.
 
 ## Ambiance
 
