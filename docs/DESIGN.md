@@ -32,7 +32,7 @@ After the `great collapse`, caused by *artificial intelligence*, and countless f
 Following the disaster, connected and automated systems were banned or considered too dangerous. As a result, the factory relies on:
 
 * Human operators
-* Dummy & Old Isolated Interfaces
+* Dummy & Old Isolated or analogic devices
 * Manual bureaucratic processes
 
 Ultratech already had bases scattered across the Moon. Some of them had been overrun by `unknown creatures`.
