@@ -36,6 +36,8 @@ It requires three supermetals:
 
 And... `fresh human flesh`, harvested on the spot.
 
+The three metals are incompatible with one another. When melted together, they destroy each other or collapse. Human organic matter acts as a matrix that allows the three materials to coexist.
+
 Everything is melted together in a furnace heated to the temperature of the *Sun's core*.
 
 After 36 hours of all the ingredients burning and mixing together, only *666* grams of AUR is produced.
