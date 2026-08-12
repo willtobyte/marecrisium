@@ -115,11 +115,11 @@ Your entire existence was carefully shaped to prepare you for your current role.
 
 The factions fighting for control of AUR are:
 
-* Demons
-* Aliens
-* Cyborgs
-* Mutants
-* Ghouls
+* Demons are free and magical beings. They can read simple minds.
+* Aliens resemble giant insects and have sharp blades.
+* Cyborgs are half-human, half-machine and possess immense strength.
+* Mutants are former humans exposed to extreme toxicity. They are severely deformed.
+* Ghouls have lost consciousness and are aggressive.
 
 ## Ambiance
 
