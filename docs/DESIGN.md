@@ -30,7 +30,9 @@ Ultratech already had bases scattered across the Moon, some of them overrun by d
 
 Ultratech decided to lure humans into working at the Mare Crisium factory. That's when it all began. Ultratech started growing humans in pods to later use them as raw material for producing AUR.
 
-### The Author
+### Ultratech
+
+Ultratech was one of the first companies to reach a $1 trillion valuation, driven by its promise of colonizing worlds beyond Earth. During one of its missions to the Moon, the company discovered several supermetals and launched multiple research programs to profit from the discovery.
 
 ### Making AUR
 
