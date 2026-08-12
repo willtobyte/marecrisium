@@ -25,17 +25,17 @@ It possesses extraordinary properties:
 
 ## Setting
 
-The year is **2000**.
+The year is **3000**.
 
-After the `Great Collapse`, caused by *artificial intelligence*, and countless failed attempts to colonize Mars, humanity turned its attention to the Moon. There, it began searching for precious supermetals that could sustain further advances in artificial intelligence.
+After the `great collapse`, caused by *artificial intelligence*, and countless failed attempts to colonize Mars, humanity turned its attention to the Moon. There, it began searching for precious supermetals that could sustain further advances in artificial intelligence.
 
 Following the disaster, connected and automated systems were banned or considered too dangerous. As a result, the factory relies on:
 
 * Human operators
-* Isolated terminals
+* Dummy & Old Isolated Interfaces
 * Manual bureaucratic processes
 
-Ultratech already had bases scattered across the Moon. Some of them had been overrun by demons, aliens, cyborgs, mutants, ghouls, and other unidentified creatures.
+Ultratech already had bases scattered across the Moon. Some of them had been overrun by `unknown creatures`.
 
 Eventually, Ultratech began luring humans into working at its factory in Mare Crisium.
 
