@@ -51,7 +51,7 @@ During one of its missions to the Moon, the company discovered several supermeta
 
 These experiments eventually led to the creation of AUR.
 
-## The Mare Crisium Incident
+## The Incident
 
 Ultratech discovers the three materials beneath Mare Crisium.
 
