@@ -76,19 +76,19 @@ AUR requires three supermetals found beneath Mare Crisium.
 
 A black metal found deep beneath Mare Crisium.
 
-Its structure oscillates between microscopic physical states. This property allows AUR to distort space, making it the key component required for faster-than-light travel.
+Its structure oscillates between microscopic physical states. This instability allows AUR to distort space, making the metal essential for faster-than-light travel.
 
-### `hyperelastic exotic lattice`
+### `hyperelastic lattice alloy`
 
-A metal with a crystalline structure that spontaneously returns to its original configuration when deformed or broken.
+A pale metallic alloy whose crystalline lattice spontaneously returns to its original configuration after being deformed or broken.
 
-It gives AUR its self-healing properties. In its pure state, broken fragments slowly attempt to rejoin one another.
+It gives AUR its self-healing properties. In its pure state, separated fragments slowly crawl toward one another and attempt to rejoin.
 
-### `neutron-exposed xenometal`
+### `neutron-forged xenometal`
 
-An extremely dense and radioactive metal formed by unknown processes beneath the lunar surface.
+An impossibly dense and radioactive metal formed by unknown processes beneath the lunar surface.
 
-It makes AUR extraordinarily resistant and virtually indestructible.
+Its neutron-bound structure makes AUR extraordinarily resistant and virtually indestructible. Even microscopic samples are dangerously heavy and emit lethal radiation.
 
 ### `fresh human flesh`
 
