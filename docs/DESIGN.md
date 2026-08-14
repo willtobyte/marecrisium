@@ -126,3 +126,9 @@ The factions fighting for control of AUR are:
 ## Ambiance
 
 ## Gameplay
+
+You are Ultratech's newest employee, responsible for verifying the identity of every worker and visitor attempting to enter the facility.
+
+However, xenoforms will constantly try to deceive you, impersonating legitimate personnel to gain access.
+
+Your role is to identify them, and you cannot make mistakes. If it is a xenoform, you must call the exterminator. If the request is legitimate, you must let them in.
