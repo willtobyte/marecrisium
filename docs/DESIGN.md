@@ -80,11 +80,9 @@ Its structure oscillates between microscopic physical states. This instability a
 
 ### `Kolestrium`
 
-A brutal metallic alloy formed from three interlocked phases compressed under impossible pressure.
+A brutal three-phase metallic alloy compressed under impossible pressure, violently forcing fractures shut and torn sections back into place.
 
-Its internal structure reacts violently to damage. Fractures slam shut, torn sections force themselves back into place, and separated fragments grind across the ground until they collide and fuse again.
-
-This relentless reconstruction gives AUR its self-healing properties. The metal does not heal gently. It rebuilds itself through force.
+Even separated fragments grind toward each other until they collide and fuse, giving AUR its relentless, force-driven self-healing properties.
 
 ### `Xenoneutronium`
 
