@@ -85,8 +85,6 @@ void marshal::decode(lua_State *state, yyjson_val *value) {
           valid
             ? static_cast<void>(lua_pushnumber(state, number))
             : static_cast<void>(lua_pushlstring(state, name, length));
-        } else if (length >= 2 && name[0] == '\0' && name[1] == 's') {
-          lua_pushlstring(state, name + 2, length - 2);
         } else {
           lua_pushlstring(state, name, length);
         }
@@ -185,19 +183,7 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
         } else {
           size_t length = 0;
           const auto *name = lua_tolstring(state, -2, &length);
-
-          if (length != 0 && name[0] == '\0') [[unlikely]] {
-            auto *escaped = unsafe_yyjson_mut_str_alc(document, length + 2);
-            assert(escaped && "cassette key allocation must succeed");
-            [[assume(escaped)]];
-            escaped[0] = '\0';
-            escaped[1] = 's';
-            std::memcpy(escaped + 2, name, length);
-            escaped[length + 2] = '\0';
-            key = yyjson_mut_strn(document, escaped, length + 2);
-          } else {
-            key = yyjson_mut_strn(document, name, length);
-          }
+          key = yyjson_mut_strn(document, name, length);
         }
 
         auto *value = encode(state, -1, document, resolve);
