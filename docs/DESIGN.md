@@ -72,19 +72,21 @@ These events transform the Mare Crisium factory into a battleground. Demons, ali
 
 AUR requires three supermetals found beneath Mare Crisium.
 
-### `void-oscillating rhenium`
+### `Rhenium`
 
 A black metal found deep beneath Mare Crisium.
 
 Its structure oscillates between microscopic physical states. This instability allows AUR to distort space, making the metal essential for faster-than-light travel.
 
-### `hyperelastic lattice alloy`
+### `Kolestrium`
 
-A pale metallic alloy whose crystalline lattice spontaneously returns to its original configuration after being deformed or broken.
+A brutal metallic alloy formed from three interlocked phases compressed under impossible pressure.
 
-It gives AUR its self-healing properties. In its pure state, separated fragments slowly crawl toward one another and attempt to rejoin.
+Its internal structure reacts violently to damage. Fractures slam shut, torn sections force themselves back into place, and separated fragments grind across the ground until they collide and fuse again.
 
-### `neutron-forged xenometal`
+This relentless reconstruction gives AUR its self-healing properties. The metal does not heal gently. It rebuilds itself through force.
+
+### `Xenoneutronium`
 
 An impossibly dense and radioactive metal formed by unknown processes beneath the lunar surface.
 
