@@ -72,7 +72,7 @@ These events transform the Mare Crisium factory into a battleground. Demons, ali
 
 AUR requires three supermetals found beneath Mare Crisium.
 
-### `Rhenium`
+### `Ocultium`
 
 A black metal found deep beneath Mare Crisium.
 
@@ -84,7 +84,7 @@ A brutal three-phase metallic alloy compressed under impossible pressure, violen
 
 Even separated fragments grind toward each other until they collide and fuse, giving AUR its relentless, force-driven self-healing properties.
 
-### `Xenoneutronium`
+### `Mardukium`
 
 An impossibly dense and radioactive metal formed by unknown processes beneath the lunar surface.
 
