@@ -94,7 +94,7 @@ Its neutron-bound structure makes AUR extraordinarily resistant and virtually in
 
 Fresh human flesh must be harvested on-site.
 
-The three supermetals are incompatible with one another. When melted together, they destroy each other or collapse. Human organic matter acts as a matrix, allowing the three materials to coexist without annihilating one another.
+The three supermetals are fundamentally incompatible with one another. When melted together, their conflicting structures destabilize and destroy each other. Human organic matter acts as a binding matrix, allowing the three materials to coexist in a stable state without annihilating one another.
 
 ## The Production Process
 
