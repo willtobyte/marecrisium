@@ -483,7 +483,9 @@ timer = nil
 
 ---Computed input state. Assigning a key creates a Lua-side override.
 ---@class Controls
----@field left boolean A, D-pad left, or left stick left.
----@field right boolean D, D-pad right, or left stick right.
----@field up boolean W, D-pad up, or left stick up.
----@field down boolean S, D-pad down, or left stick down.
+---@field left boolean A, left arrow, D-pad left, or left stick left.
+---@field right boolean D, right arrow, D-pad right, or left stick right.
+---@field up boolean W, up arrow, D-pad up, or left stick up.
+---@field down boolean S, down arrow, D-pad down, or left stick down.
+---@field action boolean Space or the south gamepad button.
+---@field dismiss boolean Escape or the east gamepad button.

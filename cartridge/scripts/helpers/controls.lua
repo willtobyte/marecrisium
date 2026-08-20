@@ -1,19 +1,19 @@
-local threshold = 0.5
-
 local controls = {}
 
 setmetatable(controls, {
 	__index = function(_, key)
 		if key == "left" then
-			return gamepad.left_x < -threshold or gamepad.left or keyboard.a
+			return gamepad.left_x < -0.5 or gamepad.left or keyboard.a or keyboard.left
 		elseif key == "right" then
-			return gamepad.left_x > threshold or gamepad.right or keyboard.d
+			return gamepad.left_x > 0.5 or gamepad.right or keyboard.d or keyboard.right
 		elseif key == "up" then
-			return gamepad.left_y < -threshold or gamepad.up or keyboard.w
+			return gamepad.left_y < -0.5 or gamepad.up or keyboard.w or keyboard.up
 		elseif key == "down" then
-			return gamepad.left_y > threshold or gamepad.down or keyboard.s
-		elseif key == "space" then
+			return gamepad.left_y > 0.5 or gamepad.down or keyboard.s or keyboard.down
+		elseif key == "action" then
 			return gamepad.south or keyboard.space
+		elseif key == "dismiss" then
+			return gamepad.east or keyboard.escape
 		end
 	end,
 })
