@@ -22,13 +22,13 @@ function navigator:update()
 	local dx = 0
 	local dy = 0
 
-	if left and not self.left then
+	if self.left and not left then
 		dx = -1
-	elseif right and not self.right then
+	elseif self.right and not right then
 		dx = 1
-	elseif up and not self.up then
+	elseif self.up and not up then
 		dy = -1
-	elseif down and not self.down then
+	elseif self.down and not down then
 		dy = 1
 	end
 
