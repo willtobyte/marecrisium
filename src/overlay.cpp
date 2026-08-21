@@ -59,10 +59,10 @@ void overlay::appear() {
   lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
   const auto top = lua_gettop(L);
   lua_getfield(L, top, "fonts");
-  const auto fonts = static_cast<int>(lua_objlen(L, top + 1));
+  const auto length = static_cast<int>(lua_objlen(L, top + 1));
   lua_getglobal(L, "pool");
 
-  for (auto i = 1; i <= fonts; ++i) {
+  for (auto i = 1; i <= length; ++i) {
     lua_rawgeti(L, top + 1, i);
     lua_pushvalue(L, -1);
     lua_pushvalue(L, -1);
