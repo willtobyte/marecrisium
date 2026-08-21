@@ -21,6 +21,7 @@ private:
   std::vector<object> _objects{};
   std::vector<uint32_t> _order{};
   std::vector<uint32_t> _loops{};
+  std::vector<std::unique_ptr<sound>> _sounds{};
 
   friend class director;
 

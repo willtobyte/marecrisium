@@ -184,7 +184,7 @@ cassette = nil
 ---@field y? number Defaults to 0.
 
 ---@class SceneSound
----@field name string Pool name; shares `blobs/sounds/<name>.ogg` with other scenes.
+---@field name string Pool name. The decoded data is shared. Playback state belongs to the scene.
 
 ---Scene definition and callbacks owned by the script.
 ---@class Scene
@@ -303,6 +303,8 @@ viewport = nil
 
 -- Sound
 
+---Scene-owned playback instance. The engine stops it after the scene's
+---`on_leave` callback. Do not retain it after the scene is destroyed.
 ---@class Sound
 ---@field volume number Gain, clamped to 0.0-1.0 (read/write).
 ---@field pan number Stereo pan, clamped to -1.0-1.0 (read/write).

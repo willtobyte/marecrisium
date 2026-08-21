@@ -1,18 +1,22 @@
 namespace {
+  static sound* get(lua_State* state) {
+    return *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+  }
+
   static int play_callback(lua_State* state) {
-    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+    auto* instance = get(state);
     instance->play();
     return 0;
   }
 
   static int stop_callback(lua_State* state) {
-    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+    auto* instance = get(state);
     instance->stop();
     return 0;
   }
 
   static int fade_callback(lua_State* state) {
-    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+    auto* instance = get(state);
     const auto from = std::clamp(static_cast<float>(luaL_checknumber(state, 2)), -1.f, 1.f);
     const auto to = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 1.f);
     const auto duration = std::clamp(
@@ -24,7 +28,7 @@ namespace {
   }
 
   static int index(lua_State* state) {
-    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+    auto* instance = get(state);
     std::size_t length;
     const auto* data = luaL_checklstring(state, 2, &length);
     const std::string_view key{data, length};
@@ -51,7 +55,7 @@ namespace {
   }
 
   static int newindex(lua_State* state) {
-    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+    auto* instance = get(state);
     std::size_t length;
     const auto* data = luaL_checklstring(state, 2, &length);
     const std::string_view key{data, length};
@@ -64,92 +68,36 @@ namespace {
   }
 }
 
-namespace {
-  ma_result read(ma_data_source* source, void* output, ma_uint64 frames, ma_uint64* count) {
-    auto* self = reinterpret_cast<sound::stream*>(source);
-    const auto remaining = self->length - self->cursor;
-    const auto decoded = frames < remaining ? frames : remaining;
-    std::memcpy(output, self->pcm + self->cursor * self->channels, static_cast<size_t>(decoded * self->channels) * sizeof(float));
-    self->cursor += decoded;
-    if (count) [[likely]] *count = decoded;
-    if (decoded < frames) [[unlikely]] return MA_AT_END;
-
-    return MA_SUCCESS;
-  }
-
-  ma_result seek(ma_data_source* source, ma_uint64 index) {
-    auto* self = reinterpret_cast<sound::stream*>(source);
-    self->cursor = index;
-    return MA_SUCCESS;
-  }
-
-  ma_result format(ma_data_source* source, ma_format* format, ma_uint32* channels, ma_uint32* rate, ma_channel* map, size_t capacity) {
-    auto* self = reinterpret_cast<sound::stream*>(source);
-    if (format) *format = ma_format_f32;
-    if (channels) *channels = self->channels;
-    if (rate) *rate = self->rate;
-    if (map)
-      ma_channel_map_init_standard(
-        ma_standard_channel_map_vorbis, map, capacity, self->channels);
-
-    return MA_SUCCESS;
-  }
-
-  ma_result cursor(ma_data_source* source, ma_uint64* cursor) {
-    auto* self = reinterpret_cast<sound::stream*>(source);
-    *cursor = self->cursor;
-    return MA_SUCCESS;
-  }
-
-  ma_result length(ma_data_source* source, ma_uint64* length) {
-    auto* self = reinterpret_cast<sound::stream*>(source);
-    *length = self->length;
-    return MA_SUCCESS;
-  }
-
-  constexpr ma_data_source_vtable vtable = {
-    read,
-    seek,
-    format,
-    cursor,
-    length,
-    nullptr,
-    0,
-  };
-
-}
-
-sound::sound(std::string_view filename) {
+pcm::pcm(std::string_view filename) {
   const auto data = io::read(filename);
   const std::unique_ptr<stb_vorbis, STB_Vorbis_Deleter> vorbis{stb_vorbis_open_memory(
     data.data(), static_cast<int>(data.size()), nullptr, nullptr)};
 
-  const auto info = stb_vorbis_get_info(vorbis.get());
-  _stream.length = stb_vorbis_stream_length_in_samples(vorbis.get());
-  _stream.channels = static_cast<ma_uint32>(info.channels);
-  _stream.rate = info.sample_rate;
+  const auto information = stb_vorbis_get_info(vorbis.get());
+  length = stb_vorbis_stream_length_in_samples(vorbis.get());
+  channels = static_cast<ma_uint32>(information.channels);
+  rate = information.sample_rate;
 
-  _pcm.resize(static_cast<std::size_t>(_stream.length) * _stream.channels);
+  samples.resize(static_cast<std::size_t>(length) * channels);
   const auto decoded = stb_vorbis_get_samples_float_interleaved(
     vorbis.get(),
-    static_cast<int>(_stream.channels),
-    _pcm.data(),
-    static_cast<int>(_pcm.size())
+    static_cast<int>(channels),
+    samples.data(),
+    static_cast<int>(samples.size())
   );
 
-  const auto complete = static_cast<ma_uint64>(decoded) == _stream.length;
+  const auto complete = static_cast<ma_uint64>(decoded) == length;
   assert(complete && "sound must decode entirely at load time");
   [[assume(complete)]];
+}
 
-  _stream.pcm = _pcm.data();
-
-  auto config = ma_data_source_config_init();
-  config.vtable = &vtable;
-  ma_data_source_init(&config, &_stream.base);
+sound::sound(const pcm& data) {
+  ma_audio_buffer_ref_init(ma_format_f32, data.channels, data.samples.data(), data.length, &_source);
+  _source.sampleRate = data.rate;
 
   ma_sound_init_from_data_source(
     &audio,
-    &_stream.base,
+    &_source,
     MA_SOUND_FLAG_NO_SPATIALIZATION | MA_SOUND_FLAG_NO_PITCH,
     nullptr,
     &_sound
@@ -157,9 +105,8 @@ sound::sound(std::string_view filename) {
 }
 
 sound::~sound() {
-  ma_sound_stop(&_sound);
   ma_sound_uninit(&_sound);
-  ma_data_source_uninit(&_stream.base);
+  ma_audio_buffer_ref_uninit(&_source);
 }
 
 void sound::play() {

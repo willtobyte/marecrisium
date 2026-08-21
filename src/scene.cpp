@@ -98,6 +98,7 @@ scene::scene(std::string_view name)
 
   lua_getfield(L, -1, "sounds");
   const auto sounds = static_cast<int>(lua_objlen(L, -1));
+  _sounds.reserve(static_cast<std::size_t>(sounds));
 
   for (auto i = 1; i <= sounds; ++i) {
     lua_rawgeti(L, -1, i);
@@ -108,9 +109,10 @@ scene::scene(std::string_view name)
     const std::string_view label{data, length};
 
     const auto key = std::format("sounds/{}", label);
-    auto *instance = depot->get<sound>(key);
+    const auto* asset = depot->get<pcm>(key);
+    auto instance = std::make_unique<sound>(*asset);
     auto **memory = static_cast<class sound **>(lua_newuserdata(L, sizeof(class sound *)));
-    *memory = instance;
+    *memory = instance.get();
     luaL_getmetatable(L, "Sound");
     lua_setmetatable(L, -2);
 
@@ -123,6 +125,8 @@ scene::scene(std::string_view name)
     lua_pop(L, 1);
 
     lua_pop(L, 2);
+
+    _sounds.emplace_back(std::move(instance));
   }
   lua_pop(L, 1);
 
@@ -266,12 +270,18 @@ void scene::on_enter() {
 }
 
 void scene::on_leave() {
+  auto result = LUA_OK;
   if (_on_leave != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_leave);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
-    if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
-      throw std::runtime_error{lua_tostring(L, -1)};
+    result = lua_pcall(L, 1, 0, 0);
   }
+
+  for (const auto& sound : _sounds)
+    sound->stop();
+
+  if (result != LUA_OK) [[unlikely]]
+    throw std::runtime_error{lua_tostring(L, -1)};
 
   _overlay.disappear();
 }
