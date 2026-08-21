@@ -11,6 +11,23 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+
+def human_size(size: int) -> str:
+    if size >= 1_048_576:
+        return f"{size / 1_048_576:.1f} MiB"
+    if size >= 1024:
+        return f"{size / 1024:.1f} KiB"
+    return f"{size} bytes"
+
+
+def human_time(elapsed: float) -> str:
+    if elapsed >= 60_000:
+        return f"{elapsed / 60_000:.1f} min"
+    if elapsed >= 1000:
+        return f"{elapsed / 1000:.1f} s"
+    return f"{elapsed:.0f} ms"
+
+
 zstandard = importlib.import_module("zstandard")
 ZstdError = zstandard.ZstdError
 
@@ -227,8 +244,8 @@ def main() -> int:
     display(sources)
     elapsed = (time.perf_counter() - start) * 1000
     print(
-        f"cartridge.rom ({count} entries, {len(blob)} bytes)"
-        f" in {elapsed:.0f} milliseconds"
+        f"cartridge.rom ({count} entries, {human_size(len(blob))})"
+        f" in {human_time(elapsed)}"
     )
     return 0
 
