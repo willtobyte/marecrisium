@@ -2,13 +2,6 @@
 
 struct spritesheet;
 
-enum class mirror : uint8_t {
-  none = SDL_FLIP_NONE,
-  horizontal = SDL_FLIP_HORIZONTAL,
-  vertical = SDL_FLIP_VERTICAL,
-  both = SDL_FLIP_HORIZONTAL | SDL_FLIP_VERTICAL,
-};
-
 struct frame final {
   float u0{};
   float v0{};
@@ -28,7 +21,6 @@ struct frame final {
 static_assert(std::is_trivially_copyable_v<frame>, "frame must be trivially copyable");
 
 struct clip final {
-  int name{LUA_NOREF};
   uint16_t offset{};
   uint8_t count{};
 };
@@ -39,13 +31,7 @@ struct prototype final {
   int table{LUA_NOREF};
   int kind{LUA_NOREF};
   int on_loop{LUA_NOREF};
-  int on_animation_end{LUA_NOREF};
-  int on_animation_begin{LUA_NOREF};
   int on_spawn{LUA_NOREF};
-  int on_press{LUA_NOREF};
-  int on_release{LUA_NOREF};
-  int on_hover{LUA_NOREF};
-  int on_unhover{LUA_NOREF};
 };
 
 static_assert(std::is_trivially_copyable_v<prototype>, "prototype must be trivially copyable");
@@ -60,12 +46,12 @@ struct object final {
     float alpha{255.f};
     int z{};
     bool shown{true};
-    mirror flip{mirror::none};
+    mirror::value mirror{mirror::value::none};
   } sprite;
 
   struct script final {
     const prototype* blueprint{};
-    int handle{LUA_NOREF};
+    int instance{LUA_NOREF};
     int label{LUA_NOREF};
   } script;
 

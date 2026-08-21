@@ -10,7 +10,7 @@ static void attach(object& object, bool& dirty) {
   lua_setmetatable(L, -2);
   lua_setfenv(L, -2);
 
-  object.script.handle = luaL_ref(L, LUA_REGISTRYINDEX);
+  object.script.instance = luaL_ref(L, LUA_REGISTRYINDEX);
   *memory = proxy{
     .object = &object,
     .dirty = &dirty,
@@ -44,8 +44,8 @@ static int index(lua_State* state) {
     return 1;
   }
 
-  if (key == "flip") {
-    lua_pushinteger(state, static_cast<lua_Integer>(object.sprite.flip));
+  if (key == "mirror") {
+    lua_pushinteger(state, static_cast<lua_Integer>(object.sprite.mirror));
     return 1;
   }
 
@@ -138,9 +138,9 @@ static int newindex(lua_State* state) {
     return 0;
   }
 
-  if (key == "flip") {
+  if (key == "mirror") {
     const auto value = std::clamp(luaL_checkinteger(state, 3), lua_Integer{}, lua_Integer{3});
-    object.sprite.flip = static_cast<mirror>(value);
+    object.sprite.mirror = static_cast<mirror::value>(value);
     return 0;
   }
 
@@ -201,23 +201,15 @@ void objects::bind(object& object, bool& dirty, std::string_view name, std::stri
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
 
-  constexpr std::array fields{
-    std::pair{"on_loop", &prototype::on_loop},
-    std::pair{"on_animation_end", &prototype::on_animation_end},
-    std::pair{"on_animation_begin", &prototype::on_animation_begin},
-    std::pair{"on_spawn", &prototype::on_spawn},
-    std::pair{"on_press", &prototype::on_press},
-    std::pair{"on_release", &prototype::on_release},
-    std::pair{"on_hover", &prototype::on_hover},
-    std::pair{"on_unhover", &prototype::on_unhover},
-  };
+  lua_getfield(L, -1, "on_loop");
+  blueprint->on_loop = lua_isfunction(L, -1)
+    ? luaL_ref(L, LUA_REGISTRYINDEX)
+    : (lua_pop(L, 1), LUA_NOREF);
 
-  for (const auto& [field, member] : fields) {
-    lua_getfield(L, -1, field);
-    blueprint.get()->*member = lua_isfunction(L, -1)
-      ? luaL_ref(L, LUA_REGISTRYINDEX)
-      : (lua_pop(L, 1), LUA_NOREF);
-  }
+  lua_getfield(L, -1, "on_spawn");
+  blueprint->on_spawn = lua_isfunction(L, -1)
+    ? luaL_ref(L, LUA_REGISTRYINDEX)
+    : (lua_pop(L, 1), LUA_NOREF);
 
   lua_pop(L, 1);
 
@@ -236,15 +228,4 @@ void objects::wire() {
   lua_pushcfunction(L, newindex);
   lua_setfield(L, -2, "__newindex");
   lua_pop(L, 1);
-
-  lua_createtable(L, 0, 4);
-  lua_pushinteger(L, static_cast<lua_Integer>(mirror::none));
-  lua_setfield(L, -2, "none");
-  lua_pushinteger(L, static_cast<lua_Integer>(mirror::horizontal));
-  lua_setfield(L, -2, "horizontal");
-  lua_pushinteger(L, static_cast<lua_Integer>(mirror::vertical));
-  lua_setfield(L, -2, "vertical");
-  lua_pushinteger(L, static_cast<lua_Integer>(mirror::both));
-  lua_setfield(L, -2, "both");
-  lua_setglobal(L, "flip");
 }

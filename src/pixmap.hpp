@@ -8,7 +8,7 @@ public:
     const float dx, const float dy, const float dw, const float dh,
     const double angle = .0,
     const uint8_t alpha = 255,
-    const mirror flip = mirror::none
+    const mirror::value mirror = mirror::value::none
   ) const;
 
   operator SDL_Texture*() const;

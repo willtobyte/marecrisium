@@ -94,6 +94,7 @@ extern mcg64 prng;
 #include "keyboard.hpp"
 #include "locales.hpp"
 #include "marshal.hpp"
+#include "mirror.hpp"
 #include "mouse.hpp"
 #include "object.hpp"
 #include "overlay.hpp"

@@ -25,17 +25,9 @@ public:
 
   static void wire();
 
-  void set_loop(bool loop);
-  bool loop() const;
-
   bool playing() const;
 
   void fade(float from, float to, uint64_t ms);
-
-  void poll();
-
-  int on_begin{LUA_NOREF};
-  int on_end{LUA_NOREF};
 
 private:
   std::vector<float> _pcm;

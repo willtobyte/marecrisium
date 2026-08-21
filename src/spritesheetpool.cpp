@@ -31,14 +31,11 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       continue;
     }
 
-    lua_pushvalue(state, -2);
     std::size_t length;
-    const auto* data = lua_tolstring(state, -1, &length);
+    const auto* data = lua_tolstring(state, -2, &length);
     const std::string_view name{data, length};
-    const auto slot = luaL_ref(state, LUA_REGISTRYINDEX);
 
     auto& clip = storage->clips.emplace_back();
-    clip.name = slot;
     clip.offset = static_cast<uint16_t>(storage->frames.size());
     clip.count = 0;
 
@@ -74,13 +71,6 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       frame.v1 = (y + frame.height) * ih;
 
       lua_rawgeti(state, -1, 6);
-      if (lua_isnil(state, -1)) {
-        lua_pop(state, 1);
-        ++clip.count;
-        lua_pop(state, 1);
-        continue;
-      }
-
       frame.collider.offset_x = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
       lua_rawgeti(state, -1, 7);
@@ -122,9 +112,5 @@ spritesheetpool::~spritesheetpool() {
 }
 
 void spritesheetpool::clear() {
-  for (const auto& [_, storage] : _pool)
-    for (const auto& clip : storage->clips)
-      luaL_unref(L, LUA_REGISTRYINDEX, clip.name);
-
   _pool.clear();
 }

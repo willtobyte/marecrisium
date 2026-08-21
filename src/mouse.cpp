@@ -62,11 +62,4 @@ void mouse::wire() {
   luaL_getmetatable(L, "Mouse");
   lua_setmetatable(L, -2);
   lua_setglobal(L, "mouse");
-
-  lua_pushliteral(L, "left");
-  labels[0] = luaL_ref(L, LUA_REGISTRYINDEX);
-  lua_pushliteral(L, "middle");
-  labels[1] = luaL_ref(L, LUA_REGISTRYINDEX);
-  lua_pushliteral(L, "right");
-  labels[2] = luaL_ref(L, LUA_REGISTRYINDEX);
 }

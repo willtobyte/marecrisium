@@ -2,28 +2,12 @@ namespace {
   static int play_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     instance->play();
-    if (instance->on_begin != LUA_NOREF) {
-      lua_rawgeti(state, LUA_REGISTRYINDEX, instance->on_begin);
-      if (lua_pcall(state, 0, 0, 0) != LUA_OK) [[unlikely]]
-        return lua_error(state);
-    }
-
     return 0;
   }
 
   static int stop_callback(lua_State* state) {
     auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
     instance->stop();
-    return 0;
-  }
-
-  static int on_begin_callback(lua_State* state) {
-    luaL_checktype(state, 2, LUA_TFUNCTION);
-    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_begin);
-    instance->on_begin = LUA_NOREF;
-    lua_pushvalue(state, 2);
-    instance->on_begin = luaL_ref(state, LUA_REGISTRYINDEX);
     return 0;
   }
 
@@ -36,16 +20,6 @@ namespace {
       lua_Integer{},
       static_cast<lua_Integer>(std::numeric_limits<uint32_t>::max()));
     instance->fade(from, to, static_cast<uint64_t>(duration));
-    return 0;
-  }
-
-  static int on_end_callback(lua_State* state) {
-    luaL_checktype(state, 2, LUA_TFUNCTION);
-    auto* instance = *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
-    luaL_unref(state, LUA_REGISTRYINDEX, instance->on_end);
-    instance->on_end = LUA_NOREF;
-    lua_pushvalue(state, 2);
-    instance->on_end = luaL_ref(state, LUA_REGISTRYINDEX);
     return 0;
   }
 
@@ -62,11 +36,6 @@ namespace {
 
     if (key == "pan") {
       lua_pushnumber(state, static_cast<lua_Number>(instance->pan()));
-      return 1;
-    }
-
-    if (key == "loop") {
-      lua_pushboolean(state, instance->loop());
       return 1;
     }
 
@@ -91,8 +60,6 @@ namespace {
       instance->set_volume(static_cast<float>(luaL_checknumber(state, 3)));
     else if (key == "pan")
       instance->set_pan(static_cast<float>(luaL_checknumber(state, 3)));
-    else if (key == "loop")
-      instance->set_loop(lua_toboolean(state, 3) != 0);
     return 0;
   }
 }
@@ -193,8 +160,6 @@ sound::~sound() {
   ma_sound_stop(&_sound);
   ma_sound_uninit(&_sound);
   ma_data_source_uninit(&_stream.base);
-  luaL_unref(L, LUA_REGISTRYINDEX, on_begin);
-  luaL_unref(L, LUA_REGISTRYINDEX, on_end);
 }
 
 void sound::play() {
@@ -222,33 +187,12 @@ float sound::pan() const {
   return ma_sound_get_pan(&_sound);
 }
 
-void sound::set_loop(bool loop) {
-  ma_sound_set_looping(&_sound, loop ? MA_TRUE : MA_FALSE);
-}
-
-bool sound::loop() const {
-  return ma_sound_is_looping(&_sound) == MA_TRUE;
-}
-
 bool sound::playing() const {
   return ma_sound_is_playing(&_sound) == MA_TRUE;
 }
 
 void sound::fade(float from, float to, uint64_t ms) {
   ma_sound_set_fade_in_milliseconds(&_sound, from, to, ms);
-}
-
-void sound::poll() {
-  if (on_end == LUA_NOREF || ma_sound_at_end(&_sound) != MA_TRUE)
-    return;
-
-  ma_sound_stop(&_sound);
-  ma_sound_start(&_sound);
-  ma_sound_stop(&_sound);
-
-  lua_rawgeti(L, LUA_REGISTRYINDEX, on_end);
-  if (lua_pcall(L, 0, 0, 0) != LUA_OK) [[unlikely]]
-    throw std::runtime_error{lua_tostring(L, -1)};
 }
 
 void sound::wire() {
@@ -262,10 +206,6 @@ void sound::wire() {
   lua_setfield(L, -2, "stop");
   lua_pushcfunction(L, fade_callback);
   lua_setfield(L, -2, "fade");
-  lua_pushcfunction(L, on_begin_callback);
-  lua_setfield(L, -2, "on_begin");
-  lua_pushcfunction(L, on_end_callback);
-  lua_setfield(L, -2, "on_end");
   lua_pushcfunction(L, index);
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, newindex);

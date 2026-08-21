@@ -1,10 +1,8 @@
 ---@meta
 
----@alias MouseButton "left"|"middle"|"right"
----@alias FlipMode 0|1|2|3
 ---@alias Vector2 [number, number]
 ---@alias ParticleRange [number, number]
----@alias AnimationFrame [number, number, number, number, number]|[number, number, number, number, number, number, number, number, number]
+---@alias AnimationFrame [number, number, number, number, number, number, number, number, number]
 
 -- Keyboard
 
@@ -187,7 +185,6 @@ cassette = nil
 
 ---@class SceneSound
 ---@field name string Pool name; shares `blobs/sounds/<name>.ogg` with other scenes.
----@field loop? boolean Defaults to false.
 
 ---Scene definition and callbacks owned by the script.
 ---@class Scene
@@ -196,9 +193,6 @@ cassette = nil
 ---@field on_enter? fun(self: Scene) Called when this scene becomes active.
 ---@field on_leave? fun(self: Scene) Called before this scene becomes inactive.
 ---@field on_loop? fun(self: Scene, delta: number) Called every active frame; delta is in seconds.
----@field on_camera? fun(self: Scene): number?, number? Returns the viewport world origin; nil preserves the previous coordinate.
----@field on_press? fun(self: Scene, x: number, y: number, button: MouseButton) Called when the physics query finds no shape under the cursor; x and y are world coordinates.
----@field on_release? fun(self: Scene, x: number, y: number, button: MouseButton) Called when the physics query finds no shape under the cursor; x and y are world coordinates.
 
 -- Director
 
@@ -279,7 +273,7 @@ viewport = nil
 
 ---Non-empty frame array.
 ---@class AnimationClip
----@field [integer] AnimationFrame `{sx, sy, width, height, duration_ms}` with optional `{collider_x, collider_y, collider_width, collider_height}`.
+---@field [integer] AnimationFrame `{sx, sy, width, height, duration_ms, collider_x, collider_y, collider_width, collider_height}`.
 
 ---Spawn configuration and shared custom behavior. The engine dispatches the
 ---reserved callbacks from references cached at load time. A write to a reserved
@@ -288,12 +282,6 @@ viewport = nil
 ---@field animation? AnimationConfig Spawn-only animation definitions.
 ---@field on_spawn? fun(self: Object) Called once after the object is complete and available in `pool`.
 ---@field on_loop? fun(self: Object, delta: number) Called every active frame; delta is in seconds.
----@field on_animation_end? fun(self: Object, clip: string) Called when a clip loops or is replaced.
----@field on_animation_begin? fun(self: Object, clip: string) Called after a selected clip starts and after each loop.
----@field on_press? fun(self: Object, x: number, y: number, button: MouseButton) Called for the topmost visible collider; the picker considers up to 16 overlaps.
----@field on_release? fun(self: Object, x: number, y: number, button: MouseButton) Called for the topmost visible collider; the picker considers up to 16 overlaps.
----@field on_hover? fun(self: Object) Called when the cursor enters the topmost visible collider.
----@field on_unhover? fun(self: Object) Called when the cursor leaves the topmost visible collider.
 ---@field [string] any Custom fields and methods shared by every object of this kind.
 
 ---Entity handle available as `self` and through `pool`. Calling
@@ -301,13 +289,13 @@ viewport = nil
 ---Each object stores custom writes independently and reads missing fields from
 ---the shared prototype.
 ---@class Object
----@field x number Transform X (read/write); the hitbox follows.
----@field y number Transform Y (read/write); the hitbox follows.
----@field scale number Transform scale (read/write); the hitbox scales with it.
+---@field x number Transform X (read/write).
+---@field y number Transform Y (read/write).
+---@field scale number Transform scale (read/write).
 ---@field angle number Rotation in degrees (read/write).
 ---@field alpha number Opacity, clamped to 0-255 (read/write).
----@field shown boolean Visibility (read/write); hidden objects are not clickable.
----@field flip FlipMode Render mirroring (read/write).
+---@field shown boolean Visibility (read/write).
+---@field mirror 0|1|2|3 Render mirroring (read/write).
 ---@field name string Instance name (read-only).
 ---@field kind string Prototype kind (read-only).
 ---@field z integer Render order (read/write); defaults to the declaration index in `objects` and higher values draw on top.
@@ -318,11 +306,10 @@ viewport = nil
 ---@class Sound
 ---@field volume number Gain, clamped to 0.0-1.0 (read/write).
 ---@field pan number Stereo pan, clamped to -1.0-1.0 (read/write).
----@field loop boolean Looping state (read/write).
 ---@field playing boolean Playback state (read-only).
 local Sound = {}
 
----Restart playback and run the `on_begin` callback.
+---Restart playback.
 function Sound:play() end
 
 ---Stop playback.
@@ -334,14 +321,6 @@ function Sound:stop() end
 ---@param ms integer Duration in milliseconds; negative values become 0.
 function Sound:fade(from, to, ms) end
 
----Replace the playback-start callback until the scene leaves.
----@param fn fun()
-function Sound:on_begin(fn) end
-
----Replace the playback-end callback until the scene leaves.
----@param fn fun()
-function Sound:on_end(fn) end
-
 -- Particle emitter
 
 ---Scene-scoped; do not retain after its scene is destroyed.
@@ -350,17 +329,17 @@ function Sound:on_end(fn) end
 ---@field y number Emitter Y (read/write).
 ---@field active boolean Whether dead particles respawn (read/write).
 
--- Flip
+-- Mirror
 
 ---Lua constants by contract; the table itself is mutable.
----@class Flip
+---@class Mirror
 ---@field none 0
 ---@field horizontal 1
 ---@field vertical 2
 ---@field both 3
 
----@type Flip
-flip = nil
+---@type Mirror
+mirror = nil
 
 -- Pool
 
