@@ -23,112 +23,119 @@ scene::scene(std::string_view name)
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
   lua_setglobal(L, "pool");
 
-  lua_getfield(L, -1, "objects");
-  const auto objects = static_cast<int>(lua_objlen(L, -1));
-  const auto capacity = static_cast<std::size_t>(objects);
-  const auto available = capacity < none;
-  assert(available && "scene object capacity must fit in a 32-bit index");
-  [[assume(available)]];
+  {
+    lua_getfield(L, -1, "objects");
+    const auto length = static_cast<int>(lua_objlen(L, -1));
+    const auto capacity = static_cast<std::size_t>(length);
+    const auto available = capacity < none;
+    assert(available && "scene object capacity must fit in a 32-bit index");
+    [[assume(available)]];
 
-  _objects.reserve(capacity);
-  _order.reserve(capacity);
-  _loops.reserve(capacity);
+    _objects.reserve(capacity);
+    _order.reserve(capacity);
+    _loops.reserve(capacity);
 
-  for (auto i = 1; i <= objects; ++i) {
-    lua_rawgeti(L, -1, i);
+    for (auto i = 1; i <= length; ++i) {
+      lua_rawgeti(L, -1, i);
 
-    lua_getfield(L, -1, "x");
-    const auto ox = static_cast<float>(luaL_optnumber(L, -1, .0));
-    lua_pop(L, 1);
+      lua_getfield(L, -1, "x");
+      const auto ox = static_cast<float>(luaL_optnumber(L, -1, .0));
+      lua_pop(L, 1);
 
-    lua_getfield(L, -1, "y");
-    const auto oy = static_cast<float>(luaL_optnumber(L, -1, .0));
-    lua_pop(L, 1);
+      lua_getfield(L, -1, "y");
+      const auto oy = static_cast<float>(luaL_optnumber(L, -1, .0));
+      lua_pop(L, 1);
 
-    std::size_t length;
-    const char* data;
+      std::size_t length;
+      const char* data;
 
-    lua_getfield(L, -1, "name");
-    data = luaL_checklstring(L, -1, &length);
-    const std::string_view label{data, length};
+      lua_getfield(L, -1, "name");
+      data = luaL_checklstring(L, -1, &length);
+      const std::string_view label{data, length};
 
-    lua_getfield(L, -2, "kind");
-    data = luaL_checklstring(L, -1, &length);
-    const std::string_view kind{data, length};
+      lua_getfield(L, -2, "kind");
+      data = luaL_checklstring(L, -1, &length);
+      const std::string_view kind{data, length};
 
-    const auto id = static_cast<uint32_t>(_objects.size());
-    _order.emplace_back(id);
+      const auto id = static_cast<uint32_t>(_objects.size());
+      _order.emplace_back(id);
 
-    auto& object = _objects.emplace_back();
-    object.sprite.z = static_cast<int>(id);
-    object.sprite.x = ox;
-    object.sprite.y = oy;
+      auto& object = _objects.emplace_back();
+      object.sprite.z = static_cast<int>(id);
+      object.sprite.x = ox;
+      object.sprite.y = oy;
 
-    objects::bind(object, _dirty, label, kind);
-    if (object.script.blueprint->on_loop != LUA_NOREF)
-      _loops.emplace_back(id);
+      objects::bind(object, _dirty, label, kind);
+      if (object.script.blueprint->on_loop != LUA_NOREF)
+        _loops.emplace_back(id);
 
-    lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.blueprint->table);
-    lua_getfield(L, -1, "animation");
-    assert(lua_istable(L, -1) && "object must define an animation table");
+      lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.blueprint->table);
+      lua_getfield(L, -1, "animation");
+      assert(lua_istable(L, -1) && "object must define an animation table");
 
-    const auto* sheet = depot->get<spritesheet>(kind, L, -1);
-    object.sprite.sheet = sheet;
-    object.motion.active = sheet->initial;
+      const auto* sheet = depot->get<spritesheet>(kind, L, -1);
+      object.sprite.sheet = sheet;
+      object.motion.active = sheet->initial;
 
-    lua_pop(L, 2);
+      lua_pop(L, 2);
 
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
-    lua_pushvalue(L, -3);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
-    lua_rawset(L, -3);
-    lua_pop(L, 1);
-
-    const auto& blueprint = *object.script.blueprint;
-    if (blueprint.on_spawn != LUA_NOREF) {
-      lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint.on_spawn);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
+      lua_pushvalue(L, -3);
       lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
-      if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
-        throw std::runtime_error{lua_tostring(L, -1)};
+      lua_rawset(L, -3);
+      lua_pop(L, 1);
+
+      const auto& blueprint = *object.script.blueprint;
+      if (blueprint.on_spawn != LUA_NOREF) {
+        lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint.on_spawn);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
+        if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+          throw std::runtime_error{lua_tostring(L, -1)};
+      }
+
+      lua_pop(L, 3);
     }
 
-    lua_pop(L, 3);
-  }
-  lua_pop(L, 1);
-
-  lua_getfield(L, -1, "sounds");
-  const auto sounds = static_cast<int>(lua_objlen(L, -1));
-  _sounds.reserve(static_cast<std::size_t>(sounds));
-
-  for (auto i = 1; i <= sounds; ++i) {
-    lua_rawgeti(L, -1, i);
-
-    lua_getfield(L, -1, "name");
-    std::size_t length;
-    const auto* data = luaL_checklstring(L, -1, &length);
-    const std::string_view label{data, length};
-
-    const auto key = std::format("sounds/{}", label);
-    const auto* asset = depot->get<pcm>(key);
-    auto instance = std::make_unique<sound>(*asset);
-    auto **memory = static_cast<class sound **>(lua_newuserdata(L, sizeof(class sound *)));
-    *memory = instance.get();
-    luaL_getmetatable(L, "Sound");
-    lua_setmetatable(L, -2);
-
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
-    lua_pushvalue(L, -3);
-    lua_pushvalue(L, -3);
-    lua_rawset(L, -3);
     lua_pop(L, 1);
+  }
+
+  {
+    lua_getfield(L, -1, "sounds");
+    const auto length = static_cast<int>(lua_objlen(L, -1));
+
+    _sounds.reserve(static_cast<std::size_t>(length));
+
+    for (auto i = 1; i <= length; ++i) {
+      lua_rawgeti(L, -1, i);
+
+      lua_getfield(L, -1, "name");
+      std::size_t length;
+      const auto* data = luaL_checklstring(L, -1, &length);
+      const std::string_view label{data, length};
+
+      const auto key = std::format("sounds/{}", label);
+      const auto* asset = depot->get<pcm>(key);
+      auto instance = std::make_unique<sound>(*asset);
+      auto **memory = static_cast<class sound **>(lua_newuserdata(L, sizeof(class sound *)));
+      *memory = instance.get();
+      luaL_getmetatable(L, "Sound");
+      lua_setmetatable(L, -2);
+
+      lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
+      lua_pushvalue(L, -3);
+      lua_pushvalue(L, -3);
+      lua_rawset(L, -3);
+      lua_pop(L, 1);
+
+      lua_pop(L, 1);
+
+      lua_pop(L, 2);
+
+      _sounds.emplace_back(std::move(instance));
+    }
 
     lua_pop(L, 1);
-
-    lua_pop(L, 2);
-
-    _sounds.emplace_back(std::move(instance));
   }
-  lua_pop(L, 1);
 
   _table = luaL_ref(L, LUA_REGISTRYINDEX);
 
