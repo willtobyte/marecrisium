@@ -72,10 +72,10 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       frame.v1 = (y + frame.height) * ih;
 
       lua_rawgeti(state, -1, 6);
-      frame.collider.offset_x = static_cast<float>(lua_tonumber(state, -1));
+      frame.collider.offset.x = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
       lua_rawgeti(state, -1, 7);
-      frame.collider.offset_y = static_cast<float>(lua_tonumber(state, -1));
+      frame.collider.offset.y = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
       lua_rawgeti(state, -1, 8);
       frame.collider.width = static_cast<float>(lua_tonumber(state, -1));

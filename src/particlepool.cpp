@@ -40,8 +40,8 @@ config* particlepool::get(std::string_view kind) {
 
   lua_getfield(L, -1, "spawn");
   if (lua_istable(L, -1)) {
-    instance->spawn_x = read_range(L, "x");
-    instance->spawn_y = read_range(L, "y");
+    instance->spawn.x = read_range(L, "x");
+    instance->spawn.y = read_range(L, "y");
     instance->radius = read_range(L, "radius");
     instance->angle = read_range(L, "angle");
     instance->scale = read_range(L, "scale");
@@ -52,24 +52,24 @@ config* particlepool::get(std::string_view kind) {
 
   lua_getfield(L, -1, "velocity");
   if (lua_istable(L, -1)) {
-    instance->velocity_x = read_range(L, "x");
-    instance->velocity_y = read_range(L, "y");
+    instance->velocity.x = read_range(L, "x");
+    instance->velocity.y = read_range(L, "y");
   }
 
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "gravity");
   if (lua_istable(L, -1)) {
-    instance->gravity_x = read_range(L, "x");
-    instance->gravity_y = read_range(L, "y");
+    instance->gravity.x = read_range(L, "x");
+    instance->gravity.y = read_range(L, "y");
   }
 
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "rotation");
   if (lua_istable(L, -1)) {
-    instance->rotation_force = read_range(L, "force");
-    instance->rotation_velocity = read_range(L, "velocity");
+    instance->rotation.force = read_range(L, "force");
+    instance->rotation.velocity = read_range(L, "velocity");
   }
 
   lua_pop(L, 1);

@@ -89,25 +89,24 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
     , _texture(&texture)
     , _x(x)
     , _y(y)
-    , _half_width(static_cast<float>(texture.width()) * .5f)
-    , _half_height(static_cast<float>(texture.height()) * .5f)
+    , _half{static_cast<float>(texture.width()) * .5f, static_cast<float>(texture.height()) * .5f}
     , _active(active)
     , _idle(!active)
     , _values(std::make_unique_for_overwrite<float[]>(config.count * std::to_underlying(slot::total)))
     , _vertices(std::make_unique_for_overwrite<SDL_Vertex[]>(config.count * 4))
     , _indices(std::make_unique_for_overwrite<int[]>(config.count * 6))
-    , _spawn_x_range(std::minmax(config.spawn_x.first, config.spawn_x.second))
-    , _spawn_y_range(std::minmax(config.spawn_y.first, config.spawn_y.second))
+    , _spawn_x_range(std::minmax(config.spawn.x.first, config.spawn.x.second))
+    , _spawn_y_range(std::minmax(config.spawn.y.first, config.spawn.y.second))
     , _radius_range(std::minmax(config.radius.first, config.radius.second))
     , _angle_range(std::minmax(config.angle.first, config.angle.second))
-    , _velocity_x_range(std::minmax(config.velocity_x.first, config.velocity_x.second))
-    , _velocity_y_range(std::minmax(config.velocity_y.first, config.velocity_y.second))
-    , _gravity_x_range(std::minmax(config.gravity_x.first, config.gravity_x.second))
-    , _gravity_y_range(std::minmax(config.gravity_y.first, config.gravity_y.second))
+    , _velocity_x_range(std::minmax(config.velocity.x.first, config.velocity.x.second))
+    , _velocity_y_range(std::minmax(config.velocity.y.first, config.velocity.y.second))
+    , _gravity_x_range(std::minmax(config.gravity.x.first, config.gravity.x.second))
+    , _gravity_y_range(std::minmax(config.gravity.y.first, config.gravity.y.second))
     , _scale_range(std::minmax(config.scale.first, config.scale.second))
     , _life_range(std::minmax(config.life.first, config.life.second))
-    , _rotation_force_range(std::minmax(config.rotation_force.first, config.rotation_force.second))
-    , _rotation_velocity_range(std::minmax(config.rotation_velocity.first, config.rotation_velocity.second)) {
+    , _rotation_force_range(std::minmax(config.rotation.force.first, config.rotation.force.second))
+    , _rotation_velocity_range(std::minmax(config.rotation.velocity.first, config.rotation.velocity.second)) {
   assert(config.count > 0 && "particle count must be positive");
   [[assume(config.count > 0)]];
   assert(config.count % 4uz == 0 && "particle count must be a multiple of four");
@@ -244,8 +243,8 @@ void particle::draw() {
   [[assume(count > 0)]];
   assert(count % 4uz == 0 && "particle count must be a multiple of four");
   [[assume(count % 4uz == 0)]];
-  const auto hw = _half_width;
-  const auto hh = _half_height;
+  const auto hw = _half.width;
+  const auto hh = _half.height;
   auto* vertices = _vertices.get();
   auto* indices = _indices.get();
 

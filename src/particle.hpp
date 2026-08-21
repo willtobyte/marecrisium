@@ -4,12 +4,20 @@ class pixmap;
 
 struct config final {
   size_t count{};
-  std::pair<float, float> spawn_x{}, spawn_y{};
+  struct {
+    std::pair<float, float> x{}, y{};
+  } spawn;
   std::pair<float, float> radius{}, angle{};
   std::pair<float, float> scale{1.f, 1.f}, life{1.f, 1.f};
-  std::pair<float, float> velocity_x{}, velocity_y{};
-  std::pair<float, float> gravity_x{}, gravity_y{};
-  std::pair<float, float> rotation_force{}, rotation_velocity{};
+  struct {
+    std::pair<float, float> x{}, y{};
+  } velocity;
+  struct {
+    std::pair<float, float> x{}, y{};
+  } gravity;
+  struct {
+    std::pair<float, float> force{}, velocity{};
+  } rotation;
 };
 
 class particle final {
@@ -35,8 +43,10 @@ private:
 
   float _x;
   float _y;
-  float _half_width;
-  float _half_height;
+  struct {
+    float width;
+    float height;
+  } _half;
   bool _active;
   bool _idle;
 

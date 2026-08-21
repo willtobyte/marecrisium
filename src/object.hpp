@@ -10,8 +10,10 @@ struct frame final {
   float width{};
   float height{};
   struct {
-    float offset_x{};
-    float offset_y{};
+    struct {
+      float x{};
+      float y{};
+    } offset;
     float width{};
     float height{};
   } collider;
