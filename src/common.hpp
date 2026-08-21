@@ -66,9 +66,9 @@ extern SDL_Renderer* renderer;
 extern ma_engine audio;
 
 // luaL_ref allocates positive slots; -1 and -2 are its sentinels.
-inline constexpr int slot{-3};
+extern const int slot;
 
-inline const std::uint64_t boot{SDL_GetPerformanceCounter()};
+extern const std::uint64_t boot;
 
 struct depot;
 extern struct depot *depot;
