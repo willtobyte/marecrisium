@@ -5,9 +5,6 @@ public:
   explicit overlay(std::string_view name);
   ~overlay();
 
-  overlay(const overlay&) = delete;
-  overlay& operator=(const overlay&) = delete;
-
   void update(float delta);
 
   void draw();

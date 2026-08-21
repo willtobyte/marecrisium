@@ -14,14 +14,14 @@ public:
   void on_leave();
 
 private:
-  static constexpr auto none = std::numeric_limits<uint32_t>::max();
-
-  std::unique_ptr<pixmap> _background{};
-  overlay _overlay;
   std::vector<object> _objects{};
   std::vector<uint32_t> _order{};
   std::vector<uint32_t> _loops{};
   std::vector<std::unique_ptr<sound>> _sounds{};
+
+  overlay _overlay;
+
+  std::unique_ptr<pixmap> _background{};
 
   friend class director;
 

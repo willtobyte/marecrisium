@@ -26,14 +26,10 @@ scene::scene(std::string_view name)
   {
     lua_getfield(L, -1, "objects");
     const auto length = static_cast<int>(lua_objlen(L, -1));
-    const auto capacity = static_cast<std::size_t>(length);
-    const auto available = capacity < none;
-    assert(available && "scene object capacity must fit in a 32-bit index");
-    [[assume(available)]];
 
-    _objects.reserve(capacity);
-    _order.reserve(capacity);
-    _loops.reserve(capacity);
+    _objects.reserve(length);
+    _order.reserve(length);
+    _loops.reserve(length);
 
     for (auto i = 1; i <= length; ++i) {
       lua_rawgeti(L, -1, i);
@@ -103,7 +99,7 @@ scene::scene(std::string_view name)
     lua_getfield(L, -1, "sounds");
     const auto length = static_cast<int>(lua_objlen(L, -1));
 
-    _sounds.reserve(static_cast<std::size_t>(length));
+    _sounds.reserve(length);
 
     for (auto i = 1; i <= length; ++i) {
       lua_rawgeti(L, -1, i);

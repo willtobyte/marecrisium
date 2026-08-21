@@ -10,9 +10,9 @@ overlay::overlay(std::string_view name) {
     throw std::runtime_error{lua_tostring(L, -1)};
 
   lua_getfield(L, top, "fonts");
-  const auto fonts = static_cast<int>(lua_objlen(L, -1));
+  const auto length = static_cast<int>(lua_objlen(L, -1));
 
-  for (auto i = 1; i <= fonts; ++i) {
+  for (auto i = 1; i <= length; ++i) {
     lua_rawgeti(L, -1, i);
     std::size_t length;
     const auto *family = luaL_checklstring(L, -1, &length);
@@ -25,6 +25,7 @@ overlay::overlay(std::string_view name) {
     lua_settable(L, top);
     lua_pop(L, 2);
   }
+
   lua_pop(L, 1);
 
   _table = luaL_ref(L, LUA_REGISTRYINDEX);
