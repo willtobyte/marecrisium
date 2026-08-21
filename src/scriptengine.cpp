@@ -25,6 +25,8 @@ static int loader(lua_State *state) {
 }
 
 void scriptengine::run() {
+  lua_gc(L, LUA_GCSTOP, 0);
+
   lua_pushlightuserdata(L, reinterpret_cast<void *>(protect));
   luaJIT_setmode(L, -1, LUAJIT_MODE_WRAPCFUNC | LUAJIT_MODE_ON);
   lua_pop(L, 1);
@@ -55,8 +57,6 @@ void scriptengine::run() {
   user::wire();
 
   assert(lua_gettop(L) == 0 && "Lua stack must be empty after wiring");
-
-  lua_gc(L, LUA_GCSTOP, 0);
 
   engine e;
   e.run();
