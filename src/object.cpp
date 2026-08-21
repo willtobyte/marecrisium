@@ -1,22 +1,6 @@
 namespace {
 std::unordered_map<std::string, std::unique_ptr<prototype>, transparent_string_hash, std::equal_to<>> prototypes;
 
-static void attach(object& object, bool& dirty) {
-  auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));
-  luaL_getmetatable(L, "Object");
-  lua_setmetatable(L, -2);
-  lua_newtable(L);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.blueprint->table);
-  lua_setmetatable(L, -2);
-  lua_setfenv(L, -2);
-
-  object.script.instance = luaL_ref(L, LUA_REGISTRYINDEX);
-  *memory = proxy{
-    .object = &object,
-    .dirty = &dirty,
-  };
-}
-
 static int index(lua_State* state) {
   const auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
   std::size_t length;
@@ -180,7 +164,21 @@ void objects::bind(object& object, bool& dirty, std::string_view name, std::stri
 
   if (const auto it = prototypes.find(kind); it != prototypes.end()) [[likely]] {
     object.script.blueprint = it->second.get();
-    return attach(object, dirty);
+    auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));
+    luaL_getmetatable(L, "Object");
+    lua_setmetatable(L, -2);
+    lua_newtable(L);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.blueprint->table);
+    lua_setmetatable(L, -2);
+    lua_setfenv(L, -2);
+
+    object.script.instance = luaL_ref(L, LUA_REGISTRYINDEX);
+    *memory = proxy{
+      .object = &object,
+      .dirty = &dirty,
+    };
+
+    return;
   }
 
   const auto chunk = std::format("@objects/{}.lua", kind);
@@ -216,7 +214,19 @@ void objects::bind(object& object, bool& dirty, std::string_view name, std::stri
 
   object.script.blueprint = blueprint.get();
   prototypes.emplace(kind, std::move(blueprint));
-  attach(object, dirty);
+  auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));
+  luaL_getmetatable(L, "Object");
+  lua_setmetatable(L, -2);
+  lua_newtable(L);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.blueprint->table);
+  lua_setmetatable(L, -2);
+  lua_setfenv(L, -2);
+
+  object.script.instance = luaL_ref(L, LUA_REGISTRYINDEX);
+  *memory = proxy{
+    .object = &object,
+    .dirty = &dirty,
+  };
 }
 
 void objects::wire() {
