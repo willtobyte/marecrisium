@@ -179,6 +179,17 @@ scene::~scene() {
   luaL_unref(L, LUA_REGISTRYINDEX, _table);
 }
 
+void scene::on_enter() {
+  _overlay.appear();
+
+  if (_on_enter != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_enter);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
+    if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+      throw std::runtime_error{lua_tostring(L, -1)};
+  }
+}
+
 void scene::update(float delta) {
   if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
@@ -263,17 +274,6 @@ void scene::draw() {
   }
 
   _overlay.draw();
-}
-
-void scene::on_enter() {
-  _overlay.appear();
-
-  if (_on_enter != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _on_enter);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
-    if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
-      throw std::runtime_error{lua_tostring(L, -1)};
-  }
 }
 
 void scene::on_leave() {
