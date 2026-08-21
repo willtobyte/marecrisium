@@ -73,7 +73,8 @@ void director::destroy(std::string_view name) {
 
 void director::update(float delta) {
   if (_pending) [[unlikely]] {
-    _current->on_leave();
+    if (_current) [[unlikely]]
+      _current->on_leave();
 
     const auto it = _scenes.find(*_pending);
     const auto found = it != _scenes.end();

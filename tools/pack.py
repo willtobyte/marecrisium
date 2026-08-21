@@ -244,8 +244,8 @@ def main() -> int:
     display(sources)
     elapsed = (time.perf_counter() - start) * 1000
     print(
-        f"cartridge.rom ({count} entries, {human_size(len(blob))})"
-        f" in {human_time(elapsed)}"
+        f"cartridge.rom ({count} entries, {human_size(len(blob))}"
+        f" in {human_time(elapsed)})"
     )
     return 0
 
