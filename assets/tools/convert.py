@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --script
 # /// script
-# requires-python = ">=3.13"
+# requires-python = ">=3.14"
 # dependencies = ["jinja2", "pyoxipng"]
 # ///
 """Convert TexturePacker JSON output into a Lua object."""
