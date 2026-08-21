@@ -5,11 +5,11 @@ public:
   explicit scene(std::string_view name);
   ~scene();
 
+  void on_enter();
+
   void update(float delta);
 
   void draw();
-
-  void on_enter();
 
   void on_leave();
 
