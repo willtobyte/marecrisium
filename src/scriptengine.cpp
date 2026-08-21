@@ -12,7 +12,7 @@ int protect(lua_State* state, lua_CFunction function) {
 }
 }
 
-static int loader_callback(lua_State *state) {
+static int loader(lua_State *state) {
   std::size_t length;
   const auto* data = luaL_checklstring(state, 1, &length);
   const auto chunk = std::format("@scripts/{}.lua", std::string_view{data, length});
@@ -33,7 +33,7 @@ void scriptengine::run() {
   lua_getfield(L, -1, "loaders");
 
   const auto length = static_cast<int>(lua_objlen(L, -1));
-  lua_pushcfunction(L, loader_callback);
+  lua_pushcfunction(L, loader);
   lua_rawseti(L, -2, length + 1);
 
   lua_pop(L, 2);
