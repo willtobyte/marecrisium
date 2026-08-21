@@ -11,6 +11,7 @@ static std::pair<float, float> read_range(lua_State* state, const char* field) {
     maximum = static_cast<float>(lua_tonumber(state, -1));
     lua_pop(state, 2);
   }
+
   lua_pop(state, 1);
 
   return {minimum, maximum};
@@ -46,6 +47,7 @@ config* particlepool::get(std::string_view kind) {
     instance->scale = read_range(L, "scale");
     instance->life = read_range(L, "life");
   }
+
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "velocity");
@@ -53,6 +55,7 @@ config* particlepool::get(std::string_view kind) {
     instance->velocity_x = read_range(L, "x");
     instance->velocity_y = read_range(L, "y");
   }
+
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "gravity");
@@ -60,6 +63,7 @@ config* particlepool::get(std::string_view kind) {
     instance->gravity_x = read_range(L, "x");
     instance->gravity_y = read_range(L, "y");
   }
+
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "rotation");
@@ -67,6 +71,7 @@ config* particlepool::get(std::string_view kind) {
     instance->rotation_force = read_range(L, "force");
     instance->rotation_velocity = read_range(L, "velocity");
   }
+
   lua_pop(L, 1);
   lua_pop(L, 1);
 

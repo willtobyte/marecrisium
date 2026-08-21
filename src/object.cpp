@@ -86,6 +86,7 @@ static int index(lua_State* state) {
     lua_remove(state, -2);
     return 1;
   }
+
   lua_pop(state, 1);
 
   constexpr auto prefix = 3uz;

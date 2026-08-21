@@ -20,6 +20,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     const auto* data = lua_tolstring(state, -1, &length);
     primary = {data, length};
   }
+
   lua_pop(state, 1);
 
   uint8_t initial = 0;

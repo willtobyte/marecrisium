@@ -70,6 +70,7 @@ void overlay::appear() {
     lua_settable(L, top + 2);
     lua_pop(L, 1);
   }
+
   lua_pop(L, 3);
 
   if (_on_appear != LUA_NOREF) {
