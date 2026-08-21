@@ -13,11 +13,11 @@ class Game(ConanFile):
         for package in [
             "miniaudio/0.11.22",
             "mimalloc/3.3.2",
-            "sdl/3.4.8",
+            "sdl/3.4.14",
             "simde/0.8.4-rc3",
             "stb/cci.20240531",
             "sqlite3/3.53.4",
-            "luajit/2.1-20260803",
+            "luajit/2.1-20260819",
             "yyjson/0.12.0",
             "zstd/1.5.7",
         ]:

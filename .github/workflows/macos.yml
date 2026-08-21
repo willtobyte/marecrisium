@@ -29,7 +29,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           cache-dependency-glob: tools/pack.py
 
@@ -59,7 +59,7 @@ jobs:
 
       - name: Export local recipes
         run: |
-          uv tool run conan export recipes/luajit --version=2.1-20260803
+          uv tool run conan export recipes/luajit --version=2.1-20260819
 
       - name: Install dependencies
         run: uv tool run conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release

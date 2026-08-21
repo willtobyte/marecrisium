@@ -1,16 +1,15 @@
 # pyright: reportAttributeAccessIssue=false, reportMissingImports=false
 
 import os
-from typing import cast
+from typing import ClassVar, cast
 
 from conan import ConanFile
-from conan.tools.scm import Version
-from conan.tools.files import get, chdir, replace_in_file, copy, rmdir
-from conan.tools.microsoft import is_msvc, VCVars, unix_path
-from conan.tools.layout import basic_layout
-from conan.tools.gnu import Autotools, AutotoolsToolchain
 from conan.tools.apple import is_apple_os
-
+from conan.tools.files import chdir, copy, get, replace_in_file, rmdir
+from conan.tools.gnu import Autotools, AutotoolsToolchain
+from conan.tools.layout import basic_layout
+from conan.tools.microsoft import VCVars, is_msvc, unix_path
+from conan.tools.scm import Version
 
 required_conan_version = ">=2.0"
 
@@ -29,8 +28,8 @@ class LuajitConan(ConanFile):
     provides = "lua"
     package_type = "static-library"
     settings = "os", "arch", "compiler", "build_type"
-    options = {"fPIC": [True, False]}
-    default_options = {"fPIC": True}
+    options: ClassVar = {"fPIC": [True, False]}
+    default_options: ClassVar = {"fPIC": True}
 
     def config_options(self):
         if self.settings.os == "Windows":
