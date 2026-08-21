@@ -77,7 +77,6 @@ engine::engine() {
     .0f
   };
 
-  SDL_Delay(10000);
   lua_newtable(L);
   lua_pushnumber(L, static_cast<lua_Number>(viewport.width));
   lua_setfield(L, -2, "width");
