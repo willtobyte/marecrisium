@@ -46,21 +46,22 @@ engine::engine() {
   SDL_SetRenderLogicalPresentation(renderer, width, height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
   SDL_SetRenderScale(renderer, scale, scale);
 
-  // lua_getfield(L, -1, "splash");
-  // const auto filename = std::format("blobs/splashes/{}.png", lua_tostring(L, -1));
-  // lua_pop(L, 1);
+  lua_getfield(L, -1, "splash");
+  size_t length;
+  const auto filename = std::format("blobs/splashes/{}.png", std::string_view{lua_tolstring(L, -1, &length), length});
+  lua_pop(L, 1);
 
-  // const pixmap splash{filename};
+  const pixmap splash{filename};
 
-  // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-  // SDL_RenderClear(renderer);
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+  SDL_RenderClear(renderer);
 
-  // splash.draw(
-  //   0, 0,
-  //   static_cast<float>(splash.width()), static_cast<float>(splash.height()),
-  //   0, 0,
-  //   static_cast<float>(width) / scale, static_cast<float>(height) / scale
-  // );
+  splash.draw(
+    0, 0,
+    static_cast<float>(splash.width()), static_cast<float>(splash.height()),
+    0, 0,
+    static_cast<float>(width) / scale, static_cast<float>(height) / scale
+  );
 
   SDL_RenderPresent(renderer);
   SDL_PumpEvents();
@@ -76,6 +77,7 @@ engine::engine() {
     .0f
   };
 
+  SDL_Delay(10000);
   lua_newtable(L);
   lua_pushnumber(L, static_cast<lua_Number>(viewport.width));
   lua_setfield(L, -2, "width");

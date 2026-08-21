@@ -6,6 +6,7 @@ return {
 	height = 1080,
 	scale = 4.0,
 	fullscreen = getenv("WINDOWED") ~= "1",
+	splash = "default",
 	on_begin = function()
 		director.enroll("empty")
 		director.navigate("empty")
