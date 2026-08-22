@@ -1,12 +1,12 @@
-lua_State *L = nullptr;
+lua_State *L{nullptr};
 
-SDL_Renderer *renderer = nullptr;
+SDL_Renderer *renderer{nullptr};
 
 ma_engine audio{};
 
 struct viewport viewport{};
 
-struct depot *depot = nullptr;
+struct depot *depot{nullptr};
 
 const int slot{-3};
 
