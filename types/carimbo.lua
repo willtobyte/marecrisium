@@ -236,7 +236,7 @@ director = nil
 ---@class Font
 local Font = {}
 
----Draw up to 256 non-newline bytes. Effects use 1-based byte indices;
+---Draw up to 256 non-newline bytes. Effects do not change glyph layout and use 1-based byte indices;
 ---newlines do not consume an index.
 ---@param text string
 ---@param x number

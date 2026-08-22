@@ -250,7 +250,7 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
       out[3] = SDL_Vertex{rotate(gx, gy + sh, midx, midy, cosine, sine), color, {glyph.u0, glyph.v1}};
     }
 
-    cx += sw + static_cast<float>(_spacing);
+    cx += glyph.width + static_cast<float>(_spacing);
     ++count;
   }
 
