@@ -33,7 +33,7 @@ static constexpr auto threshold = .1f;
 
 static float deadzone(Sint16 value) {
   constexpr auto range = -static_cast<float>(std::numeric_limits<Sint16>::min());
-  const auto normalized = static_cast<float>(value) / range;
+  const auto normalized = static_cast<float>(value) / (value < 0 ? range : range - 1.f);
   const auto magnitude = std::abs(normalized);
   if (magnitude < threshold) [[likely]]
     return .0f;
