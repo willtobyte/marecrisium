@@ -57,7 +57,7 @@ scene::scene(std::string_view name)
       _order.emplace_back(id);
 
       auto& object = _objects.emplace_back();
-      object.sprite.z = static_cast<int>(id);
+      object.sprite.z = i;
       object.sprite.x = ox;
       object.sprite.y = oy;
 
@@ -248,7 +248,7 @@ void scene::draw() {
 
   for (const auto id : _order) {
     const auto& object = _objects[id];
-    if (!object.sprite.shown || object.sprite.alpha < 1.f) [[unlikely]]
+    if (!object.sprite.shown) [[unlikely]]
       continue;
 
     const auto& clip = object.sprite.sheet->clips[object.motion.active];
