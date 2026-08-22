@@ -248,7 +248,7 @@ void scene::draw() {
 
   for (const auto id : _order) {
     const auto& object = _objects[id];
-    if (!object.sprite.shown) [[unlikely]]
+    if (!object.sprite.shown || object.sprite.alpha < 1.f) [[unlikely]]
       continue;
 
     const auto& clip = object.sprite.sheet->clips[object.motion.active];
