@@ -2,18 +2,6 @@ name: macOS
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "*"
-    paths:
-      - "src/**"
-      - "tools/**"
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "src/**"
-      - "tools/**"
 
 jobs:
   build:
