@@ -1,6 +1,7 @@
 {%- block header %}{% endblock %}
 return {
 	animation = {
+{%- block animation %}{% endblock %}
 {%- for clip in clips %}
 		["{{ clip.name }}"] = {
 {%- for frame in clip.frames %}

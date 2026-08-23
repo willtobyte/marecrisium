@@ -13,6 +13,9 @@ import sys
 from pathlib import Path
 from shutil import copy2
 
+if len(sys.argv) == 1:
+    sys.exit("Usage: uv run assets/tools/convert.py <source.json>")
+
 try:
     jinja2 = importlib.import_module("jinja2")
     oxipng = importlib.import_module("oxipng")

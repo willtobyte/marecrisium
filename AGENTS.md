@@ -21,3 +21,4 @@
 - **Validate all newly created code using fuzzing, while always assuming the happy path.**
 - **Always review the order of struct and class members to improve memory layout and cache efficiency.**
 - **Intern LuaJIT strings that are pushed frequently, such as those used in every loop iteration or every mouse move event. One-off strings do not need to be interned.**
+- **Use the object's `patch.lua.j2` for object changes. Do not edit its generated file in `cartridge/objects/` directly.**

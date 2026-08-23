@@ -15,3 +15,9 @@ make run # for debug builds
 # or
 make conan build buildtype=Release && ./build/carimbo # for release
 ```
+
+Generate an object from its TexturePacker JSON file:
+
+```shell
+uv run assets/tools/convert.py assets/objects/<name>/<name>.json
+```
