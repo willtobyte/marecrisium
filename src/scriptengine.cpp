@@ -50,7 +50,7 @@ void scriptengine::run() {
   mouse::wire();
   objects::wire();
   particle::wire();
-  platform::wire();
+  // platform::wire();
   runtime::wire();
   sound::wire();
   timer::wire();
