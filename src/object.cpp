@@ -88,6 +88,7 @@ static int index(lua_State* state) {
   lua_pushlstring(state, buffer.data(), prefix + size);
   lua_gettable(state, -2);
   lua_remove(state, -2);
+
   return 1;
 }
 
@@ -154,6 +155,7 @@ static int newindex(lua_State* state) {
   lua_pushvalue(state, 3);
   lua_rawset(state, -3);
   lua_pop(state, 1);
+
   return 0;
 }
 }
