@@ -36,7 +36,7 @@ engine::engine() {
 
   const auto properties = SDL_CreateProperties();
   SDL_SetPointerProperty(properties, SDL_PROP_RENDERER_CREATE_WINDOW_POINTER, window);
-  SDL_SetNumberProperty(properties, SDL_PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER, std::getenv("NOVSYNC") == nullptr);
+  SDL_SetNumberProperty(properties, SDL_PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER, true);
   SDL_SetStringProperty(properties, SDL_PROP_RENDERER_CREATE_NAME_STRING, nullptr);
 
   renderer = SDL_CreateRendererWithProperties(properties);
