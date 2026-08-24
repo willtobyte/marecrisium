@@ -1,11 +1,5 @@
 #pragma once
 
-class timer;
-
-namespace callbacks {
-  void wire(timer& current);
-}
-
 class timer final {
 public:
   using callback = void (*)(std::uint64_t);
@@ -33,6 +27,8 @@ private:
   struct record;
   struct state;
 
+  void wire();
+
   static record* find(state& current, const handle& value) noexcept;
   static void deactivate(state& current, record& node, bool release) noexcept;
 
@@ -40,5 +36,4 @@ private:
   int _table{LUA_NOREF};
 
   friend class scene;
-  friend void callbacks::wire(timer& current);
 };

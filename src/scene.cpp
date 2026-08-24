@@ -12,7 +12,7 @@ scene::scene(std::string_view name)
   const auto timer = luaL_ref(L, LUA_REGISTRYINDEX);
   const prior prior{.pool = pool, .timer = timer};
 
-  callbacks::wire(_timer);
+  _timer.wire();
   lua_rawgeti(L, LUA_REGISTRYINDEX, _timer._table);
   lua_setglobal(L, "timer");
 

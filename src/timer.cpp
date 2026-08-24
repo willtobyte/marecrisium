@@ -220,14 +220,7 @@ void timer::update(float delta) {
       node->release = nullptr;
     }
 
-    try {
-      call(data);
-    } catch (...) {
-      if (!repeat) [[likely]]
-        release(data);
-      current->cursor = nullptr;
-      throw;
-    }
+    call(data);
 
     if (!repeat) [[likely]]
       release(data);
@@ -327,14 +320,7 @@ int schedule(lua_State* state, bool repeat) {
   lua_pushvalue(state, 3);
   const auto callback = luaL_ref(state, LUA_REGISTRYINDEX);
   auto* const memory = new (lua_newuserdata(state, sizeof(handle))) handle{};
-  try {
-    memory->value = current->add(milliseconds, repeat, invoke, release, static_cast<std::uint64_t>(callback));
-  } catch (...) {
-    memory->~handle();
-    lua_pop(state, 1);
-    luaL_unref(state, LUA_REGISTRYINDEX, callback);
-    throw;
-  }
+  memory->value = current->add(milliseconds, repeat, invoke, release, static_cast<std::uint64_t>(callback));
 
   luaL_getmetatable(state, name);
   lua_setmetatable(state, -2);
@@ -354,37 +340,37 @@ int clear(lua_State* state) {
   current->clear();
   return 0;
 }
+}
 
-void wire(timer& current) {
-  if (luaL_newmetatable(L, name)) {
-    lua_pushstring(L, name);
+void timer::wire() {
+  if (luaL_newmetatable(L, callbacks::name)) {
+    lua_pushstring(L, callbacks::name);
     lua_setfield(L, -2, "__name");
 
-    lua_pushcfunction(L, cancel);
-    lua_pushcfunction(L, pause);
-    lua_pushcfunction(L, resume);
-    lua_pushcclosure(L, index, 3);
+    lua_pushcfunction(L, callbacks::cancel);
+    lua_pushcfunction(L, callbacks::pause);
+    lua_pushcfunction(L, callbacks::resume);
+    lua_pushcclosure(L, callbacks::index, 3);
     lua_setfield(L, -2, "__index");
 
-    lua_pushcfunction(L, gc);
+    lua_pushcfunction(L, callbacks::gc);
     lua_setfield(L, -2, "__gc");
   }
   lua_pop(L, 1);
 
   lua_newtable(L);
 
-  lua_pushlightuserdata(L, &current);
-  lua_pushcclosure(L, add, 1);
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, callbacks::add, 1);
   lua_setfield(L, -2, "add");
 
-  lua_pushlightuserdata(L, &current);
-  lua_pushcclosure(L, singleshot, 1);
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, callbacks::singleshot, 1);
   lua_setfield(L, -2, "singleshot");
 
-  lua_pushlightuserdata(L, &current);
-  lua_pushcclosure(L, clear, 1);
+  lua_pushlightuserdata(L, this);
+  lua_pushcclosure(L, callbacks::clear, 1);
   lua_setfield(L, -2, "clear");
 
-  current._table = luaL_ref(L, LUA_REGISTRYINDEX);
-}
+  _table = luaL_ref(L, LUA_REGISTRYINDEX);
 }
