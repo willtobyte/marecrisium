@@ -235,7 +235,7 @@ void timer::update(float delta) {
   current->cursor = nullptr;
 }
 
-namespace callbacks {
+namespace {
 constexpr auto name = "TimerHandle";
 
 struct handle final {
@@ -256,21 +256,21 @@ handle* check(lua_State* state) {
   return static_cast<handle *>(luaL_checkudata(state, 1, name));
 }
 
-int cancel(lua_State* state) {
+int cancel_callback(lua_State* state) {
   auto* const value = check(state);
   timer::cancel(value->value);
   lua_settop(state, 1);
   return 1;
 }
 
-int pause(lua_State* state) {
+int pause_callback(lua_State* state) {
   auto* const value = check(state);
   timer::pause(value->value);
   lua_settop(state, 1);
   return 1;
 }
 
-int resume(lua_State* state) {
+int resume_callback(lua_State* state) {
   auto* const value = check(state);
   timer::resume(value->value);
   lua_settop(state, 1);
@@ -327,15 +327,15 @@ int schedule(lua_State* state, bool repeat) {
   return 1;
 }
 
-int add(lua_State* state) {
+int add_callback(lua_State* state) {
   return schedule(state, true);
 }
 
-int singleshot(lua_State* state) {
+int singleshot_callback(lua_State* state) {
   return schedule(state, false);
 }
 
-int clear(lua_State* state) {
+int clear_callback(lua_State* state) {
   auto* const current = static_cast<timer *>(lua_touserdata(state, lua_upvalueindex(1)));
   current->clear();
   return 0;
@@ -343,17 +343,17 @@ int clear(lua_State* state) {
 }
 
 void timer::wire() {
-  if (luaL_newmetatable(L, callbacks::name)) {
-    lua_pushstring(L, callbacks::name);
+  if (luaL_newmetatable(L, name)) {
+    lua_pushstring(L, name);
     lua_setfield(L, -2, "__name");
 
-    lua_pushcfunction(L, callbacks::cancel);
-    lua_pushcfunction(L, callbacks::pause);
-    lua_pushcfunction(L, callbacks::resume);
-    lua_pushcclosure(L, callbacks::index, 3);
+    lua_pushcfunction(L, cancel_callback);
+    lua_pushcfunction(L, pause_callback);
+    lua_pushcfunction(L, resume_callback);
+    lua_pushcclosure(L, index, 3);
     lua_setfield(L, -2, "__index");
 
-    lua_pushcfunction(L, callbacks::gc);
+    lua_pushcfunction(L, gc);
     lua_setfield(L, -2, "__gc");
   }
   lua_pop(L, 1);
@@ -361,15 +361,15 @@ void timer::wire() {
   lua_newtable(L);
 
   lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, callbacks::add, 1);
+  lua_pushcclosure(L, add_callback, 1);
   lua_setfield(L, -2, "add");
 
   lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, callbacks::singleshot, 1);
+  lua_pushcclosure(L, singleshot_callback, 1);
   lua_setfield(L, -2, "singleshot");
 
   lua_pushlightuserdata(L, this);
-  lua_pushcclosure(L, callbacks::clear, 1);
+  lua_pushcclosure(L, clear_callback, 1);
   lua_setfield(L, -2, "clear");
 
   _table = luaL_ref(L, LUA_REGISTRYINDEX);
