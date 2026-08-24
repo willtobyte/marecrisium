@@ -14,7 +14,6 @@ struct timer::record final {
   callback release{};
   record* previous{};
   record* next{};
-  std::uint64_t serial{};
   std::uint32_t slot{};
   std::uint32_t generation{};
   std::uint8_t status{done};
@@ -24,8 +23,7 @@ struct timer::record final {
 struct timer::state final {
   record* head{};
   record* free{};
-  record** cursor{};
-  std::uint64_t serial{};
+  record* cursor{};
   double now{};
   std::array<record, capacity> fixed{};
   std::deque<record> overflow{};
@@ -59,10 +57,6 @@ timer::timer()
 timer::~timer() noexcept = default;
 
 timer::record* timer::find(state& current, const handle& value) noexcept {
-  auto life = std::static_pointer_cast<timer::state>(value.life.lock());
-  if (!life || life.get() != &current) [[unlikely]]
-    return nullptr;
-
   record* result;
   if (value.slot < capacity)
     result = &current.fixed[value.slot];
@@ -83,8 +77,8 @@ void timer::deactivate(state& current, record& node, bool release) noexcept {
   if (node.status == done) [[unlikely]]
     return;
 
-  if (release && current.cursor && *current.cursor == &node)
-    *current.cursor = node.next;
+  if (release && current.cursor == &node)
+    current.cursor = node.next;
 
   if (node.previous)
     node.previous->next = node.next;
@@ -136,7 +130,6 @@ timer::handle timer::add(double milliseconds, bool repeat, callback call, callba
   node->release = release;
   node->previous = nullptr;
   node->next = current.head;
-  node->serial = ++current.serial;
   node->status = live;
   node->repeat = repeat;
   current.head = node;
@@ -203,18 +196,16 @@ void timer::clear() noexcept {
 void timer::update(float delta) {
   auto current = _state;
   current->now += static_cast<double>(delta) * 1000.0;
-  const auto limit = current->serial;
 
   auto* node = current->head;
-  record* next;
-  current->cursor = &next;
   while (node) {
-    next = node->next;
-    if (node->serial > limit || node->status != live || current->now < node->deadline) {
-      node = next;
+    current->cursor = node->next;
+    if (node->status != live || current->now < node->deadline) {
+      node = current->cursor;
       continue;
     }
 
+    const auto generation = node->generation;
     const auto repeat = node->repeat;
     if (repeat)
       node->deadline += node->period;
@@ -241,11 +232,11 @@ void timer::update(float delta) {
     if (!repeat) [[likely]]
       release(data);
 
-    if (node->status == live && current->now >= node->deadline && node->serial <= limit) {
+    if (node->generation == generation && node->status == live && current->now >= node->deadline) {
       continue;
     }
 
-    node = next;
+    node = current->cursor;
   }
 
   current->cursor = nullptr;
