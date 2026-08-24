@@ -45,12 +45,7 @@ engine::engine() {
   SDL_SetRenderLogicalPresentation(renderer, width, height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
   SDL_SetRenderScale(renderer, scale, scale);
 
-  lua_getfield(L, -1, "splash");
-  size_t length;
-  const auto filename = std::format("blobs/splashes/{}.png", std::string_view{lua_tolstring(L, -1, &length), length});
-  lua_pop(L, 1);
-
-  const pixmap splash{filename};
+  const pixmap splash{"blobs/splashes/default.png"};
 
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_RenderClear(renderer);
