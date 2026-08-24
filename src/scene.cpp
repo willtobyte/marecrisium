@@ -19,7 +19,7 @@ scene::scene(std::string_view name)
   _pool = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_getglobal(L, "pool");
-  const auto previous_pool = luaL_ref(L, LUA_REGISTRYINDEX);
+  const auto prior = luaL_ref(L, LUA_REGISTRYINDEX);
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
   lua_setglobal(L, "pool");
 
@@ -148,9 +148,9 @@ scene::scene(std::string_view name)
 
   lua_pop(L, 1);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, previous_pool);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, prior);
   lua_setglobal(L, "pool");
-  luaL_unref(L, LUA_REGISTRYINDEX, previous_pool);
+  luaL_unref(L, LUA_REGISTRYINDEX, prior);
 }
 
 scene::~scene() {
