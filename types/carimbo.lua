@@ -450,10 +450,6 @@ function Timer:add(milliseconds, callback) end
 ---@return TimerHandle
 function Timer:singleshot(milliseconds, callback) end
 
----Advance timers manually. The engine already calls this once per frame.
----@param delta number Seconds.
-function Timer:update(delta) end
-
 ---Cancel every timer owned by the current scene.
 function Timer:clear() end
 

@@ -32,7 +32,7 @@ private:
   int _on_loop{LUA_NOREF};
   int _on_leave{LUA_NOREF};
 
-  bool _dirty{true};
+  timer _timer{};
 
-  timer::group _timer{};
+  bool _dirty{true};
 };

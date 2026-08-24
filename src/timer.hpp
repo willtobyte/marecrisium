@@ -1,34 +1,44 @@
 #pragma once
 
-namespace timer {
-  class group final {
-  public:
-    group();
-    ~group() noexcept;
+class timer;
 
-    group(const group&) = delete;
-    group& operator=(const group&) = delete;
-
-    void activate() const noexcept;
-
-  private:
-    unsigned _id;
-
-    friend class scope;
-  };
-
-  class scope final {
-  public:
-    explicit scope(const group& owner) noexcept;
-    ~scope() noexcept;
-
-    scope(const scope&) = delete;
-    scope& operator=(const scope&) = delete;
-
-  private:
-    unsigned _prior;
-  };
-
-  void wire();
-  void update(double delta);
+namespace callbacks {
+  void wire(timer& current);
 }
+
+class timer final {
+public:
+  using callback = void (*)(std::uint64_t);
+
+  struct handle final {
+    std::weak_ptr<void> life{};
+    std::uint32_t slot{};
+    std::uint32_t generation{};
+  };
+
+  timer();
+  ~timer() noexcept;
+
+  handle add(double milliseconds, bool repeat, callback call, callback release, std::uint64_t data);
+
+  static void cancel(const handle& value) noexcept;
+  static void pause(const handle& value) noexcept;
+  static void resume(const handle& value) noexcept;
+  static bool active(const handle& value) noexcept;
+
+  void clear() noexcept;
+  void update(float delta);
+
+private:
+  struct record;
+  struct state;
+
+  static record* find(state& current, const handle& value) noexcept;
+  static void deactivate(state& current, record& node, bool release) noexcept;
+
+  std::shared_ptr<state> _state;
+  int _table{LUA_NOREF};
+
+  friend class scene;
+  friend void callbacks::wire(timer& current);
+};

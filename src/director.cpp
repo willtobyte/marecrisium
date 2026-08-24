@@ -83,15 +83,9 @@ void director::update(float delta) {
 
     _pending.reset();
     _current = it->second.get();
-    _current->_timer.activate();
-
-    lua_rawgeti(L, LUA_REGISTRYINDEX, _current->_pool);
-    lua_setglobal(L, "pool");
 
     _current->on_enter();
   }
-
-  timer::update(delta);
 
   _current->update(delta);
 }

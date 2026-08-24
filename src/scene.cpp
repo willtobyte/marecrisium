@@ -1,7 +1,20 @@
 scene::scene(std::string_view name)
     : _background(std::make_unique<pixmap>(std::format("blobs/scenes/{}/background.png", name))),
       _overlay(name) {
-  const timer::scope scope{_timer};
+  struct prior final {
+    int pool;
+    int timer;
+  };
+
+  lua_getglobal(L, "pool");
+  const auto pool = luaL_ref(L, LUA_REGISTRYINDEX);
+  lua_getglobal(L, "timer");
+  const auto timer = luaL_ref(L, LUA_REGISTRYINDEX);
+  const prior prior{.pool = pool, .timer = timer};
+
+  callbacks::wire(_timer);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _timer._table);
+  lua_setglobal(L, "timer");
 
   SDL_SetTextureBlendMode(*_background, SDL_BLENDMODE_NONE);
 
@@ -18,8 +31,6 @@ scene::scene(std::string_view name)
   lua_newtable(L);
   _pool = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_getglobal(L, "pool");
-  const auto prior = luaL_ref(L, LUA_REGISTRYINDEX);
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
   lua_setglobal(L, "pool");
 
@@ -148,9 +159,13 @@ scene::scene(std::string_view name)
 
   lua_pop(L, 1);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, prior);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, prior.pool);
   lua_setglobal(L, "pool");
-  luaL_unref(L, LUA_REGISTRYINDEX, prior);
+  luaL_unref(L, LUA_REGISTRYINDEX, prior.pool);
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, prior.timer);
+  lua_setglobal(L, "timer");
+  luaL_unref(L, LUA_REGISTRYINDEX, prior.timer);
 }
 
 scene::~scene() {
@@ -172,10 +187,17 @@ scene::~scene() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_enter);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   luaL_unref(L, LUA_REGISTRYINDEX, _pool);
+  luaL_unref(L, LUA_REGISTRYINDEX, _timer._table);
   luaL_unref(L, LUA_REGISTRYINDEX, _table);
 }
 
 void scene::on_enter() {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
+  lua_setglobal(L, "pool");
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _timer._table);
+  lua_setglobal(L, "timer");
+
   _overlay.appear();
 
   if (_on_enter != LUA_NOREF) {
@@ -187,6 +209,8 @@ void scene::on_enter() {
 }
 
 void scene::update(float delta) {
+  _timer.update(delta);
+
   if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
@@ -273,12 +297,18 @@ void scene::draw() {
 }
 
 void scene::on_leave() {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _timer._table);
+  lua_setglobal(L, "timer");
+
   auto result = LUA_OK;
   if (_on_leave != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_leave);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     result = lua_pcall(L, 1, 0, 0);
   }
+
+  lua_pushnil(L);
+  lua_setglobal(L, "pool");
 
   for (const auto& sound : _sounds)
     sound->stop();

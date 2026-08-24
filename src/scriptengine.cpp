@@ -52,7 +52,6 @@ void scriptengine::run() {
   particle::wire();
   runtime::wire();
   sound::wire();
-  timer::wire();
   user::wire();
 
   assert(lua_gettop(L) == 0 && "Lua stack must be empty after wiring");
