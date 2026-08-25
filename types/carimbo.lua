@@ -284,8 +284,6 @@ viewport = nil
 ---@field on_loop? fun(self: Object, delta: number) Called every active frame; delta is in seconds.
 ---@field [string] any Custom fields and methods shared by every object of this kind.
 
----Entity handle available as `self` and through `pool`. Calling
----`object:foo(...)` falls back to the prototype's `on_foo(self, ...)`.
 ---Each object stores custom writes independently and reads missing fields from
 ---the shared prototype.
 ---@class Object

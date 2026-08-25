@@ -66,29 +66,7 @@ static int index(lua_State* state) {
   lua_getfenv(state, 1);
   lua_pushvalue(state, 2);
   lua_gettable(state, -2);
-  if (!lua_isnil(state, -1)) [[likely]] {
-    lua_remove(state, -2);
-    return 1;
-  }
-
-  lua_pop(state, 1);
-
-  constexpr auto prefix = 3uz;
-  constexpr auto limit = 60uz;
-  assert(length <= limit && "key is too long and would be truncated to 60 characters.");
-
-  std::array<char, prefix + limit + 1uz> buffer;
-  const auto size = std::min(length, limit);
-  buffer[0] = 'o';
-  buffer[1] = 'n';
-  buffer[2] = '_';
-  std::memcpy(buffer.data() + prefix, data, size);
-  buffer[prefix + size] = '\0';
-
-  lua_pushlstring(state, buffer.data(), prefix + size);
-  lua_gettable(state, -2);
   lua_remove(state, -2);
-
   return 1;
 }
 
