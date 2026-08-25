@@ -44,12 +44,14 @@ struct object final {
     float x{};
     float y{};
     float scale{1.f};
+
     struct bounds final {
       float x{};
       float y{};
       float width{};
       float height{};
     } bounds;
+
     float angle{};
     float alpha{255.f};
     int z{};
