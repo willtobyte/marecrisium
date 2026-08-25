@@ -44,11 +44,25 @@ struct object final {
     float x{};
     float y{};
     float scale{1.f};
+    struct bounds final {
+      float x{};
+      float y{};
+      float width{};
+      float height{};
+    } bounds;
     float angle{};
     float alpha{255.f};
     int z{};
     bool shown{true};
     mirror::value mirror{mirror::value::none};
+
+    void resize(const float width, const float height, const float value) {
+      scale = value;
+      bounds.width = width * value;
+      bounds.height = height * value;
+      bounds.x = (width - bounds.width) * .5f;
+      bounds.y = (height - bounds.height) * .5f;
+    }
   } sprite;
 
   struct script final {

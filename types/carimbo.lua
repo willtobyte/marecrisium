@@ -289,7 +289,7 @@ viewport = nil
 ---@class Object
 ---@field x number Transform X (read/write).
 ---@field y number Transform Y (read/write).
----@field scale number Transform scale (read/write).
+---@field scale number Scale from the sprite center (read/write).
 ---@field angle number Rotation in degrees (read/write).
 ---@field alpha number Opacity, clamped to 0-255 (read/write).
 ---@field shown boolean Visibility (read/write).

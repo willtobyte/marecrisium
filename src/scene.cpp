@@ -83,6 +83,9 @@ scene::scene(std::string_view name)
       const auto* sheet = depot->get<spritesheet>(kind, L, -1);
       object.sprite.sheet = sheet;
       object.motion.active = sheet->initial;
+      const auto& clip = sheet->clips[object.motion.active];
+      const auto& frame = sheet->frames[clip.offset];
+      object.sprite.resize(frame.width, frame.height, object.sprite.scale);
 
       lua_pop(L, 2);
 
@@ -278,16 +281,17 @@ void scene::draw() {
     const auto& clip = object.sprite.sheet->clips[object.motion.active];
     const auto& frame = object.sprite.sheet->frames[clip.offset + object.motion.current];
     const auto* sheet = object.sprite.sheet->pixmap;
+    const auto& bounds = object.sprite.bounds;
 
     sheet->draw(
       frame.u0 * static_cast<float>(sheet->width()),
       frame.v0 * static_cast<float>(sheet->height()),
       frame.width,
       frame.height,
-      std::floor(object.sprite.x - viewport.x),
-      std::floor(object.sprite.y - viewport.y),
-      frame.width * object.sprite.scale,
-      frame.height * object.sprite.scale,
+      std::floor(object.sprite.x - viewport.x) + bounds.x,
+      std::floor(object.sprite.y - viewport.y) + bounds.y,
+      bounds.width,
+      bounds.height,
       object.sprite.angle,
       static_cast<uint8_t>(std::clamp(object.sprite.alpha, .0f, 255.f)),
       object.sprite.mirror);

@@ -109,7 +109,9 @@ static int newindex(lua_State* state) {
   }
 
   if (key == "scale") {
-    object.sprite.scale = static_cast<float>(luaL_checknumber(state, 3));
+    const auto& clip = object.sprite.sheet->clips[object.motion.active];
+    const auto& frame = object.sprite.sheet->frames[clip.offset + object.motion.current];
+    object.sprite.resize(frame.width, frame.height, static_cast<float>(luaL_checknumber(state, 3)));
     return 0;
   }
 
