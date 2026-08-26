@@ -34,9 +34,11 @@ engine::engine() {
 
   lua_pop(L, 1);
 
+  const auto vsync = std::getenv("NOVSYNC") == nullptr;
+
   const auto properties = SDL_CreateProperties();
   SDL_SetPointerProperty(properties, SDL_PROP_RENDERER_CREATE_WINDOW_POINTER, window);
-  SDL_SetNumberProperty(properties, SDL_PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER, true);
+  SDL_SetNumberProperty(properties, SDL_PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER, vsync);
   SDL_SetStringProperty(properties, SDL_PROP_RENDERER_CREATE_NAME_STRING, nullptr);
 
   renderer = SDL_CreateRendererWithProperties(properties);
