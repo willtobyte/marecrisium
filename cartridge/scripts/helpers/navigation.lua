@@ -22,13 +22,13 @@ function navigator:update()
 	local dx = 0
 	local dy = 0
 
-	if self.left and not left then
+	if left and not self.left then
 		dx = -1
-	elseif self.right and not right then
+	elseif right and not self.right then
 		dx = 1
-	elseif self.up and not up then
+	elseif up and not self.up then
 		dy = -1
-	elseif self.down and not down then
+	elseif down and not self.down then
 		dy = 1
 	end
 
@@ -42,13 +42,7 @@ function navigator:update()
 	end
 
 	local objects = self.objects
-	local current = self.current
-	if not current then
-		current = objects[1]
-		self.current = current
-		current:select()
-		return
-	end
+	local current = self.current or objects[1]
 
 	local x = current.x
 	local y = current.y
@@ -70,10 +64,17 @@ function navigator:update()
 	end
 
 	if not winner then
-		return
+		if self.current then
+			return
+		end
+
+		winner = current
 	end
 
-	current:unselect()
+	if self.current then
+		current:unselect()
+	end
+
 	self.current = winner
 	winner:select()
 end
