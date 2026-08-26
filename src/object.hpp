@@ -94,13 +94,12 @@ static_assert(std::is_trivially_copyable_v<dirty>, "dirty must be trivially copy
 
 struct proxy final {
   object* object{};
-  bool* order{};
-  bool* mouse{};
+  dirty* dirty{};
 };
 
 static_assert(std::is_trivially_copyable_v<proxy>, "proxy must be trivially copyable");
 
 namespace objects {
   void wire();
-  void bind(object& object, bool& order, bool& mouse, std::string_view name, std::string_view kind);
+  void bind(object& object, dirty& dirty, std::string_view name, std::string_view kind);
 }

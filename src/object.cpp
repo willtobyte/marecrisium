@@ -84,13 +84,13 @@ static int newindex(lua_State* state) {
 
   if (key == "x") {
     object.sprite.x = static_cast<float>(luaL_checknumber(state, 3));
-    *self->mouse = true;
+    self->dirty->mouse = true;
     return 0;
   }
 
   if (key == "y") {
     object.sprite.y = static_cast<float>(luaL_checknumber(state, 3));
-    *self->mouse = true;
+    self->dirty->mouse = true;
     return 0;
   }
 
@@ -98,8 +98,8 @@ static int newindex(lua_State* state) {
     const auto value = static_cast<int>(luaL_checkinteger(state, 3));
     if (object.sprite.z != value) {
       object.sprite.z = value;
-      *self->order = true;
-      *self->mouse = true;
+      self->dirty->order = true;
+      self->dirty->mouse = true;
     }
 
     return 0;
@@ -125,13 +125,13 @@ static int newindex(lua_State* state) {
 
   if (key == "alpha") {
     object.sprite.alpha = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 255.f);
-    *self->mouse = true;
+    self->dirty->mouse = true;
     return 0;
   }
 
   if (key == "shown") {
     object.sprite.shown = lua_toboolean(state, 3) != 0;
-    *self->mouse = true;
+    self->dirty->mouse = true;
     return 0;
   }
 
@@ -145,7 +145,7 @@ static int newindex(lua_State* state) {
 }
 }
 
-void objects::bind(object& object, bool& order, bool& mouse, std::string_view name, std::string_view kind) {
+void objects::bind(object& object, dirty& dirty, std::string_view name, std::string_view kind) {
   lua_pushlstring(L, name.data(), name.size());
   object.script.label = luaL_ref(L, LUA_REGISTRYINDEX);
 
@@ -162,8 +162,7 @@ void objects::bind(object& object, bool& order, bool& mouse, std::string_view na
     object.script.instance = luaL_ref(L, LUA_REGISTRYINDEX);
     *memory = proxy{
       .object = &object,
-      .order = &order,
-      .mouse = &mouse,
+      .dirty = &dirty,
     };
 
     return;
@@ -218,8 +217,7 @@ void objects::bind(object& object, bool& order, bool& mouse, std::string_view na
   object.script.instance = luaL_ref(L, LUA_REGISTRYINDEX);
   *memory = proxy{
     .object = &object,
-    .order = &order,
-    .mouse = &mouse,
+    .dirty = &dirty,
   };
 }
 

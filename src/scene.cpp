@@ -84,7 +84,7 @@ scene::scene(std::string_view name)
       object.sprite.x = ox;
       object.sprite.y = oy;
 
-      objects::bind(object, _dirty.order, _dirty.mouse, label, kind);
+      objects::bind(object, _dirty, label, kind);
       if (object.script.blueprint->on_loop != LUA_NOREF)
         _loops.emplace_back(id);
 
@@ -191,8 +191,7 @@ scene::~scene() {
     assert(valid && "object handle must be an Object userdata");
     [[assume(valid)]];
     instance->object = nullptr;
-    instance->order = nullptr;
-    instance->mouse = nullptr;
+    instance->dirty = nullptr;
     lua_pop(L, 1);
 
     luaL_unref(L, LUA_REGISTRYINDEX, object.script.label);

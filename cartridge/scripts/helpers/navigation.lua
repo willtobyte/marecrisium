@@ -26,17 +26,19 @@ function navigation.unselect(object)
 end
 
 function navigator:select(object)
-	if self.current and self.current ~= object then
+	if self.selected and self.current ~= object then
 		self.current:unselect()
 	end
 
 	self.current = object
+	self.selected = true
 	object:select()
 end
 
 function navigator:unselect(object)
 	if self.current == object then
 		object:unselect()
+		self.selected = false
 	end
 end
 
@@ -107,6 +109,7 @@ function navigator:clear()
 
 	self.objects = nil
 	self.current = nil
+	self.selected = nil
 	active = nil
 end
 
