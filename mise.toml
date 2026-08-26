@@ -1,4 +1,8 @@
+[tool_alias]
+optivorbis = "github:OptiVorbis/OptiVorbis"
+
 [tools]
 cmake = "latest"
 conan = "latest"
+optivorbis = { version = "0.3.2", rename_exe = "optivorbis" }
 pre-commit = "latest"

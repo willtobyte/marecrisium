@@ -51,6 +51,23 @@ repos:
       - id: oxipng
         args: ["--opt", "max", "--strip", "all", "-Z"]
 
+  - repo: local
+    hooks:
+      - id: optivorbis
+        name: optivorbis
+        entry: |-
+          bash -c 'set -euo pipefail
+          for path; do
+            dir=$(mktemp -d "${path}.XXXXXX")
+            trap "rm -rf -- \"$dir\"" EXIT
+            optivorbis --remuxer_option randomize_stream_serials=false "$path" "$dir/file.ogg"
+            mv "$dir/file.ogg" "$path"
+            rm -rf -- "$dir"
+            trap - EXIT
+          done' --
+        language: system
+        files: \.ogg$
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.4
     hooks:
