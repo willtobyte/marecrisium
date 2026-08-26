@@ -53,7 +53,7 @@ build: ## Builds the project
 run: build ## Builds and runs the project
 	uv run assets/objects/generate.py
 	uv run tools/pack.py
-	WINDOWED=1 lldb -o run -- ./build/carimbo
+	WINDOWED=1 ./build/carimbo
 
 help: ## Shows available commands
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
