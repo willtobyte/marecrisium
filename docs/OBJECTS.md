@@ -61,7 +61,6 @@ uv run assets/objects/generate.py
 The command generates all objects that contain a `frames` directory. It writes these files for each object:
 
 ```text
-assets/objects/<name>/<name>.png
 cartridge/blobs/objects/<name>.png
 cartridge/objects/<name>.lua
 ```

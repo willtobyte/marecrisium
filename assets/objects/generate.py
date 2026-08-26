@@ -1,17 +1,15 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.14"
-# dependencies = ["jinja2", "pillow", "pyoxipng", "rectangle-packer"]
+# dependencies = ["jinja2", "pillow", "rectangle-packer"]
 # ///
 
 import importlib
 import re
 from pathlib import Path
-from shutil import copy2
 
 Image = importlib.import_module("PIL.Image")
 jinja2 = importlib.import_module("jinja2")
-oxipng = importlib.import_module("oxipng")
 rpack = importlib.import_module("rpack")
 
 objects = Path(__file__).resolve().parent
@@ -84,16 +82,12 @@ for directory in sorted(path for path in objects.iterdir() if path.is_dir()):
         clips.append({"name": animation, "frames": [frame for _, frame in frames]})
 
     name = directory.name
-    atlas = directory / f"{name}.png"
+    output = root / "cartridge" / "objects" / f"{name}.lua"
+    atlas = root / "cartridge" / "blobs" / "objects" / f"{name}.png"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    atlas.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(atlas, compress_level=0)
     sheet.close()
-    oxipng.optimize(
-        atlas,
-        level=6,
-        filter=[oxipng.RowFilter.Brute],
-        strip=oxipng.StripChunks.all(),
-        interlace=oxipng.Interlacing.Off,
-    )
 
     patch = directory / "patch.lua.j2"
     environment = jinja2.Environment(
@@ -104,9 +98,4 @@ for directory in sorted(path for path in objects.iterdir() if path.is_dir()):
         patch.name if patch.is_file() else "template.lua.j2"
     )
 
-    output = root / "cartridge" / "objects" / f"{name}.lua"
-    destination = root / "cartridge" / "blobs" / "objects" / f"{name}.png"
-    output.parent.mkdir(parents=True, exist_ok=True)
-    destination.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(template.render(clips=clips).lstrip("\n"))
-    copy2(atlas, destination)
