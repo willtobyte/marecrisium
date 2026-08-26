@@ -428,15 +428,25 @@ local function getEasingFunction(easing)
 	return easing
 end
 
-local function performEasingOnSubject(subject, target, initial, clock, duration, easing)
-	local t, b, c, d
-	for k, v in pairs(target) do
-		if type(v) == "table" then
-			performEasingOnSubject(subject[k], v, initial[k], clock, duration, easing)
+local function compile(target, initial, path, paths, starts)
+	for key, value in pairs(target) do
+		local length = #path + 1
+		path[length] = key
+
+		if type(value) == "table" then
+			compile(value, initial[key], path, paths, starts)
 		else
-			t, b, c, d = clock, initial[k], v - initial[k], duration
-			subject[k] = easing(t, b, c, d)
+			local keys = {}
+			for i = 1, length do
+				keys[i] = path[i]
+			end
+
+			local index = #paths + 1
+			paths[index] = keys
+			starts[index] = initial[key]
 		end
+
+		path[length] = nil
 	end
 end
 
@@ -448,7 +458,30 @@ local Tween_mt = { __index = Tween }
 function Tween:set(clock)
 	assert(type(clock) == "number", "clock must be a positive number or 0")
 
-	self.initial = self.initial or copyTables({}, self.target, self.subject)
+	if not self.initial then
+		local initial = copyTables({}, self.target, self.subject)
+		local paths = {}
+		local starts = {}
+
+		compile(self.target, initial, {}, paths, starts)
+
+		self.initial = initial
+		self.paths = paths
+		self.starts = starts
+		self.keys = {}
+		self.flat = true
+
+		for i = 1, #paths do
+			local path = paths[i]
+			if #path ~= 1 then
+				self.flat = false
+				break
+			end
+
+			self.keys[i] = path[1]
+		end
+	end
+
 	self.clock = clock
 
 	if self.clock <= 0 then
@@ -458,7 +491,38 @@ function Tween:set(clock)
 		self.clock = self.duration
 		copyTables(self.subject, self.target)
 	else
-		performEasingOnSubject(self.subject, self.target, self.initial, self.clock, self.duration, self.easing)
+		local starts = self.starts
+		local easing = self.easing
+		local clock = self.clock
+		local duration = self.duration
+		local subjectRoot = self.subject
+		local targetRoot = self.target
+
+		if self.flat then
+			local keys = self.keys
+			for i = 1, #keys do
+				local key = keys[i]
+				local initial = starts[i]
+				subjectRoot[key] = easing(clock, initial, targetRoot[key] - initial, duration)
+			end
+		else
+			local paths = self.paths
+			for i = 1, #paths do
+				local path = paths[i]
+				local last = #path
+				local subject = subjectRoot
+				local target = targetRoot
+				for j = 1, last - 1 do
+					local key = path[j]
+					subject = subject[key]
+					target = target[key]
+				end
+
+				local key = path[last]
+				local initial = starts[i]
+				subject[key] = easing(clock, initial, target[key] - initial, duration)
+			end
+		end
 	end
 
 	return self.clock >= self.duration
