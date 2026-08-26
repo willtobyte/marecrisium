@@ -64,7 +64,9 @@ jobs:
           cmake --build build --config Release --verbose
 
       - name: Package cartridge
-        run: uv run tools/pack.py cartridge
+        run: |
+          uv run assets/objects/generate.py
+          uv run tools/pack.py cartridge
 
       - name: Collect artifacts
         run: |

@@ -190,7 +190,9 @@ jobs:
           cache-dependency-glob: tools/pack.py
 
       - name: Package cartridge
-        run: uv run tools/pack.py cartridge
+        run: |
+          uv run assets/objects/generate.py
+          uv run tools/pack.py cartridge
 
       - name: Assemble output
         run: |

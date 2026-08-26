@@ -51,7 +51,8 @@ build: ## Builds the project
 		--verbose
 
 run: build ## Builds and runs the project
-	./tools/pack.py
+	uv run assets/objects/generate.py
+	uv run tools/pack.py
 	WINDOWED=1 lldb -o run -- ./build/carimbo
 
 help: ## Shows available commands
