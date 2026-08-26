@@ -1,0 +1,42 @@
+{% extends "template.lua.j2" %}
+{% block header %}
+local tween = require("3rdpary/tween")
+local breathing = {
+	duration = {% block breathing_duration %}0.8{% endblock %},
+	target = { scale = {% block breathing_target_scale %}1.1{% endblock %} },
+}
+
+breathing.cycle = breathing.duration * 2
+{% endblock %}
+{% block behaviors %}
+
+	select = function(self)
+		self.scale = {% block breathing_selected_scale %}1.05{% endblock %}
+		self.breath = self.breath or {}
+		self.breath.clock = 0
+		self.breath.tween = self.breath.tween or tween.new(breathing.duration, self, breathing.target, "inOutSine")
+		self.breath.tween:reset()
+	end,
+
+	unselect = function(self)
+		self.breath.clock = nil
+		self.scale = 1
+	end,
+
+	on_loop = function(self, delta)
+		local breath = self.breath
+		local phase = breath and breath.clock
+		if not phase then
+			return
+		end
+
+		phase = phase + delta
+		local cycle = breathing.cycle
+		if phase >= cycle then
+			phase = phase % cycle
+		end
+
+		breath.clock = phase
+		local clock = phase <= breathing.duration and phase or cycle - phase
+		breath.tween:set(clock)
+	end,{% endblock %}

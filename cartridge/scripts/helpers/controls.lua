@@ -12,7 +12,7 @@ setmetatable(controls, {
 		elseif key == "down" then
 			return gamepad.left_y > deadzone or gamepad.down or keyboard.s or keyboard.down
 		elseif key == "action" then
-			return gamepad.south or keyboard.space
+			return gamepad.south or keyboard.space or keyboard.enter
 		elseif key == "dismiss" then
 			return gamepad.east or keyboard.escape
 		end
