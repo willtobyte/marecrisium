@@ -297,6 +297,31 @@ void scene::draw() {
       object.sprite.mirror);
   }
 
+#ifdef DEBUG
+  SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+
+  for (const auto id : _order) {
+    const auto& object = _objects[id];
+    if (!object.sprite.shown) [[unlikely]]
+      continue;
+
+    const auto& clip = object.sprite.sheet->clips[object.motion.active];
+    const auto& frame = object.sprite.sheet->frames[clip.offset + object.motion.current];
+    const auto& bounds = object.sprite.bounds;
+    const auto& collider = frame.collider;
+    const SDL_FRect rect = {
+      std::floor(object.sprite.x - viewport.x) + bounds.x + collider.offset.x * object.sprite.scale,
+      std::floor(object.sprite.y - viewport.y) + bounds.y + collider.offset.y * object.sprite.scale,
+      collider.width * object.sprite.scale,
+      collider.height * object.sprite.scale,
+    };
+
+    SDL_RenderRect(renderer, &rect);
+  }
+
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+#endif
+
   _overlay.draw();
 }
 
