@@ -34,6 +34,9 @@ struct prototype final {
   int kind{LUA_NOREF};
   int on_loop{LUA_NOREF};
   int on_spawn{LUA_NOREF};
+  int on_hover{LUA_NOREF};
+  int on_unhover{LUA_NOREF};
+  int on_click{LUA_NOREF};
 };
 
 static_assert(std::is_trivially_copyable_v<prototype>, "prototype must be trivially copyable");
@@ -82,14 +85,22 @@ struct object final {
 
 static_assert(std::is_trivially_copyable_v<object>, "object must be trivially copyable");
 
+struct dirty final {
+  bool order{true};
+  bool mouse{true};
+};
+
+static_assert(std::is_trivially_copyable_v<dirty>, "dirty must be trivially copyable");
+
 struct proxy final {
   object* object{};
-  bool* dirty{};
+  bool* order{};
+  bool* mouse{};
 };
 
 static_assert(std::is_trivially_copyable_v<proxy>, "proxy must be trivially copyable");
 
 namespace objects {
   void wire();
-  void bind(object& object, bool& dirty, std::string_view name, std::string_view kind);
+  void bind(object& object, bool& order, bool& mouse, std::string_view name, std::string_view kind);
 }

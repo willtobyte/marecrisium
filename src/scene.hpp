@@ -14,6 +14,8 @@ public:
   void on_leave();
 
 private:
+  static constexpr auto none = std::numeric_limits<uint32_t>::max();
+
   std::vector<object> _objects{};
   std::vector<uint32_t> _order{};
   std::vector<uint32_t> _loops{};
@@ -34,5 +36,10 @@ private:
 
   timer _timer{};
 
-  bool _dirty{true};
+  uint32_t _hovered{none};
+  uint32_t _mouse_previous_buttons{};
+  float _mouse_x{};
+  float _mouse_y{};
+
+  dirty _dirty{};
 };

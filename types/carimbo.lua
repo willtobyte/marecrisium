@@ -3,6 +3,7 @@
 ---@alias Vector2 [number, number]
 ---@alias ParticleRange [number, number]
 ---@alias AnimationFrame [number, number, number, number, number, number, number, number, number]
+---@alias MouseButton "left"|"middle"|"right"
 
 -- Keyboard
 
@@ -282,6 +283,9 @@ viewport = nil
 ---@field animation? AnimationConfig Spawn-only animation definitions.
 ---@field on_spawn? fun(self: Object) Called once after the object is complete and available in `pool`.
 ---@field on_loop? fun(self: Object, delta: number) Called every active frame; delta is in seconds.
+---@field on_hover? fun(self: Object) Called when the cursor enters the topmost visible collider.
+---@field on_unhover? fun(self: Object) Called when the cursor leaves the topmost visible collider.
+---@field on_click? fun(self: Object, x: number, y: number, button: MouseButton) Called when a mouse button is released over the object.
 ---@field [string] any Custom fields and methods shared by every object of this kind.
 
 ---Each object stores custom writes independently and reads missing fields from

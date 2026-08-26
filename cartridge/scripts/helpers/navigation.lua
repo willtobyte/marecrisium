@@ -1,17 +1,43 @@
 local controls = require("helpers/controls")
 local navigator = {}
 local navigation = {}
+local active
 
 navigator.__index = navigator
 
 function navigation.new(objects)
-	return setmetatable({
+	active = setmetatable({
 		objects = objects,
 		left = controls.left,
 		right = controls.right,
 		up = controls.up,
 		down = controls.down,
 	}, navigator)
+
+	return active
+end
+
+function navigation.select(object)
+	active:select(object)
+end
+
+function navigation.unselect(object)
+	active:unselect(object)
+end
+
+function navigator:select(object)
+	if self.current and self.current ~= object then
+		self.current:unselect()
+	end
+
+	self.current = object
+	object:select()
+end
+
+function navigator:unselect(object)
+	if self.current == object then
+		object:unselect()
+	end
 end
 
 function navigator:update()
@@ -71,12 +97,7 @@ function navigator:update()
 		winner = current
 	end
 
-	if self.current then
-		current:unselect()
-	end
-
-	self.current = winner
-	winner:select()
+	self:select(winner)
 end
 
 function navigator:clear()
@@ -86,6 +107,7 @@ function navigator:clear()
 
 	self.objects = nil
 	self.current = nil
+	active = nil
 end
 
 return navigation

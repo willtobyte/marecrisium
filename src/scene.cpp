@@ -1,3 +1,15 @@
+namespace {
+void callback(const object& object, int ref) {
+  if (ref == LUA_NOREF)
+    return;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
+  if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+    throw std::runtime_error{lua_tostring(L, -1)};
+}
+}
+
 scene::scene(std::string_view name)
     : _background(std::make_unique<pixmap>(std::format("blobs/scenes/{}/background.png", name))),
       _overlay(name) {
@@ -72,7 +84,7 @@ scene::scene(std::string_view name)
       object.sprite.x = ox;
       object.sprite.y = oy;
 
-      objects::bind(object, _dirty, label, kind);
+      objects::bind(object, _dirty.order, _dirty.mouse, label, kind);
       if (object.script.blueprint->on_loop != LUA_NOREF)
         _loops.emplace_back(id);
 
@@ -179,7 +191,8 @@ scene::~scene() {
     assert(valid && "object handle must be an Object userdata");
     [[assume(valid)]];
     instance->object = nullptr;
-    instance->dirty = nullptr;
+    instance->order = nullptr;
+    instance->mouse = nullptr;
     lua_pop(L, 1);
 
     luaL_unref(L, LUA_REGISTRYINDEX, object.script.label);
@@ -212,6 +225,81 @@ void scene::on_enter() {
 }
 
 void scene::update(float delta) {
+  if (_dirty.order) [[unlikely]] {
+    for (auto i = 1uz; i < _order.size(); ++i) {
+      const auto value = _order[i];
+      auto j = i;
+      while (j && _objects[value].sprite.z < _objects[_order[j - 1]].sprite.z) {
+        _order[j] = _order[j - 1];
+        --j;
+      }
+      _order[j] = value;
+    }
+    _dirty.order = false;
+  }
+
+  float mx, my;
+  const auto buttons = SDL_GetMouseState(&mx, &my);
+  SDL_RenderCoordinatesFromWindow(renderer, mx, my, &mx, &my);
+  mx += viewport.x;
+  my += viewport.y;
+
+  const auto moved = mx != _mouse_x || my != _mouse_y;
+  if (moved || _dirty.mouse) {
+    _dirty.mouse = false;
+    auto target = none;
+    for (auto it = _order.rbegin(); it != _order.rend(); ++it) {
+      const auto& object = _objects[*it];
+      if (!object.sprite.shown || object.sprite.alpha <= .0f) [[unlikely]]
+        continue;
+
+      const auto& clip = object.sprite.sheet->clips[object.motion.active];
+      const auto& frame = object.sprite.sheet->frames[clip.offset + object.motion.current];
+      const auto& bounds = object.sprite.bounds;
+      const auto x = std::floor(object.sprite.x - viewport.x) + viewport.x + bounds.x + frame.collider.offset.x * object.sprite.scale;
+      const auto y = std::floor(object.sprite.y - viewport.y) + viewport.y + bounds.y + frame.collider.offset.y * object.sprite.scale;
+      const auto width = frame.collider.width * object.sprite.scale;
+      const auto height = frame.collider.height * object.sprite.scale;
+      if (mx < x || mx >= x + width) [[likely]]
+        continue;
+      if (my < y || my >= y + height) [[likely]]
+        continue;
+
+      target = *it;
+      break;
+    }
+
+    if (target != _hovered) {
+      if (_hovered < _objects.size())
+        callback(_objects[_hovered], _objects[_hovered].script.blueprint->on_unhover);
+      _hovered = target;
+      if (target < _objects.size())
+        callback(_objects[target], _objects[target].script.blueprint->on_hover);
+    }
+
+    _mouse_x = mx;
+    _mouse_y = my;
+  }
+
+  const auto toggled = (buttons ^ _mouse_previous_buttons) & (SDL_BUTTON_LMASK | SDL_BUTTON_MMASK | SDL_BUTTON_RMASK);
+  _mouse_previous_buttons = buttons;
+
+  const auto* over = _hovered < _objects.size() ? &_objects[_hovered] : nullptr;
+  if (over && over->script.blueprint->on_click != LUA_NOREF) {
+    for (auto bits = toggled; bits; bits &= bits - 1) {
+      const auto index = static_cast<size_t>(std::countr_zero(bits));
+      if ((buttons >> index) & 1u)
+        continue;
+
+      lua_rawgeti(L, LUA_REGISTRYINDEX, over->script.blueprint->on_click);
+      lua_rawgeti(L, LUA_REGISTRYINDEX, over->script.instance);
+      lua_pushnumber(L, static_cast<lua_Number>(mx));
+      lua_pushnumber(L, static_cast<lua_Number>(my));
+      lua_rawgeti(L, LUA_REGISTRYINDEX, mouse::labels[index]);
+      if (lua_pcall(L, 4, 0, 0) != LUA_OK) [[unlikely]]
+        throw std::runtime_error{lua_tostring(L, -1)};
+    }
+  }
   _timer.update(delta);
 
   if (_on_loop != LUA_NOREF) [[likely]] {
@@ -237,18 +325,17 @@ void scene::update(float delta) {
     const auto& clip = object.sprite.sheet->clips[object.motion.active];
     const auto& frame = object.sprite.sheet->frames[clip.offset + object.motion.current];
 
-    object.motion.elapsed += delta;
-    if (object.motion.elapsed < frame.duration) [[likely]]
+    if ((object.motion.elapsed += delta) < frame.duration) [[likely]]
       continue;
 
     object.motion.elapsed -= frame.duration;
-    if (++object.motion.current < clip.count)
-      continue;
+    if (++object.motion.current >= clip.count)
+      object.motion.current = 0;
 
-    object.motion.current = 0;
+    _dirty.mouse = true;
   }
 
-  if (_dirty) [[unlikely]] {
+  if (_dirty.order) [[unlikely]] {
     for (auto i = 1uz; i < _order.size(); ++i) {
       const auto value = _order[i];
       auto j = i;
@@ -258,8 +345,7 @@ void scene::update(float delta) {
       }
       _order[j] = value;
     }
-
-    _dirty = false;
+    _dirty.order = false;
   }
 
   _overlay.update(delta);

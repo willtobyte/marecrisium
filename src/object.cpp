@@ -84,11 +84,13 @@ static int newindex(lua_State* state) {
 
   if (key == "x") {
     object.sprite.x = static_cast<float>(luaL_checknumber(state, 3));
+    *self->mouse = true;
     return 0;
   }
 
   if (key == "y") {
     object.sprite.y = static_cast<float>(luaL_checknumber(state, 3));
+    *self->mouse = true;
     return 0;
   }
 
@@ -96,7 +98,8 @@ static int newindex(lua_State* state) {
     const auto value = static_cast<int>(luaL_checkinteger(state, 3));
     if (object.sprite.z != value) {
       object.sprite.z = value;
-      *self->dirty = true;
+      *self->order = true;
+      *self->mouse = true;
     }
 
     return 0;
@@ -122,11 +125,13 @@ static int newindex(lua_State* state) {
 
   if (key == "alpha") {
     object.sprite.alpha = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 255.f);
+    *self->mouse = true;
     return 0;
   }
 
   if (key == "shown") {
     object.sprite.shown = lua_toboolean(state, 3) != 0;
+    *self->mouse = true;
     return 0;
   }
 
@@ -140,7 +145,7 @@ static int newindex(lua_State* state) {
 }
 }
 
-void objects::bind(object& object, bool& dirty, std::string_view name, std::string_view kind) {
+void objects::bind(object& object, bool& order, bool& mouse, std::string_view name, std::string_view kind) {
   lua_pushlstring(L, name.data(), name.size());
   object.script.label = luaL_ref(L, LUA_REGISTRYINDEX);
 
@@ -157,7 +162,8 @@ void objects::bind(object& object, bool& dirty, std::string_view name, std::stri
     object.script.instance = luaL_ref(L, LUA_REGISTRYINDEX);
     *memory = proxy{
       .object = &object,
-      .dirty = &dirty,
+      .order = &order,
+      .mouse = &mouse,
     };
 
     return;
@@ -182,15 +188,20 @@ void objects::bind(object& object, bool& dirty, std::string_view name, std::stri
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
 
-  lua_getfield(L, -1, "on_loop");
-  blueprint->on_loop = lua_isfunction(L, -1)
-    ? luaL_ref(L, LUA_REGISTRYINDEX)
-    : (lua_pop(L, 1), LUA_NOREF);
+  constexpr std::array fields{
+    std::pair{"on_loop", &prototype::on_loop},
+    std::pair{"on_spawn", &prototype::on_spawn},
+    std::pair{"on_hover", &prototype::on_hover},
+    std::pair{"on_unhover", &prototype::on_unhover},
+    std::pair{"on_click", &prototype::on_click},
+  };
 
-  lua_getfield(L, -1, "on_spawn");
-  blueprint->on_spawn = lua_isfunction(L, -1)
-    ? luaL_ref(L, LUA_REGISTRYINDEX)
-    : (lua_pop(L, 1), LUA_NOREF);
+  for (const auto& [name, member] : fields) {
+    lua_getfield(L, -1, name);
+    blueprint.get()->*member = lua_isfunction(L, -1)
+      ? luaL_ref(L, LUA_REGISTRYINDEX)
+      : (lua_pop(L, 1), LUA_NOREF);
+  }
 
   lua_pop(L, 1);
 
@@ -207,7 +218,8 @@ void objects::bind(object& object, bool& dirty, std::string_view name, std::stri
   object.script.instance = luaL_ref(L, LUA_REGISTRYINDEX);
   *memory = proxy{
     .object = &object,
-    .dirty = &dirty,
+    .order = &order,
+    .mouse = &mouse,
   };
 }
 
