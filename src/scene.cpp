@@ -228,6 +228,7 @@ void scene::update(float delta) {
     std::sort(_order.begin(), _order.end(), [this](const auto left, const auto right) {
       const auto& lhs = _objects[left].sprite;
       const auto& rhs = _objects[right].sprite;
+
       return lhs.z != rhs.z ? lhs.z < rhs.z : left < right;
     });
 
