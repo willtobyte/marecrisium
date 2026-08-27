@@ -99,9 +99,9 @@ The three supermetals are fundamentally incompatible with one another. When melt
 ## The Production Process
 
 1. The three supermetals and the fresh human flesh are combined.
-2. Every ingredient is frozen to *absolute zero*.
-3. In a fraction of a second, the entire mixture is melted in a furnace heated to the temperature of the *Sun's core*.
-4. The ingredients burn and mix together for **36 hours**.
+2. The entire mixture is melted in a furnace heated to the temperature of the *Sun's core*.
+3. The ingredients burn and mix together for **36 hours**.
+4. After, in a fraction of a second, frozen to *absolute zero*.
 5. At the end of the process, only ***666 grams*** of AUR are produced.
 
 ## Who You Are
