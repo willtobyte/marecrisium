@@ -225,15 +225,12 @@ void scene::on_enter() {
 
 void scene::update(float delta) {
   if (_dirty.order) [[unlikely]] {
-    for (auto i = 1uz; i < _order.size(); ++i) {
-      const auto value = _order[i];
-      auto j = i;
-      while (j && _objects[value].sprite.z < _objects[_order[j - 1]].sprite.z) {
-        _order[j] = _order[j - 1];
-        --j;
-      }
-      _order[j] = value;
-    }
+    std::sort(_order.begin(), _order.end(), [this](const auto left, const auto right) {
+      const auto& lhs = _objects[left].sprite;
+      const auto& rhs = _objects[right].sprite;
+      return lhs.z != rhs.z ? lhs.z < rhs.z : left < right;
+    });
+
     _dirty.order = false;
   }
 
@@ -332,19 +329,6 @@ void scene::update(float delta) {
       object.motion.current = 0;
 
     _dirty.mouse = true;
-  }
-
-  if (_dirty.order) [[unlikely]] {
-    for (auto i = 1uz; i < _order.size(); ++i) {
-      const auto value = _order[i];
-      auto j = i;
-      while (j && _objects[value].sprite.z < _objects[_order[j - 1]].sprite.z) {
-        _order[j] = _order[j - 1];
-        --j;
-      }
-      _order[j] = value;
-    }
-    _dirty.order = false;
   }
 
   _overlay.update(delta);

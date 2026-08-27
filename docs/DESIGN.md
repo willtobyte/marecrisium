@@ -72,7 +72,7 @@ These events transform the Mare Crisium factory into a battleground. Demons, ali
 
 AUR requires three supermetals found beneath Mare Crisium.
 
-### `Rodrium`
+### `Umbrium`
 
 A black metal found deep beneath Mare Crisium.
 
