@@ -297,6 +297,7 @@ void scene::update(float delta) {
         throw std::runtime_error{lua_tostring(L, -1)};
     }
   }
+
   _timer.update(delta);
 
   if (_on_loop != LUA_NOREF) [[likely]] {
