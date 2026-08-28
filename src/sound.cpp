@@ -128,19 +128,19 @@ namespace {
   }
 }
 
-audio::audio(std::string_view filename)
+clip::clip(std::string_view filename)
     : encoded{io::read(filename)} {}
 
-sound::sound(const struct audio& data) {
+sound::sound(const clip& data) {
   _source.vorbis.reset(stb_vorbis_open_memory(data.encoded.data(), static_cast<int>(data.encoded.size()), nullptr, nullptr));
   const auto valid = _source.vorbis != nullptr;
   assert(valid && "sound OGG data must be valid");
   [[assume(valid)]];
 
-  const auto information = stb_vorbis_get_info(_source.vorbis.get());
+  const auto info = stb_vorbis_get_info(_source.vorbis.get());
   _source.length = stb_vorbis_stream_length_in_samples(_source.vorbis.get());
-  _source.channels = static_cast<ma_uint32>(information.channels);
-  _source.rate = information.sample_rate;
+  _source.channels = static_cast<ma_uint32>(info.channels);
+  _source.rate = info.sample_rate;
 
   auto config = ma_data_source_config_init();
   config.vtable = &vtable;

@@ -4,7 +4,7 @@ class pixmap;
 
 struct spritesheet final {
   const pixmap* pixmap{};
-  const clip* clips{};
+  const sequence* sequences{};
   const frame* frames{};
   uint8_t count{};
   uint8_t initial{};

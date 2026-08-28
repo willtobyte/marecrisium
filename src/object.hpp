@@ -22,12 +22,12 @@ struct frame final {
 
 static_assert(std::is_trivially_copyable_v<frame>, "frame must be trivially copyable");
 
-struct clip final {
+struct sequence final {
   uint16_t offset{};
   uint8_t count{};
 };
 
-static_assert(std::is_trivially_copyable_v<clip>, "clip must be trivially copyable");
+static_assert(std::is_trivially_copyable_v<sequence>, "sequence must be trivially copyable");
 
 struct prototype final {
   int table{LUA_NOREF};

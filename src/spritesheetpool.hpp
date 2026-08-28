@@ -10,7 +10,7 @@ public:
 
 private:
   struct storage final {
-    std::vector<clip> clips;
+    std::vector<sequence> sequences;
     std::vector<frame> frames;
     spritesheet sheet;
   };

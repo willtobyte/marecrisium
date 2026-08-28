@@ -95,8 +95,8 @@ scene::scene(std::string_view name)
       const auto* sheet = depot->get<spritesheet>(kind, L, -1);
       object.sprite.sheet = sheet;
       object.motion.active = sheet->initial;
-      const auto& clip = sheet->clips[object.motion.active];
-      const auto& frame = sheet->frames[clip.offset];
+      const auto& sequence = sheet->sequences[object.motion.active];
+      const auto& frame = sheet->frames[sequence.offset];
       object.sprite.resize(frame.width, frame.height, object.sprite.scale);
 
       lua_pop(L, 2);
@@ -136,7 +136,7 @@ scene::scene(std::string_view name)
       const std::string_view label{data, length};
 
       const auto key = std::format("sounds/{}", label);
-      const auto* asset = depot->get<struct audio>(key);
+      const auto* asset = depot->get<clip>(key);
       auto instance = std::make_unique<sound>(*asset);
       auto **memory = static_cast<class sound **>(lua_newuserdata(L, sizeof(class sound *)));
       *memory = instance.get();
@@ -250,8 +250,8 @@ void scene::update(float delta) {
       if (!object.sprite.shown || object.sprite.alpha <= .0f) [[unlikely]]
         continue;
 
-      const auto& clip = object.sprite.sheet->clips[object.motion.active];
-      const auto& frame = object.sprite.sheet->frames[clip.offset + object.motion.current];
+      const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
+      const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
       const auto& bounds = object.sprite.bounds;
       const auto x = std::floor(object.sprite.x - viewport.x) + viewport.x + bounds.x + frame.collider.offset.x * object.sprite.scale;
       const auto y = std::floor(object.sprite.y - viewport.y) + viewport.y + bounds.y + frame.collider.offset.y * object.sprite.scale;
@@ -320,14 +320,14 @@ void scene::update(float delta) {
 
   for (auto it = _objects.rbegin(); it != _objects.rend(); ++it) {
     auto& object = *it;
-    const auto& clip = object.sprite.sheet->clips[object.motion.active];
-    const auto& frame = object.sprite.sheet->frames[clip.offset + object.motion.current];
+    const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
+    const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
 
     if ((object.motion.elapsed += delta) < frame.duration) [[likely]]
       continue;
 
     object.motion.elapsed -= frame.duration;
-    if (++object.motion.current >= clip.count)
+    if (++object.motion.current >= sequence.count)
       object.motion.current = 0;
 
     _dirty.mouse = true;
@@ -349,8 +349,8 @@ void scene::draw() {
     if (!object.sprite.shown) [[unlikely]]
       continue;
 
-    const auto& clip = object.sprite.sheet->clips[object.motion.active];
-    const auto& frame = object.sprite.sheet->frames[clip.offset + object.motion.current];
+    const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
+    const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
     const auto* sheet = object.sprite.sheet->pixmap;
     const auto& bounds = object.sprite.bounds;
 
@@ -376,8 +376,8 @@ void scene::draw() {
     if (!object.sprite.shown) [[unlikely]]
       continue;
 
-    const auto& clip = object.sprite.sheet->clips[object.motion.active];
-    const auto& frame = object.sprite.sheet->frames[clip.offset + object.motion.current];
+    const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
+    const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
     const auto& bounds = object.sprite.bounds;
     const auto& collider = frame.collider;
     const SDL_FRect rect = {

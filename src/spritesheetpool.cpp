@@ -6,7 +6,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
   const auto top = lua_gettop(state);
 
   auto storage = std::make_unique<class storage>();
-  storage->clips.reserve(8);
+  storage->sequences.reserve(8);
   storage->frames.reserve(128);
   storage->sheet.pixmap = depot->get<pixmap>(std::format("objects/{}", kind));
 
@@ -36,9 +36,9 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     const auto* data = lua_tolstring(state, -2, &length);
     const std::string_view name{data, length};
 
-    auto& clip = storage->clips.emplace_back();
-    clip.offset = static_cast<uint16_t>(storage->frames.size());
-    clip.count = 0;
+    auto& sequence = storage->sequences.emplace_back();
+    sequence.offset = static_cast<uint16_t>(storage->frames.size());
+    sequence.count = 0;
 
     const auto count = static_cast<int>(lua_objlen(state, -1));
     for (int slot = 1; slot <= count; ++slot) {
@@ -84,22 +84,22 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       frame.collider.height = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
 
-      ++clip.count;
+      ++sequence.count;
       lua_pop(state, 1);
     }
 
-    assert(clip.count > 0 && "animation clip must contain at least one frame");
-    [[assume(clip.count > 0)]];
+    assert(sequence.count > 0 && "animation sequence must contain at least one frame");
+    [[assume(sequence.count > 0)]];
 
     if (name == primary)
-      initial = static_cast<uint8_t>(storage->clips.size() - 1);
+      initial = static_cast<uint8_t>(storage->sequences.size() - 1);
 
     lua_pop(state, 1);
   }
 
-  storage->sheet.clips = storage->clips.data();
+  storage->sheet.sequences = storage->sequences.data();
   storage->sheet.frames = storage->frames.data();
-  storage->sheet.count = static_cast<uint8_t>(storage->clips.size());
+  storage->sheet.count = static_cast<uint8_t>(storage->sequences.size());
   storage->sheet.initial = initial;
 
   auto* result = &storage->sheet;

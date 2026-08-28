@@ -269,7 +269,7 @@ viewport = nil
 -- Objects (`objects/<kind>.lua`)
 
 ---@class AnimationConfig
----@field default? string Initial clip. Without it, the first parsed clip is used.
+---@field default? string Initial sequence. Without it, the first parsed sequence is used.
 ---@field [string] AnimationClip|string
 
 ---Non-empty frame array.

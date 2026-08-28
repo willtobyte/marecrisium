@@ -1,7 +1,7 @@
 #pragma once
 
-struct audio final {
-  explicit audio(std::string_view filename);
+struct clip final {
+  explicit clip(std::string_view filename);
 
   bytes encoded;
 };
@@ -16,7 +16,7 @@ struct stream final {
 
 class sound final {
 public:
-  explicit sound(const struct audio& data);
+  explicit sound(const clip& data);
   ~sound();
 
   void play();
