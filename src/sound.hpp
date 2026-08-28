@@ -1,9 +1,14 @@
 #pragma once
 
-struct pcm final {
-  explicit pcm(std::string_view filename);
+struct audio final {
+  explicit audio(std::string_view filename);
 
-  std::vector<float> samples;
+  bytes encoded;
+};
+
+struct stream final {
+  ma_data_source_base source{};
+  std::unique_ptr<stb_vorbis, STB_Vorbis_Deleter> vorbis;
   ma_uint64 length{};
   ma_uint32 channels{};
   ma_uint32 rate{};
@@ -11,7 +16,7 @@ struct pcm final {
 
 class sound final {
 public:
-  explicit sound(const pcm& data);
+  explicit sound(const struct audio& data);
   ~sound();
 
   void play();
@@ -30,6 +35,6 @@ public:
   void fade(float from, float to, uint64_t ms);
 
 private:
-  ma_audio_buffer_ref _source{};
+  stream _source{};
   ma_sound _sound{};
 };

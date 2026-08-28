@@ -1,8 +1,8 @@
-const pcm* soundpool::get(std::string_view name) {
+const struct audio* soundpool::get(std::string_view name) {
   if (const auto it = _pool.find(name); it != _pool.end()) [[likely]]
     return it->second.get();
 
-  auto instance = std::make_unique<pcm>(std::format("blobs/{}.ogg", name));
+  auto instance = std::make_unique<struct audio>(std::format("blobs/{}.ogg", name));
   auto* result = instance.get();
   _pool.emplace(name, std::move(instance));
   return result;

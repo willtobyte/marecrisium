@@ -136,7 +136,7 @@ scene::scene(std::string_view name)
       const std::string_view label{data, length};
 
       const auto key = std::format("sounds/{}", label);
-      const auto* asset = depot->get<pcm>(key);
+      const auto* asset = depot->get<struct audio>(key);
       auto instance = std::make_unique<sound>(*asset);
       auto **memory = static_cast<class sound **>(lua_newuserdata(L, sizeof(class sound *)));
       *memory = instance.get();

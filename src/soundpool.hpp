@@ -1,11 +1,11 @@
 #pragma once
 
-struct pcm;
+struct audio;
 
 class soundpool final {
 public:
-  const pcm* get(std::string_view name);
+  const struct audio* get(std::string_view name);
 
 private:
-  std::unordered_map<std::string, std::unique_ptr<pcm>, transparent_string_hash, std::equal_to<>> _pool;
+  std::unordered_map<std::string, std::unique_ptr<struct audio>, transparent_string_hash, std::equal_to<>> _pool;
 };
