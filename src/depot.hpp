@@ -9,7 +9,7 @@ struct depot final {
       return particle.get(std::forward<Args>(args)...);
     else if constexpr (std::same_as<T, ::pixmap>)
       return pixmap.get(std::forward<Args>(args)...);
-    else if constexpr (std::same_as<T, clip>)
+    else if constexpr (std::same_as<T, ::clip>)
       return sound.get(std::forward<Args>(args)...);
     else if constexpr (std::same_as<T, ::spritesheet>)
       return spritesheet.get(std::forward<Args>(args)...);
