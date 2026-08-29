@@ -16,7 +16,7 @@ return {
 			pool.walkie_southwest,
 			pool.walkie_southeast,
 		})
-		timer:singleshot(60000, function()
+		timer:singleshot(1000, function()
 			error("Intentional error after 60 seconds")
 		end)
 	end,
