@@ -146,7 +146,7 @@ jobs:
         run: |
           mkdir -p artifact
           cp build/Release/carimbo.exe artifact/
-          cp build/Release/carimbo.pdb artifact/
+          # cp build/Release/carimbo.pdb artifact/
           cp build/LICENSES artifact/
 
       - name: Upload artifact
