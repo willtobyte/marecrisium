@@ -31,5 +31,3 @@ fuzz/corpus/
 
 # Agents
 .cache
-.pi-subagents/
-CLAUDE.md
