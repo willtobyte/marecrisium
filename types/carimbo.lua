@@ -274,6 +274,7 @@ viewport = nil
 
 ---Non-empty frame array.
 ---@class AnimationClip
+---@field loop? boolean Repeats by default. `false` stops on the last frame.
 ---@field [integer] AnimationFrame `{sx, sy, width, height, duration_ms, collider_x, collider_y, collider_width, collider_height}`.
 
 ---Spawn configuration and shared custom behavior. The engine dispatches the

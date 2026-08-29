@@ -25,6 +25,7 @@ static_assert(std::is_trivially_copyable_v<frame>, "frame must be trivially copy
 struct sequence final {
   uint16_t offset{};
   uint8_t count{};
+  bool loop{true};
 };
 
 static_assert(std::is_trivially_copyable_v<sequence>, "sequence must be trivially copyable");

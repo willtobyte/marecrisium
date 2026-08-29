@@ -40,6 +40,11 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     sequence.offset = static_cast<uint16_t>(storage->frames.size());
     sequence.count = 0;
 
+    lua_getfield(state, -1, "loop");
+    if (!lua_isnil(state, -1))
+      sequence.loop = lua_toboolean(state, -1) != 0;
+    lua_pop(state, 1);
+
     const auto count = static_cast<int>(lua_objlen(state, -1));
     for (int slot = 1; slot <= count; ++slot) {
       lua_rawgeti(state, -1, slot);

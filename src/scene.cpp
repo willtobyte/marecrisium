@@ -1,4 +1,6 @@
 namespace {
+constexpr auto stopped = -std::numeric_limits<float>::infinity();
+
 void callback(const object& object, int ref) {
   if (ref == LUA_NOREF)
     return;
@@ -327,8 +329,10 @@ void scene::update(float delta) {
       continue;
 
     object.motion.elapsed -= frame.duration;
-    if (++object.motion.current >= sequence.count)
-      object.motion.current = 0;
+    if (++object.motion.current >= sequence.count) {
+      object.motion.current = sequence.loop ? 0 : sequence.count - 1;
+      object.motion.elapsed = sequence.loop ? object.motion.elapsed : stopped;
+    }
 
     _dirty.mouse = true;
   }
