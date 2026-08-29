@@ -16,6 +16,7 @@ CMakeUserPresets.json
 # Carimbo
 cartridge.rom
 cassette.tape*
+sentry.dsn
 stderr.txt
 stdout.txt
 
