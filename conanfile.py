@@ -14,6 +14,7 @@ class Game(ConanFile):
             "miniaudio/0.11.22",
             "mimalloc/3.3.2",
             "sdl/3.4.14",
+            "sentry-native/0.14.2",
             "simde/0.8.4-rc3",
             "stb/cci.20240531",
             "sqlite3/3.53.4",
@@ -26,6 +27,9 @@ class Game(ConanFile):
     def configure(self):
         api = cast(Any, self)
         api.options["miniaudio"].header_only = True
+
+        api.options["sentry-native"].backend = "inproc"
+        api.options["sentry-native"].shared = False
 
         api.options["mimalloc"].shared = False
         api.options["mimalloc"].secure = False

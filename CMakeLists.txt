@@ -48,6 +48,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 find_package(SDL3 CONFIG REQUIRED)
+find_package(sentry CONFIG REQUIRED)
 find_package(simde CONFIG REQUIRED)
 find_package(stb CONFIG REQUIRED)
 find_package(luajit CONFIG REQUIRED)
@@ -60,6 +61,7 @@ find_package(mimalloc CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE
   $<$<NOT:$<CONFIG:Debug>>:mimalloc-static>
   SDL3::SDL3-static
+  sentry::sentry
   simde::simde
   stb::stb
   miniaudio::miniaudio
