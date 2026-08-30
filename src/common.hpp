@@ -67,7 +67,6 @@ extern lua_State* L;
 extern SDL_Renderer* renderer;
 extern ma_engine audio;
 
-// luaL_ref allocates positive slots; -1 and -2 are its sentinels.
 extern const int slot;
 
 extern const std::uint64_t boot;
