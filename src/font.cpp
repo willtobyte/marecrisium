@@ -103,7 +103,7 @@ font::font(std::string_view family) {
     throw std::runtime_error{lua_tostring(L, -1)};
 
   const auto top = lua_gettop(L);
-  if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
+  if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
 
   lua_getfield(L, top, "glyphs");

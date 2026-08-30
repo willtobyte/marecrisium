@@ -177,3 +177,12 @@ int build(lua_State* state) {
   lua_pushlstring(state, trace.data(), trace.size());
   return 1;
 }
+
+int pcall(lua_State* state, int args, int results) {
+  const auto handler = lua_gettop(state) - args;
+  lua_rawgeti(state, LUA_REGISTRYINDEX, slot);
+  lua_insert(state, handler);
+  const auto status = lua_pcall(state, args, results, handler);
+  lua_remove(state, handler);
+  return status;
+}

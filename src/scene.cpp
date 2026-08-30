@@ -7,7 +7,7 @@ void callback(const object& object, int ref) {
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
   lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
-  if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+  if (pcall(L, 1, 0) != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
 }
 }
@@ -39,7 +39,7 @@ scene::scene(std::string_view name)
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
 
-  if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
+  if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
 
   lua_newtable(L);
@@ -113,7 +113,7 @@ scene::scene(std::string_view name)
       if (blueprint.on_spawn != LUA_NOREF) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint.on_spawn);
         lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
-        if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+        if (pcall(L, 1, 0) != LUA_OK) [[unlikely]]
           throw std::runtime_error{lua_tostring(L, -1)};
       }
 
@@ -220,7 +220,7 @@ void scene::on_enter() {
   if (_on_enter != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_enter);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
-    if (lua_pcall(L, 1, 0, 0) != LUA_OK) [[unlikely]]
+    if (pcall(L, 1, 0) != LUA_OK) [[unlikely]]
       throw std::runtime_error{lua_tostring(L, -1)};
   }
 }
@@ -295,7 +295,7 @@ void scene::update(float delta) {
       lua_pushnumber(L, static_cast<lua_Number>(mx));
       lua_pushnumber(L, static_cast<lua_Number>(my));
       lua_rawgeti(L, LUA_REGISTRYINDEX, mouse::labels[index]);
-      if (lua_pcall(L, 4, 0, 0) != LUA_OK) [[unlikely]]
+      if (pcall(L, 4, 0) != LUA_OK) [[unlikely]]
         throw std::runtime_error{lua_tostring(L, -1)};
     }
   }
@@ -306,7 +306,7 @@ void scene::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
-    if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
+    if (pcall(L, 2, 0) != LUA_OK) [[unlikely]]
       throw std::runtime_error{lua_tostring(L, -1)};
   }
 
@@ -316,7 +316,7 @@ void scene::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
     lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
-    if (lua_pcall(L, 2, 0, 0) != LUA_OK) [[unlikely]]
+    if (pcall(L, 2, 0) != LUA_OK) [[unlikely]]
       throw std::runtime_error{lua_tostring(L, -1)};
   }
 
@@ -408,7 +408,7 @@ void scene::on_leave() {
   if (_on_leave != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_leave);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
-    result = lua_pcall(L, 1, 0, 0);
+    result = pcall(L, 1, 0);
   }
 
   lua_pushnil(L);

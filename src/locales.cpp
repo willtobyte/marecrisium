@@ -10,7 +10,7 @@ static int translate_callback(lua_State *state) {
   for (auto index = 0; index < extras; ++index)
     lua_pushvalue(state, 2 + index);
 
-  if (lua_pcall(state, 1 + extras, 1, 0) != LUA_OK) [[unlikely]]
+  if (pcall(state, 1 + extras, 1) != LUA_OK) [[unlikely]]
     return lua_error(state);
   return 1;
 }
@@ -26,7 +26,7 @@ void locales::wire() {
       if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
         throw std::runtime_error{lua_tostring(L, -1)};
 
-      if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
+      if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]
         throw std::runtime_error{lua_tostring(L, -1)};
 
       lua_getglobal(L, "string");

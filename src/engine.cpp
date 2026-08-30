@@ -3,7 +3,7 @@ engine::engine() {
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(buffer.data()), buffer.size(), "@main.lua") != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
 
-  if (lua_pcall(L, 0, 1, 0) != LUA_OK) [[unlikely]]
+  if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
 
   lua_getfield(L, -1, "width");
@@ -103,7 +103,7 @@ engine::engine() {
   _director.wire();
 
   lua_getfield(L, -1, "on_begin");
-  if (lua_pcall(L, 0, 0, 0) != LUA_OK) [[unlikely]]
+  if (pcall(L, 0, 0) != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
 
   lua_pop(L, 1);
