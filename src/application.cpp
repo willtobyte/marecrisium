@@ -1,4 +1,28 @@
 int application::run() {
+  auto* const options = sentry_options_new();
+
+  {
+    char dsn[2048]{};
+
+    if (auto* const f = std::fopen("sentry.dsn", "r")) {
+      std::fgets(dsn, sizeof dsn, f);
+      std::fclose(f);
+    }
+
+    dsn[std::strcspn(dsn, "\r\n")] = '\0';
+    sentry_options_set_dsn(options, dsn);
+  }
+
+  sentry_options_set_debug(options, 0);
+  sentry_options_set_release(options, VERSION);
+  sentry_options_set_database_path(options, ".sentry");
+  sentry_options_set_sample_rate(options, 1.0);
+  sentry_options_add_attachment(options, "cassette.tape");
+  sentry_options_add_attachment(options, "stdout.txt");
+  sentry_options_add_attachment(options, "stderr.txt");
+  sentry_init(options);
+  std::atexit(+[]{ sentry_close(); });
+
   try {
     io::mount("cartridge.rom");
 

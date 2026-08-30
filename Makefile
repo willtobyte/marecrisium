@@ -51,7 +51,6 @@ build: ## Builds the project
 		--verbose
 
 run: build ## Builds and runs the project
-	touch sentry.dsn
 	rm -f cartridge.rom
 	uv run assets/objects/generate.py
 	uv run tools/pack.py
