@@ -34,7 +34,7 @@ int main(int, char**) {
   std::atexit(+[]{ SteamAPI_Shutdown(); });
 
   struct depot store;
-  depot = &store;
+  ::depot = &store;
 
   application app;
   return app.run();
