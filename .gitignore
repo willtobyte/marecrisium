@@ -28,6 +28,3 @@ stdout.txt
 
 # Fuzz
 fuzz/corpus/
-
-# Agents
-.cache
