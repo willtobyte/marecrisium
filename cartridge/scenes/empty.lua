@@ -16,6 +16,10 @@ return {
 			pool.walkie_southwest,
 			pool.walkie_southeast,
 		})
+
+		timer:singleshot(1000, function()
+			error("Opsss!")
+		end)
 	end,
 
 	on_leave = function()
