@@ -15,23 +15,23 @@ int main(int, char**) {
 
   SDL_SetHint(SDL_HINT_MAC_PRESS_AND_HOLD, "0");
   SDL_Init(SDL_INIT_GAMEPAD | SDL_INIT_VIDEO);
-  std::atexit([]{ SDL_Quit(); });
+  std::atexit(+[]{ SDL_Quit(); });
 
   auto config = ma_engine_config_init();
   config.channels = 2;
   config.sampleRate = 48'000;
   config.periodSizeInFrames = 2'048;
   ma_engine_init(&config, &audio);
-  std::atexit([]{ ma_engine_uninit(&audio); });
+  std::atexit(+[]{ ma_engine_uninit(&audio); });
 
   L = luaL_newstate();
   luaL_openlibs(L);
   lua_pushcfunction(L, build);
   lua_rawseti(L, LUA_REGISTRYINDEX, slot);
-  std::atexit([]{ lua_close(L); });
+  std::atexit(+[]{ lua_close(L); });
 
   SteamAPI_InitSafe();
-  std::atexit([]{ SteamAPI_Shutdown(); });
+  std::atexit(+[]{ SteamAPI_Shutdown(); });
 
   struct depot store;
   depot = &store;

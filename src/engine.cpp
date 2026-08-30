@@ -65,23 +65,19 @@ engine::engine() {
   SDL_RaiseWindow(window);
   SDL_FlashWindow(window, SDL_FLASH_UNTIL_FOCUSED);
 
-  lua_getfield(L, -1, "sentry");
-  const auto* const dsn = lua_tostring(L, -1);
-
   auto* const options = sentry_options_new();
   sentry_options_set_debug(options, 0);
-  sentry_options_set_dsn(options, dsn);
+  lua_getfield(L, -1, "sentry");
+  sentry_options_set_dsn(options, lua_tostring(L, -1));
+  lua_pop(L, 1);
   sentry_options_set_release(options, VERSION);
   sentry_options_set_database_path(options, ".sentry");
   sentry_options_set_sample_rate(options, 1.0);
   sentry_options_add_attachment(options, "cassette.tape");
   sentry_options_add_attachment(options, "stdout.txt");
   sentry_options_add_attachment(options, "stderr.txt");
-  const auto status = sentry_init(options);
-  assert(status == 0 && "Sentry initialization must succeed");
-  std::atexit(+[] { sentry_close(); });
-
-  lua_pop(L, 1);
+  sentry_init(options);
+  std::atexit(+[]{ sentry_close(); });
 
   viewport = {
     static_cast<float>(width) / scale,
