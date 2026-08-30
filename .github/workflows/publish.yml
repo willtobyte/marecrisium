@@ -60,11 +60,21 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=Release \
             -DVERSION="${{ github.ref_name }}" \
-            -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
-            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG" \
+            -DCMAKE_C_FLAGS_RELEASE="-O2 -g -DNDEBUG" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -g -DNDEBUG" \
             -DCMAKE_SKIP_RPATH=ON \
             -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-Wl,-no_exported_symbols"
           cmake --build build --config Release --verbose
+
+      - name: Generate symbols
+        run: dsymutil build/carimbo -o build/carimbo.dSYM
+
+      - name: Upload symbols
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-symbols
+          path: build/carimbo.dSYM
+          if-no-files-found: error
 
       - name: Strip binary
         run: strip build/carimbo
@@ -139,16 +149,22 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=Release \
             -DVERSION="${{ github.ref_name }}" \
-            -DCMAKE_C_FLAGS_RELEASE="/O2 /DNDEBUG" \
-            -DCMAKE_CXX_FLAGS_RELEASE="/O2 /DNDEBUG" \
-            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG:NONE /OPT:REF /OPT:ICF"
+            -DCMAKE_C_FLAGS_RELEASE="/O2 /Zi /DNDEBUG" \
+            -DCMAKE_CXX_FLAGS_RELEASE="/O2 /Zi /DNDEBUG" \
+            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG:FULL /OPT:REF /OPT:ICF"
           cmake --build build --config Release --verbose
+
+      - name: Upload symbols
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-symbols
+          path: build/Release/carimbo.pdb
+          if-no-files-found: error
 
       - name: Collect artifacts
         run: |
           mkdir -p artifact
           cp build/Release/carimbo.exe artifact/
-          # cp build/Release/carimbo.pdb artifact/
           cp build/LICENSES artifact/
 
       - name: Upload artifact
@@ -157,9 +173,38 @@ jobs:
           name: windows-build
           path: artifact/
 
-  publish:
+  symbols:
     runs-on: ubuntu-latest
     needs: [macos, windows]
+
+    steps:
+      - name: Download macOS symbols
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-symbols
+          path: symbols/macos
+
+      - name: Download Windows symbols
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-symbols
+          path: symbols/windows
+
+      - name: Setup Sentry CLI
+        uses: getsentry/action-setup-cli@v1
+        with:
+          version: "3.7.0"
+
+      - name: Send symbols to Sentry
+        run: sentry-cli debug-files upload symbols
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [macos, windows, symbols]
 
     env:
       VERSION: ${{ github.ref_name }}
