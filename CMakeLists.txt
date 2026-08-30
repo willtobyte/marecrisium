@@ -43,6 +43,8 @@ target_sources(${PROJECT_NAME} PRIVATE
   ${HEADER_FILES}
 )
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE VERSION="${VERSION}")
+
 set_target_properties(${PROJECT_NAME} PROPERTIES
   WIN32_EXECUTABLE $<$<PLATFORM_ID:Windows>:$<NOT:$<CONFIG:Debug>>>
 )

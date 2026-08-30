@@ -71,6 +71,7 @@ engine::engine() {
   auto* const options = sentry_options_new();
   sentry_options_set_debug(options, 0);
   sentry_options_set_dsn(options, dsn);
+  sentry_options_set_release(options, VERSION);
   sentry_options_set_database_path(options, ".sentry");
   sentry_options_set_sample_rate(options, 1.0);
   sentry_options_add_attachment(options, "cassette.tape");
