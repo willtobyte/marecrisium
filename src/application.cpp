@@ -2,15 +2,15 @@ int application::run() {
   auto* const options = sentry_options_new();
 
   {
-    char dsn[2048]{};
+    char buffer[2048]{};
 
-    if (auto* const f = std::fopen("sentry.dsn", "r")) {
-      std::fgets(dsn, sizeof dsn, f);
+    if (auto* const f = std::fopen("sentry.buffer", "r")) {
+      std::fgets(buffer, sizeof buffer, f);
       std::fclose(f);
     }
 
-    dsn[std::strcspn(dsn, "\r\n")] = '\0';
-    sentry_options_set_dsn(options, dsn);
+    buffer[std::strcspn(buffer, "\r\n")] = '\0';
+    sentry_options_set_dsn(options, buffer);
   }
 
   sentry_options_set_debug(options, 0);
