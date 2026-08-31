@@ -14,7 +14,7 @@ struct stream final {
   ma_uint32 rate{};
 };
 
-struct sound_completion;
+struct completion;
 
 class sound final {
 public:
@@ -43,5 +43,5 @@ private:
 
   stream _source{};
   ma_sound _sound{};
-  std::atomic<sound_completion*> _completion{};
+  std::atomic<completion*> _completion{};
 };
