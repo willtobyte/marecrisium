@@ -45,9 +45,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE VERSION="${VERSION}")
 
-set_target_properties(${PROJECT_NAME} PROPERTIES
-  WIN32_EXECUTABLE $<$<PLATFORM_ID:Windows>:$<NOT:$<CONFIG:Debug>>>
-)
+set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE $<$<PLATFORM_ID:Windows>:$<NOT:$<CONFIG:Debug>>>)
 
 find_package(SDL3 CONFIG REQUIRED)
 find_package(sentry CONFIG REQUIRED)
