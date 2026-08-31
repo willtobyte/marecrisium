@@ -63,8 +63,6 @@ class Game(ConanFile):
 
         toolchain = CMakeToolchain(self)
         for definition in [
-            "STBI_NO_FAILURE_STRINGS",
-            "STBI_NO_HDR",
             "STBI_NO_LINEAR",
             "STBI_NO_STDIO",
             "STBI_ONLY_PNG",
