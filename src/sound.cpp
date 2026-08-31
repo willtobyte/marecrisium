@@ -1,4 +1,14 @@
 namespace {
+  struct sound_completion final {
+    std::atomic_uint refs{1};
+    std::atomic_int callback{LUA_NOREF};
+  };
+
+  static void release(sound_completion* completion) {
+    if (completion->refs.fetch_sub(1, std::memory_order_acq_rel) == 1)
+      delete completion;
+  }
+
   static ma_result read(ma_data_source* source, void* frames, ma_uint64 count, ma_uint64* decoded) {
     auto* stream = reinterpret_cast<struct stream*>(source);
     const auto limit = static_cast<ma_uint64>(std::numeric_limits<int>::max() / stream->channels);
@@ -128,6 +138,60 @@ namespace {
   }
 }
 
+int sound::on_end_callback(lua_State* state) {
+  auto* instance = get(state);
+  luaL_checktype(state, 2, LUA_TFUNCTION);
+
+  auto* completion = instance->_completion.load(std::memory_order_acquire);
+  if (!completion) {
+    completion = new sound_completion;
+    instance->_completion.store(completion, std::memory_order_release);
+  }
+
+  lua_pushvalue(state, 2);
+  const auto callback = luaL_ref(state, LUA_REGISTRYINDEX);
+  const auto prior = completion->callback.exchange(callback, std::memory_order_acq_rel);
+  luaL_unref(state, LUA_REGISTRYINDEX, prior);
+  return 0;
+}
+
+void sound::ended(void* data, ma_sound*) {
+  auto* instance = static_cast<sound*>(data);
+  auto* completion = instance->_completion.load(std::memory_order_acquire);
+  if (!completion)
+    return;
+
+  completion->refs.fetch_add(1, std::memory_order_relaxed);
+  if (completion->callback.load(std::memory_order_acquire) == LUA_NOREF) {
+    release(completion);
+    return;
+  }
+
+  const auto queued = SDL_RunOnMainThread(invoke, completion, false);
+  if (!queued)
+    release(completion);
+  assert(queued && "sound end callback must reach the main thread");
+}
+
+void SDLCALL sound::invoke(void* data) {
+  auto* completion = static_cast<sound_completion*>(data);
+  const auto callback = completion->callback.load(std::memory_order_acquire);
+
+  if (!failure && callback != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
+    if (pcall(L, 0, 0) != LUA_OK) [[unlikely]] {
+      failure = std::make_exception_ptr(std::runtime_error{lua_tostring(L, -1)});
+      lua_pop(L, 1);
+
+      SDL_Event event{.type = SDL_EVENT_QUIT};
+      const auto queued = SDL_PushEvent(&event);
+      assert(queued && "sound callback error must stop the engine");
+    }
+  }
+
+  release(completion);
+}
+
 clip::clip(std::string_view filename)
     : encoded{io::read(filename)} {}
 
@@ -144,9 +208,7 @@ sound::sound(const clip& data) {
 
   auto config = ma_data_source_config_init();
   config.vtable = &vtable;
-  const auto initialized = ma_data_source_init(&config, reinterpret_cast<ma_data_source*>(&_source));
-  assert(initialized == MA_SUCCESS && "sound data source must initialize");
-  [[assume(initialized == MA_SUCCESS)]];
+  ma_data_source_init(&config, reinterpret_cast<ma_data_source*>(&_source));
 
   const auto result = ma_sound_init_from_data_source(
     &audio,
@@ -157,10 +219,21 @@ sound::sound(const clip& data) {
   );
   assert(result == MA_SUCCESS && "sound must initialize");
   [[assume(result == MA_SUCCESS)]];
+
+  const auto callback = ma_sound_set_end_callback(&_sound, ended, this);
+  assert(callback == MA_SUCCESS && "sound end callback must initialize");
+  [[assume(callback == MA_SUCCESS)]];
 }
 
 sound::~sound() {
   ma_sound_uninit(&_sound);
+
+  if (auto* completion = _completion.exchange(nullptr, std::memory_order_acq_rel)) {
+    const auto callback = completion->callback.exchange(LUA_NOREF, std::memory_order_acq_rel);
+    luaL_unref(L, LUA_REGISTRYINDEX, callback);
+    release(completion);
+  }
+
   ma_data_source_uninit(reinterpret_cast<ma_data_source*>(&_source));
 }
 
@@ -206,6 +279,8 @@ void sound::wire() {
   lua_setfield(L, -2, "play");
   lua_pushcfunction(L, stop_callback);
   lua_setfield(L, -2, "stop");
+  lua_pushcfunction(L, on_end_callback);
+  lua_setfield(L, -2, "on_end");
   lua_pushcfunction(L, fade_callback);
   lua_setfield(L, -2, "fade");
   lua_pushcfunction(L, index);

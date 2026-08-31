@@ -14,6 +14,8 @@ struct stream final {
   ma_uint32 rate{};
 };
 
+struct sound_completion;
+
 class sound final {
 public:
   explicit sound(const clip& data);
@@ -35,6 +37,11 @@ public:
   void fade(float from, float to, uint64_t ms);
 
 private:
+  static int on_end_callback(lua_State* state);
+  static void ended(void* data, ma_sound*);
+  static void SDLCALL invoke(void* data);
+
   stream _source{};
   ma_sound _sound{};
+  std::atomic<sound_completion*> _completion{};
 };

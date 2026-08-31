@@ -66,6 +66,7 @@
 extern lua_State* L;
 extern SDL_Renderer* renderer;
 extern ma_engine audio;
+extern std::exception_ptr failure;
 
 extern const int slot;
 

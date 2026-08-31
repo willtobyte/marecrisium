@@ -320,6 +320,10 @@ function Sound:play() end
 ---Stop playback.
 function Sound:stop() end
 
+---Set the callback for each natural playback end.
+---@param callback fun()
+function Sound:on_end(callback) end
+
 ---Fade the volume.
 ---@param from number Start gain; a negative value uses the current gain.
 ---@param to number Target gain.

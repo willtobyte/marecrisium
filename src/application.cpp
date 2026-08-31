@@ -28,6 +28,8 @@ int application::run() {
 
     scriptengine se;
     se.run();
+    if (failure)
+      std::rethrow_exception(std::exchange(failure, {}));
   } catch (const std::exception& exception) {
     const auto message = exception.what();
 

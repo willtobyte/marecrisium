@@ -4,6 +4,8 @@ SDL_Renderer *renderer{nullptr};
 
 ma_engine audio{};
 
+std::exception_ptr failure{};
+
 struct viewport viewport{};
 
 struct depot *depot{nullptr};
