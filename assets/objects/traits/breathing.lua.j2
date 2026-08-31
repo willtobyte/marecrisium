@@ -12,7 +12,6 @@ breathing.cycle = breathing.duration * 2
 {% block behaviors %}
 
 	select = function(self)
-    error("Boom!")
 		self.scale = selected
 		self.breath = self.breath or {}
 		self.breath.clock = 0
