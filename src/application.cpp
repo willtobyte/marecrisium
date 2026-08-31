@@ -4,7 +4,7 @@ int application::run() {
   {
     char buffer[2048]{};
 
-    if (auto* const f = std::fopen("sentry.buffer", "r")) {
+    if (auto* const f = std::fopen("sentry.dsn", "r")) {
       std::fgets(buffer, sizeof buffer, f);
       std::fclose(f);
     }
