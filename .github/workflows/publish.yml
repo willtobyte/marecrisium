@@ -251,12 +251,12 @@ jobs:
 
           cp macos-build/carimbo output/macos/
           cp macos-build/LICENSES output/macos/
-          cp .github/sentry.dsn output/macos/
+          cp assets/sentry.dsn output/macos/
           cp steamworks/redistributable_bin/osx/libsteam_api.dylib output/macos/
 
           cp windows-build/carimbo.exe output/windows/
           cp windows-build/LICENSES output/windows/
-          cp .github/sentry.dsn output/windows/
+          cp assets/sentry.dsn output/windows/
           cp steamworks/redistributable_bin/win64/steam_api64.dll output/windows/
 
       - name: Upload to Steam
