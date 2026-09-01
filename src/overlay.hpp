@@ -11,7 +11,7 @@ public:
 
   void appear();
 
-  void disappear();
+  int disappear();
 
 private:
   int _table{LUA_NOREF};

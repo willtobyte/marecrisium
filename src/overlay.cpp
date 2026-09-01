@@ -81,13 +81,14 @@ void overlay::appear() {
   }
 }
 
-void overlay::disappear() {
+int overlay::disappear() {
   if (_on_disappear != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disappear);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
-    if (pcall(L, 1, 0) != LUA_OK) [[unlikely]]
-      throw std::runtime_error{lua_tostring(L, -1)};
+    return pcall(L, 1, 0);
   }
+
+  return LUA_OK;
 }
 
 void overlay::update(float delta) {

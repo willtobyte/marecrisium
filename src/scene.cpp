@@ -415,8 +415,6 @@ void scene::draw() {
 }
 
 void scene::on_leave() {
-  _scheduler.suspend();
-
   lua_rawgeti(L, LUA_REGISTRYINDEX, _scheduler._table);
   lua_setglobal(L, "timer");
 
@@ -427,13 +425,16 @@ void scene::on_leave() {
     result = pcall(L, 1, 0);
   }
 
-  lua_pushnil(L);
-  lua_setglobal(L, "pool");
+  if (result == LUA_OK)
+    result = _overlay.disappear();
 
   _playback.stop();
 
+  lua_pushnil(L);
+  lua_setglobal(L, "pool");
+
+  _scheduler.suspend();
+
   if (result != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
-
-  _overlay.disappear();
 }
