@@ -50,6 +50,32 @@ Add `patch.lua.j2` to the object directory when the object needs behavior. Exten
 
 Use `assets/objects/template.lua.j2` as the base for other object behavior.
 
+## Handle an animation end
+
+Call `on_end` on an object to set its animation-end callback. An object patch can set the callback in `on_spawn`:
+
+```lua
+on_spawn = function(self)
+	self:on_end(function(object, animation)
+		print("Completed " .. animation)
+	end)
+end,
+```
+
+A scene can also set the callback through its object pool:
+
+```lua
+on_enter = function()
+	pool.objectname:on_end(function(object, animation)
+		print("Completed " .. animation)
+	end)
+end,
+```
+
+The callback receives the object and the animation name. It runs at the end of each cycle for a repeating animation. It runs one time for a non-repeating animation.
+
+A new call to `on_end` replaces the callback that was set before.
+
 ## Generate the objects
 
 Run the generator from the repository root:
