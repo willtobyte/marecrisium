@@ -12,7 +12,7 @@ sound& soundmanager::add(std::string_view name) {
   return result;
 }
 
-void soundmanager::dispatch() {
+void soundmanager::update() {
   if (_completed.load(std::memory_order_relaxed) == 0) [[likely]]
     return;
 

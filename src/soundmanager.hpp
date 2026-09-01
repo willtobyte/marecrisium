@@ -4,7 +4,8 @@ class soundmanager final {
 public:
   sound& add(std::string_view name);
 
-  void dispatch();
+  void update();
+
   void stop();
 
 private:

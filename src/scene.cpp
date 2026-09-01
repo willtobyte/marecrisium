@@ -222,7 +222,8 @@ void scene::on_enter() {
 }
 
 void scene::update(float delta) {
-  _soundmanager.dispatch();
+  _soundmanager.update();
+  _scheduler.update(delta);
 
   if (_dirty.order) [[unlikely]] {
     std::sort(_order.begin(), _order.end(), [this](const auto left, const auto right) {
@@ -297,8 +298,6 @@ void scene::update(float delta) {
         throw std::runtime_error{lua_tostring(L, -1)};
     }
   }
-
-  _scheduler.update(delta);
 
   if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
