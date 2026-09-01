@@ -40,5 +40,5 @@ private:
 
   dirty _dirty{};
   scheduler _scheduler{};
-  soundmanager _soundmanager{};
+  playback _playback{};
 };

@@ -54,5 +54,5 @@ private:
   std::atomic<phase> _phase{};
   std::uint16_t _bit{};
 
-  friend class soundmanager;
+  friend class playback;
 };

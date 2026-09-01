@@ -135,7 +135,7 @@ scene::scene(std::string_view key)
       const auto* data = luaL_checklstring(L, -1, &length);
       const std::string_view name{data, length};
 
-      auto& instance = _soundmanager.add(name);
+      auto& instance = _playback.add(name);
       auto **memory = static_cast<class sound **>(lua_newuserdata(L, sizeof(class sound *)));
       *memory = &instance;
       luaL_getmetatable(L, "Sound");
@@ -222,7 +222,7 @@ void scene::on_enter() {
 }
 
 void scene::update(float delta) {
-  _soundmanager.update();
+  _playback.update();
   _scheduler.update(delta);
 
   if (_dirty.order) [[unlikely]] {
@@ -430,7 +430,7 @@ void scene::on_leave() {
   lua_pushnil(L);
   lua_setglobal(L, "pool");
 
-  _soundmanager.stop();
+  _playback.stop();
 
   if (result != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};

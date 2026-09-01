@@ -1,4 +1,8 @@
-sound& soundmanager::add(std::string_view name) {
+playback::playback() noexcept = default;
+
+playback::~playback() = default;
+
+sound& playback::add(std::string_view name) {
   const auto available = _size < capacity;
   assert(available && "scene must not exceed 16 sounds");
   [[assume(available)]];
@@ -12,7 +16,7 @@ sound& soundmanager::add(std::string_view name) {
   return result;
 }
 
-void soundmanager::update() {
+void playback::update() {
   if (_completed.load(std::memory_order_relaxed) == 0) [[likely]]
     return;
 
@@ -33,7 +37,7 @@ void soundmanager::update() {
   }
 }
 
-void soundmanager::stop() {
+void playback::stop() {
   for (auto i = std::uint8_t{}; i < _size; ++i)
     _sounds[i]->stop();
 

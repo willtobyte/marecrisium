@@ -1,7 +1,12 @@
 #pragma once
 
-class soundmanager final {
+class sound;
+
+class playback final {
 public:
+  playback() noexcept;
+  ~playback();
+
   sound& add(std::string_view name);
 
   void update();
@@ -14,5 +19,5 @@ private:
 
   std::atomic_uint16_t _completed{};
   std::uint8_t _size{};
-  std::array<std::unique_ptr<sound>, capacity> _sounds{};
+  std::array<std::unique_ptr<sound>, capacity> _sounds;
 };
