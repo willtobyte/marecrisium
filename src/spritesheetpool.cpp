@@ -37,6 +37,8 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     const std::string_view name{data, length};
 
     auto& sequence = storage->sequences.emplace_back();
+    lua_pushvalue(state, -2);
+    sequence.name = luaL_ref(state, LUA_REGISTRYINDEX);
     sequence.offset = static_cast<uint16_t>(storage->frames.size());
     sequence.count = 0;
 
@@ -118,5 +120,9 @@ spritesheetpool::~spritesheetpool() {
 }
 
 void spritesheetpool::clear() {
+  for (const auto& [_, storage] : _pool)
+    for (const auto& sequence : storage->sequences)
+      luaL_unref(L, LUA_REGISTRYINDEX, sequence.name);
+
   _pool.clear();
 }

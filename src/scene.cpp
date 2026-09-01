@@ -12,9 +12,9 @@ void callback(const object& object, int ref) {
 }
 }
 
-scene::scene(std::string_view name)
-    : _background(std::make_unique<pixmap>(std::format("blobs/scenes/{}/background.png", name))),
-      _overlay(name) {
+scene::scene(std::string_view key)
+    : _background(std::make_unique<pixmap>(std::format("blobs/scenes/{}/background.png", key))),
+      _overlay(key) {
   struct prior final {
     int pool;
     int timer;
@@ -26,13 +26,13 @@ scene::scene(std::string_view name)
   const auto timer = luaL_ref(L, LUA_REGISTRYINDEX);
   const prior prior{.pool = pool, .timer = timer};
 
-  _timer.wire();
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _timer._table);
+  _scheduler.wire();
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _scheduler._table);
   lua_setglobal(L, "timer");
 
   SDL_SetTextureBlendMode(*_background, SDL_BLENDMODE_NONE);
 
-  const auto chunk = std::format("@scenes/{}.lua", name);
+  const auto chunk = std::format("@scenes/{}.lua", key);
   const auto path = std::string_view{chunk}.substr(1);
   const auto source = io::read(path);
 
@@ -127,21 +127,17 @@ scene::scene(std::string_view name)
     lua_getfield(L, -1, "sounds");
     const auto length = static_cast<int>(lua_objlen(L, -1));
 
-    _sounds.reserve(length);
-
     for (auto i = 1; i <= length; ++i) {
       lua_rawgeti(L, -1, i);
 
       lua_getfield(L, -1, "name");
       std::size_t length;
       const auto* data = luaL_checklstring(L, -1, &length);
-      const std::string_view label{data, length};
+      const std::string_view name{data, length};
 
-      const auto key = std::format("sounds/{}", label);
-      const auto* asset = depot->get<clip>(key);
-      auto instance = std::make_unique<sound>(*asset);
+      auto& instance = _soundmanager.add(name);
       auto **memory = static_cast<class sound **>(lua_newuserdata(L, sizeof(class sound *)));
-      *memory = instance.get();
+      *memory = &instance;
       luaL_getmetatable(L, "Sound");
       lua_setmetatable(L, -2);
 
@@ -154,8 +150,6 @@ scene::scene(std::string_view name)
       lua_pop(L, 1);
 
       lua_pop(L, 2);
-
-      _sounds.emplace_back(std::move(instance));
     }
 
     lua_pop(L, 1);
@@ -204,15 +198,17 @@ scene::~scene() {
   luaL_unref(L, LUA_REGISTRYINDEX, _on_enter);
   luaL_unref(L, LUA_REGISTRYINDEX, _on_loop);
   luaL_unref(L, LUA_REGISTRYINDEX, _pool);
-  luaL_unref(L, LUA_REGISTRYINDEX, _timer._table);
+  luaL_unref(L, LUA_REGISTRYINDEX, _scheduler._table);
   luaL_unref(L, LUA_REGISTRYINDEX, _table);
 }
 
 void scene::on_enter() {
+  _scheduler.activate();
+
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
   lua_setglobal(L, "pool");
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _timer._table);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _scheduler._table);
   lua_setglobal(L, "timer");
 
   _overlay.appear();
@@ -226,6 +222,8 @@ void scene::on_enter() {
 }
 
 void scene::update(float delta) {
+  _soundmanager.dispatch();
+
   if (_dirty.order) [[unlikely]] {
     std::sort(_order.begin(), _order.end(), [this](const auto left, const auto right) {
       const auto& lhs = _objects[left].sprite;
@@ -300,7 +298,7 @@ void scene::update(float delta) {
     }
   }
 
-  _timer.update(delta);
+  _scheduler.update(delta);
 
   if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
@@ -329,12 +327,29 @@ void scene::update(float delta) {
       continue;
 
     object.motion.elapsed -= frame.duration;
-    if (++object.motion.current >= sequence.count) {
-      object.motion.current = sequence.loop ? 0 : sequence.count - 1;
-      object.motion.elapsed = sequence.loop ? object.motion.elapsed : stopped;
+    _dirty.mouse = true;
+    if (++object.motion.current < sequence.count)
+      continue;
+
+    if (sequence.loop)
+      object.motion.current = 0;
+    else {
+      object.motion.current = sequence.count - 1;
+      object.motion.elapsed = stopped;
     }
 
-    _dirty.mouse = true;
+    if (!object.motion.ending)
+      continue;
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
+    lua_getfenv(L, -1);
+    lua_pushliteral(L, "\1on_end");
+    lua_rawget(L, -2);
+    lua_remove(L, -2);
+    lua_insert(L, -2);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, sequence.name);
+    if (pcall(L, 2, 0) != LUA_OK) [[unlikely]]
+      throw std::runtime_error{lua_tostring(L, -1)};
   }
 
   _overlay.update(delta);
@@ -401,7 +416,9 @@ void scene::draw() {
 }
 
 void scene::on_leave() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _timer._table);
+  _scheduler.suspend();
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _scheduler._table);
   lua_setglobal(L, "timer");
 
   auto result = LUA_OK;
@@ -414,8 +431,7 @@ void scene::on_leave() {
   lua_pushnil(L);
   lua_setglobal(L, "pool");
 
-  for (const auto& sound : _sounds)
-    sound->stop();
+  _soundmanager.stop();
 
   if (result != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};

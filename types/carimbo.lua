@@ -190,7 +190,7 @@ cassette = nil
 ---Scene definition and callbacks owned by the script.
 ---@class Scene
 ---@field objects? SceneObject[] Declaration order sets each object's initial `z`.
----@field sounds? SceneSound[]
+---@field sounds? SceneSound[] At most 16 sounds.
 ---@field on_enter? fun(self: Scene) Called when this scene becomes active.
 ---@field on_leave? fun(self: Scene) Called before this scene becomes inactive.
 ---@field on_loop? fun(self: Scene, delta: number) Called every active frame; delta is in seconds.
@@ -303,6 +303,11 @@ viewport = nil
 ---@field kind string Prototype kind (read-only).
 ---@field z integer Render order (read/write); defaults to the declaration index in `objects` and higher values draw on top.
 ---@field [string] any Per-object field or dispatched prototype method.
+local Object = {}
+
+---Set the callback for each animation end.
+---@param callback fun(self: Object, animation: string)
+function Object:on_end(callback) end
 
 -- Sound
 
@@ -320,8 +325,9 @@ function Sound:play() end
 ---Stop playback.
 function Sound:stop() end
 
----Set the callback for each natural playback end.
----@param callback fun()
+---Set the callback for each natural playback end. Call this once per sound.
+---`stop` and scene changes do not call it.
+---@param callback fun(self: Sound)
 function Sound:on_end(callback) end
 
 ---Fade the volume.
@@ -438,10 +444,8 @@ function TimerHandle:pause() end
 ---@return TimerHandle self
 function TimerHandle:resume() end
 
----Scene-local timers advanced once per frame. Timers freeze while their scene is
----inactive and can only run while that same scene is active. Elapsed intervals
----of repeating timers replay without drift. Timers added by a callback begin on
----the next advance; nested updates are ignored.
+---Timers are checked once per frame and pause with the scene.
+---Late repeating timers run once and restart. Handles expire with the scene.
 ---@class Timer
 local Timer = {}
 

@@ -23,6 +23,7 @@ struct frame final {
 static_assert(std::is_trivially_copyable_v<frame>, "frame must be trivially copyable");
 
 struct sequence final {
+  int name{LUA_NOREF};
   uint16_t offset{};
   uint8_t count{};
   bool loop{true};
@@ -81,6 +82,7 @@ struct object final {
     float elapsed{};
     uint8_t active{};
     uint8_t current{};
+    bool ending{};
   } motion;
 };
 

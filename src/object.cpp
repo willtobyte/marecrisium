@@ -1,6 +1,22 @@
 namespace {
 std::unordered_map<std::string, std::unique_ptr<prototype>, transparent_string_hash, std::equal_to<>> prototypes;
 
+static int on_end_callback(lua_State* state) {
+  auto* self = static_cast<proxy*>(luaL_checkudata(state, 1, "Object"));
+  luaL_checktype(state, 2, LUA_TFUNCTION);
+
+  const auto alive = self->object != nullptr;
+  assert(alive && "object must be alive when an end callback is set");
+  [[assume(alive)]];
+
+  self->object->motion.ending = true;
+  lua_getfenv(state, 1);
+  lua_pushliteral(state, "\1on_end");
+  lua_pushvalue(state, 2);
+  lua_rawset(state, -3);
+  return 0;
+}
+
 static int index(lua_State* state) {
   const auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
   std::size_t length;
@@ -177,6 +193,11 @@ void objects::bind(object& object, dirty& dirty, std::string_view name, std::str
   if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
 
+  luaL_getmetatable(L, "Object");
+  lua_getfield(L, -1, "on_end");
+  lua_setfield(L, -3, "on_end");
+  lua_pop(L, 1);
+
   auto blueprint = std::make_unique<prototype>();
   blueprint->table = luaL_ref(L, LUA_REGISTRYINDEX);
 
@@ -230,5 +251,7 @@ void objects::wire() {
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, newindex);
   lua_setfield(L, -2, "__newindex");
+  lua_pushcfunction(L, on_end_callback);
+  lua_setfield(L, -2, "on_end");
   lua_pop(L, 1);
 }

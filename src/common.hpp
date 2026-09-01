@@ -14,7 +14,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <deque>
 #include <exception>
 #include <filesystem>
 #include <format>
@@ -107,12 +106,13 @@ extern mcg64 prng;
 #include "platform.hpp"
 #include "scriptengine.hpp"
 #include "sound.hpp"
+#include "soundmanager.hpp"
 #include "soundpool.hpp"
 #include "spritesheet.hpp"
 #include "spritesheetpool.hpp"
 #include "steam.hpp"
 #include "runtime.hpp"
-#include "timer.hpp"
+#include "scheduler.hpp"
 #include "traceback.hpp"
 #include "depot.hpp"
 #include "scene.hpp"

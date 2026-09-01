@@ -2,7 +2,7 @@
 
 class scene final {
 public:
-  explicit scene(std::string_view name);
+  explicit scene(std::string_view key);
   ~scene();
 
   void on_enter();
@@ -19,7 +19,6 @@ private:
   std::vector<object> _objects{};
   std::vector<uint32_t> _order{};
   std::vector<uint32_t> _loops{};
-  std::vector<std::unique_ptr<sound>> _sounds{};
 
   overlay _overlay;
 
@@ -34,12 +33,12 @@ private:
   int _on_loop{LUA_NOREF};
   int _on_leave{LUA_NOREF};
 
-  timer _timer{};
-
   uint32_t _hovered{none};
   uint32_t _mouse_previous_buttons{};
   float _mouse_x{};
   float _mouse_y{};
 
   dirty _dirty{};
+  scheduler _scheduler{};
+  soundmanager _soundmanager{};
 };

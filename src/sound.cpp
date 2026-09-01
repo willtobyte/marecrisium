@@ -1,16 +1,4 @@
-struct completion final {
-  std::atomic_uint refs{1};
-  int callback;
-};
-
 namespace {
-  static void release(completion* done) {
-    if (done->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-      luaL_unref(L, LUA_REGISTRYINDEX, done->callback);
-      delete done;
-    }
-  }
-
   static ma_result read(ma_data_source* source, void* frames, ma_uint64 count, ma_uint64* decoded) {
     auto* stream = reinterpret_cast<struct stream*>(source);
     const auto limit = static_cast<ma_uint64>(std::numeric_limits<int>::max() / stream->channels);
@@ -143,49 +131,37 @@ namespace {
 int sound::on_end_callback(lua_State* state) {
   auto* instance = get(state);
   luaL_checktype(state, 2, LUA_TFUNCTION);
+  const auto available = instance->_callback == LUA_NOREF;
+  assert(available && "sound end callback must be set once");
+  [[assume(available)]];
 
   lua_pushvalue(state, 2);
-  const auto callback = luaL_ref(state, LUA_REGISTRYINDEX);
+  instance->_callback = luaL_ref(state, LUA_REGISTRYINDEX);
 
-  auto* done = instance->_completion.load(std::memory_order_acquire);
-  if (!done) {
-    done = new completion{.callback = callback};
-    instance->_completion.store(done, std::memory_order_release);
-    return 0;
-  }
-
-  const auto prior = std::exchange(done->callback, callback);
-  luaL_unref(state, LUA_REGISTRYINDEX, prior);
+  lua_pushvalue(state, 1);
+  instance->_self = luaL_ref(state, LUA_REGISTRYINDEX);
   return 0;
 }
 
-void sound::ended(void* data, ma_sound*) {
-  auto* instance = static_cast<sound*>(data);
-  auto* done = instance->_completion.load(std::memory_order_acquire);
-  if (!done)
+void sound::ended(void* data, ma_sound*) noexcept {
+  auto* const instance = static_cast<sound*>(data);
+  auto state = phase::armed;
+  if (!instance->_phase.compare_exchange_strong(
+        state,
+        phase::publishing,
+        std::memory_order_acq_rel,
+        std::memory_order_relaxed))
     return;
 
-  done->refs.fetch_add(1, std::memory_order_relaxed);
-  const auto queued = SDL_RunOnMainThread(invoke, done, false);
-  if (!queued)
-    release(done);
-  assert(queued && "sound end callback must reach the main thread");
-}
-
-void SDLCALL sound::invoke(void* data) {
-  auto* done = static_cast<completion*>(data);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, done->callback);
-  const auto status = pcall(L, 0, 0);
-  assert(status == LUA_OK && "sound end callback must complete");
-  [[assume(status == LUA_OK)]];
-
-  release(done);
+  instance->_completed->fetch_or(instance->_bit, std::memory_order_release);
+  instance->_phase.store(phase::idle, std::memory_order_release);
 }
 
 clip::clip(std::string_view filename)
     : encoded{io::read(filename)} {}
 
-sound::sound(const clip& data) {
+sound::sound(const clip& data, std::atomic_uint16_t& completed, std::uint16_t bit)
+    : _completed{&completed}, _bit{bit} {
   _source.vorbis.reset(stb_vorbis_open_memory(data.encoded.data(), static_cast<int>(data.encoded.size()), nullptr, nullptr));
   const auto valid = _source.vorbis != nullptr;
   assert(valid && "sound OGG data must be valid");
@@ -218,19 +194,44 @@ sound::sound(const clip& data) {
 sound::~sound() {
   ma_sound_uninit(&_sound);
 
-  if (auto* done = _completion.exchange(nullptr, std::memory_order_acq_rel))
-    release(done);
+  luaL_unref(L, LUA_REGISTRYINDEX, _callback);
+  luaL_unref(L, LUA_REGISTRYINDEX, _self);
 
   ma_data_source_uninit(reinterpret_cast<ma_data_source*>(&_source));
 }
 
 void sound::play() {
+  if (_phase.load(std::memory_order_acquire) == phase::idle &&
+      (_completed->load(std::memory_order_relaxed) & _bit) == 0) [[likely]] {
+    _phase.store(phase::armed, std::memory_order_release);
+    ma_sound_seek_to_pcm_frame(&_sound, 0);
+    ma_sound_start(&_sound);
+    return;
+  }
+
+  stop();
+  _phase.store(phase::armed, std::memory_order_release);
   ma_sound_seek_to_pcm_frame(&_sound, 0);
   ma_sound_start(&_sound);
 }
 
 void sound::stop() {
+  const auto active = _phase.load(std::memory_order_acquire) != phase::idle;
   ma_sound_stop(&_sound);
+  if (active) {
+    const auto detached = ma_node_detach_output_bus(&_sound, 0);
+    assert(detached == MA_SUCCESS && "sound must detach");
+    [[assume(detached == MA_SUCCESS)]];
+
+    _phase.store(phase::idle, std::memory_order_release);
+
+    const auto attached = ma_node_attach_output_bus(&_sound, 0, ma_node_graph_get_endpoint(ma_engine_get_node_graph(&audio)), 0);
+    assert(attached == MA_SUCCESS && "sound must attach");
+    [[assume(attached == MA_SUCCESS)]];
+  }
+
+  if ((_completed->load(std::memory_order_relaxed) & _bit) != 0)
+    _completed->fetch_and(static_cast<std::uint16_t>(~_bit), std::memory_order_acq_rel);
 }
 
 void sound::set_volume(float gain) {
