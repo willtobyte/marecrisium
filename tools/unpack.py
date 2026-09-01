@@ -14,7 +14,7 @@ zstandard = importlib.import_module("zstandard")
 MAGIC = b"CROM"
 DIRECTORY = 2
 ALGO_RAW = 0
-HEADER_FORMAT = "<4s5I40x"
+HEADER_FORMAT = "<4s5I"
 RECORD_FORMAT = "<Q4I2B6x"
 HEADER = struct.calcsize(HEADER_FORMAT)
 RECORD = struct.calcsize(RECORD_FORMAT)
@@ -23,7 +23,7 @@ RECORD = struct.calcsize(RECORD_FORMAT)
 def main() -> int:
     rom = memoryview(Path("cartridge.rom").read_bytes())
 
-    magic, count, stringsize, trainsize, slots, _seed = struct.unpack_from(
+    magic, count, stringsize, trainsize, slots, _ = struct.unpack_from(
         HEADER_FORMAT, rom, 0
     )
 
@@ -31,7 +31,8 @@ def main() -> int:
         print("not a cartridge.rom", file=sys.stderr)
         return 1
 
-    cursor = HEADER + slots * 2
+    cursor = HEADER
+    cursor += slots * RECORD
     records = rom[cursor : cursor + count * RECORD]
     cursor += count * RECORD
     strings = rom[cursor : cursor + stringsize]

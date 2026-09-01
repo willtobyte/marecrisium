@@ -2,9 +2,8 @@ namespace {
 constexpr uint8_t raw = 0;
 constexpr uint8_t zstd = 1;
 constexpr uint8_t directory = 2;
-constexpr size_t header = 64;
+constexpr size_t header = 24;
 constexpr size_t stride = 32;
-constexpr uint16_t empty = UINT16_MAX;
 constexpr uint64_t prime = 0x9e3779b97f4a7c15ull;
 
 using decoder_t = std::unique_ptr<ZSTD_DCtx, ZSTD_DCtx_Deleter>;
@@ -106,8 +105,8 @@ struct archive final {
   mapping source;
   decoder_t decoder;
   dictionary_t dictionary;
+  std::unique_ptr<uint8_t[]> arena;
   const uint8_t *records{};
-  const uint8_t *buckets{};
   const uint8_t *strings{};
   size_t mask{};
 
@@ -120,26 +119,21 @@ struct archive final {
     const auto textsize = fields[2];
     const auto trainsize = fields[3];
     const auto slots = fields[4];
-    mask = slots - 1;
+    const auto arenasize = fields[5];
+    mask = (slots >> 1) - 1;
 
     const auto *data = source.data;
-    buckets = data + header;
-    records = buckets + static_cast<size_t>(slots) * sizeof(uint16_t);
-    strings = records + static_cast<size_t>(count) * stride;
+    records = data + header;
+    strings = records + (static_cast<size_t>(slots) + count) * stride;
     const auto *trained = strings + textsize;
 
+    arena = std::make_unique_for_overwrite<uint8_t[]>(arenasize);
     decoder.reset(ZSTD_createDCtx());
     dictionary.reset(ZSTD_createDDict_byReference(trained, trainsize));
   }
 };
 
 std::optional<archive> content;
-
-[[nodiscard]] inline record record_at(const archive *cartridge, size_t index) noexcept {
-  record current;
-  std::memcpy(&current, cartridge->records + index * stride, stride);
-  return current;
-}
 
 [[nodiscard]] inline uint64_t hashfn(std::string_view name) noexcept {
   const auto *cursor = reinterpret_cast<const uint8_t *>(name.data());
@@ -161,22 +155,20 @@ std::optional<archive> content;
   return rem == 0 ? digest : mix(digest ^ tail, prime);
 }
 
-[[nodiscard]] size_t locate(const archive *cartridge, std::string_view name) noexcept {
+[[nodiscard]] record locate(const archive *cartridge, std::string_view name) noexcept {
   const auto digest = hashfn(name);
-  auto slot = static_cast<size_t>(digest) & cartridge->mask;
-  for (;;) {
-    uint16_t index;
-    std::memcpy(&index, cartridge->buckets + slot * sizeof(index), sizeof(index));
-    if (index == empty) [[unlikely]]
-      return SIZE_MAX;
+  const auto first = static_cast<size_t>(digest) & cartridge->mask;
+  record current;
+  std::memcpy(&current, cartridge->records + first * stride, stride);
+  if (current.digest == digest) [[likely]]
+    return current;
 
-    uint64_t candidate;
-    std::memcpy(&candidate, cartridge->records + index * stride, sizeof(candidate));
-    if (candidate == digest) [[likely]]
-      return index;
-
-    slot = (slot + 1) & cartridge->mask;
-  }
+  const auto second = cartridge->mask + 1 + ((digest >> 32) & cartridge->mask);
+  std::memcpy(&current, cartridge->records + second * stride, stride);
+  const auto found = current.digest == digest;
+  assert(found && "cartridge file must exist");
+  [[assume(found)]];
+  return current;
 }
 }
 
@@ -189,7 +181,19 @@ bool io::exists(std::string_view filename) noexcept {
   const auto mounted = content.has_value();
   assert(mounted && "cartridge must be mounted");
   [[assume(mounted)]];
-  return locate(&*content, filename) != SIZE_MAX;
+  const auto *cartridge = &*content;
+  const auto digest = hashfn(filename);
+  const auto first = static_cast<size_t>(digest) & cartridge->mask;
+  uint64_t candidate;
+  std::memcpy(&candidate, cartridge->records + first * stride, sizeof(candidate));
+  if (candidate == digest) [[likely]]
+    return true;
+  if (candidate == 0) [[likely]]
+    return false;
+
+  const auto second = cartridge->mask + 1 + ((digest >> 32) & cartridge->mask);
+  std::memcpy(&candidate, cartridge->records + second * stride, sizeof(candidate));
+  return candidate == digest;
 }
 
 bytes io::read(std::string_view filename) {
@@ -197,12 +201,7 @@ bytes io::read(std::string_view filename) {
   assert(mounted && "cartridge must be mounted");
   [[assume(mounted)]];
   auto *cartridge = &*content;
-  const auto index = locate(cartridge, filename);
-  const auto found = index != SIZE_MAX;
-  assert(found && "cartridge file must exist");
-  [[assume(found)]];
-
-  const auto current = record_at(cartridge, index);
+  const auto current = locate(cartridge, filename);
   assert(current.kind != directory && "cartridge entry must be a file");
   [[assume(current.kind != directory)]];
   const auto size = static_cast<size_t>(current.uncompressed);
@@ -215,13 +214,13 @@ bytes io::read(std::string_view filename) {
 
   assert(current.kind == zstd && "cartridge compression must be supported");
   [[assume(current.kind == zstd)]];
-  bytes buffer(size);
+  auto *buffer = cartridge->arena.get();
   const auto result = ZSTD_decompress_usingDDict(
     cartridge->decoder.get(),
-    buffer.writable(), size,
+    buffer, size,
     source, current.compressed,
     cartridge->dictionary.get());
   assert(result == size && "cartridge payload size must be valid");
   [[assume(result == size)]];
-  return buffer;
+  return {buffer, size};
 }

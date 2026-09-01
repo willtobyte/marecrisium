@@ -34,7 +34,7 @@ MAGIC = b"CROM"
 DIRECTORY = 2
 ALGO_RAW = 0
 ALGO_ZSTD_DICT = 1
-HEADER_FORMAT = "<4s5I40x"
+HEADER_FORMAT = "<4s5I"
 RECORD_FORMAT = "<Q4I2B6x"
 HEADER = struct.calcsize(HEADER_FORMAT)
 RECORD = struct.calcsize(RECORD_FORMAT)
@@ -42,6 +42,7 @@ CAPACITY = 131072
 LEVEL = 22
 TEST_LEVEL = 9
 EMPTY = 0xFFFF
+MAX_ENTRIES = 8192
 PRIME = 0x9E3779B97F4A7C15
 MASK64 = 0xFFFFFFFFFFFFFFFF
 
@@ -52,6 +53,7 @@ class Source:
     data: bytes
     directory: bool
     blob: bytes = b""
+    position: int = 0
     algorithm: int = ALGO_RAW
 
 
@@ -63,9 +65,9 @@ def prepare(data: bytes) -> tuple[tuple[int, ...], int, int]:
     return chunks, tail, n
 
 
-def hashfn(prepared: tuple[tuple[int, ...], int, int], seed: int) -> int:
+def hashfn(prepared: tuple[tuple[int, ...], int, int]) -> int:
     chunks, tail, n = prepared
-    h = seed ^ n
+    h = n
     for chunk in chunks:
         r = (h ^ chunk) * PRIME
         h = (r & MASK64) ^ (r >> 64)
@@ -81,14 +83,25 @@ def build_table(digests: list[int]) -> tuple[int, list[int]]:
     while slots < count * 2:
         slots *= 2
 
-    mask = slots - 1
-    buckets = [EMPTY] * slots
-    for index, value in enumerate(digests):
-        slot = value & mask
-        while buckets[slot] != EMPTY:
-            slot = (slot + 1) & mask
-        buckets[slot] = index
-    return slots, buckets
+    while True:
+        half = slots // 2
+        mask = half - 1
+        buckets = [EMPTY] * slots
+        for index, value in enumerate(digests):
+            current = index
+            slot = value & mask
+            for _ in range(slots):
+                current, buckets[slot] = buckets[slot], current
+                if current == EMPTY:
+                    break
+                value = digests[current]
+                first = value & mask
+                slot = half + ((value >> 32) & mask) if slot == first else first
+            else:
+                break
+        else:
+            return slots, buckets
+        slots *= 2
 
 
 def display(
@@ -135,6 +148,10 @@ def main() -> int:
             )
 
     sources.sort(key=lambda current: current.path)
+    count = len(sources)
+    if count > MAX_ENTRIES:
+        print(f"too many entries: {count}", file=sys.stderr)
+        return 1
 
     probe = zstandard.ZstdCompressor(level=TEST_LEVEL, threads=-1)
 
@@ -172,6 +189,15 @@ def main() -> int:
             current.blob = current.data
             current.algorithm = ALGO_RAW
 
+    arenasize = max(
+        (
+            len(current.data)
+            for current in sources
+            if current.algorithm == ALGO_ZSTD_DICT
+        ),
+        default=0,
+    )
+
     strings = bytearray()
     offsets: list[int] = []
     encoded: list[bytes] = []
@@ -181,62 +207,71 @@ def main() -> int:
         offsets.append(len(strings))
         strings.extend(name)
 
-    count = len(sources)
     stringsize = len(strings)
     trainsize = len(trained)
 
-    digests = [hashfn(prepare(p), 0) for p in encoded]
+    digests = [hashfn(prepare(p)) for p in encoded]
 
     seen: dict[int, str] = {}
     for value, current in zip(digests, sources):
+        if value == 0:
+            print(f"zero hash: {current.path}", file=sys.stderr)
+            return 1
         if value in seen:
             print(f"hash collision: {seen[value]} and {current.path}", file=sys.stderr)
             return 1
         seen[value] = current.path
 
-    seed = 0
     slots, buckets = build_table(digests)
 
-    buckets = struct.pack(f"<{slots}H", *buckets)
-
-    base = HEADER + len(buckets) + count * RECORD + stringsize + trainsize
-
-    blob = bytearray(
-        struct.pack(
-            HEADER_FORMAT,
-            MAGIC,
-            count,
-            stringsize,
-            trainsize,
-            slots,
-            seed,
-        )
-    )
-    blob.extend(buckets)
+    order = [0] * count
+    for slot, index in enumerate(buckets):
+        if index != EMPTY:
+            order[index] = slot
+    base = HEADER + (slots + count) * RECORD + stringsize + trainsize
 
     cursor = 0
-    for index, current in enumerate(sources):
-        kind = DIRECTORY if current.directory else current.algorithm
-        data_offset = 0 if current.directory else base + cursor
-        blob.extend(
-            struct.pack(
-                RECORD_FORMAT,
-                digests[index],
-                data_offset,
-                len(current.blob),
-                len(current.data),
-                offsets[index],
-                len(encoded[index]),
-                kind,
-            )
-        )
+    for current in sources:
+        if not current.directory:
+            current.position = base + cursor
         cursor += len(current.blob)
 
-    blob.extend(strings)
-    blob.extend(trained)
+    blob = bytearray(base + cursor)
+    struct.pack_into(
+        HEADER_FORMAT,
+        blob,
+        0,
+        MAGIC,
+        count,
+        stringsize,
+        trainsize,
+        slots,
+        arenasize,
+    )
+
+    direct = HEADER
+    ordered = direct + slots * RECORD
+    for index, current in enumerate(sources):
+        kind = DIRECTORY if current.directory else current.algorithm
+        record = (
+            digests[index],
+            current.position,
+            len(current.blob),
+            len(current.data),
+            offsets[index],
+            len(encoded[index]),
+            kind,
+        )
+        struct.pack_into(RECORD_FORMAT, blob, direct + order[index] * RECORD, *record)
+        struct.pack_into(RECORD_FORMAT, blob, ordered + index * RECORD, *record)
+
+    cursor = ordered + count * RECORD
+    blob[cursor : cursor + stringsize] = strings
+    cursor += stringsize
+    blob[cursor : cursor + trainsize] = trained
 
     for current in sources:
-        blob.extend(current.blob)
+        blob[current.position : current.position + len(current.blob)] = current.blob
 
     output.write_bytes(blob)
 
