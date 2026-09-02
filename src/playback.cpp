@@ -25,7 +25,7 @@ void playback::update() {
     const auto index = static_cast<std::size_t>(std::countr_zero(bits));
     bits &= static_cast<std::uint16_t>(bits - 1);
     auto& sound = *_sounds[index];
-    if (sound._phase.load(std::memory_order_acquire) == sound::phase::idle)
+    if (sound._phase.load(std::memory_order_acquire) != sound::phase::armed)
       ma_sound_stop(&sound._sound);
     if (sound._callback == LUA_NOREF)
       continue;
