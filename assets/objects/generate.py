@@ -15,7 +15,7 @@ rpack = importlib.import_module("rpack")
 
 objects = Path(__file__).resolve().parent
 root = objects.parents[1]
-pattern = re.compile(r"^(\d+)_(\d+)_([a-z][a-z0-9.]*)\.png$")
+pattern = re.compile(r"^(\d+)_(\d+)_(?:(end)_)?([a-z][a-z0-9.]*)\.png$")
 
 for directory in sorted(path for path in objects.iterdir() if path.is_dir()):
     paths = sorted((directory / "frames").glob("*.png"))
@@ -27,8 +27,17 @@ for directory in sorted(path for path in objects.iterdir() if path.is_dir()):
 
     for path in paths:
         match = pattern.fullmatch(path.name)
-        assert match, "frame name must be order_duration_animation.png"
-        order, duration, animation = match.groups()
+        assert match, "frame name must be index_delay_[end_]animation.png"
+        order, duration, end, animation = match.groups()
+        order = int(order)
+        duration = int(duration)
+        group = groups.get(animation)
+        if group is None:
+            groups[animation] = (order if end else None, [])
+        else:
+            assert not end or group[0] is None, "animation must have one end marker"
+            if end:
+                groups[animation] = (order, group[1])
         source = Image.open(path)
         image = source if source.mode == "RGBA" else source.convert("RGBA")
         if image is not source:
@@ -60,8 +69,8 @@ for directory in sorted(path for path in objects.iterdir() if path.is_dir()):
             (
                 image,
                 animation,
-                int(order),
-                int(duration),
+                order,
+                duration,
                 collider,
                 bounds,
             )
@@ -118,19 +127,28 @@ for directory in sorted(path for path in objects.iterdir() if path.is_dir()):
         frame = f"{x}, {y}, {w}, {h}, {left}, {top}, {size[0]}, {size[1]}, {duration}"
         if collider:
             frame += ", " + ", ".join(map(str, collider))
-        groups.setdefault(animation, []).append((order, frame))
+        groups[animation][1].append((order, frame))
         image.close()
 
     assert len(groups) <= 255, "object must have at most 255 animations"
     assert len(images) <= 65535, "object must have at most 65535 frames"
     clips = []
-    for animation, frames in sorted(groups.items()):
+    for animation, (end, frames) in sorted(groups.items()):
         frames.sort(key=lambda item: item[0])
         assert len(frames) <= 255, "animation must have at most 255 frames"
         assert len({order for order, _ in frames}) == len(frames), (
             "animation frame order must be unique"
         )
-        clips.append({"name": animation, "frames": [frame for _, frame in frames]})
+        assert end is None or end == frames[-1][0], (
+            "end marker must be on the last animation frame"
+        )
+        clips.append(
+            {
+                "name": animation,
+                "loop": end is None,
+                "frames": [frame for _, frame in frames],
+            }
+        )
 
     name = directory.name
     output = root / "cartridge" / "objects" / f"{name}.lua"

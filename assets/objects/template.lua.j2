@@ -4,6 +4,9 @@ return {
 {%- block animation %}{% endblock %}
 {%- for clip in clips %}
 		["{{ clip.name }}"] = {
+{%- if not clip.loop %}
+			loop = false,
+{%- endif %}
 {%- for frame in clip.frames %}
 			{ {{ frame }} },
 {%- endfor %}
