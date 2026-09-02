@@ -18,6 +18,10 @@ struct frame final {
     float height{};
   } collider;
   float duration{};
+  struct {
+    uint16_t x{};
+    uint16_t y{};
+  } offset;
 };
 
 static_assert(std::is_trivially_copyable_v<frame>, "frame must be trivially copyable");

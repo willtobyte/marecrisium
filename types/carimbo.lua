@@ -2,7 +2,7 @@
 
 ---@alias Vector2 [number, number]
 ---@alias ParticleRange [number, number]
----@alias AnimationFrame [number, number, number, number, number, number, number, number, number]
+---@alias AnimationFrame [number, number, number, number, number, number, number, number, number]|[number, number, number, number, number, number, number, number, number, number, number, number, number]
 ---@alias MouseButton "left"|"middle"|"right"
 
 -- Keyboard
@@ -275,7 +275,7 @@ viewport = nil
 ---Non-empty frame array.
 ---@class AnimationClip
 ---@field loop? boolean Repeats by default. `false` stops on the last frame.
----@field [integer] AnimationFrame `{sx, sy, width, height, duration_ms, collider_x, collider_y, collider_width, collider_height}`.
+---@field [integer] AnimationFrame `{atlas_x, atlas_y, width, height, offset_x, offset_y, source_width, source_height, duration_ms[, collider_x, collider_y, collider_width, collider_height]}`.
 
 ---Spawn configuration and shared custom behavior. The engine dispatches the
 ---reserved callbacks from references cached at load time. A write to a reserved

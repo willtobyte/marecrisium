@@ -97,9 +97,8 @@ scene::scene(std::string_view key)
       const auto* sheet = depot->get<spritesheet>(kind, L, -1);
       object.sprite.sheet = sheet;
       object.motion.active = sheet->initial;
-      const auto& sequence = sheet->sequences[object.motion.active];
-      const auto& frame = sheet->frames[sequence.offset];
-      object.sprite.resize(frame.width, frame.height, object.sprite.scale);
+      const auto& source = sheet->source;
+      object.sprite.resize(source.width, source.height, object.sprite.scale);
 
       lua_pop(L, 2);
 
@@ -253,9 +252,11 @@ void scene::update(float delta) {
 
       const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
       const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
+      if (frame.collider.width == .0f)
+        continue;
       const auto& bounds = object.sprite.bounds;
-      const auto x = std::floor(object.sprite.x - viewport.x) + viewport.x + bounds.x + frame.collider.offset.x * object.sprite.scale;
-      const auto y = std::floor(object.sprite.y - viewport.y) + viewport.y + bounds.y + frame.collider.offset.y * object.sprite.scale;
+      const auto x = std::floor(object.sprite.x - viewport.x) + viewport.x + bounds.x + (frame.offset.x + frame.collider.offset.x) * object.sprite.scale;
+      const auto y = std::floor(object.sprite.y - viewport.y) + viewport.y + bounds.y + (frame.offset.y + frame.collider.offset.y) * object.sprite.scale;
       const auto width = frame.collider.width * object.sprite.scale;
       const auto height = frame.collider.height * object.sprite.scale;
       if (mx < x || mx >= x + width) [[likely]]
@@ -370,20 +371,49 @@ void scene::draw() {
     const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
     const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
     const auto* sheet = object.sprite.sheet->pixmap;
-    const auto& bounds = object.sprite.bounds;
+    const auto& sprite = object.sprite;
+    const auto& source = sprite.sheet->source;
+    const auto& bounds = sprite.bounds;
+    const auto scale = sprite.scale;
+    const auto mirror = std::to_underlying(sprite.mirror);
+    const auto width = frame.width * scale;
+    const auto height = frame.height * scale;
+    const auto bx = std::floor(sprite.x - viewport.x) + bounds.x;
+    const auto by = std::floor(sprite.y - viewport.y) + bounds.y;
+    const auto ox = mirror & SDL_FLIP_HORIZONTAL
+      ? source.width - frame.offset.x - frame.width
+      : frame.offset.x;
+    const auto oy = mirror & SDL_FLIP_VERTICAL
+      ? source.height - frame.offset.y - frame.height
+      : frame.offset.y;
+    auto x = bx + ox * scale;
+    auto y = by + oy * scale;
+
+    if (const auto angle = sprite.angle; angle != .0f) [[unlikely]] {
+      constexpr auto degree = std::numbers::pi_v<float> / 180.f;
+      const auto radians = angle * degree;
+      const auto sine = std::sin(radians);
+      const auto cosine = std::cos(radians);
+      const auto cx = bx + bounds.width * .5f;
+      const auto cy = by + bounds.height * .5f;
+      const auto dx = x + width * .5f - cx;
+      const auto dy = y + height * .5f - cy;
+      x = cx + dx * cosine - dy * sine - width * .5f;
+      y = cy + dx * sine + dy * cosine - height * .5f;
+    }
 
     sheet->draw(
       frame.u0 * static_cast<float>(sheet->width()),
       frame.v0 * static_cast<float>(sheet->height()),
       frame.width,
       frame.height,
-      std::floor(object.sprite.x - viewport.x) + bounds.x,
-      std::floor(object.sprite.y - viewport.y) + bounds.y,
-      bounds.width,
-      bounds.height,
-      object.sprite.angle,
-      static_cast<uint8_t>(std::clamp(object.sprite.alpha, .0f, 255.f)),
-      object.sprite.mirror);
+      x,
+      y,
+      width,
+      height,
+      sprite.angle,
+      static_cast<uint8_t>(std::clamp(sprite.alpha, .0f, 255.f)),
+      sprite.mirror);
   }
 
 #ifdef DEBUG
@@ -398,9 +428,11 @@ void scene::draw() {
     const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
     const auto& bounds = object.sprite.bounds;
     const auto& collider = frame.collider;
+    if (collider.width == .0f)
+      continue;
     const SDL_FRect rect = {
-      std::floor(object.sprite.x - viewport.x) + bounds.x + collider.offset.x * object.sprite.scale,
-      std::floor(object.sprite.y - viewport.y) + bounds.y + collider.offset.y * object.sprite.scale,
+      std::floor(object.sprite.x - viewport.x) + bounds.x + (frame.offset.x + collider.offset.x) * object.sprite.scale,
+      std::floor(object.sprite.y - viewport.y) + bounds.y + (frame.offset.y + collider.offset.y) * object.sprite.scale,
       collider.width * object.sprite.scale,
       collider.height * object.sprite.scale,
     };

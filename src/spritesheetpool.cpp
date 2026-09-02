@@ -70,6 +70,18 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       frame.height = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
       lua_rawgeti(state, -1, 5);
+      frame.offset.x = static_cast<uint16_t>(lua_tointeger(state, -1));
+      lua_pop(state, 1);
+      lua_rawgeti(state, -1, 6);
+      frame.offset.y = static_cast<uint16_t>(lua_tointeger(state, -1));
+      lua_pop(state, 1);
+      lua_rawgeti(state, -1, 7);
+      storage->sheet.source.width = static_cast<uint16_t>(lua_tointeger(state, -1));
+      lua_pop(state, 1);
+      lua_rawgeti(state, -1, 8);
+      storage->sheet.source.height = static_cast<uint16_t>(lua_tointeger(state, -1));
+      lua_pop(state, 1);
+      lua_rawgeti(state, -1, 9);
       frame.duration = static_cast<float>(lua_tonumber(state, -1)) / 1000.f;
       lua_pop(state, 1);
 
@@ -78,16 +90,16 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       frame.u1 = (x + frame.width) * iw;
       frame.v1 = (y + frame.height) * ih;
 
-      lua_rawgeti(state, -1, 6);
+      lua_rawgeti(state, -1, 10);
       frame.collider.offset.x = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
-      lua_rawgeti(state, -1, 7);
+      lua_rawgeti(state, -1, 11);
       frame.collider.offset.y = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
-      lua_rawgeti(state, -1, 8);
+      lua_rawgeti(state, -1, 12);
       frame.collider.width = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
-      lua_rawgeti(state, -1, 9);
+      lua_rawgeti(state, -1, 13);
       frame.collider.height = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
 

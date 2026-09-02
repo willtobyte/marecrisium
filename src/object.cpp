@@ -45,7 +45,7 @@ static int index(lua_State* state) {
   }
 
   if (key == "mirror") {
-    lua_pushinteger(state, static_cast<lua_Integer>(object.sprite.mirror));
+    lua_pushinteger(state, std::to_underlying(object.sprite.mirror));
     return 1;
   }
 
@@ -128,9 +128,9 @@ static int newindex(lua_State* state) {
   }
 
   if (key == "scale") {
-    const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
-    const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
-    object.sprite.resize(frame.width, frame.height, static_cast<float>(luaL_checknumber(state, 3)));
+    const auto* sheet = object.sprite.sheet;
+    const auto& source = sheet->source;
+    object.sprite.resize(source.width, source.height, static_cast<float>(luaL_checknumber(state, 3)));
     return 0;
   }
 

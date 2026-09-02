@@ -5,6 +5,7 @@
 # ///
 
 import importlib
+import math
 import re
 from pathlib import Path
 
@@ -33,40 +34,86 @@ for directory in sorted(path for path in objects.iterdir() if path.is_dir()):
         if image is not source:
             source.close()
 
+        size = image.size
+        assert max(size) <= 65535, "source frame must fit within 65535 pixels"
+        bounds = image.getbbox(alpha_only=True)
+        assert bounds, "frame must have opaque pixels"
+
         collider = directory / "colliders" / path.name
-        assert collider.is_file(), "frame must have a collider mask"
-        with Image.open(collider) as mask:
-            assert mask.size == image.size, "collider mask size must match frame size"
-            assert "A" in mask.getbands(), "collider mask must have an alpha channel"
-            alpha = mask.getchannel("A")
-            bounds = alpha.getbbox()
-            alpha.close()
-        assert bounds, "collider mask must have opaque pixels"
-        cx, cy, right, bottom = bounds
+        if collider.is_file():
+            with Image.open(collider) as mask:
+                assert mask.size == size, "collider mask size must match frame size"
+                assert "A" in mask.getbands(), (
+                    "collider mask must have an alpha channel"
+                )
+                box = mask.getbbox(alpha_only=True)
+            assert box, "collider mask must have opaque pixels"
+            cx, cy, right, bottom = box
+            collider = (cx, cy, right - cx, bottom - cy)
+        else:
+            collider = None
         images.append(
             (
                 image,
                 animation,
                 int(order),
                 int(duration),
-                (cx, cy, right - cx, bottom - cy),
+                collider,
+                bounds,
             )
         )
 
-    sizes = [image.size for image, _, _, _, _ in images]
-    positions = rpack.pack(sizes)
+    size = images[0][0].size
+    consistent = all(image.size == size for image, _, _, _, _, _ in images)
+    assert consistent, "object frames must have the same size"
+
+    for slot, (image, animation, order, duration, collider, bounds) in enumerate(
+        images
+    ):
+        left, top, _, _ = bounds
+        if bounds != (0, 0, *size):
+            crop = image.crop(bounds)
+            image.close()
+            image = crop
+        if collider:
+            cx, cy, cw, ch = collider
+            cx -= left
+            cy -= top
+            collider = (cx, cy, cw, ch)
+        images[slot] = (
+            image,
+            animation,
+            order,
+            duration,
+            collider,
+            (left, top),
+        )
+
+    sizes = [image.size for image, _, _, _, _, _ in images]
+    area = sum(w * h for w, h in sizes)
+    side = max(max(max(size) for size in sizes), math.isqrt(area - 1) + 1)
+    side = 1 << (side - 1).bit_length()
+    while True:
+        assert side <= 16384, "object atlas must fit within 16384 pixels"
+        try:
+            positions = rpack.pack(sizes, max_width=side, max_height=side)
+            break
+        except rpack.PackingImpossibleError:
+            side <<= 1
     width = max(x + w for (x, _), (w, _) in zip(positions, sizes))
     height = max(y + h for (_, y), (_, h) in zip(positions, sizes))
     sheet = Image.new("RGBA", (width, height), (0, 0, 0, 0))
 
-    for (image, animation, order, duration, collider), (x, bottom) in zip(
+    for (image, animation, order, duration, collider, offset), (x, bottom) in zip(
         images, positions
     ):
         w, h = image.size
         y = height - bottom - h
         sheet.paste(image, (x, y))
-        cx, cy, cw, ch = collider
-        frame = ", ".join(map(str, (x, y, w, h, duration, cx, cy, cw, ch)))
+        left, top = offset
+        frame = f"{x}, {y}, {w}, {h}, {left}, {top}, {size[0]}, {size[1]}, {duration}"
+        if collider:
+            frame += ", " + ", ".join(map(str, collider))
         groups.setdefault(animation, []).append((order, frame))
         image.close()
 
