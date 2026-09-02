@@ -43,10 +43,14 @@ for directory in sorted(path for path in objects.iterdir() if path.is_dir()):
         if collider.is_file():
             with Image.open(collider) as mask:
                 assert mask.size == size, "collider mask size must match frame size"
-                assert "A" in mask.getbands(), (
-                    "collider mask must have an alpha channel"
+                assert mask.has_transparency_data, (
+                    "collider mask must have transparency data"
                 )
-                box = mask.getbbox(alpha_only=True)
+                if "A" in mask.getbands():
+                    box = mask.getbbox(alpha_only=True)
+                else:
+                    with mask.convert("RGBA") as image:
+                        box = image.getbbox(alpha_only=True)
             assert box, "collider mask must have opaque pixels"
             cx, cy, right, bottom = box
             collider = (cx, cy, right - cx, bottom - cy)
