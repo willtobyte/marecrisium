@@ -35,6 +35,7 @@ void locales::wire() {
 
       lua_pushcclosure(L, translate_callback, 2);
       lua_setglobal(L, "_");
+
       return;
     }
   }
