@@ -139,9 +139,11 @@ for directory in sorted(path for path in objects.iterdir() if path.is_dir()):
         assert len({order for order, _ in frames}) == len(frames), (
             "animation frame order must be unique"
         )
+
         assert end is None or end == frames[-1][0], (
             "end marker must be on the last animation frame"
         )
+
         clips.append(
             {
                 "name": animation,
