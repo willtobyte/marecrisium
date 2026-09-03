@@ -386,6 +386,7 @@ void scene::draw() {
     const auto oy = mirror & SDL_FLIP_VERTICAL
       ? source.height - frame.offset.y - frame.height
       : frame.offset.y;
+
     auto x = bx + ox * scale;
     auto y = by + oy * scale;
 
