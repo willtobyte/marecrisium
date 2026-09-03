@@ -12,6 +12,7 @@ static int translate_callback(lua_State *state) {
 
   if (pcall(state, 1 + extras, 1) != LUA_OK) [[unlikely]]
     return lua_error(state);
+
   return 1;
 }
 
