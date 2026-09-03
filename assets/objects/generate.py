@@ -84,9 +84,14 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     consistent = all(image.size == size for image, _, _, _, _, _ in images)
     assert consistent, "object frames must have the same size"
 
-    for slot, (image, animation, order, duration, collider, bounds) in enumerate(
-        images
-    ):
+    for slot, (
+        image,
+        animation,
+        order,
+        duration,
+        collider,
+        bounds,
+    ) in enumerate(images):
         left, top, _, _ = bounds
         if bounds != (0, 0, *size):
             crop = image.crop(bounds)
