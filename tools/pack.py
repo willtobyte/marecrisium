@@ -182,6 +182,7 @@ def main() -> int:
     for current in sources:
         if current.directory or current.algorithm == ALGO_STORED:
             continue
+
         compressed = encoder.compress(current.data)
         if len(compressed) < len(current.data):
             current.blob = compressed
@@ -220,6 +221,7 @@ def main() -> int:
         if value in seen:
             print(f"hash collision: {seen[value]} and {current.path}", file=sys.stderr)
             return 1
+
         seen[value] = current.path
 
     slots, buckets = build_table(digests)
@@ -228,6 +230,7 @@ def main() -> int:
     for slot, index in enumerate(buckets):
         if index != EMPTY:
             order[index] = slot
+
     base = HEADER + slots * RECORD + stringsize + trainsize
 
     cursor = 0
@@ -261,6 +264,7 @@ def main() -> int:
             len(encoded[index]),
             kind,
         )
+
         struct.pack_into(RECORD_FORMAT, blob, direct + order[index] * RECORD, *record)
 
     cursor = direct + slots * RECORD
