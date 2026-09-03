@@ -13,8 +13,8 @@ zstandard = importlib.import_module("zstandard")
 
 MAGIC = b"CROM"
 DIRECTORY = 2
-ALGO_RAW = 0
-HEADER_FORMAT = "<4s5I"
+ALGO_STORED = 0
+HEADER_FORMAT = "<4s5I8x"
 RECORD_FORMAT = "<Q4I2B6x"
 HEADER = struct.calcsize(HEADER_FORMAT)
 RECORD = struct.calcsize(RECORD_FORMAT)
@@ -32,9 +32,8 @@ def main() -> int:
         return 1
 
     cursor = HEADER
+    records = rom[cursor : cursor + slots * RECORD]
     cursor += slots * RECORD
-    records = rom[cursor : cursor + count * RECORD]
-    cursor += count * RECORD
     strings = rom[cursor : cursor + stringsize]
     cursor += stringsize
     trained = rom[cursor : cursor + trainsize]
@@ -45,7 +44,7 @@ def main() -> int:
     root = Path("cartridge").resolve()
 
     for (
-        _,
+        digest,
         position,
         compressed,
         uncompressed,
@@ -53,6 +52,9 @@ def main() -> int:
         length,
         kind,
     ) in struct.iter_unpack(RECORD_FORMAT, records):
+        if digest == 0:
+            continue
+
         path = Path(bytes(strings[offset : offset + length]).decode("utf-8"))
         if path.anchor or ".." in path.parts:
             raise ValueError("cartridge entry path must be relative")
@@ -70,7 +72,7 @@ def main() -> int:
             destination.write_bytes(b"")
             continue
 
-        if kind == ALGO_RAW:
+        if kind == ALGO_STORED:
             destination.write_bytes(rom[position : position + uncompressed])
             continue
 

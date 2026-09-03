@@ -1,8 +1,6 @@
 namespace {
-constexpr uint8_t raw = 0;
-constexpr uint8_t zstd = 1;
-constexpr uint8_t directory = 2;
-constexpr size_t header = 24;
+constexpr uint8_t stored = 0;
+constexpr size_t header = 32;
 constexpr size_t stride = 32;
 constexpr uint64_t prime = 0x9e3779b97f4a7c15ull;
 
@@ -115,7 +113,6 @@ struct archive final {
     std::array<uint32_t, 6> fields;
     std::memcpy(fields.data(), source.data, sizeof(fields));
 
-    const auto count = fields[1];
     const auto textsize = fields[2];
     const auto trainsize = fields[3];
     const auto slots = fields[4];
@@ -124,7 +121,7 @@ struct archive final {
 
     const auto *data = source.data;
     records = data + header;
-    strings = records + (static_cast<size_t>(slots) + count) * stride;
+    strings = records + static_cast<size_t>(slots) * stride;
     const auto *trained = strings + textsize;
 
     arena = std::make_unique_for_overwrite<uint8_t[]>(arenasize);
@@ -137,8 +134,10 @@ std::optional<archive> content;
 
 [[nodiscard]] inline uint64_t hashfn(std::string_view name) noexcept {
   const auto *cursor = reinterpret_cast<const uint8_t *>(name.data());
+
   auto remaining = name.size();
   uint64_t digest = remaining;
+
   while (remaining >= 8) {
     uint64_t chunk;
     std::memcpy(&chunk, cursor, 8);
@@ -147,80 +146,80 @@ std::optional<archive> content;
     remaining -= 8;
   }
 
-  const auto rem = remaining;
-  uint64_t tail = 0;
+  const auto tail = remaining;
+  uint64_t value = 0;
   for (unsigned shift = 0; remaining > 0; shift += 8, --remaining)
-    tail |= static_cast<uint64_t>(*cursor++) << shift;
+    value |= static_cast<uint64_t>(*cursor++) << shift;
 
-  return rem == 0 ? digest : mix(digest ^ tail, prime);
+  return tail == 0 ? digest : mix(digest ^ value, prime);
 }
 
-[[nodiscard]] record locate(const archive *cartridge, std::string_view name) noexcept {
-  const auto digest = hashfn(name);
-  const auto first = static_cast<size_t>(digest) & cartridge->mask;
-  record current;
-  std::memcpy(&current, cartridge->records + first * stride, stride);
-  if (current.digest == digest) [[likely]]
-    return current;
-
-  const auto second = cartridge->mask + 1 + ((digest >> 32) & cartridge->mask);
-  std::memcpy(&current, cartridge->records + second * stride, stride);
-  const auto found = current.digest == digest;
-  assert(found && "cartridge file must exist");
-  [[assume(found)]];
-  return current;
-}
-}
-
-void io::mount(std::string_view filename) {
-  assert(!content && "cartridge already mounted");
-  content.emplace(filename);
-}
-
-bool io::exists(std::string_view filename) noexcept {
-  const auto mounted = content.has_value();
-  assert(mounted && "cartridge must be mounted");
-  [[assume(mounted)]];
-  const auto *cartridge = &*content;
-  const auto digest = hashfn(filename);
-  const auto first = static_cast<size_t>(digest) & cartridge->mask;
-  uint64_t candidate;
-  std::memcpy(&candidate, cartridge->records + first * stride, sizeof(candidate));
-  if (candidate == digest) [[likely]]
-    return true;
-  if (candidate == 0) [[likely]]
-    return false;
-
-  const auto second = cartridge->mask + 1 + ((digest >> 32) & cartridge->mask);
-  std::memcpy(&candidate, cartridge->records + second * stride, sizeof(candidate));
-  return candidate == digest;
-}
-
-bytes io::read(std::string_view filename) {
-  const auto mounted = content.has_value();
-  assert(mounted && "cartridge must be mounted");
-  [[assume(mounted)]];
-  auto *cartridge = &*content;
-  const auto current = locate(cartridge, filename);
-  assert(current.kind != directory && "cartridge entry must be a file");
-  [[assume(current.kind != directory)]];
+[[nodiscard]] std::span<const uint8_t> decode(archive *cartridge, const record& current) {
   const auto size = static_cast<size_t>(current.uncompressed);
   if (size == 0) [[unlikely]]
     return {};
 
   const auto *source = cartridge->source.data + current.position;
-  if (current.kind == raw)
+  if (current.kind == stored)
     return {source, size};
 
-  assert(current.kind == zstd && "cartridge compression must be supported");
-  [[assume(current.kind == zstd)]];
   auto *buffer = cartridge->arena.get();
-  const auto result = ZSTD_decompress_usingDDict(
+  ZSTD_decompress_usingDDict(
     cartridge->decoder.get(),
     buffer, size,
     source, current.compressed,
     cartridge->dictionary.get());
-  assert(result == size && "cartridge payload size must be valid");
-  [[assume(result == size)]];
+
   return {buffer, size};
+}
+}
+
+void io::mount(std::string_view filename) {
+  content.emplace(filename);
+}
+
+std::optional<bytes> io::try_read(std::string_view filename) {
+  auto *cartridge = &*content;
+
+  const auto digest = hashfn(filename);
+  const auto first = static_cast<size_t>(digest) & cartridge->mask;
+  const auto *address = cartridge->records + first * stride;
+
+  uint64_t candidate;
+  std::memcpy(&candidate, address, sizeof(candidate));
+
+  if (candidate != digest) [[unlikely]] {
+    if (candidate == 0)
+      return std::nullopt;
+
+    const auto second = cartridge->mask + 1 + ((digest >> 32) & cartridge->mask);
+    address = cartridge->records + second * stride;
+    std::memcpy(&candidate, address, sizeof(candidate));
+  }
+
+  if (candidate != digest || digest == 0) [[unlikely]]
+    return std::nullopt;
+
+  record current;
+  std::memcpy(&current, address, stride);
+  const auto source = decode(cartridge, current);
+  return bytes{source.data(), source.size()};
+}
+
+bytes io::read(std::string_view filename) {
+  auto *cartridge = &*content;
+
+  const auto digest = hashfn(filename);
+  const auto first = static_cast<size_t>(digest) & cartridge->mask;
+
+  record current;
+  std::memcpy(&current, cartridge->records + first * stride, stride);
+
+  if (current.digest != digest) [[unlikely]] {
+    const auto second = cartridge->mask + 1 + ((digest >> 32) & cartridge->mask);
+    std::memcpy(&current, cartridge->records + second * stride, stride);
+  }
+
+  const auto source = decode(cartridge, current);
+  return {source.data(), source.size()};
 }

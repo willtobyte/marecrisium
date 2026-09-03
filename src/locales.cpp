@@ -21,9 +21,8 @@ void locales::wire() {
   if (preferred && count > 0) [[likely]] {
     const auto chunk = std::format("@locales/{}.lua", preferred[0]->language);
     const auto path = std::string_view{chunk}.substr(1);
-    if (io::exists(path)) [[likely]] {
-      const auto source = io::read(path);
-      if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
+    if (const auto source = io::try_read(path)) [[likely]] {
+      if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source->data()), source->size(), chunk.c_str()) != LUA_OK) [[unlikely]]
         throw std::runtime_error{lua_tostring(L, -1)};
 
       if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]

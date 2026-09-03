@@ -32,9 +32,9 @@ ZstdError = zstandard.ZstdError
 
 MAGIC = b"CROM"
 DIRECTORY = 2
-ALGO_RAW = 0
+ALGO_STORED = 0
 ALGO_ZSTD_DICT = 1
-HEADER_FORMAT = "<4s5I"
+HEADER_FORMAT = "<4s5I8x"
 RECORD_FORMAT = "<Q4I2B6x"
 HEADER = struct.calcsize(HEADER_FORMAT)
 RECORD = struct.calcsize(RECORD_FORMAT)
@@ -54,7 +54,7 @@ class Source:
     directory: bool
     blob: bytes = b""
     position: int = 0
-    algorithm: int = ALGO_RAW
+    algorithm: int = ALGO_STORED
 
 
 def prepare(data: bytes) -> tuple[tuple[int, ...], int, int]:
@@ -163,7 +163,7 @@ def main() -> int:
             samples.append(current.data)
         else:
             current.blob = current.data
-            current.algorithm = ALGO_RAW
+            current.algorithm = ALGO_STORED
 
     try:
         dictionary = zstandard.train_dictionary(
@@ -180,14 +180,14 @@ def main() -> int:
 
     encoder = zstandard.ZstdCompressor(level=LEVEL, dict_data=dictionary, threads=-1)
     for current in sources:
-        if current.directory or current.algorithm == ALGO_RAW:
+        if current.directory or current.algorithm == ALGO_STORED:
             continue
         compressed = encoder.compress(current.data)
         if len(compressed) < len(current.data):
             current.blob = compressed
         else:
             current.blob = current.data
-            current.algorithm = ALGO_RAW
+            current.algorithm = ALGO_STORED
 
     arenasize = max(
         (
@@ -228,7 +228,7 @@ def main() -> int:
     for slot, index in enumerate(buckets):
         if index != EMPTY:
             order[index] = slot
-    base = HEADER + (slots + count) * RECORD + stringsize + trainsize
+    base = HEADER + slots * RECORD + stringsize + trainsize
 
     cursor = 0
     for current in sources:
@@ -250,7 +250,6 @@ def main() -> int:
     )
 
     direct = HEADER
-    ordered = direct + slots * RECORD
     for index, current in enumerate(sources):
         kind = DIRECTORY if current.directory else current.algorithm
         record = (
@@ -263,9 +262,8 @@ def main() -> int:
             kind,
         )
         struct.pack_into(RECORD_FORMAT, blob, direct + order[index] * RECORD, *record)
-        struct.pack_into(RECORD_FORMAT, blob, ordered + index * RECORD, *record)
 
-    cursor = ordered + count * RECORD
+    cursor = direct + slots * RECORD
     blob[cursor : cursor + stringsize] = strings
     cursor += stringsize
     blob[cursor : cursor + trainsize] = trained

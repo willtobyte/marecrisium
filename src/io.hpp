@@ -32,6 +32,6 @@ public:
   ~io() = delete;
 
   static void mount(std::string_view filename);
-  static bool exists(std::string_view filename) noexcept;
+  static std::optional<bytes> try_read(std::string_view filename);
   static bytes read(std::string_view filename);
 };
