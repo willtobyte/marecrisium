@@ -122,7 +122,14 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     height = max(y + h for (_, y), (_, h) in zip(positions, sizes))
     sheet = Image.new("RGBA", (width, height), (0, 0, 0, 0))
 
-    for (image, animation, order, duration, collider, offset), (x, bottom) in zip(
+    for (
+        image,
+        animation,
+        order,
+        duration,
+        collider,
+        offset,
+    ), (x, bottom) in zip(
         images,
         positions,
     ):
