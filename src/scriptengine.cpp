@@ -16,8 +16,8 @@ static int loader(lua_State *state) {
   std::size_t length;
   const auto* data = luaL_checklstring(state, 1, &length);
   const auto chunk = std::format("@scripts/{}.lua", std::string_view{data, length});
-  const auto path = std::string_view{chunk}.substr(1);
-  const auto source = io::read(path);
+  const auto filename = std::string_view{chunk}.substr(1);
+  const auto source = io::read(filename);
 
   if (luaL_loadbuffer(state, reinterpret_cast<const char *>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
     return lua_error(state);

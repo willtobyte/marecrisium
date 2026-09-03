@@ -17,16 +17,16 @@ objects = Path(__file__).resolve().parent
 root = objects.parents[1]
 pattern = re.compile(r"^(\d+)_(\d+)_(?:(end)_)?([a-z][a-z0-9.]*)\.png$")
 
-for directory in sorted(path for path in objects.iterdir() if path.is_dir()):
-    paths = sorted((directory / "frames").glob("*.png"))
-    if not paths:
+for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
+    filenames = sorted((directory / "frames").glob("*.png"))
+    if not filenames:
         continue
 
     groups = {}
     images = []
 
-    for path in paths:
-        match = pattern.fullmatch(path.name)
+    for filename in filenames:
+        match = pattern.fullmatch(filename.name)
         assert match, "frame name must be index_delay_[end_]animation.png"
         order, duration, end, animation = match.groups()
         order = int(order)
@@ -38,7 +38,7 @@ for directory in sorted(path for path in objects.iterdir() if path.is_dir()):
             assert not end or group[0] is None, "animation must have one end marker"
             if end:
                 groups[animation] = (order, group[1])
-        source = Image.open(path)
+        source = Image.open(filename)
         image = source if source.mode == "RGBA" else source.convert("RGBA")
         if image is not source:
             source.close()
@@ -48,7 +48,7 @@ for directory in sorted(path for path in objects.iterdir() if path.is_dir()):
         bounds = image.getbbox(alpha_only=True)
         assert bounds, "frame must have opaque pixels"
 
-        collider = directory / "colliders" / path.name
+        collider = directory / "colliders" / filename.name
         if collider.is_file():
             with Image.open(collider) as mask:
                 assert mask.size == size, "collider mask size must match frame size"

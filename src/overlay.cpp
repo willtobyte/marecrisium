@@ -1,7 +1,7 @@
 overlay::overlay(std::string_view name) {
   const auto chunk = std::format("@overlays/{}.lua", name);
-  const auto path = std::string_view{chunk}.substr(1);
-  const auto source = io::read(path);
+  const auto filename = std::string_view{chunk}.substr(1);
+  const auto source = io::read(filename);
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
 

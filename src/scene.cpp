@@ -33,8 +33,8 @@ scene::scene(std::string_view key)
   SDL_SetTextureBlendMode(*_background, SDL_BLENDMODE_NONE);
 
   const auto chunk = std::format("@scenes/{}.lua", key);
-  const auto path = std::string_view{chunk}.substr(1);
-  const auto source = io::read(path);
+  const auto filename = std::string_view{chunk}.substr(1);
+  const auto source = io::read(filename);
 
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};

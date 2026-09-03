@@ -23,8 +23,8 @@ config* particlepool::get(std::string_view kind) {
 
   auto instance = std::make_unique<struct config>();
   const auto chunk = std::format("@particles/{}.lua", kind);
-  const auto path = std::string_view{chunk}.substr(1);
-  const auto source = io::read(path);
+  const auto filename = std::string_view{chunk}.substr(1);
+  const auto source = io::read(filename);
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
 
