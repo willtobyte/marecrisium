@@ -7,7 +7,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
 
   auto storage = std::make_unique<class storage>();
   storage->sequences.reserve(8);
-  storage->frames.reserve(128);
+  storage->frames.reserve(16);
   storage->sheet.pixmap = depot->get<pixmap>(std::format("objects/{}", kind));
 
   const auto iw = 1.f / static_cast<float>(storage->sheet.pixmap->width());
