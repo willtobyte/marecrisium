@@ -274,8 +274,6 @@ viewport = nil
 
 ---Non-empty frame array.
 ---Frame files use `index_delay_[end_]animation.png`.
----Add `end_` before the animation name in the final frame to stop there.
----For example, use `52_100_end_default.png`.
 ---@class AnimationClip
 ---@field loop? boolean Repeats by default. `false` stops on the last frame.
 ---@field [integer] AnimationFrame `{atlas_x, atlas_y, width, height, offset_x, offset_y, source_width, source_height, duration_ms[, collider_x, collider_y, collider_width, collider_height]}`.
