@@ -378,6 +378,7 @@ void scene::draw() {
     const auto mirror = std::to_underlying(sprite.mirror);
     const auto width = frame.width * scale;
     const auto height = frame.height * scale;
+
     const auto bx = std::floor(sprite.x - viewport.x) + bounds.x;
     const auto by = std::floor(sprite.y - viewport.y) + bounds.y;
     const auto ox = mirror & SDL_FLIP_HORIZONTAL
