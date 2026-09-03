@@ -13,8 +13,6 @@ static int index(lua_State *state) {
   float x, y;
   const auto button = SDL_GetMouseState(&x, &y);
   SDL_RenderCoordinatesFromWindow(renderer, x, y, &x, &y);
-  x += viewport.x;
-  y += viewport.y;
 
   if (key == "x") {
     lua_pushnumber(state, static_cast<lua_Number>(x));

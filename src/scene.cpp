@@ -238,8 +238,6 @@ void scene::update(float delta) {
   float mx, my;
   const auto buttons = SDL_GetMouseState(&mx, &my);
   SDL_RenderCoordinatesFromWindow(renderer, mx, my, &mx, &my);
-  mx += viewport.x;
-  my += viewport.y;
 
   const auto moved = mx != _mouse_x || my != _mouse_y;
   if (moved || _dirty.mouse) {
@@ -255,8 +253,8 @@ void scene::update(float delta) {
       if (frame.collider.width == .0f)
         continue;
       const auto& bounds = object.sprite.bounds;
-      const auto x = std::floor(object.sprite.x - viewport.x) + viewport.x + bounds.x + (frame.offset.x + frame.collider.offset.x) * object.sprite.scale;
-      const auto y = std::floor(object.sprite.y - viewport.y) + viewport.y + bounds.y + (frame.offset.y + frame.collider.offset.y) * object.sprite.scale;
+      const auto x = std::floor(object.sprite.x) + bounds.x + (frame.offset.x + frame.collider.offset.x) * object.sprite.scale;
+      const auto y = std::floor(object.sprite.y) + bounds.y + (frame.offset.y + frame.collider.offset.y) * object.sprite.scale;
       const auto width = frame.collider.width * object.sprite.scale;
       const auto height = frame.collider.height * object.sprite.scale;
       if (mx < x || mx >= x + width) [[likely]]
@@ -379,8 +377,8 @@ void scene::draw() {
     const auto width = frame.width * scale;
     const auto height = frame.height * scale;
 
-    const auto bx = std::floor(sprite.x - viewport.x) + bounds.x;
-    const auto by = std::floor(sprite.y - viewport.y) + bounds.y;
+    const auto bx = std::floor(sprite.x) + bounds.x;
+    const auto by = std::floor(sprite.y) + bounds.y;
     const auto ox = mirror & SDL_FLIP_HORIZONTAL
       ? source.width - frame.offset.x - frame.width
       : frame.offset.x;
@@ -433,8 +431,8 @@ void scene::draw() {
     if (collider.width == .0f)
       continue;
     const SDL_FRect rect = {
-      std::floor(object.sprite.x - viewport.x) + bounds.x + (frame.offset.x + collider.offset.x) * object.sprite.scale,
-      std::floor(object.sprite.y - viewport.y) + bounds.y + (frame.offset.y + collider.offset.y) * object.sprite.scale,
+      std::floor(object.sprite.x) + bounds.x + (frame.offset.x + collider.offset.x) * object.sprite.scale,
+      std::floor(object.sprite.y) + bounds.y + (frame.offset.y + collider.offset.y) * object.sprite.scale,
       collider.width * object.sprite.scale,
       collider.height * object.sprite.scale,
     };

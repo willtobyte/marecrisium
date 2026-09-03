@@ -269,8 +269,6 @@ void particle::draw() {
   [[assume(vertices != nullptr)]];
 
   auto* output = vertices;
-  const auto vx = simde_mm_set_ps1(viewport.x);
-  const auto vy = simde_mm_set_ps1(viewport.y);
   const auto zeroes = simde_mm_setzero_ps();
   const auto ones = simde_mm_set_ps1(1.f);
   const auto izeroes = simde_mm_setzero_si128();
@@ -281,8 +279,8 @@ void particle::draw() {
   for (auto i = 0uz; i < count; i += 4) {
     const auto lives = simde_mm_loadu_ps(life + i);
     const auto scale = simde_mm_loadu_ps(scales + i);
-    const auto px = simde_mm_sub_ps(simde_mm_loadu_ps(xs + i), vx);
-    const auto py = simde_mm_sub_ps(simde_mm_loadu_ps(ys + i), vy);
+    const auto px = simde_mm_loadu_ps(xs + i);
+    const auto py = simde_mm_loadu_ps(ys + i);
     const auto alphas = simde_mm_max_ps(simde_mm_min_ps(lives, ones), zeroes);
     const auto raw = simde_mm_mul_ps(
       simde_mm_loadu_ps(angles + i), simde_mm_set_ps1(2.f * std::numbers::inv_pi_v<float>));
