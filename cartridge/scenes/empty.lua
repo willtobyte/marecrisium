@@ -17,6 +17,10 @@ return {
 			pool.walkie_southwest,
 			pool.walkie_southeast,
 		})
+
+		pool.door:on_end(function()
+			error("Ops...")
+		end)
 	end,
 
 	on_leave = function()
