@@ -38,6 +38,7 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
             assert not end or group[0] is None, "animation must have one end marker"
             if end:
                 groups[animation] = (order, group[1])
+
         source = Image.open(filename)
         image = source if source.mode == "RGBA" else source.convert("RGBA")
         if image is not source:
@@ -60,11 +61,14 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
                 else:
                     with mask.convert("RGBA") as image:
                         box = image.getbbox(alpha_only=True)
+
             assert box, "collider mask must have opaque pixels"
+
             cx, cy, right, bottom = box
             collider = (cx, cy, right - cx, bottom - cy)
         else:
             collider = None
+
         images.append(
             (
                 image,
@@ -113,12 +117,14 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
             break
         except rpack.PackingImpossibleError:
             side <<= 1
+
     width = max(x + w for (x, _), (w, _) in zip(positions, sizes))
     height = max(y + h for (_, y), (_, h) in zip(positions, sizes))
     sheet = Image.new("RGBA", (width, height), (0, 0, 0, 0))
 
     for (image, animation, order, duration, collider, offset), (x, bottom) in zip(
-        images, positions
+        images,
+        positions,
     ):
         w, h = image.size
         y = height - bottom - h
@@ -132,6 +138,7 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
 
     assert len(groups) <= 255, "object must have at most 255 animations"
     assert len(images) <= 65535, "object must have at most 65535 frames"
+
     clips = []
     for animation, (end, frames) in sorted(groups.items()):
         frames.sort(key=lambda item: item[0])
@@ -165,6 +172,7 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         loader=jinja2.FileSystemLoader([directory, objects]),
         keep_trailing_newline=True,
     )
+
     template = environment.get_template(
         patch.name if patch.is_file() else "template.lua.j2"
     )
