@@ -7,7 +7,8 @@ return {
 	scale = 4.0,
 	fullscreen = getenv("WINDOWED") ~= "1",
 	on_begin = function()
-		director.enroll("empty")
-		director.navigate("empty")
+		director.enroll("gatehouse")
+
+		director.navigate("gatehouse")
 	end,
 }
