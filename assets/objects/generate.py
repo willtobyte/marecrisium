@@ -27,7 +27,9 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
 
     for filename in filenames:
         match = pattern.fullmatch(filename.name)
+
         assert match, "frame name must be index_delay_[end_]animation.png"
+
         order, duration, end, animation = match.groups()
         order = int(order)
         duration = int(duration)
