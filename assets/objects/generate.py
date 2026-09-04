@@ -187,6 +187,7 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         frame = f"{x}, {y}, {w}, {h}, {left}, {top}, {size[0]}, {size[1]}, {duration}"
         if collider:
             frame += ", " + ", ".join(map(str, collider))
+
         groups[animation][1].append((order, frame))
         image.close()
 
