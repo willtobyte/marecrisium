@@ -33,7 +33,7 @@ def signature(directory: Path, shared: list[Path]) -> bytes:
     return digest.digest()
 
 
-object_root_dirs = [
+objects_root = [
     entry
     for entry in objects.iterdir()
     if entry.is_dir() and (entry / "frames").is_dir()
@@ -42,7 +42,7 @@ shared = [
     current
     for current in sorted(objects.rglob("*.j2"))
     if current.is_file()
-    and not any(current.is_relative_to(entry) for entry in object_root_dirs)
+    and not any(current.is_relative_to(entry) for entry in objects_root)
 ]
 
 for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
