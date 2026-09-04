@@ -428,8 +428,9 @@ void scene::draw() {
     const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
     const auto& bounds = object.sprite.bounds;
     const auto& collider = frame.collider;
-    if (collider.width == .0f)
+    if (collider.width == .0f || collider.height == .0f)
       continue;
+
     const SDL_FRect rect = {
       std::floor(object.sprite.x) + bounds.x + (frame.offset.x + collider.offset.x) * object.sprite.scale,
       std::floor(object.sprite.y) + bounds.y + (frame.offset.y + collider.offset.y) * object.sprite.scale,
