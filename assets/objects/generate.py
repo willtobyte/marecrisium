@@ -27,6 +27,10 @@ def signature(directory: Path) -> bytes:
         if current.is_file():
             digest.update(current.relative_to(directory).as_posix().encode())
             digest.update(current.read_bytes())
+    shared = sorted(objects.glob("*.j2")) + sorted((objects / "traits").glob("*.j2"))
+    for current in shared:
+        digest.update(current.relative_to(objects).as_posix().encode())
+        digest.update(current.read_bytes())
     return digest.digest()
 
 
