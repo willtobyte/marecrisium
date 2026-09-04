@@ -1,17 +1,17 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.14"
-# dependencies = ["jinja2", "pillow", "rectangle-packer"]
+# dependencies = ["jinja2", "pillow", "pyoxipng", "rectangle-packer"]
 # ///
 
 import importlib
 import math
 import re
-import subprocess
 from pathlib import Path
 
 Image = importlib.import_module("PIL.Image")
 jinja2 = importlib.import_module("jinja2")
+oxipng = importlib.import_module("oxipng")
 rpack = importlib.import_module("rpack")
 
 objects = Path(__file__).resolve().parent
@@ -181,10 +181,14 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     atlas.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(atlas)
     sheet.close()
-    subprocess.run(
-        ["oxipng", "--opt", "max", "--strip", "all", "-Z", str(atlas)],
-        check=True,
-        capture_output=True,
+    atlas.write_bytes(
+        oxipng.optimize_from_memory(
+            atlas.read_bytes(),
+            level=6,
+            strip=oxipng.StripChunks.all(),
+            deflate=oxipng.Deflaters.zopfli(15),
+            force=True,
+        )
     )
 
     patch = directory / "patch.lua.j2"
