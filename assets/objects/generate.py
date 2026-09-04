@@ -4,6 +4,7 @@
 # dependencies = ["jinja2", "pillow", "pyoxipng", "rectangle-packer"]
 # ///
 
+import hashlib
 import importlib
 import io
 import math
@@ -19,9 +20,31 @@ objects = Path(__file__).resolve().parent
 root = objects.parents[1]
 pattern = re.compile(r"^(\d+)_(\d+)_(?:(end)_)?([a-z][a-z0-9.]*)\.png$")
 
+
+def signature(directory: Path) -> bytes:
+    digest = hashlib.blake2b(digest_size=32)
+    for current in sorted(directory.rglob("*")):
+        if current.is_file():
+            digest.update(current.relative_to(directory).as_posix().encode())
+            digest.update(current.read_bytes())
+    return digest.digest()
+
+
 for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     filenames = sorted((directory / "frames").glob("*.png"))
     if not filenames:
+        continue
+
+    name = directory.name
+    output = root / "cartridge" / "objects" / f"{name}.lua"
+    atlas = root / "cartridge" / "blobs" / "objects" / f"{name}.png"
+    cache = root / "cartridge" / ".cache" / f"{name}.hash"
+    if (
+        output.is_file()
+        and atlas.is_file()
+        and cache.is_file()
+        and cache.read_bytes() == signature(directory)
+    ):
         continue
 
     groups = {}
@@ -175,9 +198,6 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
             }
         )
 
-    name = directory.name
-    output = root / "cartridge" / "objects" / f"{name}.lua"
-    atlas = root / "cartridge" / "blobs" / "objects" / f"{name}.png"
     output.parent.mkdir(parents=True, exist_ok=True)
     atlas.parent.mkdir(parents=True, exist_ok=True)
     buffer = io.BytesIO()
@@ -208,3 +228,5 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         re.sub(r"\n{3,}", "\n\n", re.sub(r"\n\n(?=})", "\n", rendered)).rstrip("\n")
         + "\n"
     )
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_bytes(signature(directory))
