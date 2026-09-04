@@ -178,7 +178,7 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     atlas = root / "cartridge" / "blobs" / "objects" / f"{name}.png"
     output.parent.mkdir(parents=True, exist_ok=True)
     atlas.parent.mkdir(parents=True, exist_ok=True)
-    sheet.save(atlas, compress_level=0)
+    sheet.save(atlas)
     sheet.close()
 
     patch = directory / "patch.lua.j2"
@@ -191,4 +191,8 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         patch.name if patch.is_file() else "template.lua.j2"
     )
 
-    output.write_text(template.render(clips=clips).lstrip("\n"))
+    rendered = template.render(clips=clips).lstrip("\n")
+    output.write_text(
+        re.sub(r"\n{3,}", "\n\n", re.sub(r"\n\n(?=})", "\n", rendered)).rstrip("\n")
+        + "\n"
+    )
