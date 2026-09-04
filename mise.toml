@@ -5,5 +5,4 @@ optivorbis = "github:OptiVorbis/OptiVorbis"
 cmake = "latest"
 conan = "latest"
 optivorbis = { version = "0.3.2", rename_exe = "optivorbis" }
-oxipng = "10.2.1"
 pre-commit = "latest"
