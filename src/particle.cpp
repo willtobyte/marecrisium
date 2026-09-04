@@ -29,7 +29,7 @@ static T* column(T* values, size_t count) noexcept {
 static void sincos(float angle, float& sine, float& cosine) noexcept {
   const auto raw = angle * (2.f * std::numbers::inv_pi_v<float>);
   const auto quadrant = static_cast<int>(raw) - static_cast<int>(raw < .0f);
-  const auto reduced = raw - static_cast<float>(quadrant) - .5f;
+  const auto reduced = raw - quadrant - .5f;
   const auto shared = curvature * reduced * reduced + crossing;
   auto sin = std::bit_cast<std::uint32_t>(shared + reduced);
   auto cos = std::bit_cast<std::uint32_t>(shared - reduced);
@@ -89,7 +89,7 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
     , _texture(&texture)
     , _x(x)
     , _y(y)
-    , _half{static_cast<float>(texture.width()) * .5f, static_cast<float>(texture.height()) * .5f}
+    , _half{texture.width() * .5f, texture.height() * .5f}
     , _active(active)
     , _idle(!active)
     , _values(std::make_unique_for_overwrite<float[]>(config.count * std::to_underlying(slot::total)))

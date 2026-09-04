@@ -134,8 +134,8 @@ font::font(std::string_view family) {
   const auto* pixels = reinterpret_cast<const uint32_t*>(decoded.get());
   const auto separator = pixels[0];
 
-  const auto iw = 1.f / static_cast<float>(width);
-  const auto ih = 1.f / static_cast<float>(height);
+    const auto iw = 1.f / width;
+    const auto ih = 1.f / height;
 
   auto x = 0, y = 0;
   auto first = true;
@@ -156,10 +156,10 @@ font::font(std::string_view family) {
       ++h;
     }
 
-    const auto fx = static_cast<float>(x);
-    const auto fy = static_cast<float>(y);
-    const auto fw = static_cast<float>(w);
-    const auto fh = static_cast<float>(h);
+    const auto fx = x;
+    const auto fy = y;
+    const auto fw = w;
+    const auto fh = h;
 
     _props[static_cast<uint8_t>(glyph)] = {
       fx * iw,
@@ -206,7 +206,7 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
   for (const auto character : text) {
     if (character == '\n') {
       cx = x;
-      cy += _fontheight + static_cast<float>(_leading);
+      cy += _fontheight + _leading;
       continue;
     }
 
@@ -250,7 +250,7 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
       out[3] = SDL_Vertex{rotate(gx, gy + sh, midx, midy, cosine, sine), color, {glyph.u0, glyph.v1}};
     }
 
-    cx += glyph.width + static_cast<float>(_spacing);
+    cx += glyph.width + _spacing;
     ++count;
   }
 

@@ -356,7 +356,7 @@ void scene::update(float delta) {
 void scene::draw() {
   _background->draw(
     .0f, .0f,
-    static_cast<float>(_background->width()), static_cast<float>(_background->height()),
+    _background->width(), _background->height(),
     .0f, .0f,
     viewport.width, viewport.height
   );
@@ -403,8 +403,8 @@ void scene::draw() {
     }
 
     sheet->draw(
-      frame.u0 * static_cast<float>(sheet->width()),
-      frame.v0 * static_cast<float>(sheet->height()),
+      frame.u0 * sheet->width(),
+      frame.v0 * sheet->height(),
       frame.width,
       frame.height,
       x,

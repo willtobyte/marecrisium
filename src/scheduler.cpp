@@ -131,7 +131,7 @@ void scheduler::update(float delta) {
   if (!bits) [[likely]]
     return;
 
-  _now += static_cast<double>(delta * 1000.0f);
+  _now += delta * 1000.0f;
   while (bits) {
     const auto index = static_cast<std::size_t>(std::countr_zero(bits));
     const auto bit = static_cast<std::uint16_t>(1u << index);

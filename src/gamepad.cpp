@@ -32,8 +32,8 @@ static SDL_GamepadButton button(std::string_view key) {
 static constexpr auto threshold = .1f;
 
 static float deadzone(Sint16 value) {
-  constexpr auto range = -static_cast<float>(std::numeric_limits<Sint16>::min());
-  const auto normalized = static_cast<float>(value) / (value < 0 ? range : range - 1.f);
+  constexpr auto range = -std::numeric_limits<Sint16>::min();
+  const auto normalized = value / (value < 0 ? range : range - 1.f);
   const auto magnitude = std::abs(normalized);
   if (magnitude < threshold) [[likely]]
     return .0f;
@@ -92,8 +92,8 @@ static int rumble_callback(lua_State *state) {
     lua_Integer{},
     static_cast<lua_Integer>(std::numeric_limits<uint32_t>::max()));
   const auto ms = static_cast<uint32_t>(duration);
-  const auto lo = static_cast<uint16_t>(low * static_cast<float>(std::numeric_limits<uint16_t>::max()));
-  const auto hi = static_cast<uint16_t>(high * static_cast<float>(std::numeric_limits<uint16_t>::max()));
+  const auto lo = static_cast<uint16_t>(low * std::numeric_limits<uint16_t>::max());
+  const auto hi = static_cast<uint16_t>(high * std::numeric_limits<uint16_t>::max());
 
   auto *const gamepad = ptr.load();
   if (!gamepad) [[unlikely]] {
@@ -110,7 +110,7 @@ static int led_callback(lua_State *state) {
   const auto green = std::clamp(std::fmax(static_cast<float>(luaL_checknumber(state, 3)), .0f), .0f, 1.f);
   const auto blue = std::clamp(std::fmax(static_cast<float>(luaL_checknumber(state, 4)), .0f), .0f, 1.f);
 
-  constexpr auto range = static_cast<float>(std::numeric_limits<uint8_t>::max());
+  constexpr auto range = std::numeric_limits<uint8_t>::max();
   const auto r = static_cast<uint8_t>(red * range);
   const auto g = static_cast<uint8_t>(green * range);
   const auto b = static_cast<uint8_t>(blue * range);

@@ -34,8 +34,8 @@ engine::engine() {
   lua_pop(L, 1);
 
   viewport = {
-    static_cast<float>(width) / scale,
-    static_cast<float>(height) / scale,
+    width / scale,
+    height / scale,
     scale
   };
 
@@ -56,9 +56,9 @@ engine::engine() {
 
   splash.draw(
     0, 0,
-    static_cast<float>(splash.width()), static_cast<float>(splash.height()),
+    splash.width(), splash.height(),
     0, 0,
-    static_cast<float>(width) / scale, static_cast<float>(height) / scale
+    width / scale, height / scale
   );
 
   SDL_RenderPresent(renderer);
@@ -90,7 +90,7 @@ void engine::run() {
   lua_gc(L, LUA_GCCOLLECT, 0);
   lua_gc(L, LUA_GCRESTART, 0);
 
-  const auto elapsed = static_cast<double>(SDL_GetPerformanceCounter() - boot) * 1'000.0 / static_cast<double>(SDL_GetPerformanceFrequency());
+  const auto elapsed = (SDL_GetPerformanceCounter() - boot) * 1'000.0 / SDL_GetPerformanceFrequency();
 
   std::println("[boot] ready in {:.2f}", elapsed);
 
@@ -128,7 +128,7 @@ void engine::loop() {
   const auto now = SDL_GetPerformanceCounter();
   static auto prior = now;
   static const auto frequency = static_cast<double>(SDL_GetPerformanceFrequency());
-  const auto delta = std::min(static_cast<float>(static_cast<double>(now - prior) / frequency), 1.f / 30.f);
+  const auto delta = std::min(static_cast<float>((now - prior) / frequency), 1.f / 30.f);
   prior = now;
 
   static auto tick = now;
