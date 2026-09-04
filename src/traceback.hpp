@@ -1,4 +1,4 @@
 #pragma once
 
-int build(lua_State* state);
+int traceback(lua_State* state);
 int pcall(lua_State* state, int args, int results);

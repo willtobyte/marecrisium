@@ -135,7 +135,7 @@ void format(lua_State *state, std::string &text, int index, trail &path) {
 }
 }
 
-int build(lua_State* state) {
+int traceback(lua_State* state) {
   luaL_traceback(state, state, lua_tostring(state, 1), 1);
 
   std::size_t length;
