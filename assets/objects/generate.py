@@ -5,6 +5,7 @@
 # ///
 
 import importlib
+import io
 import math
 import re
 from pathlib import Path
@@ -179,11 +180,12 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     atlas = root / "cartridge" / "blobs" / "objects" / f"{name}.png"
     output.parent.mkdir(parents=True, exist_ok=True)
     atlas.parent.mkdir(parents=True, exist_ok=True)
-    sheet.save(atlas)
+    buffer = io.BytesIO()
+    sheet.save(buffer, format="PNG")
     sheet.close()
     atlas.write_bytes(
         oxipng.optimize_from_memory(
-            atlas.read_bytes(),
+            buffer.getvalue(),
             level=6,
             strip=oxipng.StripChunks.all(),
             deflate=oxipng.Deflaters.zopfli(15),
