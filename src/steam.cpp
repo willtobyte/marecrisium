@@ -13,7 +13,8 @@ using GetFriendPersonaName_t = const char*(S_CALLTYPE*)(void*, uint64_t);
 
 static DYNLIB_HANDLE hSteamApi = DYNLIB_LOAD(STEAM_LIB_NAME);
 
-#define LOAD_SYMBOL(name, sym) reinterpret_cast<name>(reinterpret_cast<void*>(DYNLIB_SYM(hSteamApi, sym)))
+#define LOAD_SYMBOL(type, symbol) \
+  reinterpret_cast<type>(reinterpret_cast<void*>(DYNLIB_SYM(hSteamApi, symbol)))
 
 static const auto pSteamAPI_InitSafe = LOAD_SYMBOL(SteamAPI_InitSafe_t, "SteamAPI_InitSafe");
 static const auto pSteamAPI_Shutdown = LOAD_SYMBOL(SteamAPI_Shutdown_t, "SteamAPI_Shutdown");
