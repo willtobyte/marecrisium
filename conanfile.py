@@ -18,7 +18,7 @@ class Game(ConanFile):
             "simde/0.8.4-rc3",
             "stb/cci.20240531",
             "sqlite3/3.53.4",
-            "luajit/2.1-20260819",
+            "luajit/2.1-20260903",
             "yyjson/0.12.0",
             "zstd/1.5.7",
         ]:
