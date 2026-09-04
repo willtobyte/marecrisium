@@ -21,18 +21,29 @@ root = objects.parents[1]
 pattern = re.compile(r"^(\d+)_(\d+)_(?:(end)_)?([a-z][a-z0-9.]*)\.png$")
 
 
-def signature(directory: Path) -> bytes:
+def signature(directory: Path, shared: list[Path]) -> bytes:
     digest = hashlib.blake2b(digest_size=32)
     for current in sorted(directory.rglob("*")):
         if current.is_file():
             digest.update(current.relative_to(directory).as_posix().encode())
             digest.update(current.read_bytes())
-    shared = sorted(objects.glob("*.j2")) + sorted((objects / "traits").glob("*.j2"))
     for current in shared:
         digest.update(current.relative_to(objects).as_posix().encode())
         digest.update(current.read_bytes())
     return digest.digest()
 
+
+object_root_dirs = [
+    entry
+    for entry in objects.iterdir()
+    if entry.is_dir() and (entry / "frames").is_dir()
+]
+shared = [
+    current
+    for current in sorted(objects.rglob("*.j2"))
+    if current.is_file()
+    and not any(current.is_relative_to(entry) for entry in object_root_dirs)
+]
 
 for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     filenames = sorted((directory / "frames").glob("*.png"))
@@ -47,7 +58,7 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         output.is_file()
         and atlas.is_file()
         and cache.is_file()
-        and cache.read_bytes() == signature(directory)
+        and cache.read_bytes() == signature(directory, shared)
     ):
         continue
 
@@ -233,4 +244,4 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         + "\n"
     )
     cache.parent.mkdir(parents=True, exist_ok=True)
-    cache.write_bytes(signature(directory))
+    cache.write_bytes(signature(directory, shared))
