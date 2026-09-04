@@ -7,6 +7,7 @@
 import importlib
 import math
 import re
+import subprocess
 from pathlib import Path
 
 Image = importlib.import_module("PIL.Image")
@@ -180,6 +181,11 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     atlas.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(atlas)
     sheet.close()
+    subprocess.run(
+        ["oxipng", "--opt", "max", "--strip", "all", "-Z", str(atlas)],
+        check=True,
+        capture_output=True,
+    )
 
     patch = directory / "patch.lua.j2"
     environment = jinja2.Environment(
