@@ -23,10 +23,9 @@ engine::engine() {
   lua_pop(L, 1);
 
   lua_getfield(L, -1, "title");
-  const auto* title = lua_tostring(L, -1);
 
   const auto window = SDL_CreateWindow(
-    title,
+    lua_tostring(L, -1),
     width,
     height,
     fullscreen ? SDL_WINDOW_FULLSCREEN : 0
