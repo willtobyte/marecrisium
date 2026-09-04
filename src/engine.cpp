@@ -33,6 +33,12 @@ engine::engine() {
 
   lua_pop(L, 1);
 
+  viewport = {
+    static_cast<float>(width) / scale,
+    static_cast<float>(height) / scale,
+    scale
+  };
+
   const auto vsync = std::getenv("NOVSYNC") == nullptr;
 
   const auto properties = SDL_CreateProperties();
@@ -48,9 +54,6 @@ engine::engine() {
 
   const pixmap splash{"blobs/splashes/default.png"};
 
-  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-  SDL_RenderClear(renderer);
-
   splash.draw(
     0, 0,
     static_cast<float>(splash.width()), static_cast<float>(splash.height()),
@@ -64,11 +67,6 @@ engine::engine() {
   SDL_RaiseWindow(window);
   SDL_FlashWindow(window, SDL_FLASH_UNTIL_FOCUSED);
 
-  viewport = {
-    static_cast<float>(width) / scale,
-    static_cast<float>(height) / scale,
-    scale
-  };
 
   lua_newtable(L);
   lua_pushnumber(L, static_cast<lua_Number>(viewport.width));
