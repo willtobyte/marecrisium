@@ -22,7 +22,7 @@ struct config final {
 
 class particle final {
 public:
-  particle(const config& configuration, const pixmap& texture, float x, float y, bool active);
+  particle(const config& config, const pixmap& texture, float x, float y, bool active);
 
   void update(float delta);
 
