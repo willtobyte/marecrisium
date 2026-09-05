@@ -1,14 +1,18 @@
 static std::pair<float, float> read_range(lua_State* state, const char* field) {
   float minimum = .0f, maximum = .0f;
+
   lua_getfield(state, -1, field);
   if (lua_istable(state, -1)) {
     lua_rawgeti(state, -1, 1);
     lua_rawgeti(state, -2, 2);
+
     const auto numbers = lua_isnumber(state, -2) && lua_isnumber(state, -1);
     assert(numbers && "particle range must contain two numbers");
     [[assume(numbers)]];
+
     minimum = static_cast<float>(lua_tonumber(state, -2));
     maximum = static_cast<float>(lua_tonumber(state, -1));
+
     lua_pop(state, 2);
   }
 
@@ -32,9 +36,6 @@ config* particlepool::get(std::string_view kind) {
     throw std::runtime_error{lua_tostring(L, -1)};
 
   lua_getfield(L, -1, "count");
-  const auto counted = lua_isnumber(L, -1);
-  assert(counted && "particle config must define a numeric count");
-  [[assume(counted)]];
   instance->count = static_cast<size_t>(lua_tonumber(L, -1));
   lua_pop(L, 1);
 
