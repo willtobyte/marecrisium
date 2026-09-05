@@ -409,7 +409,7 @@ void scene::draw() {
       width,
       height,
       sprite.angle,
-      static_cast<uint8_t>(sprite.alpha),
+      sprite.alpha,
       sprite.mirror);
   }
 

@@ -140,7 +140,7 @@ static int newindex(lua_State* state) {
   }
 
   if (key == "alpha") {
-    object.sprite.alpha = std::clamp(static_cast<float>(luaL_checknumber(state, 3)), .0f, 255.f);
+    object.sprite.alpha = static_cast<uint8_t>(std::clamp(luaL_checknumber(state, 3), lua_Number{}, static_cast<lua_Number>(255)));
     self->dirty->mouse = true;
     return 0;
   }
