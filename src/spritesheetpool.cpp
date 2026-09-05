@@ -60,27 +60,35 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       lua_rawgeti(state, -1, 1);
       const auto x = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
+
       lua_rawgeti(state, -1, 2);
       const auto y = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
+
       lua_rawgeti(state, -1, 3);
       frame.width = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
+
       lua_rawgeti(state, -1, 4);
       frame.height = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
+
       lua_rawgeti(state, -1, 5);
       frame.offset.x = static_cast<uint16_t>(lua_tointeger(state, -1));
       lua_pop(state, 1);
+
       lua_rawgeti(state, -1, 6);
       frame.offset.y = static_cast<uint16_t>(lua_tointeger(state, -1));
       lua_pop(state, 1);
+
       lua_rawgeti(state, -1, 7);
       storage->sheet.source.width = static_cast<uint16_t>(lua_tointeger(state, -1));
       lua_pop(state, 1);
+
       lua_rawgeti(state, -1, 8);
       storage->sheet.source.height = static_cast<uint16_t>(lua_tointeger(state, -1));
       lua_pop(state, 1);
+
       lua_rawgeti(state, -1, 9);
       frame.duration = static_cast<float>(lua_tonumber(state, -1)) / 1000.f;
       lua_pop(state, 1);
@@ -93,12 +101,15 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       lua_rawgeti(state, -1, 10);
       frame.collider.offset.x = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
+
       lua_rawgeti(state, -1, 11);
       frame.collider.offset.y = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
+
       lua_rawgeti(state, -1, 12);
       frame.collider.width = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
+
       lua_rawgeti(state, -1, 13);
       frame.collider.height = static_cast<float>(lua_tonumber(state, -1));
       lua_pop(state, 1);
@@ -124,6 +135,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
   auto* result = &storage->sheet;
   _pool.emplace(kind, std::move(storage));
   lua_pop(state, 1);
+
   return result;
 }
 
