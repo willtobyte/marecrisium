@@ -25,12 +25,15 @@ public:
   particle(const config& configuration, const pixmap& texture, float x, float y, bool active);
 
   void update(float delta);
+
   void draw();
 
   float x() const;
   void set_x(float value);
+
   float y() const;
   void set_y(float value);
+
   bool active() const;
   void set_active(bool value);
 
@@ -43,12 +46,13 @@ private:
 
   float _x;
   float _y;
+  bool _active;
+  bool _idle;
+
   struct {
     float width;
     float height;
   } _half;
-  bool _active;
-  bool _idle;
 
   std::unique_ptr<float[]> _values;
 
