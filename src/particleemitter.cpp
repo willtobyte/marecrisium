@@ -27,7 +27,7 @@ static T* column(T* values, size_t count) noexcept {
 }
 
 static int index(lua_State* state) {
-  const auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
+  const auto* self = *static_cast<particleemitter**>(luaL_checkudata(state, 1, "ParticleEmitter"));
   std::size_t length;
   const auto* data = luaL_checklstring(state, 2, &length);
   const std::string_view key{data, length};
@@ -51,7 +51,7 @@ static int index(lua_State* state) {
 }
 
 static int newindex(lua_State* state) {
-  auto* self = *static_cast<particle**>(luaL_checkudata(state, 1, "Particle"));
+  auto* self = *static_cast<particleemitter**>(luaL_checkudata(state, 1, "ParticleEmitter"));
   std::size_t length;
   const auto* data = luaL_checklstring(state, 2, &length);
   const std::string_view key{data, length};
@@ -66,7 +66,7 @@ static int newindex(lua_State* state) {
 }
 }
 
-particle::particle(const config& config, const pixmap& texture, float x, float y, bool active)
+particleemitter::particleemitter(const config& config, const pixmap& texture, float x, float y, bool active)
     : _count(config.count)
     , _texture(&texture)
     , _x(x)
@@ -89,9 +89,9 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
     , _life_range(std::minmax(config.life.first, config.life.second))
     , _rotation_force_range(std::minmax(config.rotation.force.first, config.rotation.force.second))
     , _rotation_velocity_range(std::minmax(config.rotation.velocity.first, config.rotation.velocity.second)) {
-  assert(config.count > 0 && "particle count must be positive");
+  assert(config.count > 0 && "particleemitter count must be positive");
   [[assume(config.count > 0)]];
-  assert(config.count % 4uz == 0 && "particle count must be a multiple of four");
+  assert(config.count % 4uz == 0 && "particleemitter count must be a multiple of four");
   [[assume(config.count % 4uz == 0)]];
 
   const auto count = _count;
@@ -117,33 +117,33 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
   }
 }
 
-float particle::x() const {
+float particleemitter::x() const {
   return _x;
 }
 
-void particle::set_x(float value) {
+void particleemitter::set_x(float value) {
   _x = value;
 }
 
-float particle::y() const {
+float particleemitter::y() const {
   return _y;
 }
 
-void particle::set_y(float value) {
+void particleemitter::set_y(float value) {
   _y = value;
 }
 
-bool particle::active() const {
+bool particleemitter::active() const {
   return _active;
 }
 
-void particle::set_active(bool value) {
+void particleemitter::set_active(bool value) {
   _active = value;
   if (value)
     _idle = false;
 }
 
-void particle::update(float delta) {
+void particleemitter::update(float delta) {
   if (_idle) [[unlikely]]
     return;
 
@@ -213,7 +213,7 @@ void particle::update(float delta) {
   _idle = idle;
 }
 
-void particle::draw() {
+void particleemitter::draw() {
   if (_idle) [[unlikely]]
     return;
 
@@ -315,9 +315,9 @@ void particle::draw() {
     nv / 4 * 6);
 }
 
-void particle::wire() {
-  luaL_newmetatable(L, "Particle");
-  lua_pushliteral(L, "Particle");
+void particleemitter::wire() {
+  luaL_newmetatable(L, "ParticleEmitter");
+  lua_pushliteral(L, "ParticleEmitter");
   lua_setfield(L, -2, "__name");
 
   lua_pushcfunction(L, index);

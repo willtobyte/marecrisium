@@ -49,7 +49,7 @@ void scriptengine::run() {
   locales::wire();
   mouse::wire();
   objects::wire();
-  particle::wire();
+  particleemitter::wire();
   runtime::wire();
   sound::wire();
   user::wire();

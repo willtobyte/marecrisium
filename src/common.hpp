@@ -98,7 +98,7 @@ extern mcg64 prng;
 #include "mouse.hpp"
 #include "object.hpp"
 #include "overlay.hpp"
-#include "particle.hpp"
+#include "particleemitter.hpp"
 #include "particlepool.hpp"
 #include "particlesystem.hpp"
 #include "pixmap.hpp"

@@ -20,9 +20,9 @@ struct config final {
   } rotation;
 };
 
-class particle final {
+class particleemitter final {
 public:
-  particle(const config& config, const pixmap& texture, float x, float y, bool active);
+  particleemitter(const config& config, const pixmap& texture, float x, float y, bool active);
 
   void update(float delta);
 

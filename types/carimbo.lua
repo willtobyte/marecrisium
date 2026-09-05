@@ -340,7 +340,7 @@ function Sound:fade(from, to, ms) end
 -- Particle emitter
 
 ---Scene-scoped; do not retain after its scene is destroyed.
----@class Particle
+---@class ParticleEmitter
 ---@field x number Emitter X (read/write).
 ---@field y number Emitter Y (read/write).
 ---@field active boolean Whether dead particles respawn (read/write).
