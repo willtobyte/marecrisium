@@ -15,8 +15,8 @@ public:
 
   operator SDL_Texture*() const;
 
-  int width() const { return _width; }
-  int height() const { return _height; }
+  int width() const;
+  int height() const;
 
 private:
   int _width;

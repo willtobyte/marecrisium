@@ -114,6 +114,7 @@ extern mcg64 prng;
 #include "runtime.hpp"
 #include "scheduler.hpp"
 #include "traceback.hpp"
+#include "trigonometry.hpp"
 #include "depot.hpp"
 #include "scene.hpp"
 #include "director.hpp"

@@ -240,9 +240,8 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
     } else {
       const auto midx = gx + sw * .5f;
       const auto midy = gy + sh * .5f;
-      const auto radians = angle * (std::numbers::pi_v<float> / 180.f);
-      const auto sine = std::sin(radians);
-      const auto cosine = std::cos(radians);
+      float sine, cosine;
+      sincos(angle * (std::numbers::pi_v<float> / 180.f), sine, cosine);
 
       out[0] = SDL_Vertex{rotate(gx, gy, midx, midy, cosine, sine), color, {glyph.u0, glyph.v0}};
       out[1] = SDL_Vertex{rotate(gx + sw, gy, midx, midy, cosine, sine), color, {glyph.u1, glyph.v0}};

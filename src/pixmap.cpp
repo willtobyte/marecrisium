@@ -33,3 +33,11 @@ void pixmap::draw(const float dx, const float dy, const float dw, const float dh
 pixmap::operator SDL_Texture*() const {
   return _texture.get();
 }
+
+int pixmap::width() const {
+  return _width;
+}
+
+int pixmap::height() const {
+  return _height;
+}

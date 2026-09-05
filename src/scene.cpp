@@ -386,9 +386,8 @@ void scene::draw() {
 
     if (const auto angle = sprite.angle; angle != .0f) [[unlikely]] {
       constexpr auto degree = std::numbers::pi_v<float> / 180.f;
-      const auto radians = angle * degree;
-      const auto sine = std::sin(radians);
-      const auto cosine = std::cos(radians);
+      float sine, cosine;
+      sincos(angle * degree, sine, cosine);
       const auto cx = bx + bounds.width * .5f;
       const auto cy = by + bounds.height * .5f;
       const auto dx = x + width * .5f - cx;
