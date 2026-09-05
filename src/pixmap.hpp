@@ -11,10 +11,12 @@ public:
     const mirror::value mirror = mirror::value::none
   ) const;
 
+  void draw(const float dx, const float dy, const float dw, const float dh) const;
+
   operator SDL_Texture*() const;
 
-  int width() const;
-  int height() const;
+  int width() const { return _width; }
+  int height() const { return _height; }
 
 private:
   int _width;

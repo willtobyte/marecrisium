@@ -54,12 +54,7 @@ engine::engine() {
 
   const pixmap splash{"blobs/splashes/default.png"};
 
-  splash.draw(
-    0, 0,
-    splash.width(), splash.height(),
-    0, 0,
-    width / scale, height / scale
-  );
+  splash.draw(0, 0, width / scale, height / scale);
 
   SDL_RenderPresent(renderer);
   SDL_PumpEvents();

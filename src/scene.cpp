@@ -354,12 +354,7 @@ void scene::update(float delta) {
 }
 
 void scene::draw() {
-  _background->draw(
-    .0f, .0f,
-    _background->width(), _background->height(),
-    .0f, .0f,
-    viewport.width, viewport.height
-  );
+  _background->draw(.0f, .0f, viewport.width, viewport.height);
 
   for (const auto id : _order) {
     const auto& object = _objects[id];

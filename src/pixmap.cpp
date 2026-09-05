@@ -26,14 +26,10 @@ void pixmap::draw(
   SDL_RenderTextureRotated(renderer, _texture.get(), &source, &destination, angle, nullptr, static_cast<SDL_FlipMode>(mirror));
 }
 
+void pixmap::draw(const float dx, const float dy, const float dw, const float dh) const {
+  draw(.0f, .0f, static_cast<float>(_width), static_cast<float>(_height), dx, dy, dw, dh);
+}
+
 pixmap::operator SDL_Texture*() const {
   return _texture.get();
-}
-
-int pixmap::width() const {
-  return _width;
-}
-
-int pixmap::height() const {
-  return _height;
 }
