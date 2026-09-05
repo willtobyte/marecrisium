@@ -74,10 +74,10 @@ static int draw_callback(lua_State *state) {
     active[index / 64] |= uint64_t{1} << (index % 64);
 
     auto &effect = effects[index];
-    number(state, -1, "x_offset", effect.x_offset);
-    number(state, -1, "y_offset", effect.y_offset);
+    number(state, -1, "x_offset", effect.x_offset, .0f);
+    number(state, -1, "y_offset", effect.y_offset, .0f);
     number(state, -1, "scale", effect.scale, 1.f);
-    number(state, -1, "angle", effect.angle);
+    number(state, -1, "angle", effect.angle, .0f);
     number(state, -1, "alpha", effect.alpha, 1.f, .0f, 1.f);
     number(state, -1, "r", effect.r, 1.f, .0f, 1.f);
     number(state, -1, "g", effect.g, 1.f, .0f, 1.f);
