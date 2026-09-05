@@ -13,7 +13,9 @@ static consteval auto triangulate() {
   std::array<int, 1536> values{};
   for (auto index = 0uz; index < values.size() / 6; ++index) {
     const auto vertex = static_cast<int>(index * 4);
+
     auto *out = values.data() + index * 6;
+
     out[0] = vertex;
     out[1] = vertex + 1;
     out[2] = vertex + 2;
