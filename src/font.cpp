@@ -23,26 +23,27 @@ void number(lua_State *state, int table, const char *field, T &value, T fallback
   lua_pop(state, 1);
 }
 
-std::array<SDL_Vertex, 1024> vertices;
+constexpr auto capacity = 256uz;
+std::array<SDL_Vertex, capacity * 4> vertices;
 static consteval auto triangulate() {
-  std::array<int, 1536> values{};
-  for (auto index = 0uz; index < values.size() / 6; ++index) {
-    const auto vertex = static_cast<int>(index * 4);
+  std::array<int, capacity * 6> values{};
+  for (auto quad = 0uz; quad < capacity; ++quad) {
+    const auto first = static_cast<int>(quad * 4);
 
-    auto *out = values.data() + index * 6;
+    auto *out = values.data() + quad * 6;
 
-    out[0] = vertex;
-    out[1] = vertex + 1;
-    out[2] = vertex + 2;
-    out[3] = vertex;
-    out[4] = vertex + 2;
-    out[5] = vertex + 3;
+    out[0] = first;
+    out[1] = first + 1;
+    out[2] = first + 2;
+    out[3] = first;
+    out[4] = first + 2;
+    out[5] = first + 3;
   }
 
   return values;
 }
 
-constexpr auto indices = triangulate();
+static constexpr auto indices = triangulate();
 }
 
 static int draw_callback(lua_State *state) {
