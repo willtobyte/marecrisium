@@ -106,6 +106,7 @@ void font::wire() {
 static constexpr SDL_FPoint rotate(float x, float y, float middle_x, float middle_y, float cosine, float sine) {
   const auto dx = x - middle_x;
   const auto dy = y - middle_y;
+
   return {middle_x + dx * cosine - dy * sine, middle_y + dx * sine + dy * cosine};
 }
 
@@ -121,9 +122,11 @@ font::font(std::string_view family) {
     throw std::runtime_error{lua_tostring(L, -1)};
 
   lua_getfield(L, top, "glyphs");
+
   const auto defined = lua_isstring(L, -1);
   assert(defined && "font must define a glyphs string");
   [[assume(defined)]];
+
   std::size_t length;
   const auto* data = lua_tolstring(L, -1, &length);
   const std::string_view glyphs{data, length};
@@ -148,8 +151,8 @@ font::font(std::string_view family) {
   const auto* pixels = reinterpret_cast<const uint32_t*>(decoded.get());
   const auto separator = pixels[0];
 
-    const auto iw = 1.f / width;
-    const auto ih = 1.f / height;
+  const auto iw = 1.f / width;
+  const auto ih = 1.f / height;
 
   auto x = 0, y = 0;
   auto first = true;
@@ -210,6 +213,7 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
   const auto *mask = active.data();
   if constexpr (sparse) {
     const auto size = active.size();
+
     assert(size == 4 && "glyph effect mask must have four words");
     [[assume(size == 4)]];
   }
@@ -221,6 +225,7 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
     if (character == '\n') {
       cx = x;
       cy += _fontheight + _leading;
+
       continue;
     }
 
@@ -237,6 +242,7 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
     if (count < effects.size() &&
         (!sparse || mask[count / 64] & (uint64_t{1} << (count % 64)))) {
       const auto &effect = effects[count];
+
       gx += effect.x_offset;
       gy += effect.y_offset;
       sw *= effect.scale;
@@ -254,6 +260,7 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
     } else {
       const auto midx = gx + sw * .5f;
       const auto midy = gy + sh * .5f;
+
       float sine, cosine;
       sincos(angle * (std::numbers::pi_v<float> / 180.f), sine, cosine);
 
