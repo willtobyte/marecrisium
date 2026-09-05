@@ -132,7 +132,7 @@ gamepad = nil
 ---@field [string] CassetteValue|nil
 local Cassette = {}
 
----Delete all saved keys. Never store a `clear` key.
+---Delete all saved keys. Never store a `clear` key, the `clear` key is reserved.
 function Cassette:clear() end
 
 ---@type Cassette
