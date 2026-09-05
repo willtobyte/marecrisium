@@ -117,11 +117,25 @@ particle::particle(const config& config, const pixmap& texture, float x, float y
   }
 }
 
-float particle::x() const { return _x; }
-void particle::set_x(float value) { _x = value; }
-float particle::y() const { return _y; }
-void particle::set_y(float value) { _y = value; }
-bool particle::active() const { return _active; }
+float particle::x() const {
+  return _x;
+}
+
+void particle::set_x(float value) {
+  _x = value;
+}
+
+float particle::y() const {
+  return _y;
+}
+
+void particle::set_y(float value) {
+  _y = value;
+}
+
+bool particle::active() const {
+  return _active;
+}
 
 void particle::set_active(bool value) {
   _active = value;
@@ -134,10 +148,6 @@ void particle::update(float delta) {
     return;
 
   const auto count = _count;
-  assert(count > 0 && "particle count must be positive");
-  [[assume(count > 0)]];
-  assert(count % 4uz == 0 && "particle count must be a multiple of four");
-  [[assume(count % 4uz == 0)]];
   const auto twopi = 2.f * std::numbers::pi_v<float>;
 
   auto* values = _values.get();
@@ -152,19 +162,6 @@ void particle::update(float delta) {
   auto* noalias angles = column<slot::angle>(values, count);
   auto* noalias avs = column<slot::av>(values, count);
   auto* noalias afs = column<slot::af>(values, count);
-
-  assert(xs != nullptr && "particle X storage must exist");
-  [[assume(xs != nullptr)]];
-  assert(ys != nullptr && "particle Y storage must exist");
-  [[assume(ys != nullptr)]];
-  assert(vxs != nullptr && "particle X velocity storage must exist");
-  [[assume(vxs != nullptr)]];
-  assert(vys != nullptr && "particle Y velocity storage must exist");
-  [[assume(vys != nullptr)]];
-  assert(life != nullptr && "particle life storage must exist");
-  [[assume(life != nullptr)]];
-  assert(angles != nullptr && "particle angle storage must exist");
-  [[assume(angles != nullptr)]];
 
   auto idle = !_active;
   for (auto i = 0uz; i < count; ++i) {
@@ -221,10 +218,7 @@ void particle::draw() {
     return;
 
   const auto count = _count;
-  assert(count > 0 && "particle count must be positive");
-  [[assume(count > 0)]];
-  assert(count % 4uz == 0 && "particle count must be a multiple of four");
-  [[assume(count % 4uz == 0)]];
+
   const auto hw = _half.width;
   const auto hh = _half.height;
   auto* vertices = _vertices.get();
@@ -236,19 +230,6 @@ void particle::draw() {
   const auto* noalias life = column<slot::life>(values, count);
   const auto* noalias scales = column<slot::scale>(values, count);
   const auto* noalias angles = column<slot::angle>(values, count);
-
-  assert(xs != nullptr && "particle X storage must exist");
-  [[assume(xs != nullptr)]];
-  assert(ys != nullptr && "particle Y storage must exist");
-  [[assume(ys != nullptr)]];
-  assert(life != nullptr && "particle life storage must exist");
-  [[assume(life != nullptr)]];
-  assert(scales != nullptr && "particle scale storage must exist");
-  [[assume(scales != nullptr)]];
-  assert(angles != nullptr && "particle angle storage must exist");
-  [[assume(angles != nullptr)]];
-  assert(vertices != nullptr && "particle vertex storage must exist");
-  [[assume(vertices != nullptr)]];
 
   auto* output = vertices;
   const auto zeroes = simde_mm_setzero_ps();
@@ -311,6 +292,7 @@ void particle::draw() {
 
     for (auto lane = 0uz; lane < 4; ++lane, output += 4) {
       const auto a = alpha[lane];
+
       output[0].position = {x0[lane], y0[lane]};
       output[0].color.a = a;
       output[1].position = {x1[lane], y1[lane]};
@@ -323,8 +305,6 @@ void particle::draw() {
   }
 
   const auto nv = static_cast<int>(output - vertices);
-  assert(nv > 0 && "particle vertex count must be positive");
-  [[assume(nv > 0)]];
 
   SDL_RenderGeometry(
     renderer,
