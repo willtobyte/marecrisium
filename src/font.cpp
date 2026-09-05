@@ -87,6 +87,7 @@ static int draw_callback(lua_State *state) {
   }
 
   self->draw<true>(text, x, y, std::span{effects.data(), count}, active);
+
   return 0;
 }
 
