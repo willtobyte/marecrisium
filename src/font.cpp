@@ -2,9 +2,24 @@ namespace {
 template <typename T>
 void number(lua_State *state, int table, const char *field, T &value, T fallback = {}) {
   lua_getfield(state, table, field);
+
   int valid;
   const auto result = lua_tonumberx(state, -1, &valid);
+
   value = valid ? static_cast<T>(result) : fallback;
+
+  lua_pop(state, 1);
+}
+
+template <typename T>
+void number(lua_State *state, int table, const char *field, T &value, T fallback, T minimum, T maximum) {
+  lua_getfield(state, table, field);
+
+  int valid;
+  const auto result = lua_tonumberx(state, -1, &valid);
+
+  value = valid ? std::clamp(static_cast<T>(result), minimum, maximum) : fallback;
+
   lua_pop(state, 1);
 }
 
@@ -62,15 +77,10 @@ static int draw_callback(lua_State *state) {
     number(state, -1, "y_offset", effect.y_offset);
     number(state, -1, "scale", effect.scale, 1.f);
     number(state, -1, "angle", effect.angle);
-    number(state, -1, "alpha", effect.alpha, 1.f);
-    number(state, -1, "r", effect.r, 1.f);
-    number(state, -1, "g", effect.g, 1.f);
-    number(state, -1, "b", effect.b, 1.f);
-
-    effect.alpha = std::clamp(effect.alpha, .0f, 1.f);
-    effect.r = std::clamp(effect.r, .0f, 1.f);
-    effect.g = std::clamp(effect.g, .0f, 1.f);
-    effect.b = std::clamp(effect.b, .0f, 1.f);
+    number(state, -1, "alpha", effect.alpha, 1.f, .0f, 1.f);
+    number(state, -1, "r", effect.r, 1.f, .0f, 1.f);
+    number(state, -1, "g", effect.g, 1.f, .0f, 1.f);
+    number(state, -1, "b", effect.b, 1.f, .0f, 1.f);
 
     count = std::max(count, index + 1);
   }
