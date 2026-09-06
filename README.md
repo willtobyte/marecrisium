@@ -4,7 +4,10 @@
 
 ## Game
 
-The game is written in pure Lua with JIT. See the cartridge directory.
+The game is written in pure Lua with LuaJIT-only.
+
+See the cartridge directory.
+
 Types, annotations, and everything related to the exposed Lua API are documented in `types/carimbo.lua`.
 
 ## Documentation
