@@ -156,8 +156,6 @@ std::optional<archive> content;
 
 [[nodiscard]] std::span<const uint8_t> decode(archive *cartridge, const record& current) {
   const auto size = static_cast<size_t>(current.uncompressed);
-  if (size == 0) [[unlikely]]
-    return {};
 
   const auto *source = cartridge->source.data + current.position;
   if (current.kind == stored)
@@ -178,7 +176,7 @@ void io::mount(std::string_view filename) {
   content.emplace(filename);
 }
 
-std::optional<bytes> io::try_read(std::string_view filename) {
+std::optional<std::span<const uint8_t>> io::try_read(std::string_view filename) {
   auto *cartridge = &*content;
 
   const auto digest = hashfn(filename);
@@ -202,11 +200,10 @@ std::optional<bytes> io::try_read(std::string_view filename) {
 
   record current;
   std::memcpy(&current, address, stride);
-  const auto source = decode(cartridge, current);
-  return bytes{source.data(), source.size()};
+  return decode(cartridge, current);
 }
 
-bytes io::read(std::string_view filename) {
+std::span<const uint8_t> io::read(std::string_view filename) {
   auto *cartridge = &*content;
 
   const auto digest = hashfn(filename);
@@ -214,12 +211,10 @@ bytes io::read(std::string_view filename) {
 
   record current;
   std::memcpy(&current, cartridge->records + first * stride, stride);
-
   if (current.digest != digest) [[unlikely]] {
     const auto second = cartridge->mask + 1 + ((digest >> 32) & cartridge->mask);
     std::memcpy(&current, cartridge->records + second * stride, stride);
   }
 
-  const auto source = decode(cartridge, current);
-  return {source.data(), source.size()};
+  return decode(cartridge, current);
 }

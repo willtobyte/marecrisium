@@ -157,8 +157,10 @@ void sound::ended(void* data, ma_sound*) noexcept {
   instance->_phase.store(phase::idle, std::memory_order_release);
 }
 
-clip::clip(std::string_view filename)
-    : encoded{io::read(filename)} {}
+clip::clip(std::string_view filename) {
+  const auto source = io::read(filename);
+  encoded.assign(source.data(), source.data() + source.size());
+}
 
 sound::sound(const clip& data, std::atomic_uint16_t& completed, std::uint16_t bit)
     : _completed{&completed}, _bit{bit} {

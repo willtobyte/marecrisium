@@ -3,7 +3,7 @@
 struct clip final {
   explicit clip(std::string_view filename);
 
-  bytes encoded;
+  std::vector<uint8_t> encoded;
 };
 
 struct stream final {
