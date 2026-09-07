@@ -243,7 +243,7 @@ void scene::update(float delta) {
   auto target = none;
   for (auto it = _order.rbegin(); it != _order.rend(); ++it) {
     const auto& object = _objects[*it];
-    if (!object.sprite.shown || object.sprite.alpha <= .0f) [[unlikely]]
+    if (!object.sprite.shown || object.sprite.alpha == 0) [[unlikely]]
       continue;
 
     const auto& sequence = object.sprite.sheet->sequences[object.motion.active];

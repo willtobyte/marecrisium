@@ -62,8 +62,8 @@ struct object final {
     } bounds;
 
     float angle{};
-    uint8_t alpha{255};
     int z{};
+    uint8_t alpha{255};
     bool shown{true};
     mirror::value mirror{mirror::value::none};
 
