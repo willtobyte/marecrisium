@@ -30,10 +30,10 @@ config* particlepool::get(std::string_view kind) {
   const auto filename = std::string_view{chunk}.substr(1);
   const auto source = io::read(filename);
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
-    throw std::runtime_error{lua_tostring(L, -1)};
+    propagate();
 
   if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]
-    throw std::runtime_error{lua_tostring(L, -1)};
+    propagate();
 
   lua_getfield(L, -1, "count");
   instance->count = static_cast<size_t>(lua_tonumber(L, -1));

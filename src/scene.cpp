@@ -8,7 +8,7 @@ void callback(const object& object, int ref) {
   lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
   lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
   if (pcall(L, 1, 0) != LUA_OK) [[unlikely]]
-    throw std::runtime_error{lua_tostring(L, -1)};
+    propagate();
 }
 }
 
@@ -37,10 +37,10 @@ scene::scene(std::string_view key)
   const auto source = io::read(filename);
 
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
-    throw std::runtime_error{lua_tostring(L, -1)};
+    propagate();
 
   if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]
-    throw std::runtime_error{lua_tostring(L, -1)};
+    propagate();
 
   lua_newtable(L);
   _pool = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -113,7 +113,7 @@ scene::scene(std::string_view key)
         lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint.on_spawn);
         lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
         if (pcall(L, 1, 0) != LUA_OK) [[unlikely]]
-          throw std::runtime_error{lua_tostring(L, -1)};
+          propagate();
       }
 
       lua_pop(L, 3);
@@ -217,7 +217,7 @@ void scene::on_enter() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_enter);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     if (pcall(L, 1, 0) != LUA_OK) [[unlikely]]
-      throw std::runtime_error{lua_tostring(L, -1)};
+      propagate();
   }
 }
 
@@ -292,7 +292,7 @@ void scene::update(float delta) {
       lua_pushnumber(L, static_cast<lua_Number>(my));
       lua_rawgeti(L, LUA_REGISTRYINDEX, mouse::labels[index]);
       if (pcall(L, 4, 0) != LUA_OK) [[unlikely]]
-        throw std::runtime_error{lua_tostring(L, -1)};
+        propagate();
     }
   }
 
@@ -301,7 +301,7 @@ void scene::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
     if (pcall(L, 2, 0) != LUA_OK) [[unlikely]]
-      throw std::runtime_error{lua_tostring(L, -1)};
+      propagate();
   }
 
   for (auto it = _loops.rbegin(); it != _loops.rend(); ++it) {
@@ -311,7 +311,7 @@ void scene::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
     if (pcall(L, 2, 0) != LUA_OK) [[unlikely]]
-      throw std::runtime_error{lua_tostring(L, -1)};
+      propagate();
   }
 
   for (auto it = _objects.rbegin(); it != _objects.rend(); ++it) {
@@ -340,7 +340,7 @@ void scene::update(float delta) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
     lua_rawgeti(L, LUA_REGISTRYINDEX, sequence.name);
     if (pcall(L, 2, 0) != LUA_OK) [[unlikely]]
-      throw std::runtime_error{lua_tostring(L, -1)};
+      propagate();
   }
 
   _overlay.update(delta);
@@ -459,5 +459,5 @@ void scene::on_leave() {
   _scheduler.suspend();
 
   if (result != LUA_OK) [[unlikely]]
-    throw std::runtime_error{lua_tostring(L, -1)};
+    propagate();
 }

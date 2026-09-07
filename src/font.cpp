@@ -115,11 +115,11 @@ font::font(std::string_view family) {
   const auto filename = std::string_view{chunk}.substr(1);
   const auto source = io::read(filename);
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
-    throw std::runtime_error{lua_tostring(L, -1)};
+    propagate();
 
   const auto top = lua_gettop(L);
   if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]
-    throw std::runtime_error{lua_tostring(L, -1)};
+    propagate();
 
   lua_getfield(L, top, "glyphs");
 

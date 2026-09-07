@@ -205,7 +205,7 @@ struct handle final {
 void invoke(std::uint64_t data) {
   lua_rawgeti(L, LUA_REGISTRYINDEX, static_cast<int>(data));
   if (pcall(L, 0, 0) != LUA_OK) [[unlikely]]
-    throw std::runtime_error{lua_tostring(L, -1)};
+    propagate();
 }
 
 void release(std::uint64_t data) noexcept {

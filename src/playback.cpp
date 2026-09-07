@@ -33,7 +33,7 @@ void playback::update() {
     lua_rawgeti(L, LUA_REGISTRYINDEX, sound._callback);
     lua_rawgeti(L, LUA_REGISTRYINDEX, sound._self);
     if (pcall(L, 1, 0) != LUA_OK) [[unlikely]]
-      throw std::runtime_error{lua_tostring(L, -1)};
+      propagate();
   }
 }
 
