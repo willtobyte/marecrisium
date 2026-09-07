@@ -94,7 +94,6 @@ static_assert(std::is_trivially_copyable_v<object>, "object must be trivially co
 
 struct dirty final {
   bool order{true};
-  bool mouse{true};
 };
 
 static_assert(std::is_trivially_copyable_v<dirty>, "dirty must be trivially copyable");

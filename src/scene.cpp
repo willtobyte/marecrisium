@@ -239,46 +239,43 @@ void scene::update(float delta) {
   const auto buttons = SDL_GetMouseState(&mx, &my);
   SDL_RenderCoordinatesFromWindow(renderer, mx, my, &mx, &my);
 
-  const auto moved = mx != _mouse_x || my != _mouse_y;
-  if (moved || _dirty.mouse) {
-    _dirty.mouse = false;
-    auto target = none;
-    for (auto it = _order.rbegin(); it != _order.rend(); ++it) {
-      const auto& object = _objects[*it];
-      if (!object.sprite.shown || object.sprite.alpha <= .0f) [[unlikely]]
-        continue;
+  auto target = none;
+  for (auto it = _order.rbegin(); it != _order.rend(); ++it) {
+    const auto& object = _objects[*it];
+    if (!object.sprite.shown || object.sprite.alpha <= .0f) [[unlikely]]
+      continue;
 
-      const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
-      const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
-      if (frame.collider.width == .0f)
-        continue;
-      const auto& bounds = object.sprite.bounds;
-      const auto x = std::floor(object.sprite.x) + bounds.x + (frame.offset.x + frame.collider.offset.x) * object.sprite.scale;
-      const auto y = std::floor(object.sprite.y) + bounds.y + (frame.offset.y + frame.collider.offset.y) * object.sprite.scale;
-      const auto width = frame.collider.width * object.sprite.scale;
-      const auto height = frame.collider.height * object.sprite.scale;
-      if (mx < x || mx >= x + width) [[likely]]
-        continue;
-      if (my < y || my >= y + height) [[likely]]
-        continue;
+    const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
+    const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
+    if (frame.collider.width == .0f)
+      continue;
 
-      target = *it;
-      break;
-    }
+    const auto& bounds = object.sprite.bounds;
+    const auto x = std::floor(object.sprite.x) + bounds.x + (frame.offset.x + frame.collider.offset.x) * object.sprite.scale;
+    const auto y = std::floor(object.sprite.y) + bounds.y + (frame.offset.y + frame.collider.offset.y) * object.sprite.scale;
+    const auto width = frame.collider.width * object.sprite.scale;
+    const auto height = frame.collider.height * object.sprite.scale;
+    if (mx < x || mx >= x + width) [[likely]]
+      continue;
+    if (my < y || my >= y + height) [[likely]]
+      continue;
 
-    if (target != _hovered) {
-      if (_hovered < _objects.size())
-        callback(_objects[_hovered], _objects[_hovered].script.blueprint->on_unhover);
-      _hovered = target;
-      if (target < _objects.size())
-        callback(_objects[target], _objects[target].script.blueprint->on_hover);
-    }
+    target = *it;
+    break;
+  }
 
-    _mouse_x = mx;
-    _mouse_y = my;
+  if (target != _hovered) {
+    if (_hovered < _objects.size())
+      callback(_objects[_hovered], _objects[_hovered].script.blueprint->on_unhover);
+
+    _hovered = target;
+
+    if (target < _objects.size())
+      callback(_objects[target], _objects[target].script.blueprint->on_hover);
   }
 
   const auto toggled = (buttons ^ _mouse_previous_buttons) & (SDL_BUTTON_LMASK | SDL_BUTTON_MMASK | SDL_BUTTON_RMASK);
+
   _mouse_previous_buttons = buttons;
 
   const auto* over = _hovered < _objects.size() ? &_objects[_hovered] : nullptr;
@@ -325,7 +322,6 @@ void scene::update(float delta) {
       continue;
 
     object.motion.elapsed -= frame.duration;
-    _dirty.mouse = true;
     if (++object.motion.current < sequence.count)
       continue;
 

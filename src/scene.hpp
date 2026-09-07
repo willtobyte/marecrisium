@@ -35,8 +35,6 @@ private:
 
   uint32_t _hovered{none};
   uint32_t _mouse_previous_buttons{};
-  float _mouse_x{};
-  float _mouse_y{};
 
   dirty _dirty{};
   scheduler _scheduler{};

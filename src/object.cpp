@@ -100,13 +100,11 @@ static int newindex(lua_State* state) {
 
   if (key == "x") {
     object.sprite.x = static_cast<float>(luaL_checknumber(state, 3));
-    self->dirty->mouse = true;
     return 0;
   }
 
   if (key == "y") {
     object.sprite.y = static_cast<float>(luaL_checknumber(state, 3));
-    self->dirty->mouse = true;
     return 0;
   }
 
@@ -115,7 +113,6 @@ static int newindex(lua_State* state) {
     if (object.sprite.z != value) {
       object.sprite.z = value;
       self->dirty->order = true;
-      self->dirty->mouse = true;
     }
 
     return 0;
@@ -141,13 +138,11 @@ static int newindex(lua_State* state) {
 
   if (key == "alpha") {
     object.sprite.alpha = static_cast<uint8_t>(std::clamp(luaL_checknumber(state, 3), lua_Number{}, static_cast<lua_Number>(255)));
-    self->dirty->mouse = true;
     return 0;
   }
 
   if (key == "shown") {
     object.sprite.shown = lua_toboolean(state, 3) != 0;
-    self->dirty->mouse = true;
     return 0;
   }
 
