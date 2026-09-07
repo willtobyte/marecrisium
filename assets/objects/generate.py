@@ -53,7 +53,7 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     name = directory.name
     output = root / "cartridge" / "objects" / f"{name}.lua"
     atlas = root / "cartridge" / "blobs" / "objects" / f"{name}.png"
-    cache = root / "cartridge" / ".cache" / f"{name}.hash"
+    cache = root / "build" / ".cache" / "objects" / f"{name}.hash"
     if (
         output.is_file()
         and atlas.is_file()
