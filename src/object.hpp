@@ -80,6 +80,7 @@ struct object final {
     const prototype* blueprint{};
     int instance{LUA_NOREF};
     int label{LUA_NOREF};
+    int on_end{LUA_NOREF};
   } script;
 
   struct motion final {

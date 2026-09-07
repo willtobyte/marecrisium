@@ -191,6 +191,7 @@ scene::~scene() {
 
     luaL_unref(L, LUA_REGISTRYINDEX, object.script.label);
     luaL_unref(L, LUA_REGISTRYINDEX, object.script.instance);
+    luaL_unref(L, LUA_REGISTRYINDEX, object.script.on_end);
   }
 
   luaL_unref(L, LUA_REGISTRYINDEX, _on_leave);
@@ -335,12 +336,8 @@ void scene::update(float delta) {
     if (!object.motion.ending)
       continue;
 
+    lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.on_end);
     lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
-    lua_getfenv(L, -1);
-    lua_pushliteral(L, "\1on_end");
-    lua_rawget(L, -2);
-    lua_remove(L, -2);
-    lua_insert(L, -2);
     lua_rawgeti(L, LUA_REGISTRYINDEX, sequence.name);
     if (pcall(L, 2, 0) != LUA_OK) [[unlikely]]
       throw std::runtime_error{lua_tostring(L, -1)};

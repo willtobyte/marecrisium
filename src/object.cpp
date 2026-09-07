@@ -9,11 +9,13 @@ static int on_end_callback(lua_State* state) {
   assert(alive && "object must be alive when an end callback is set");
   [[assume(alive)]];
 
-  self->object->motion.ending = true;
-  lua_getfenv(state, 1);
-  lua_pushliteral(state, "\1on_end");
+  auto& reference = self->object->script.on_end;
+  if (reference != LUA_NOREF)
+    luaL_unref(state, LUA_REGISTRYINDEX, reference);
+
   lua_pushvalue(state, 2);
-  lua_rawset(state, -3);
+  reference = luaL_ref(state, LUA_REGISTRYINDEX);
+  self->object->motion.ending = true;
   return 0;
 }
 
