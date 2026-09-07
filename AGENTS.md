@@ -9,6 +9,7 @@
 - **LuaJIT only. Keep Lua code LuaJIT-friendly and performance-oriented.**
 - **Always use the project `pcall()` wrapper to call Lua functions. Never call `lua_pcall()` or `lua_call()` directly. Check each status and propagate each Lua error to the `catch` block in `src/application.cpp`.**
 - **Every performance-related change requires empirical benchmarking. Always measure and compare the before and after results, and present the evidence demonstrating the impact.**
+- **Measure benchmarks with a high-precision clock, never with FPS. Vsync locks FPS and hides real gains and losses.**
 - **Use `assert` and `[[assume ..` whenever appropriate, always assuming the happy path. Every `assert` must include a simple, clear, and direct error message in English.**
 - **Always assume the happy path. Treat all inputs as safe and trusted.**
 - **Run all benchmarks, profiling, sanitizers, fuzzing, memory-leak detection, allocation tracking, and other instrumentation on macOS 27 using Xcode Instruments and Apple Clang.**
