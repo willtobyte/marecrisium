@@ -1,12 +1,10 @@
 # Objects
 
-Object source files are in `assets/objects`.
-
-The generator creates the texture atlas and the Lua animation data.
+Object source files are in `assets/objects`. The generator creates the texture atlas and Lua animation data.
 
 ## Create an object
 
-Create a directory for the object. Add a `frames` directory inside it.
+Create an object directory with a `frames` subdirectory:
 
 ```text
 assets/objects/radio/
@@ -26,40 +24,38 @@ Use this format for each frame name:
 <order>_<duration>_[end_]<animation>.png
 ```
 
-- `order` is the frame position in the animation.
-- `duration` is the frame duration in milliseconds.
-- `end` marks the last frame. The animation does not loop when it has an `end` marker. Only the last frame can have it.
-- `animation` is the animation name.
+- `order`: Frame position. Start at `00` for each animation.
+- `duration`: Frame duration in milliseconds. Each frame can have a different duration.
+- `end`: Optional marker for the last frame only. It prevents the animation from looping.
+- `animation`: Animation name. Use `default` for the initial animation.
 
-Use `default` as the initial animation name. Start the order at `00` for each animation. Each frame can have a different duration.
+## Add mouse colliders
 
-Add a collider mask when a frame needs mouse collision. Add the mask only to the frames that need it. Give it the same file name and image size. Draw an opaque area where the collider must exist. Keep all other pixels transparent.
+Add a mask in `colliders` only for frames that need mouse collision. Use the frame's file name and image size. Use an RGBA PNG. Make the collider area fully opaque white. Keep the background fully transparent.
 
-The collider PNG must use RGBA with a fully opaque white collider and a fully transparent background.
+The generator adds the smallest rectangle around the opaque area to the frame data as `collider_x, collider_y, collider_width, collider_height`. Coordinates start at the top-left corner of the cropped frame. Frames without masks have no collider data. The generator does not add masks to the atlas or copy them to `cartridge`.
 
-The generator finds the smallest rectangle that contains the opaque area. It appends the rectangle to the frame data as `collider_x, collider_y, collider_width, collider_height`. The anchor is the top-left corner of the cropped frame. Frames without a mask have no collider data.
+Call `self:collider()` to get the current frame's collider rectangle:
 
-The collider defines a rectangle for the current frame. Call `self:collider()` to read its world `x`, `y`, `width`, and `height`. The values include frame offsets and scale. They do not include rotation or mirroring. A frame without a collider returns zero width and height. The call does not create a table.
+- Returns world `x`, `y`, `width`, and `height` without creating a table.
+- Includes frame offsets and scale. Excludes rotation and mirroring.
+- Returns zero width and height for a frame without a collider.
 
-The engine does not call mouse handlers. Use the Lua interaction module from the scene `on_loop` to check mouse collisions and call object handlers.
-
-The generator does not add collider masks to the atlas or copy them to `cartridge`.
+The engine does not call mouse handlers. Use the Lua interaction module in the scene `on_loop` to check mouse collisions and call object handlers.
 
 ## Add object behavior
 
-The object does not need a patch if it only has animations.
+Add `patch.lua.j2` to the object directory only when it needs behavior. Objects with only animations need no patch. Use `assets/objects/template.lua.j2` as the base.
 
-Add `patch.lua.j2` to the object directory when the object needs behavior. Extend the breathing trait when the selected object must breathe:
+For an object that must breathe, extend the breathing trait:
 
 ```jinja2
 {% extends "traits/breathing.lua.j2" %}
 ```
 
-Use `assets/objects/template.lua.j2` as the base for other object behavior.
-
 ## Handle an animation end
 
-Call `on_end` on an object to set its animation-end callback. An object patch can set the callback in `on_spawn`:
+Call `on_end` to set an object's animation-end callback. In a patch, use `on_spawn`:
 
 ```lua
 on_spawn = function(self)
@@ -69,7 +65,7 @@ on_spawn = function(self)
 end,
 ```
 
-A scene can also set the callback through its object pool:
+In a scene, use its object pool:
 
 ```lua
 on_enter = function()
@@ -79,9 +75,7 @@ on_enter = function()
 end,
 ```
 
-The callback receives the object and the animation name. It runs at the end of each cycle for a repeating animation. It runs one time for a non-repeating animation.
-
-A new call to `on_end` replaces the callback that was set before.
+The callback receives the object and animation name. It runs at the end of each repeating cycle, or once for a non-repeating animation. Each `on_end` call replaces the previous callback.
 
 ## Generate the objects
 
@@ -91,15 +85,18 @@ Run the generator from the repository root:
 uv run assets/objects/generate.py
 ```
 
-The command generates all objects that contain a `frames` directory. It runs only when an input changed. It writes these files for each object:
+The command generates all objects with a `frames` directory. It skips unchanged inputs. It writes these files for each object:
 
 ```text
 cartridge/blobs/objects/<name>.png
 cartridge/objects/<name>.lua
 ```
 
-Do not edit files in `cartridge/objects` or `cartridge/blobs/objects`. Change the source frames or `patch.lua.j2`. Run the generator again.
+Do not edit these generated files.
 
 ## Update an object
 
-Add, replace, rename, or remove files in the object `frames` directory. Make the same change in the `colliders` directory when a frame has a mask. Update `patch.lua.j2` when the behavior changes. Run the generator again to update the files in `cartridge`.
+1. Add, replace, rename, or remove source files in the object's `frames` directory.
+2. Apply the same changes to each frame's mask in `colliders`, if present.
+3. Update `patch.lua.j2` when behavior changes.
+4. Run the generator again to update `cartridge`.
