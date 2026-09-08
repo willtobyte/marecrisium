@@ -41,7 +41,7 @@ The generator finds the smallest rectangle that contains the opaque area. It app
 
 The collider defines a rectangle for the current frame. Call `self:collider()` to read its world `x`, `y`, `width`, and `height`. The values include frame offsets and scale. They do not include rotation or mirroring. A frame without a collider returns zero width and height. The call does not create a table.
 
-The scene does not check mouse collisions or call mouse handlers. Use the object `on_loop` to calculate these events in Lua.
+The engine does not call mouse handlers. Use the Lua interaction module from the scene `on_loop` to check mouse collisions and call object handlers.
 
 The generator does not add collider masks to the atlas or copy them to `cartridge`.
 
