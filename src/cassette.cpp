@@ -63,21 +63,6 @@ static void save(lua_State *state, std::string_view key, int index) {
   execute(statement);
 }
 
-static int proxy_newindex(lua_State *state) {
-  std::size_t length;
-  const auto key = std::string_view{lua_tolstring(state, lua_upvalueindex(2), &length), length};
-
-  lua_pushvalue(state, lua_upvalueindex(1));
-  lua_pushvalue(state, 2);
-  lua_pushvalue(state, 3);
-  lua_rawset(state, -3);
-  lua_pop(state, 1);
-
-  save(state, key, lua_upvalueindex(3));
-
-  return 0;
-}
-
 static int length_callback(lua_State *state) {
   lua_pushlightuserdata(state, &proxy_data);
   lua_rawget(state, 1);
@@ -134,12 +119,20 @@ static int ipairs_callback(lua_State *state) {
   return 3;
 }
 
-static void proxify(lua_State *state, int data, int key, int root);
+static void proxify(lua_State *state, int data, int key, int root, int cache);
 
-static int proxy_index(lua_State *state) {
-  lua_pushvalue(state, lua_upvalueindex(1));
+static int proxy_callback(lua_State *state) {
+  if (lua_gettop(state) == 3) {
+    std::size_t length;
+    const auto key = std::string_view{lua_tolstring(state, lua_upvalueindex(2), &length), length};
+    lua_rawset(state, lua_upvalueindex(1));
+    save(state, key, lua_upvalueindex(3));
+
+    return 0;
+  }
+
   lua_pushvalue(state, 2);
-  lua_rawget(state, -2);
+  lua_rawget(state, lua_upvalueindex(1));
 
   if (lua_type(state, -1) != LUA_TTABLE) [[likely]]
     return 1;
@@ -148,28 +141,37 @@ static int proxy_index(lua_State *state) {
   if (resolve_proxy(state, top))
     lua_replace(state, top);
 
-  proxify(state, top, lua_upvalueindex(2), lua_upvalueindex(3));
+  lua_pushvalue(state, top);
+  lua_rawget(state, lua_upvalueindex(4));
+  if (lua_istable(state, -1))
+    return 1;
+
+  lua_pop(state, 1);
+  if (lua_rawequal(state, lua_upvalueindex(3), lua_upvalueindex(4))) {
+    lua_pushvalue(state, 1);
+    lua_replace(state, lua_upvalueindex(4));
+  }
+
+  proxify(state, top, lua_upvalueindex(2), lua_upvalueindex(3), lua_upvalueindex(4));
 
   return 1;
 }
 
-static void proxify(lua_State *state, int data, int key, int root) {
-  lua_newtable(state);
+static void proxify(lua_State *state, int data, int key, int root, int cache) {
+  lua_createtable(state, 0, cache == 0 ? 2 : 1);
   lua_pushlightuserdata(state, &proxy_data);
   lua_pushvalue(state, data);
   lua_rawset(state, -3);
 
+  const auto target = cache == 0 ? root : cache;
   lua_createtable(state, 0, 5);
   lua_pushvalue(state, data);
   lua_pushvalue(state, key);
   lua_pushvalue(state, root);
-  lua_pushcclosure(state, proxy_index, 3);
-  lua_setfield(state, -2, "__index");
-
-  lua_pushvalue(state, data);
-  lua_pushvalue(state, key);
-  lua_pushvalue(state, root);
-  lua_pushcclosure(state, proxy_newindex, 3);
+  lua_pushvalue(state, target);
+  lua_pushcclosure(state, proxy_callback, 4);
+  lua_pushvalue(state, -1);
+  lua_setfield(state, -3, "__index");
   lua_setfield(state, -2, "__newindex");
 
   lua_rawgeti(state, LUA_REGISTRYINDEX, length);
@@ -182,6 +184,15 @@ static void proxify(lua_State *state, int data, int key, int root) {
   lua_setfield(state, -2, "__ipairs");
 
   lua_setmetatable(state, -2);
+  if (cache != 0) {
+    lua_getmetatable(state, cache);
+    lua_pushliteral(state, "kv");
+    lua_setfield(state, -2, "__mode");
+    lua_pop(state, 1);
+    lua_pushvalue(state, data);
+    lua_pushvalue(state, -2);
+    lua_rawset(state, cache);
+  }
 }
 
 }
@@ -211,7 +222,7 @@ static int index(lua_State *state) {
 
       lua_pushvalue(state, 2);
       const auto root = top + 1;
-      proxify(state, top, root, top);
+      proxify(state, top, root, top, 0);
 
       lua_replace(state, root);
       lua_replace(state, top);
@@ -272,8 +283,8 @@ void cassette::wire() {
   lua_pushcclosure(L, ipairs_callback, 1);
   ipairs = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_newtable(L);
-  lua_newtable(L);
+  lua_createtable(L, 0, 0);
+  lua_createtable(L, 0, 2);
   lua_pushcfunction(L, clear_callback);
   lua_pushcclosure(L, index, 1);
   lua_setfield(L, -2, "__index");

@@ -20,5 +20,5 @@ private:
   scene *_current{nullptr};
   std::optional<std::string> _pending;
 
-  std::unordered_map<std::string, std::unique_ptr<scene>, transparent_string_hash, std::equal_to<>> _scenes;
+  std::unordered_map<std::string, std::optional<scene>, transparent_string_hash, std::equal_to<>> _scenes;
 };

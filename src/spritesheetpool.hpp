@@ -15,5 +15,5 @@ private:
     spritesheet sheet;
   };
 
-  std::unordered_map<std::string, std::unique_ptr<storage>, transparent_string_hash, std::equal_to<>> _pool;
+  std::unordered_map<std::string, storage, transparent_string_hash, std::equal_to<>> _pool;
 };

@@ -20,6 +20,9 @@ scheduler::entry* scheduler::find(const handle& value) noexcept {
 }
 
 scheduler::handle scheduler::add(double milliseconds, bool repeat, callback call, callback release, std::uint64_t data) {
+  if (!_life) [[unlikely]]
+    _life = std::make_shared_for_overwrite<std::byte>();
+
   const auto free = static_cast<std::uint16_t>(~_used);
   const auto available = free != 0;
   assert(available && "scene must not exceed 16 timers");
@@ -144,12 +147,7 @@ void scheduler::update(float delta) {
     _hold &= static_cast<std::uint16_t>(~bit);
     _repeat &= static_cast<std::uint16_t>(~bit);
     current = {.generation = generation};
-    try {
-      call(data);
-    } catch (...) {
-      release(data);
-      throw;
-    }
+    call(data);
     release(data);
   }
 }
@@ -183,6 +181,7 @@ void scheduler::suspend() noexcept {
 
 namespace {
 constexpr auto name = "TimerHandle";
+bool registered{};
 
 struct handle final {
   scheduler::handle value{};
@@ -289,7 +288,8 @@ int clear_callback(lua_State* state) {
 }
 
 void scheduler::wire() {
-  if (luaL_newmetatable(L, name)) {
+  if (!registered) {
+    lua_createtable(L, 0, 3);
     lua_pushstring(L, name);
     lua_setfield(L, -2, "__name");
 
@@ -301,11 +301,12 @@ void scheduler::wire() {
 
     lua_pushcfunction(L, gc);
     lua_setfield(L, -2, "__gc");
+    lua_setfield(L, LUA_REGISTRYINDEX, name);
+
+    registered = true;
   }
 
-  lua_pop(L, 1);
-
-  lua_newtable(L);
+  lua_createtable(L, 0, 3);
 
   lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, add_callback, 1);

@@ -453,26 +453,32 @@ local Tween_mt = { __index = Tween }
 function Tween:set(clock)
 	if not self.initial then
 		local initial = copyTables({}, self.target, self.subject)
-		local paths = {}
+		local keys = {}
 		local starts = {}
+		local paths
+		local flat = true
 
-		compile(self.target, initial, {}, paths, starts)
-
-		self.initial = initial
-		self.paths = paths
-		self.starts = starts
-		self.keys = {}
-		self.flat = true
-
-		for i = 1, #paths do
-			local path = paths[i]
-			if #path ~= 1 then
-				self.flat = false
+		for key, value in pairs(self.target) do
+			if type(value) == "table" then
+				flat = false
 				break
 			end
 
-			self.keys[i] = path[1]
+			local index = #keys + 1
+			keys[index] = key
+			starts[index] = initial[key]
 		end
+
+		if not flat then
+			paths = {}
+			compile(self.target, initial, {}, paths, starts)
+		end
+
+		self.initial = initial
+		self.paths = paths or false
+		self.starts = starts
+		self.keys = keys
+		self.flat = flat
 	end
 
 	self.clock = clock

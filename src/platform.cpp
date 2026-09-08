@@ -1,5 +1,5 @@
 void platform::wire() {
-  lua_newtable(L);
+  lua_createtable(L, 0, 3);
   lua_pushstring(L, SDL_GetPlatform());
   lua_setfield(L, -2, "name");
   lua_pushinteger(L, static_cast<lua_Integer>(SDL_GetNumLogicalCPUCores()));

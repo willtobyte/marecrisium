@@ -22,7 +22,7 @@ static int unlock_callback(lua_State *state) {
 }
 
 void achievement::wire() {
-  lua_newtable(L);
+  lua_createtable(L, 0, 1);
   lua_pushcfunction(L, unlock_callback);
   lua_setfield(L, -2, "unlock");
   lua_setglobal(L, "achievement");

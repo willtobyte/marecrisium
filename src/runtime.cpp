@@ -22,7 +22,7 @@ static int newindex(lua_State *state) {
 
 void runtime::wire() {
   lua_pushvalue(L, LUA_GLOBALSINDEX);
-  lua_newtable(L);
+  lua_createtable(L, 0, 2);
   lua_pushliteral(L, "clipboard");
   lua_pushcclosure(L, index, 1);
   lua_setfield(L, -2, "__index");

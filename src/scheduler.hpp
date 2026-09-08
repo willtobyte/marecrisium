@@ -44,15 +44,14 @@ private:
   void suspend() noexcept;
 
   std::array<entry, capacity> _entries{};
-  std::shared_ptr<void> _life{std::make_shared<std::byte>()};
-  double _now{};
-
   int _table{LUA_NOREF};
   std::uint16_t _used{};
   std::uint16_t _live{};
   std::uint16_t _hold{};
   std::uint16_t _repeat{};
   bool _active{};
+  double _now{};
+  std::shared_ptr<void> _life{};
 
   friend class scene;
 };

@@ -26,7 +26,7 @@ public:
 
   void update(float delta);
 
-  void draw();
+  void draw(const int* indices);
 
   float x() const;
   void set_x(float value);
@@ -57,7 +57,6 @@ private:
   std::unique_ptr<float[]> _values;
 
   std::unique_ptr<SDL_Vertex[]> _vertices;
-  std::unique_ptr<int[]> _indices;
 
   std::pair<float, float> _spawn_x_range, _spawn_y_range, _radius_range, _angle_range;
   std::pair<float, float> _velocity_x_range, _velocity_y_range, _gravity_x_range, _gravity_y_range;

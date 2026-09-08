@@ -20,7 +20,7 @@ private:
 
   overlay _overlay;
 
-  std::unique_ptr<pixmap> _background{};
+  pixmap _background;
 
   friend class director;
 

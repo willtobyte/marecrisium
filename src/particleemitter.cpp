@@ -80,7 +80,6 @@ particleemitter::particleemitter(const config& config, const pixmap& texture, fl
     , _idle(!active)
     , _values(std::make_unique_for_overwrite<float[]>(config.count * std::to_underlying(slot::total)))
     , _vertices(std::make_unique_for_overwrite<SDL_Vertex[]>(config.count * 4))
-    , _indices(std::make_unique_for_overwrite<int[]>(config.count * 6))
     , _spawn_x_range(std::minmax(config.spawn.x.first, config.spawn.x.second))
     , _spawn_y_range(std::minmax(config.spawn.y.first, config.spawn.y.second))
     , _radius_range(std::minmax(config.radius.first, config.radius.second))
@@ -101,21 +100,11 @@ particleemitter::particleemitter(const config& config, const pixmap& texture, fl
   std::fill_n(_values.get(), count * std::to_underlying(slot::total), .0f);
 
   for (auto i = 0uz; i < count; ++i) {
-    const auto base = static_cast<int>(i * 4);
-
     auto *vertices = _vertices.get() + i * 4;
     vertices[0] = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {.0f, .0f}};
     vertices[1] = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {1.f, .0f}};
     vertices[2] = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {1.f, 1.f}};
     vertices[3] = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {.0f, 1.f}};
-
-    auto *indices = _indices.get() + i * 6;
-    indices[0] = base;
-    indices[1] = base + 1;
-    indices[2] = base + 2;
-    indices[3] = base;
-    indices[4] = base + 2;
-    indices[5] = base + 3;
   }
 }
 
@@ -215,7 +204,7 @@ void particleemitter::update(float delta) {
   _idle = idle;
 }
 
-void particleemitter::draw() {
+void particleemitter::draw(const int* indices) {
   if (_idle) [[unlikely]]
     return;
 
@@ -224,7 +213,6 @@ void particleemitter::draw() {
   const auto hw = _half.width;
   const auto hh = _half.height;
   auto* vertices = _vertices.get();
-  auto* indices = _indices.get();
 
   const auto* values = _values.get();
   const auto* noalias xs = column<slot::x>(values, count);
@@ -318,7 +306,7 @@ void particleemitter::draw() {
 }
 
 void particleemitter::wire() {
-  luaL_newmetatable(L, "ParticleEmitter");
+  lua_createtable(L, 0, 3);
   lua_pushliteral(L, "ParticleEmitter");
   lua_setfield(L, -2, "__name");
 
@@ -326,5 +314,5 @@ void particleemitter::wire() {
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, newindex);
   lua_setfield(L, -2, "__newindex");
-  lua_pop(L, 1);
+  lua_setfield(L, LUA_REGISTRYINDEX, "ParticleEmitter");
 }

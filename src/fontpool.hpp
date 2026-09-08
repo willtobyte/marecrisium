@@ -7,5 +7,5 @@ public:
   void clear();
 
 private:
-  std::unordered_map<std::string, std::unique_ptr<font>, transparent_string_hash, std::equal_to<>> _pool;
+  std::unordered_map<std::string, std::optional<font>, transparent_string_hash, std::equal_to<>> _pool;
 };

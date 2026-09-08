@@ -67,16 +67,16 @@ static int index(lua_State *state) {
 }
 
 void keyboard::wire() {
-  luaL_newmetatable(L, "Keyboard");
+  lua_createtable(L, 0, 2);
   lua_pushliteral(L, "Keyboard");
   lua_setfield(L, -2, "__name");
 
   lua_pushcfunction(L, index);
   lua_setfield(L, -2, "__index");
-  lua_pop(L, 1);
 
   lua_newuserdata(L, 1);
-  luaL_getmetatable(L, "Keyboard");
+  lua_pushvalue(L, -2);
   lua_setmetatable(L, -2);
   lua_setglobal(L, "keyboard");
+  lua_setfield(L, LUA_REGISTRYINDEX, "Keyboard");
 }

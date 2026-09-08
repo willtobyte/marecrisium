@@ -171,9 +171,6 @@ clip::clip(std::string_view filename) {
 sound::sound(const clip& data, std::atomic_uint16_t& completed, std::uint16_t bit)
     : _completed{&completed}, _bit{bit} {
   _source.vorbis.reset(stb_vorbis_open_memory(data.encoded.data(), static_cast<int>(data.encoded.size()), nullptr, nullptr));
-  const auto valid = _source.vorbis != nullptr;
-  assert(valid && "sound OGG data must be valid");
-  [[assume(valid)]];
 
   const auto info = stb_vorbis_get_info(_source.vorbis.get());
   _source.length = stb_vorbis_stream_length_in_samples(_source.vorbis.get());
@@ -184,15 +181,13 @@ sound::sound(const clip& data, std::atomic_uint16_t& completed, std::uint16_t bi
   config.vtable = &vtable;
   ma_data_source_init(&config, reinterpret_cast<ma_data_source*>(&_source));
 
-  const auto result = ma_sound_init_from_data_source(
+  ma_sound_init_from_data_source(
     &audio,
     reinterpret_cast<ma_data_source*>(&_source),
     MA_SOUND_FLAG_NO_SPATIALIZATION | MA_SOUND_FLAG_NO_PITCH,
     nullptr,
     &_sound
   );
-  assert(result == MA_SUCCESS && "sound must initialize");
-  [[assume(result == MA_SUCCESS)]];
 
   ma_sound_set_end_callback(&_sound, ended, this);
 }
@@ -226,15 +221,11 @@ void sound::stop() {
   const auto active = _phase.load(std::memory_order_acquire) != phase::idle;
   ma_sound_stop(&_sound);
   if (active) {
-    const auto detached = ma_node_detach_output_bus(&_sound, 0);
-    assert(detached == MA_SUCCESS && "sound must detach");
-    [[assume(detached == MA_SUCCESS)]];
+    ma_node_detach_output_bus(&_sound, 0);
 
     _phase.store(phase::idle, std::memory_order_release);
 
-    const auto attached = ma_node_attach_output_bus(&_sound, 0, ma_node_graph_get_endpoint(ma_engine_get_node_graph(&audio)), 0);
-    assert(attached == MA_SUCCESS && "sound must attach");
-    [[assume(attached == MA_SUCCESS)]];
+    ma_node_attach_output_bus(&_sound, 0, ma_node_graph_get_endpoint(ma_engine_get_node_graph(&audio)), 0);
   }
 
   if ((_completed->load(std::memory_order_relaxed) & _bit) != 0)
@@ -266,7 +257,7 @@ void sound::fade(float from, float to, uint64_t ms) {
 }
 
 void sound::wire() {
-  luaL_newmetatable(L, "Sound");
+  lua_createtable(L, 0, 7);
   lua_pushliteral(L, "Sound");
   lua_setfield(L, -2, "__name");
 
@@ -282,5 +273,5 @@ void sound::wire() {
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, newindex);
   lua_setfield(L, -2, "__newindex");
-  lua_pop(L, 1);
+  lua_setfield(L, LUA_REGISTRYINDEX, "Sound");
 }

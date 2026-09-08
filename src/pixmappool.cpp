@@ -1,10 +1,8 @@
 pixmap* pixmappool::get(std::string_view name) {
   if (const auto it = _pool.find(name); it != _pool.end()) [[likely]]
-    return it->second.get();
+    return &it->second;
 
-  auto instance = std::make_unique<pixmap>(std::format("blobs/{}.png", name));
-  auto* result = instance.get();
-  _pool.emplace(name, std::move(instance));
+  auto* result = &_pool.try_emplace(std::string{name}, std::format("blobs/{}.png", name)).first->second;
 
   return result;
 }

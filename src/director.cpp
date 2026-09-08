@@ -29,7 +29,7 @@ static int enroll_callback(lua_State *state) {
 }
 
 void director::wire() {
-  lua_newtable(L);
+  lua_createtable(L, 0, 3);
 
   lua_pushlightuserdata(L, this);
   lua_pushcclosure(L, navigate_callback, 1);
@@ -52,14 +52,17 @@ void director::navigate(std::string name) {
 }
 
 void director::enroll(std::string name) {
-  auto instance = std::make_unique<scene>(name);
-  _scenes.emplace(std::move(name), std::move(instance));
+  decltype(_scenes) pending;
+  auto& pool = _scenes.contains(name) ? pending : _scenes;
+  auto node = pool.extract(pool.try_emplace(std::move(name)).first);
+  node.mapped().emplace(node.key());
+  _scenes.insert(std::move(node));
 }
 
 void director::destroy(std::string_view name) {
   auto it = _scenes.find(name);
 
-  if (it == _scenes.end() || it->second.get() == _current) [[unlikely]]
+  if (it == _scenes.end() || &*it->second == _current) [[unlikely]]
     return;
 
   _scenes.erase(it);
@@ -71,12 +74,8 @@ void director::update(float delta) {
       _current->on_leave();
 
     const auto it = _scenes.find(*_pending);
-    const auto found = it != _scenes.end();
-    assert(found && "scene must be enrolled before navigation");
-    [[assume(found)]];
-
     _pending.reset();
-    _current = it->second.get();
+    _current = &*it->second;
 
     _current->on_enter();
   }

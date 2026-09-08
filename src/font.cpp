@@ -93,7 +93,7 @@ static int draw_callback(lua_State *state) {
 }
 
 void font::wire() {
-  luaL_newmetatable(L, "Font");
+  lua_createtable(L, 0, 3);
   lua_pushliteral(L, "Font");
   lua_setfield(L, -2, "__name");
 
@@ -101,7 +101,7 @@ void font::wire() {
   lua_setfield(L, -2, "draw");
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
-  lua_pop(L, 1);
+  lua_setfield(L, LUA_REGISTRYINDEX, "Font");
 }
 
 static constexpr SDL_FPoint rotate(float x, float y, float middle_x, float middle_y, float cosine, float sine) {

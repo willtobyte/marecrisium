@@ -63,7 +63,7 @@ engine::engine() {
   SDL_FlashWindow(window, SDL_FLASH_UNTIL_FOCUSED);
 
 
-  lua_newtable(L);
+  lua_createtable(L, 0, 3);
   lua_pushnumber(L, static_cast<lua_Number>(viewport.width));
   lua_setfield(L, -2, "width");
   lua_pushnumber(L, static_cast<lua_Number>(viewport.height));

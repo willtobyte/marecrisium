@@ -13,6 +13,7 @@ public:
   void clear();
 
 private:
-  std::unordered_map<std::string, std::unique_ptr<particleemitter>, transparent_string_hash, std::equal_to<>> _particles;
+  std::unordered_map<std::string, particleemitter, transparent_string_hash, std::equal_to<>> _particles;
   std::vector<particleemitter*> _order;
+  std::vector<int> _indices;
 };

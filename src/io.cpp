@@ -70,6 +70,7 @@ struct mapping final {
     struct stat info;
     if (fstat(file, &info) == -1) [[unlikely]] {
       close(file);
+
       throw std::runtime_error{std::format("[io::mount] failed to size {}", filename)};
     }
 
@@ -77,6 +78,7 @@ struct mapping final {
     const auto address = mmap(nullptr, size, PROT_READ, MAP_PRIVATE, file, 0);
     if (address == MAP_FAILED) [[unlikely]] {
       close(file);
+
       throw std::runtime_error{std::format("[io::mount] failed to map {}", filename)};
     }
 

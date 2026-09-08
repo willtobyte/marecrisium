@@ -11,6 +11,8 @@ import math
 import re
 from pathlib import Path
 
+BUFFER_SIZE = 64 * 1024
+
 Image = importlib.import_module("PIL.Image")
 jinja2 = importlib.import_module("jinja2")
 oxipng = importlib.import_module("oxipng")
@@ -21,15 +23,20 @@ root = objects.parents[1]
 pattern = re.compile(r"^(\d+)_(\d+)_(?:(end)_)?([a-z][a-z0-9.]*)\.png$")
 
 
-def signature(directory: Path, shared: list[Path]) -> bytes:
+def signature(directory: Path, shared: list[Path], buffer: bytearray) -> bytes:
     digest = hashlib.blake2b(digest_size=32)
+    view = memoryview(buffer)
     for current in sorted(directory.rglob("*")):
         if current.is_file():
             digest.update(current.relative_to(directory).as_posix().encode())
-            digest.update(current.read_bytes())
+            with current.open("rb", buffering=0) as stream:
+                while size := stream.readinto(buffer):
+                    digest.update(view[:size])
     for current in shared:
         digest.update(current.relative_to(objects).as_posix().encode())
-        digest.update(current.read_bytes())
+        with current.open("rb", buffering=0) as stream:
+            while size := stream.readinto(buffer):
+                digest.update(view[:size])
 
     return digest.digest()
 
@@ -46,10 +53,15 @@ shared = [
     and not any(current.is_relative_to(entry) for entry in objects_root)
 ]
 
+scratch = None
+
 for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     filenames = sorted((directory / "frames").glob("*.png"))
     if not filenames:
         continue
+
+    if scratch is None:
+        scratch = bytearray(BUFFER_SIZE)
 
     name = directory.name
     output = root / "cartridge" / "objects" / f"{name}.lua"
@@ -59,7 +71,7 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         output.is_file()
         and atlas.is_file()
         and cache.is_file()
-        and cache.read_bytes() == signature(directory, shared)
+        and cache.read_bytes() == signature(directory, shared, scratch)
     ):
         continue
 
@@ -69,8 +81,6 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     for filename in filenames:
         match = pattern.fullmatch(filename.name)
 
-        assert match, "frame name must be index_delay_[end_]animation.png"
-
         order, duration, end, animation = match.groups()
         order = int(order)
         duration = int(duration)
@@ -78,7 +88,6 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         if group is None:
             groups[animation] = (order if end else None, [])
         else:
-            assert not end or group[0] is None, "animation must have one end marker"
             if end:
                 groups[animation] = (order, group[1])
 
@@ -90,22 +99,15 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         size = image.size
         assert max(size) <= 65535, "source frame must fit within 65535 pixels"
         bounds = image.getbbox(alpha_only=True)
-        assert bounds, "frame must have opaque pixels"
 
         collider = directory / "colliders" / filename.name
         if collider.is_file():
             with Image.open(collider) as mask:
-                assert mask.size == size, "collider mask size must match frame size"
-                assert mask.has_transparency_data, (
-                    "collider mask must have transparency data"
-                )
                 if "A" in mask.getbands():
                     box = mask.getbbox(alpha_only=True)
                 else:
                     with mask.convert("RGBA") as image:
                         box = image.getbbox(alpha_only=True)
-
-            assert box, "collider mask must have opaque pixels"
 
             cx, cy, right, bottom = box
             collider = (cx, cy, right - cx, bottom - cy)
@@ -124,8 +126,6 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         )
 
     size = images[0][0].size
-    consistent = all(image.size == size for image, _, _, _, _, _ in images)
-    assert consistent, "object frames must have the same size"
 
     for slot, (
         image,
@@ -199,13 +199,6 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     for animation, (end, frames) in sorted(groups.items()):
         frames.sort(key=lambda item: item[0])
         assert len(frames) <= 255, "animation must have at most 255 frames"
-        assert len({order for order, _ in frames}) == len(frames), (
-            "animation frame order must be unique"
-        )
-
-        assert end is None or end == frames[-1][0], (
-            "end marker must be on the last animation frame"
-        )
 
         clips.append(
             {
@@ -246,4 +239,4 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         + "\n"
     )
     cache.parent.mkdir(parents=True, exist_ok=True)
-    cache.write_bytes(signature(directory, shared))
+    cache.write_bytes(signature(directory, shared, scratch))

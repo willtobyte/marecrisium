@@ -146,24 +146,22 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
         return array;
       }
 
-      auto *object = yyjson_mut_obj(document);
       lua_pushnil(state);
-      while (lua_next(state, source) != 0) {
-        const auto type = lua_type(state, -2);
-        const auto supported = type == LUA_TSTRING || type == LUA_TNUMBER;
-        if (!supported) [[unlikely]] {
-          lua_pop(state, 2);
-          if (resolve(state, source)) {
-            auto *value = encode(state, -1, document, resolve);
-            lua_pop(state, 1);
+      if (lua_next(state, source) == 0)
+        return yyjson_mut_obj(document);
 
-            return value;
-          }
+      auto type = lua_type(state, -2);
+      if (type != LUA_TSTRING && type != LUA_TNUMBER) [[unlikely]] {
+        lua_pop(state, 2);
+        resolve(state, source);
+        auto *value = encode(state, -1, document, resolve);
+        lua_pop(state, 1);
 
-          assert(supported && "cassette key must be a string or number");
-          [[assume(supported)]];
-        }
+        return value;
+      }
 
+      auto *object = yyjson_mut_obj(document);
+      for (;;) {
         yyjson_mut_val *key;
         if (type == LUA_TNUMBER) {
           std::array<char, 18> tagged{};
@@ -183,6 +181,10 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
         auto *value = encode(state, -1, document, resolve);
         yyjson_mut_obj_add(object, key, value);
         lua_pop(state, 1);
+        if (lua_next(state, source) == 0)
+          break;
+
+        type = lua_type(state, -2);
       }
 
       return object;

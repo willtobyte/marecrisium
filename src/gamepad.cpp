@@ -171,13 +171,13 @@ void gamepad::wire() {
   SDL_AddEventWatch(on_event, nullptr);
   connect();
 
-  lua_newtable(L);
+  lua_createtable(L, 0, 2);
   lua_pushcfunction(L, rumble_callback);
   lua_setfield(L, -2, "rumble");
   lua_pushcfunction(L, led_callback);
   lua_setfield(L, -2, "led");
 
-  lua_newtable(L);
+  lua_createtable(L, 0, 2);
   lua_pushcfunction(L, index);
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, +[](lua_State*) -> int { return 0; });

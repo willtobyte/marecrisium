@@ -7,6 +7,7 @@
 - **Prefer O(1), SIMD-friendly, branchless, and cache-friendly implementations whenever practical.**
 - **Every C++ change to the Lua API must also update `types/carimbo.lua`.**
 - **LuaJIT only. Keep Lua code LuaJIT-friendly and performance-oriented.**
+- **Use `lua_createtable` for all explicit Lua table creation in C++. Pass known array and hash sizes to avoid extra allocations as tables grow. Use zero for unknown sizes.**
 - **Always use the project `pcall()` wrapper to call Lua functions. Never call `lua_pcall()` or `lua_call()` directly. Check each status and propagate each Lua error to the `catch` block in `src/application.cpp`.**
 - **Every performance-related change requires empirical benchmarking. Always measure and compare the before and after results, and present the evidence demonstrating the impact.**
 - **Measure benchmarks with a high-precision clock, never with FPS. Vsync locks FPS and hides real gains and losses.**

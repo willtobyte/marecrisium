@@ -3,8 +3,8 @@ constexpr auto stopped = -std::numeric_limits<float>::infinity();
 }
 
 scene::scene(std::string_view key)
-    : _background(std::make_unique<pixmap>(std::format("blobs/scenes/{}/background.png", key))),
-      _overlay(key) {
+    : _overlay(key),
+      _background(std::format("blobs/scenes/{}/background.png", key)) {
   struct prior final {
     int pool;
     int timer;
@@ -20,7 +20,7 @@ scene::scene(std::string_view key)
   lua_rawgeti(L, LUA_REGISTRYINDEX, _scheduler._table);
   lua_setglobal(L, "timer");
 
-  SDL_SetTextureBlendMode(*_background, SDL_BLENDMODE_NONE);
+  SDL_SetTextureBlendMode(_background, SDL_BLENDMODE_NONE);
 
   const auto chunk = std::format("@scenes/{}.lua", key);
   const auto filename = std::string_view{chunk}.substr(1);
@@ -32,7 +32,19 @@ scene::scene(std::string_view key)
   if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]
     propagate();
 
-  lua_newtable(L);
+  int capacity{};
+
+  lua_pushliteral(L, "objects");
+  lua_rawget(L, -2);
+  capacity += static_cast<int>(lua_objlen(L, -1));
+  lua_pop(L, 1);
+
+  lua_pushliteral(L, "sounds");
+  lua_rawget(L, -2);
+  capacity += static_cast<int>(lua_objlen(L, -1));
+  lua_pop(L, 1);
+
+  lua_createtable(L, 0, capacity);
   _pool = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
@@ -273,7 +285,7 @@ void scene::update(float delta) {
 }
 
 void scene::draw() {
-  _background->draw(.0f, .0f, viewport.width, viewport.height);
+  _background.draw(.0f, .0f, viewport.width, viewport.height);
 
   for (const auto id : _order) {
     const auto& object = _objects[id];

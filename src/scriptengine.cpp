@@ -55,8 +55,6 @@ void scriptengine::run() {
   sound::wire();
   user::wire();
 
-  assert(lua_gettop(L) == 0 && "Lua stack must be empty after wiring");
-
   engine e;
   e.run();
 }

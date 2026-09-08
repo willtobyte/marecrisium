@@ -144,9 +144,9 @@ def main() -> int:
             continue
 
         path = relative.as_posix()
-        if current.is_dir():
+        if current.info.is_dir():
             sources.append(Source(path, b"", True))
-        elif current.is_file():
+        elif current.info.is_file():
             sources.append(
                 Source(path, current.read_bytes(), False, algorithm=ALGO_ZSTD_DICT)
             )
@@ -246,7 +246,8 @@ def main() -> int:
             current.position = base + cursor
         cursor += len(current.blob)
 
-    blob = bytearray(base + cursor)
+    size = base + cursor
+    blob = bytearray(base)
     struct.pack_into(
         HEADER_FORMAT,
         blob,
@@ -279,16 +280,15 @@ def main() -> int:
     cursor += stringsize
     blob[cursor : cursor + trainsize] = trained
 
-    for current in sources:
-        blob[current.position : current.position + len(current.blob)] = current.blob
-
-    output.write_bytes(blob)
+    with output.open("wb") as stream:
+        stream.write(blob)
+        for current in sources:
+            stream.write(current.blob)
 
     display(sources)
     elapsed = (time.perf_counter() - start) * 1000
     print(
-        f"cartridge.rom ({count} entries, {human_size(len(blob))}"
-        f" in {human_time(elapsed)})"
+        f"cartridge.rom ({count} entries, {human_size(size)} in {human_time(elapsed)})"
     )
 
     return 0

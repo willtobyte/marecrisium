@@ -1,5 +1,5 @@
 namespace {
-std::unordered_map<std::string, std::unique_ptr<prototype>, transparent_string_hash, std::equal_to<>> prototypes;
+std::unordered_map<std::string, prototype, transparent_string_hash, std::equal_to<>> prototypes;
 
 static int collider(lua_State* state) {
   const auto* self = static_cast<proxy*>(luaL_checkudata(state, 1, "Object"));
@@ -201,11 +201,11 @@ void objects::bind(object& object, dirty& dirty, std::string_view name, std::str
   object.script.label = luaL_ref(L, LUA_REGISTRYINDEX);
 
   if (const auto it = prototypes.find(kind); it != prototypes.end()) [[likely]] {
-    object.script.blueprint = it->second.get();
+    object.script.blueprint = &it->second;
     auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));
     luaL_getmetatable(L, "Object");
     lua_setmetatable(L, -2);
-    lua_newtable(L);
+    lua_createtable(L, 0, 0);
     lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.blueprint->table);
     lua_setmetatable(L, -2);
     lua_setfenv(L, -2);
@@ -228,13 +228,13 @@ void objects::bind(object& object, dirty& dirty, std::string_view name, std::str
   if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]
     propagate();
 
-  auto blueprint = std::make_unique<prototype>();
-  blueprint->table = luaL_ref(L, LUA_REGISTRYINDEX);
+  prototype blueprint;
+  blueprint.table = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_pushlstring(L, kind.data(), kind.size());
-  blueprint->kind = luaL_ref(L, LUA_REGISTRYINDEX);
+  blueprint.kind = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint->table);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, blueprint.table);
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
 
@@ -245,19 +245,18 @@ void objects::bind(object& object, dirty& dirty, std::string_view name, std::str
 
   for (const auto& [name, member] : fields) {
     lua_getfield(L, -1, name);
-    blueprint.get()->*member = lua_isfunction(L, -1)
+    blueprint.*member = lua_isfunction(L, -1)
       ? luaL_ref(L, LUA_REGISTRYINDEX)
       : (lua_pop(L, 1), LUA_NOREF);
   }
 
   lua_pop(L, 1);
 
-  object.script.blueprint = blueprint.get();
-  prototypes.emplace(kind, std::move(blueprint));
+  object.script.blueprint = &prototypes.try_emplace(std::string{kind}, std::move(blueprint)).first->second;
   auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));
   luaL_getmetatable(L, "Object");
   lua_setmetatable(L, -2);
-  lua_newtable(L);
+  lua_createtable(L, 0, 0);
   lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.blueprint->table);
   lua_setmetatable(L, -2);
   lua_setfenv(L, -2);
@@ -270,7 +269,7 @@ void objects::bind(object& object, dirty& dirty, std::string_view name, std::str
 }
 
 void objects::wire() {
-  luaL_newmetatable(L, "Object");
+  lua_createtable(L, 0, 3);
   lua_pushliteral(L, "Object");
   lua_setfield(L, -2, "__name");
 
@@ -280,5 +279,5 @@ void objects::wire() {
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, newindex);
   lua_setfield(L, -2, "__newindex");
-  lua_pop(L, 1);
+  lua_setfield(L, LUA_REGISTRYINDEX, "Object");
 }
