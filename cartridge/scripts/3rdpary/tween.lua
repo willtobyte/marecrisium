@@ -50,6 +50,7 @@ local function inQuad(t, b, c, d)
 end
 local function outQuad(t, b, c, d)
 	t = t / d
+
 	return -c * t * (t - 2) + b
 end
 local function inOutQuad(t, b, c, d)
@@ -57,12 +58,14 @@ local function inOutQuad(t, b, c, d)
 	if t < 1 then
 		return c / 2 * pow(t, 2) + b
 	end
+
 	return -c / 2 * ((t - 1) * (t - 3) - 1) + b
 end
 local function outInQuad(t, b, c, d)
 	if t < d / 2 then
 		return outQuad(t * 2, b, c / 2, d)
 	end
+
 	return inQuad((t * 2) - d, b + c / 2, c / 2, d)
 end
 
@@ -79,12 +82,14 @@ local function inOutCubic(t, b, c, d)
 		return c / 2 * t * t * t + b
 	end
 	t = t - 2
+
 	return c / 2 * (t * t * t + 2) + b
 end
 local function outInCubic(t, b, c, d)
 	if t < d / 2 then
 		return outCubic(t * 2, b, c / 2, d)
 	end
+
 	return inCubic((t * 2) - d, b + c / 2, c / 2, d)
 end
 
@@ -100,12 +105,14 @@ local function inOutQuart(t, b, c, d)
 	if t < 1 then
 		return c / 2 * pow(t, 4) + b
 	end
+
 	return -c / 2 * (pow(t - 2, 4) - 2) + b
 end
 local function outInQuart(t, b, c, d)
 	if t < d / 2 then
 		return outQuart(t * 2, b, c / 2, d)
 	end
+
 	return inQuart((t * 2) - d, b + c / 2, c / 2, d)
 end
 
@@ -121,12 +128,14 @@ local function inOutQuint(t, b, c, d)
 	if t < 1 then
 		return c / 2 * pow(t, 5) + b
 	end
+
 	return c / 2 * (pow(t - 2, 5) + 2) + b
 end
 local function outInQuint(t, b, c, d)
 	if t < d / 2 then
 		return outQuint(t * 2, b, c / 2, d)
 	end
+
 	return inQuint((t * 2) - d, b + c / 2, c / 2, d)
 end
 
@@ -144,6 +153,7 @@ local function outInSine(t, b, c, d)
 	if t < d / 2 then
 		return outSine(t * 2, b, c / 2, d)
 	end
+
 	return inSine((t * 2) - d, b + c / 2, c / 2, d)
 end
 
@@ -152,12 +162,14 @@ local function inExpo(t, b, c, d)
 	if t == 0 then
 		return b
 	end
+
 	return c * pow(2, 10 * (t / d - 1)) + b - c * 0.001
 end
 local function outExpo(t, b, c, d)
 	if t == d then
 		return b + c
 	end
+
 	return c * 1.001 * (-pow(2, -10 * t / d) + 1) + b
 end
 local function inOutExpo(t, b, c, d)
@@ -171,12 +183,14 @@ local function inOutExpo(t, b, c, d)
 	if t < 1 then
 		return c / 2 * pow(2, 10 * (t - 1)) + b - c * 0.0005
 	end
+
 	return c / 2 * 1.0005 * (-pow(2, -10 * (t - 1)) + 2) + b
 end
 local function outInExpo(t, b, c, d)
 	if t < d / 2 then
 		return outExpo(t * 2, b, c / 2, d)
 	end
+
 	return inExpo((t * 2) - d, b + c / 2, c / 2, d)
 end
 
@@ -193,12 +207,14 @@ local function inOutCirc(t, b, c, d)
 		return -c / 2 * (sqrt(1 - t * t) - 1) + b
 	end
 	t = t - 2
+
 	return c / 2 * (sqrt(1 - t * t) + 1) + b
 end
 local function outInCirc(t, b, c, d)
 	if t < d / 2 then
 		return outCirc(t * 2, b, c / 2, d)
 	end
+
 	return inCirc((t * 2) - d, b + c / 2, c / 2, d)
 end
 
@@ -208,6 +224,7 @@ local function calculatePAS(p, a, c, d)
 	if a < abs(c) then
 		return p, c, p / 4
 	end -- p, a, s
+
 	return p, a, p / (2 * pi) * asin(c / a) -- p,a,s
 end
 local function inElastic(t, b, c, d, a, p)
@@ -221,6 +238,7 @@ local function inElastic(t, b, c, d, a, p)
 	end
 	p, a, s = calculatePAS(p, a, c, d)
 	t = t - 1
+
 	return -(a * pow(2, 10 * t) * sin((t * d - s) * (2 * pi) / p)) + b
 end
 local function outElastic(t, b, c, d, a, p)
@@ -233,6 +251,7 @@ local function outElastic(t, b, c, d, a, p)
 		return b + c
 	end
 	p, a, s = calculatePAS(p, a, c, d)
+
 	return a * pow(2, -10 * t) * sin((t * d - s) * (2 * pi) / p) + c + b
 end
 local function inOutElastic(t, b, c, d, a, p)
@@ -249,12 +268,14 @@ local function inOutElastic(t, b, c, d, a, p)
 	if t < 0 then
 		return -0.5 * (a * pow(2, 10 * t) * sin((t * d - s) * (2 * pi) / p)) + b
 	end
+
 	return a * pow(2, -10 * t) * sin((t * d - s) * (2 * pi) / p) * 0.5 + c + b
 end
 local function outInElastic(t, b, c, d, a, p)
 	if t < d / 2 then
 		return outElastic(t * 2, b, c / 2, d, a, p)
 	end
+
 	return inElastic((t * 2) - d, b + c / 2, c / 2, d, a, p)
 end
 
@@ -262,11 +283,13 @@ end
 local function inBack(t, b, c, d, s)
 	s = s or 1.70158
 	t = t / d
+
 	return c * t * t * ((s + 1) * t - s) + b
 end
 local function outBack(t, b, c, d, s)
 	s = s or 1.70158
 	t = t / d - 1
+
 	return c * (t * t * ((s + 1) * t + s) + 1) + b
 end
 local function inOutBack(t, b, c, d, s)
@@ -276,12 +299,14 @@ local function inOutBack(t, b, c, d, s)
 		return c / 2 * (t * t * ((s + 1) * t - s)) + b
 	end
 	t = t - 2
+
 	return c / 2 * (t * t * ((s + 1) * t + s) + 2) + b
 end
 local function outInBack(t, b, c, d, s)
 	if t < d / 2 then
 		return outBack(t * 2, b, c / 2, d, s)
 	end
+
 	return inBack((t * 2) - d, b + c / 2, c / 2, d, s)
 end
 
@@ -293,12 +318,15 @@ local function outBounce(t, b, c, d)
 	end
 	if t < 2 / 2.75 then
 		t = t - (1.5 / 2.75)
+
 		return c * (7.5625 * t * t + 0.75) + b
 	elseif t < 2.5 / 2.75 then
 		t = t - (2.25 / 2.75)
+
 		return c * (7.5625 * t * t + 0.9375) + b
 	end
 	t = t - (2.625 / 2.75)
+
 	return c * (7.5625 * t * t + 0.984375) + b
 end
 local function inBounce(t, b, c, d)
@@ -308,12 +336,14 @@ local function inOutBounce(t, b, c, d)
 	if t < d / 2 then
 		return inBounce(t * 2, 0, c, d) * 0.5 + b
 	end
+
 	return outBounce(t * 2 - d, 0, c, d) * 0.5 + c * 0.5 + b
 end
 local function outInBounce(t, b, c, d)
 	if t < d / 2 then
 		return outBounce(t * 2, b, c / 2, d)
 	end
+
 	return inBounce((t * 2) - d, b + c / 2, c / 2, d)
 end
 
@@ -376,44 +406,8 @@ local function copyTables(destination, keysTable, valuesTable)
 			destination[k] = valuesTable[k]
 		end
 	end
+
 	return destination
-end
-
-local function checkSubjectAndTargetRecursively(subject, target, path)
-	path = path or {}
-	local targetType, newPath
-	for k, targetValue in pairs(target) do
-		targetType, newPath = type(targetValue), copyTables({}, path)
-		table.insert(newPath, tostring(k))
-		if targetType == "number" then
-			assert(
-				type(subject[k]) == "number",
-				"Parameter '" .. table.concat(newPath, "/") .. "' is missing from subject or isn't a number"
-			)
-		elseif targetType == "table" then
-			checkSubjectAndTargetRecursively(subject[k], targetValue, newPath)
-		else
-			assert(
-				targetType == "number",
-				"Parameter '" .. table.concat(newPath, "/") .. "' must be a number or table of numbers"
-			)
-		end
-	end
-end
-
-local function checkNewParams(duration, subject, target, easing)
-	assert(
-		type(duration) == "number" and duration > 0,
-		"duration must be a positive number. Was " .. tostring(duration)
-	)
-	local tsubject = type(subject)
-	assert(
-		tsubject == "table" or tsubject == "userdata",
-		"subject must be a table or userdata. Was " .. tostring(subject)
-	)
-	assert(type(target) == "table", "target must be a table. Was " .. tostring(target))
-	assert(type(easing) == "function", "easing must be a function. Was " .. tostring(easing))
-	checkSubjectAndTargetRecursively(subject, target)
 end
 
 local function getEasingFunction(easing)
@@ -425,6 +419,7 @@ local function getEasingFunction(easing)
 			error("The easing function name '" .. name .. "' is invalid")
 		end
 	end
+
 	return easing
 end
 
@@ -456,8 +451,6 @@ local Tween = {}
 local Tween_mt = { __index = Tween }
 
 function Tween:set(clock)
-	assert(type(clock) == "number", "clock must be a positive number or 0")
-
 	if not self.initial then
 		local initial = copyTables({}, self.target, self.subject)
 		local paths = {}
@@ -533,7 +526,6 @@ function Tween:reset()
 end
 
 function Tween:update(dt)
-	assert(type(dt) == "number", "dt must be a number")
 	return self:set(self.clock + dt)
 end
 
@@ -541,7 +533,7 @@ end
 
 function tween.new(duration, subject, target, easing)
 	easing = getEasingFunction(easing)
-	checkNewParams(duration, subject, target, easing)
+
 	return setmetatable({
 		duration = duration,
 		subject = subject,

@@ -29,6 +29,7 @@ def main() -> int:
 
     if magic != MAGIC:
         print("not a cartridge.rom", file=sys.stderr)
+
         return 1
 
     cursor = HEADER
@@ -84,6 +85,7 @@ def main() -> int:
         )
 
     print(f"extracted {count} entries to cartridge/")
+
     return 0
 
 

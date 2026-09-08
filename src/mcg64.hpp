@@ -19,6 +19,7 @@ struct mcg64 final {
   constexpr float operator()(std::pair<float, float> range) noexcept {
     constexpr auto scale = 0x1.fffffep-33f;
     const auto [minimum, maximum] = range;
+
     return minimum + (maximum - minimum) * (static_cast<float>(next()) * scale);
   }
 
@@ -27,6 +28,7 @@ private:
     constexpr auto multiplier = uint64_t{0xD1342543DE82EF95};
 
     state *= multiplier;
+
     return static_cast<uint32_t>(state >> 32);
   }
 };

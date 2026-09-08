@@ -9,6 +9,7 @@ particleemitter* particlesystem::add(std::string_view name, std::string_view kin
   auto* result = instance.get();
   _particles.emplace(std::string{name}, std::move(instance));
   _order.emplace_back(result);
+
   return result;
 }
 

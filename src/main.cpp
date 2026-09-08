@@ -37,5 +37,6 @@ int main(int, char**) {
   ::depot = &store;
 
   application app;
+
   return app.run();
 }

@@ -56,11 +56,13 @@ static int index(lua_State *state) {
   const auto code = to_scancode({data, length});
   if (code == SDL_SCANCODE_UNKNOWN) {
     lua_pushboolean(state, 0);
+
     return 1;
   }
 
   const auto *keyboard = SDL_GetKeyboardState(nullptr);
   lua_pushboolean(state, !!keyboard[code]);
+
   return 1;
 }
 

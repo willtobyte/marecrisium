@@ -200,6 +200,7 @@ std::optional<std::span<const uint8_t>> io::try_read(std::string_view filename) 
 
   record current;
   std::memcpy(&current, address, stride);
+
   return decode(cartridge, current);
 }
 

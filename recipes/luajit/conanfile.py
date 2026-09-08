@@ -98,6 +98,7 @@ class LuajitConan(ConanFile):
             return version
         if is_apple_os(self):
             return "11.0"
+
         return None
 
     @property
@@ -106,6 +107,7 @@ class LuajitConan(ConanFile):
         args = [f"PREFIX={unix_path(self, package_folder)}"]
         if is_apple_os(self) and self._macosx_deployment_target:
             args.append(f"MACOSX_DEPLOYMENT_TARGET={self._macosx_deployment_target}")
+
         return args
 
     @property

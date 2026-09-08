@@ -5,5 +5,6 @@ const clip* soundpool::get(std::string_view name) {
   auto instance = std::make_unique<clip>(std::format("blobs/{}.ogg", name));
   auto* result = instance.get();
   _pool.emplace(name, std::move(instance));
+
   return result;
 }

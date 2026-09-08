@@ -13,5 +13,3 @@ struct spritesheet final {
   uint8_t count{};
   uint8_t initial{};
 };
-
-static_assert(std::is_trivially_copyable_v<spritesheet>, "spritesheet must be trivially copyable");

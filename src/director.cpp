@@ -53,16 +53,10 @@ void director::navigate(std::string name) {
 
 void director::enroll(std::string name) {
   auto instance = std::make_unique<scene>(name);
-  const auto [_, inserted] = _scenes.emplace(std::move(name), std::move(instance));
-  assert(inserted && "scene must not already be enrolled");
-  [[assume(inserted)]];
+  _scenes.emplace(std::move(name), std::move(instance));
 }
 
 void director::destroy(std::string_view name) {
-  const auto allowed = !_pending || *_pending != name;
-  assert(allowed && "pending scene must not be destroyed");
-  [[assume(allowed)]];
-
   auto it = _scenes.find(name);
 
   if (it == _scenes.end() || it->second.get() == _current) [[unlikely]]

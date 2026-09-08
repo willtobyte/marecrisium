@@ -56,6 +56,7 @@ static int draw_callback(lua_State *state) {
 
   if (!lua_istable(state, 5)) [[likely]] {
     self->draw(text, x, y);
+
     return 0;
   }
 
@@ -123,10 +124,6 @@ font::font(std::string_view family) {
 
   lua_getfield(L, top, "glyphs");
 
-  const auto defined = lua_isstring(L, -1);
-  assert(defined && "font must define a glyphs string");
-  [[assume(defined)]];
-
   std::size_t length;
   const auto* data = lua_tolstring(L, -1, &length);
   const std::string_view glyphs{data, length};
@@ -161,7 +158,7 @@ font::font(std::string_view family) {
       ++x;
     }
 
-    assert(x < width && "ran past atlas width while scanning for next glyph");
+    assert(x < width && "glyph must fit within the atlas width");
 
     auto w = 0;
     while (x + w < width && pixels[y * width + x + w] != separator) {

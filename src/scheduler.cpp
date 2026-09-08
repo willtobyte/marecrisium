@@ -20,14 +20,6 @@ scheduler::entry* scheduler::find(const handle& value) noexcept {
 }
 
 scheduler::handle scheduler::add(double milliseconds, bool repeat, callback call, callback release, std::uint64_t data) {
-  const auto valid = milliseconds > 0.0 && std::isfinite(milliseconds);
-  assert(valid && "timer period must be positive and finite");
-  [[assume(valid)]];
-  assert(call && "timer callback must be provided");
-  [[assume(call)]];
-  assert(release && "timer release callback must be provided");
-  [[assume(release)]];
-
   const auto free = static_cast<std::uint16_t>(~_used);
   const auto available = free != 0;
   assert(available && "scene must not exceed 16 timers");
@@ -121,12 +113,6 @@ bool scheduler::active(const handle& value) noexcept {
 }
 
 void scheduler::update(float delta) {
-  const auto valid = delta >= 0.0f && std::isfinite(delta);
-  assert(valid && "timer delta must be finite and nonnegative");
-  [[assume(valid)]];
-  assert(_active && "timer scheduler must be active during update");
-  [[assume(_active)]];
-
   auto bits = _live;
   if (!bits) [[likely]]
     return;
@@ -220,6 +206,7 @@ int cancel_callback(lua_State* state) {
   auto* const value = check(state);
   scheduler::cancel(value->value);
   lua_settop(state, 1);
+
   return 1;
 }
 
@@ -227,6 +214,7 @@ int pause_callback(lua_State* state) {
   auto* const value = check(state);
   scheduler::pause(value->value);
   lua_settop(state, 1);
+
   return 1;
 }
 
@@ -234,6 +222,7 @@ int resume_callback(lua_State* state) {
   auto* const value = check(state);
   scheduler::resume(value->value);
   lua_settop(state, 1);
+
   return 1;
 }
 
@@ -245,6 +234,7 @@ int index(lua_State* state) {
 
   if (key == "active") {
     lua_pushboolean(state, scheduler::active(value->value));
+
     return 1;
   }
 
@@ -263,19 +253,13 @@ int index(lua_State* state) {
 int gc(lua_State* state) {
   auto* const value = check(state);
   value->~handle();
+
   return 0;
 }
 
 int schedule(lua_State* state, bool repeat) {
   auto* const current = static_cast<scheduler *>(lua_touserdata(state, lua_upvalueindex(1)));
   const auto milliseconds = static_cast<double>(luaL_checknumber(state, 2));
-  const auto valid = milliseconds > 0.0 && std::isfinite(milliseconds);
-  assert(valid && "timer period must be positive and finite");
-  [[assume(valid)]];
-
-  const auto callable = lua_isfunction(state, 3);
-  assert(callable && "timer callback must be a function");
-  [[assume(callable)]];
 
   lua_pushvalue(state, 3);
   const auto callback = luaL_ref(state, LUA_REGISTRYINDEX);
@@ -284,6 +268,7 @@ int schedule(lua_State* state, bool repeat) {
 
   luaL_getmetatable(state, name);
   lua_setmetatable(state, -2);
+
   return 1;
 }
 
@@ -298,6 +283,7 @@ int singleshot_callback(lua_State* state) {
 int clear_callback(lua_State* state) {
   auto* const current = static_cast<scheduler *>(lua_touserdata(state, lua_upvalueindex(1)));
   current->clear();
+
   return 0;
 }
 }

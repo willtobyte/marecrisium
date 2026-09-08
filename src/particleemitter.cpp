@@ -34,16 +34,19 @@ static int index(lua_State* state) {
 
   if (key == "active") {
     lua_pushboolean(state, self->active());
+
     return 1;
   }
 
   if (key == "x") {
     lua_pushnumber(state, static_cast<lua_Number>(self->x()));
+
     return 1;
   }
 
   if (key == "y") {
     lua_pushnumber(state, static_cast<lua_Number>(self->y()));
+
     return 1;
   }
 
@@ -62,6 +65,7 @@ static int newindex(lua_State* state) {
     self->set_x(static_cast<float>(luaL_checknumber(state, 3)));
   else if (key == "y")
     self->set_y(static_cast<float>(luaL_checknumber(state, 3)));
+
   return 0;
 }
 }
@@ -89,8 +93,6 @@ particleemitter::particleemitter(const config& config, const pixmap& texture, fl
     , _life_range(std::minmax(config.life.first, config.life.second))
     , _rotation_force_range(std::minmax(config.rotation.force.first, config.rotation.force.second))
     , _rotation_velocity_range(std::minmax(config.rotation.velocity.first, config.rotation.velocity.second)) {
-  assert(config.count > 0 && "particleemitter count must be positive");
-  [[assume(config.count > 0)]];
   assert(config.count % 4uz == 0 && "particleemitter count must be a multiple of four");
   [[assume(config.count % 4uz == 0)]];
 

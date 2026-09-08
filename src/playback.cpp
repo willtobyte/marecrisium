@@ -13,6 +13,7 @@ sound& playback::add(std::string_view name) {
   auto instance = std::unique_ptr<sound>{new sound{*data, _completed, bit}};
   auto& result = *instance;
   _sounds[_size++] = std::move(instance);
+
   return result;
 }
 

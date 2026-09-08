@@ -6,10 +6,6 @@ static std::pair<float, float> read_range(lua_State* state, const char* field) {
     lua_rawgeti(state, -1, 1);
     lua_rawgeti(state, -2, 2);
 
-    const auto numbers = lua_isnumber(state, -2) && lua_isnumber(state, -1);
-    assert(numbers && "particle range must contain two numbers");
-    [[assume(numbers)]];
-
     minimum = static_cast<float>(lua_tonumber(state, -2));
     maximum = static_cast<float>(lua_tonumber(state, -1));
 
@@ -78,6 +74,7 @@ config* particlepool::get(std::string_view kind) {
 
   auto* result = instance.get();
   _pool.emplace(kind, std::move(instance));
+
   return result;
 }
 

@@ -113,6 +113,7 @@ void engine::loop() {
 
       case SDL_EVENT_QUIT:
         _running = false;
+
         return;
 
       default:

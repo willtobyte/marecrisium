@@ -3,11 +3,13 @@ static int unlock_callback(lua_State *state) {
 
   if (!SteamUserStats()) [[unlikely]] {
     lua_pushboolean(state, 0);
+
     return 1;
   }
 
   if (GetAchievement(id)) {
     lua_pushboolean(state, 1);
+
     return 1;
   }
 
@@ -15,6 +17,7 @@ static int unlock_callback(lua_State *state) {
   StoreStats();
 
   lua_pushboolean(state, result);
+
   return 1;
 }
 

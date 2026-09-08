@@ -21,6 +21,7 @@ static int loader(lua_State *state) {
 
   if (luaL_loadbuffer(state, reinterpret_cast<const char *>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
     return lua_error(state);
+
   return 1;
 }
 

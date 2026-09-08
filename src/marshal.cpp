@@ -6,14 +6,12 @@ static bool is_sequence(lua_State *state, int table) {
   lua_rawgeti(state, table, static_cast<int>(length) + 1);
   const auto ok = lua_isnil(state, -1);
   lua_pop(state, 1);
+
   return ok;
 }
 }
 
 void marshal::decode(lua_State *state, yyjson_val *value) {
-  assert(value && "json value must exist");
-  [[assume(value)]];
-
   switch (yyjson_get_type(value)) {
     case YYJSON_TYPE_NULL:
       lua_pushnil(state);
@@ -101,9 +99,6 @@ void marshal::decode(lua_State *state, yyjson_val *value) {
 }
 
 yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *document, table_resolver resolve) {
-  assert(resolve && "table resolver must exist");
-  [[assume(resolve)]];
-
   const auto source = (index > 0 || index <= LUA_REGISTRYINDEX)
     ? index
     : lua_gettop(state) + index + 1;
@@ -134,6 +129,7 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
     case LUA_TSTRING: {
       size_t length = 0;
       const auto *str = lua_tolstring(state, source, &length);
+
       return yyjson_mut_strn(document, str, length);
     }
 
@@ -160,6 +156,7 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
           if (resolve(state, source)) {
             auto *value = encode(state, -1, document, resolve);
             lua_pop(state, 1);
+
             return value;
           }
 
@@ -175,9 +172,6 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
           const auto bits = std::bit_cast<uint64_t>(lua_tonumber(state, -2));
           const auto result = std::to_chars(
             tagged.data() + 2, tagged.data() + tagged.size(), bits, 16);
-          const auto valid = result.ec == std::errc{};
-          assert(valid && "cassette numeric key must fit");
-          [[assume(valid)]];
           key = yyjson_mut_strncpy(
             document, tagged.data(), static_cast<size_t>(result.ptr - tagged.data()));
         } else {

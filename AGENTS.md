@@ -10,11 +10,13 @@
 - **Always use the project `pcall()` wrapper to call Lua functions. Never call `lua_pcall()` or `lua_call()` directly. Check each status and propagate each Lua error to the `catch` block in `src/application.cpp`.**
 - **Every performance-related change requires empirical benchmarking. Always measure and compare the before and after results, and present the evidence demonstrating the impact.**
 - **Measure benchmarks with a high-precision clock, never with FPS. Vsync locks FPS and hides real gains and losses.**
-- **Use `assert` and `[[assume ..` whenever appropriate, always assuming the happy path. Every `assert` must include a simple, clear, and direct error message in English.**
+- **Run release performance measurements with `NOVSYNC=1` and fullscreen enabled. Do not use `WINDOWED=1`.**
+- **Use `assert` and `[[assume(...)]]` only for critical conditions that protect memory, resource lifetime, or data integrity. Do not use them for routine checks of trusted inputs. Every `assert` must include a short, clear error message in English.**
 - **Always assume the happy path. Treat all inputs as safe and trusted.**
 - **Run all benchmarks, profiling, sanitizers, fuzzing, memory-leak detection, allocation tracking, and other instrumentation on macOS 27 using Xcode Instruments and Apple Clang.**
 - **All `#include` directives, of any kind, must be placed exclusively in `common.hpp` (see the current implementation), except `#include <SDL3/SDL_main.h>` in `main.cpp` and the single-header implementations in `miniaudio.cpp` and `stb.cpp`. Keep them grouped by category and sorted alphabetically. We use a precompiled header (PCH).**
 - **Only create functions, methods, or abstractions if they will be used more than once. Prefer linear code whenever possible, as it is easier to read, understand, and maintain.**
+- **Add a blank line before each `return` if another statement comes before it in the same block. Do not add a blank line if `return` is the first statement in the block or file.**
 - **All instrumentation-related code, tests, benchmarks, profiling tools, and similar artifacts must never be placed inside the project directory.**
 - **Git: Never create branches or make commits.**
 - **Prefer single-word variable names whenever they are unambiguous. For local-scope variables, abbreviations or acronyms are preferred over multi-word names whenever they remain clear and unambiguous.**

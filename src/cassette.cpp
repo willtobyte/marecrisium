@@ -8,6 +8,9 @@ std::unique_ptr<sqlite3_stmt, SQLite_Statement_Deleter> stmt_delete;
 std::unique_ptr<sqlite3_stmt, SQLite_Statement_Deleter> stmt_clear;
 
 char proxy_data;
+int length{LUA_NOREF};
+int pairs{LUA_NOREF};
+int ipairs{LUA_NOREF};
 
 static bool resolve_proxy(lua_State *state, int table) {
   lua_pushlightuserdata(state, &proxy_data);
@@ -17,6 +20,7 @@ static bool resolve_proxy(lua_State *state, int table) {
     return true;
 
   lua_pop(state, 1);
+
   return false;
 }
 
@@ -28,19 +32,20 @@ static void execute(sqlite3_stmt *statement) {
   sqlite3_clear_bindings(statement);
 }
 
-static auto load(lua_State *state, std::string_view key) {
+static auto load(std::string_view key) {
+  std::unique_ptr<yyjson_doc, YYJSON_Doc_Deleter> document;
   auto *statement = stmt_select.get();
   sqlite3_bind_text(statement, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
-  const auto found = sqlite3_step(statement) == SQLITE_ROW;
-
-  if (found)
-    lua_pushlstring(state,
-      reinterpret_cast<const char *>(sqlite3_column_text(statement, 0)),
-      static_cast<size_t>(sqlite3_column_bytes(statement, 0)));
+  if (sqlite3_step(statement) == SQLITE_ROW) {
+    const auto *data = reinterpret_cast<const char *>(sqlite3_column_text(statement, 0));
+    const auto size = static_cast<size_t>(sqlite3_column_bytes(statement, 0));
+    document.reset(yyjson_read(data, size, 0));
+  }
 
   sqlite3_reset(statement);
   sqlite3_clear_bindings(statement);
-  return found;
+
+  return document;
 }
 
 static void save(lua_State *state, std::string_view key, int index) {
@@ -51,8 +56,6 @@ static void save(lua_State *state, std::string_view key, int index) {
   std::size_t length;
   const auto json = std::unique_ptr<char, STD_Deleter>{yyjson_mut_write(document.get(), 0, &length)};
   const auto *data = json.get();
-  assert(data && "cassette value must be valid JSON");
-  [[assume(data)]];
 
   auto *statement = stmt_upsert.get();
   sqlite3_bind_text(statement, 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
@@ -71,6 +74,7 @@ static int proxy_newindex(lua_State *state) {
   lua_pop(state, 1);
 
   save(state, key, lua_upvalueindex(3));
+
   return 0;
 }
 
@@ -78,12 +82,15 @@ static int length_callback(lua_State *state) {
   lua_pushlightuserdata(state, &proxy_data);
   lua_rawget(state, 1);
   lua_pushinteger(state, static_cast<lua_Integer>(lua_objlen(state, -1)));
+
   return 1;
 }
 
+template <bool sequence>
 static int iterate_callback(lua_State *state) {
-  if (lua_toboolean(state, lua_upvalueindex(2)) == 0) {
-    lua_pushvalue(state, lua_upvalueindex(1));
+  if constexpr (!sequence) {
+    lua_pushlightuserdata(state, &proxy_data);
+    lua_rawget(state, 1);
     lua_pushvalue(state, 2);
 
     if (lua_next(state, -2) == 0)
@@ -94,6 +101,7 @@ static int iterate_callback(lua_State *state) {
     lua_pushvalue(state, -2);
     lua_gettable(state, -2);
     lua_remove(state, -2);
+
     return 2;
   }
 
@@ -111,24 +119,18 @@ static int iterate_callback(lua_State *state) {
 }
 
 static int pairs_callback(lua_State *state) {
-  lua_pushlightuserdata(state, &proxy_data);
-  lua_rawget(state, 1);
-  lua_pushvalue(state, -1);
-  lua_pushboolean(state, false);
-  lua_pushcclosure(state, iterate_callback, 2);
+  lua_pushvalue(state, lua_upvalueindex(1));
   lua_pushvalue(state, 1);
   lua_pushnil(state);
+
   return 3;
 }
 
 static int ipairs_callback(lua_State *state) {
-  lua_pushlightuserdata(state, &proxy_data);
-  lua_rawget(state, 1);
-  lua_pushvalue(state, -1);
-  lua_pushboolean(state, true);
-  lua_pushcclosure(state, iterate_callback, 2);
+  lua_pushvalue(state, lua_upvalueindex(1));
   lua_pushvalue(state, 1);
   lua_pushinteger(state, 0);
+
   return 3;
 }
 
@@ -147,6 +149,7 @@ static int proxy_index(lua_State *state) {
     lua_replace(state, top);
 
   proxify(state, top, lua_upvalueindex(2), lua_upvalueindex(3));
+
   return 1;
 }
 
@@ -169,13 +172,13 @@ static void proxify(lua_State *state, int data, int key, int root) {
   lua_pushcclosure(state, proxy_newindex, 3);
   lua_setfield(state, -2, "__newindex");
 
-  lua_pushcfunction(state, length_callback);
+  lua_rawgeti(state, LUA_REGISTRYINDEX, length);
   lua_setfield(state, -2, "__len");
 
-  lua_pushcfunction(state, pairs_callback);
+  lua_rawgeti(state, LUA_REGISTRYINDEX, pairs);
   lua_setfield(state, -2, "__pairs");
 
-  lua_pushcfunction(state, ipairs_callback);
+  lua_rawgeti(state, LUA_REGISTRYINDEX, ipairs);
   lua_setfield(state, -2, "__ipairs");
 
   lua_setmetatable(state, -2);
@@ -185,6 +188,7 @@ static void proxify(lua_State *state, int data, int key, int root) {
 
 static int clear_callback(lua_State*) {
   execute(stmt_clear.get());
+
   return 0;
 }
 
@@ -194,21 +198,18 @@ static int index(lua_State *state) {
   const auto key = std::string_view{name, size};
 
   if (key == "clear") {
-    lua_pushcfunction(state, clear_callback);
+    lua_pushvalue(state, lua_upvalueindex(1));
+
     return 1;
   }
 
-  if (load(state, key)) [[likely]] {
-    std::size_t length;
-    const auto *json = lua_tolstring(state, -1, &length);
-    const auto document = std::unique_ptr<yyjson_doc, YYJSON_Doc_Deleter>{yyjson_read(json, length, 0)};
-
+  if (const auto document = load(key)) [[likely]] {
     marshal::decode(state, yyjson_doc_get_root(document.get()));
 
     if (lua_type(state, -1) == LUA_TTABLE) {
       const auto top = lua_gettop(state);
 
-      lua_pushlstring(state, key.data(), key.size());
+      lua_pushvalue(state, 2);
       const auto root = top + 1;
       proxify(state, top, root, top);
 
@@ -220,6 +221,7 @@ static int index(lua_State *state) {
   }
 
   lua_pushnil(state);
+
   return 1;
 }
 
@@ -231,10 +233,12 @@ static int newindex(lua_State *state) {
   if (lua_isnil(state, 3)) [[unlikely]] {
     sqlite3_bind_text(stmt_delete.get(), 1, key.data(), static_cast<int>(key.size()), SQLITE_STATIC);
     execute(stmt_delete.get());
+
     return 0;
   }
 
   save(state, key, 3);
+
   return 0;
 }
 
@@ -257,17 +261,21 @@ void cassette::wire() {
   sqlite3_prepare_v2(handle, "DELETE FROM data WHERE key=?", -1, std::out_ptr(stmt_delete), nullptr);
   sqlite3_prepare_v2(handle, "DELETE FROM data", -1, std::out_ptr(stmt_clear), nullptr);
 
-  std::atexit(+[] {
-    stmt_select.reset();
-    stmt_upsert.reset();
-    stmt_delete.reset();
-    stmt_clear.reset();
-    database.reset();
-  });
+  lua_pushcfunction(L, length_callback);
+  length = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  lua_pushcfunction(L, iterate_callback<false>);
+  lua_pushcclosure(L, pairs_callback, 1);
+  pairs = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  lua_pushcfunction(L, iterate_callback<true>);
+  lua_pushcclosure(L, ipairs_callback, 1);
+  ipairs = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_newtable(L);
   lua_newtable(L);
-  lua_pushcfunction(L, index);
+  lua_pushcfunction(L, clear_callback);
+  lua_pushcclosure(L, index, 1);
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, newindex);
   lua_setfield(L, -2, "__newindex");

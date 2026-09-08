@@ -30,6 +30,7 @@ def signature(directory: Path, shared: list[Path]) -> bytes:
     for current in shared:
         digest.update(current.relative_to(objects).as_posix().encode())
         digest.update(current.read_bytes())
+
     return digest.digest()
 
 

@@ -67,6 +67,7 @@ bool GetAchievement(const char* name) {
   if (pGetAchievement) [[likely]] {
     if (auto stats = SteamUserStats()) [[likely]] {
       bool achieved = false;
+
       return pGetAchievement(stats, name, &achieved) && achieved;
     }
   }

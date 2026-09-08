@@ -16,6 +16,7 @@ def human_size(size: int) -> str:
         return f"{size / 1_048_576:.1f} MiB"
     if size >= 1024:
         return f"{size / 1024:.1f} KiB"
+
     return f"{size} bytes"
 
 
@@ -24,6 +25,7 @@ def human_time(elapsed: float) -> str:
         return f"{elapsed / 60_000:.1f} min"
     if elapsed >= 1000:
         return f"{elapsed / 1000:.1f} s"
+
     return f"{elapsed:.0f} ms"
 
 
@@ -62,6 +64,7 @@ def prepare(data: bytes) -> tuple[tuple[int, ...], int, int]:
     head = n & ~7
     chunks = struct.unpack(f"<{head >> 3}Q", data[:head]) if head else ()
     tail = int.from_bytes(data[head:], "little") if head < n else 0
+
     return chunks, tail, n
 
 
@@ -74,6 +77,7 @@ def hashfn(prepared: tuple[tuple[int, ...], int, int]) -> int:
     if n & 7:
         r = (h ^ tail) * PRIME
         h = (r & MASK64) ^ (r >> 64)
+
     return h
 
 
@@ -151,6 +155,7 @@ def main() -> int:
     count = len(sources)
     if count > MAX_ENTRIES:
         print(f"too many entries: {count}", file=sys.stderr)
+
         return 1
 
     probe = zstandard.ZstdCompressor(level=TEST_LEVEL, threads=-1)
@@ -217,9 +222,11 @@ def main() -> int:
     for value, current in zip(digests, sources):
         if value == 0:
             print(f"zero hash: {current.path}", file=sys.stderr)
+
             return 1
         if value in seen:
             print(f"hash collision: {seen[value]} and {current.path}", file=sys.stderr)
+
             return 1
 
         seen[value] = current.path
@@ -283,6 +290,7 @@ def main() -> int:
         f"cartridge.rom ({count} entries, {human_size(len(blob))}"
         f" in {human_time(elapsed)})"
     )
+
     return 0
 
 

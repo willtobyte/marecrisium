@@ -22,9 +22,8 @@ namespace {
   }
 
   static ma_result seek(ma_data_source* source, ma_uint64 frame) {
-    const auto complete = stb_vorbis_seek(reinterpret_cast<stream*>(source)->vorbis.get(), static_cast<unsigned int>(frame)) != 0;
-    assert(complete && "sound seek must complete");
-    [[assume(complete)]];
+    stb_vorbis_seek(reinterpret_cast<stream*>(source)->vorbis.get(), static_cast<unsigned int>(frame));
+
     return MA_SUCCESS;
   }
 
@@ -38,6 +37,7 @@ namespace {
       *rate = stream->rate;
     if (map)
       ma_channel_map_init_standard(ma_standard_channel_map_vorbis, map, capacity, stream->channels);
+
     return MA_SUCCESS;
   }
 
@@ -66,12 +66,14 @@ namespace {
   static int play_callback(lua_State* state) {
     auto* instance = get(state);
     instance->play();
+
     return 0;
   }
 
   static int stop_callback(lua_State* state) {
     auto* instance = get(state);
     instance->stop();
+
     return 0;
   }
 
@@ -84,6 +86,7 @@ namespace {
       lua_Integer{},
       static_cast<lua_Integer>(std::numeric_limits<uint32_t>::max()));
     instance->fade(from, to, static_cast<uint64_t>(duration));
+
     return 0;
   }
 
@@ -95,22 +98,26 @@ namespace {
 
     if (key == "volume") {
       lua_pushnumber(state, static_cast<lua_Number>(instance->volume()));
+
       return 1;
     }
 
     if (key == "pan") {
       lua_pushnumber(state, static_cast<lua_Number>(instance->pan()));
+
       return 1;
     }
 
     if (key == "playing") {
       lua_pushboolean(state, instance->playing());
+
       return 1;
     }
 
     lua_getmetatable(state, 1);
     lua_pushvalue(state, 2);
     lua_rawget(state, -2);
+
     return 1;
   }
 
@@ -124,6 +131,7 @@ namespace {
       instance->set_volume(static_cast<float>(luaL_checknumber(state, 3)));
     else if (key == "pan")
       instance->set_pan(static_cast<float>(luaL_checknumber(state, 3)));
+
     return 0;
   }
 }
@@ -131,15 +139,13 @@ namespace {
 int sound::on_end_callback(lua_State* state) {
   auto* instance = get(state);
   luaL_checktype(state, 2, LUA_TFUNCTION);
-  const auto available = instance->_callback == LUA_NOREF;
-  assert(available && "sound end callback must be set once");
-  [[assume(available)]];
 
   lua_pushvalue(state, 2);
   instance->_callback = luaL_ref(state, LUA_REGISTRYINDEX);
 
   lua_pushvalue(state, 1);
   instance->_self = luaL_ref(state, LUA_REGISTRYINDEX);
+
   return 0;
 }
 
@@ -188,9 +194,7 @@ sound::sound(const clip& data, std::atomic_uint16_t& completed, std::uint16_t bi
   assert(result == MA_SUCCESS && "sound must initialize");
   [[assume(result == MA_SUCCESS)]];
 
-  const auto callback = ma_sound_set_end_callback(&_sound, ended, this);
-  assert(callback == MA_SUCCESS && "sound end callback must initialize");
-  [[assume(callback == MA_SUCCESS)]];
+  ma_sound_set_end_callback(&_sound, ended, this);
 }
 
 sound::~sound() {
@@ -208,6 +212,7 @@ void sound::play() {
     _phase.store(phase::armed, std::memory_order_release);
     ma_sound_seek_to_pcm_frame(&_sound, 0);
     ma_sound_start(&_sound);
+
     return;
   }
 

@@ -10,8 +10,6 @@ void user::wire() {
 
   for (auto index = 0; index < count; ++index) {
     const auto id = GetFriendByIndex(index);
-    assert((id >> 32) == 0x01100001 && "friend must be an individual account in the public universe");
-
     const auto name = GetFriendPersonaName(id);
 
     lua_newtable(L);

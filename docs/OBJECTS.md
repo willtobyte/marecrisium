@@ -39,7 +39,9 @@ The collider PNG must use RGBA with a fully opaque white collider and a fully tr
 
 The generator finds the smallest rectangle that contains the opaque area. It appends the rectangle to the frame data as `collider_x, collider_y, collider_width, collider_height`. The anchor is the top-left corner of the cropped frame. Frames without a mask have no collider data.
 
-The collider defines where a frame reacts to the mouse. The engine calls `on_click` when a mouse button is released over it. It calls `on_hover` and `on_unhover` when the cursor enters and leaves the topmost visible collider.
+The collider defines a rectangle for the current frame. Call `self:collider()` to read its world `x`, `y`, `width`, and `height`. The values include frame offsets and scale. They do not include rotation or mirroring. A frame without a collider returns zero width and height. The call does not create a table.
+
+The scene does not check mouse collisions or call mouse handlers. Use the object `on_loop` to calculate these events in Lua.
 
 The generator does not add collider masks to the atlas or copy them to `cartridge`.
 

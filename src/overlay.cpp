@@ -85,6 +85,7 @@ int overlay::disappear() {
   if (_on_disappear != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_disappear);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
+
     return pcall(L, 1, 0);
   }
 

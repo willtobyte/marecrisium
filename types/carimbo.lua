@@ -66,6 +66,8 @@ keyboard = nil
 ---@class Mouse
 ---@field x number World X coordinate (read-only).
 ---@field y number World Y coordinate (read-only).
+---@field xy fun(): number, number Returns world x and y. Does not create a table.
+---@field snapshot fun(): number, number, boolean, boolean Returns world x, y, and left and right button states. Does not create a table.
 ---@field left boolean Left button state (read-only).
 ---@field middle boolean Middle button state (read-only).
 ---@field right boolean Right button state (read-only).
@@ -127,7 +129,7 @@ gamepad = nil
 
 ---Persistent JSON-compatible Lua storage. Numbers must be finite. String values
 ---and table string keys must be valid UTF-8. Writes persist immediately; nil deletes.
----Nested writes persist. Proxies support `#`, `pairs`, and `ipairs`.
+---Nested writes persist. Proxies support `#`, `pairs`, and `ipairs` with shared functions.
 ---@class Cassette
 ---@field [string] CassetteValue|nil
 local Cassette = {}
@@ -242,7 +244,7 @@ local Font = {}
 ---@param text string
 ---@param x number
 ---@param y number
----@param effects? table<integer, GlyphEffect>
+---@param effects? table<integer, GlyphEffect> Indices must be from 1 to 256.
 function Font:draw(text, x, y, effects) end
 
 ---Script-owned callbacks and custom state.
@@ -285,9 +287,6 @@ viewport = nil
 ---@field animation? AnimationConfig Spawn-only animation definitions.
 ---@field on_spawn? fun(self: Object) Called once after the object is complete and available in `pool`.
 ---@field on_loop? fun(self: Object, delta: number) Called every active frame; delta is in seconds.
----@field on_hover? fun(self: Object) Called when the cursor enters the topmost visible collider.
----@field on_unhover? fun(self: Object) Called when the cursor leaves the topmost visible collider.
----@field on_click? fun(self: Object, x: number, y: number, button: MouseButton) Called when a mouse button is released over the object.
 ---@field [string] any Custom fields and methods shared by every object of this kind.
 
 ---Each object stores custom writes independently and reads missing fields from
@@ -305,6 +304,12 @@ viewport = nil
 ---@field z integer Render order (read/write); defaults to the declaration index in `objects` and higher values draw on top.
 ---@field [string] any Per-object field or dispatched prototype method.
 local Object = {}
+
+---@return number x World X of the current collider. Includes frame offsets and scale. Does not apply rotation or mirroring.
+---@return number y World Y of the current collider. Includes frame offsets and scale. Does not apply rotation or mirroring.
+---@return number width Scaled collider width. Zero when the frame has no collider.
+---@return number height Scaled collider height. Zero when the frame has no collider.
+function Object:collider() end
 
 ---Set the callback for each animation end.
 ---@param callback fun(self: Object, animation: string)
@@ -451,13 +456,13 @@ function TimerHandle:resume() end
 local Timer = {}
 
 ---Add a repeating timer.
----@param milliseconds number Positive and finite.
+---@param milliseconds number Must be positive and finite.
 ---@param callback fun()
 ---@return TimerHandle
 function Timer:add(milliseconds, callback) end
 
 ---Add a timer that fires once.
----@param milliseconds number Positive and finite.
+---@param milliseconds number Must be positive and finite.
 ---@param callback fun()
 ---@return TimerHandle
 function Timer:singleshot(milliseconds, callback) end

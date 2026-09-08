@@ -39,6 +39,7 @@ static float deadzone(Sint16 value) {
     return .0f;
 
   const auto sign = std::copysign(1.f, normalized);
+
   return sign * (magnitude - threshold) / (1.f - threshold);
 }
 
@@ -98,10 +99,12 @@ static int rumble_callback(lua_State *state) {
   auto *const gamepad = ptr.load();
   if (!gamepad) [[unlikely]] {
     lua_pushboolean(state, 0);
+
     return 1;
   }
 
   lua_pushboolean(state, SDL_RumbleGamepad(gamepad, lo, hi, ms));
+
   return 1;
 }
 
@@ -118,10 +121,12 @@ static int led_callback(lua_State *state) {
   auto *const gamepad = ptr.load();
   if (!gamepad) [[unlikely]] {
     lua_pushboolean(state, 0);
+
     return 1;
   }
 
   lua_pushboolean(state, SDL_SetGamepadLED(gamepad, r, g, b));
+
   return 1;
 }
 
@@ -135,25 +140,30 @@ static int index(lua_State *state) {
     lua_pushnumber(state, gamepad
       ? static_cast<lua_Number>(deadzone(SDL_GetGamepadAxis(gamepad, value)))
       : lua_Number{});
+
     return 1;
   }
 
   if (const auto value = button(key); value != SDL_GAMEPAD_BUTTON_INVALID) [[likely]] {
     lua_pushboolean(state, gamepad && SDL_GetGamepadButton(gamepad, value));
+
     return 1;
   }
 
   if (key == "connected") {
     lua_pushboolean(state, gamepad != nullptr);
+
     return 1;
   }
   if (key == "name") {
     const auto *value = gamepad ? SDL_GetGamepadName(gamepad) : nullptr;
     lua_pushstring(state, value ? value : "");
+
     return 1;
   }
 
   lua_pushnil(state);
+
   return 1;
 }
 
