@@ -29,7 +29,7 @@ local function hue2rgb(hue)
 end
 
 return {
-	fonts = { "pixel" },
+	fonts = { "pixel", "arcade8" },
 
 	on_loop = function(_, delta)
 		elapsed = elapsed + delta
@@ -46,5 +46,6 @@ return {
 
 	on_paint = function()
 		pool.pixel:draw(title, (viewport.width - 96) / 2, (viewport.height - 17) / 2, effects)
+		pool.arcade8:draw("Bitmap - Aa Bb Cc 0123456789", 3, 3)
 	end,
 }
