@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.14"
-# dependencies = ["pillow"]
+# dependencies = ["pillow", "pyoxipng"]
 # ///
 
 import argparse
@@ -12,6 +12,7 @@ from pathlib import Path
 Image = importlib.import_module("PIL.Image")
 ImageDraw = importlib.import_module("PIL.ImageDraw")
 ImageFont = importlib.import_module("PIL.ImageFont")
+oxipng = importlib.import_module("oxipng")
 
 parser = argparse.ArgumentParser(description="Create a bitmap font PNG and Lua file.")
 parser.add_argument(
@@ -91,8 +92,15 @@ atlas = root / "blobs/fonts" / f"{args.name}.png"
 output = root / "fonts" / f"{args.name}.lua"
 atlas.parent.mkdir(parents=True, exist_ok=True)
 output.parent.mkdir(parents=True, exist_ok=True)
-sheet.save(atlas)
+image = oxipng.RawImage(sheet.tobytes(), width, height)
 sheet.close()
+atlas.write_bytes(
+    image.create_optimized_png(
+        level=6,
+        strip=oxipng.StripChunks.all(),
+        deflate=oxipng.Deflaters.zopfli(15),
+    )
+)
 escaped = glyphs.replace("\\", "\\\\").replace('"', '\\"')
 output.write_text(f'return {{\n\tglyphs = "{escaped}",\n}}\n', encoding="utf-8")
 
