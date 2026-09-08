@@ -1,9 +1,9 @@
 static int navigate_callback(lua_State *state) {
   std::size_t length;
   const auto* data = luaL_checklstring(state, 1, &length);
-  std::string name{data, length};
+  const std::string_view name{data, length};
   auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
-  self->navigate(std::move(name));
+  self->navigate(name);
 
   return 0;
 }
@@ -21,9 +21,9 @@ static int destroy_callback(lua_State *state) {
 static int enroll_callback(lua_State *state) {
   std::size_t length;
   const auto* data = luaL_checklstring(state, 1, &length);
-  std::string name{data, length};
+  const std::string_view name{data, length};
   auto *self = static_cast<director *>(lua_touserdata(state, lua_upvalueindex(1)));
-  self->enroll(std::move(name));
+  self->enroll(name);
 
   return 0;
 }
@@ -47,22 +47,18 @@ void director::wire() {
 }
 
 
-void director::navigate(std::string name) {
-  _pending = std::move(name);
+void director::navigate(std::string_view name) {
+  _pending = &_scenes.find(name)->second;
 }
 
-void director::enroll(std::string name) {
-  decltype(_scenes) pending;
-  auto& pool = _scenes.contains(name) ? pending : _scenes;
-  auto node = pool.extract(pool.try_emplace(std::move(name)).first);
-  node.mapped().emplace(node.key());
-  _scenes.insert(std::move(node));
+void director::enroll(std::string_view name) {
+  _scenes.emplace(name, name);
 }
 
 void director::destroy(std::string_view name) {
   auto it = _scenes.find(name);
 
-  if (it == _scenes.end() || &*it->second == _current) [[unlikely]]
+  if (it == _scenes.end() || &it->second == _current) [[unlikely]]
     return;
 
   _scenes.erase(it);
@@ -73,9 +69,8 @@ void director::update(float delta) {
     if (_current) [[unlikely]]
       _current->on_leave();
 
-    const auto it = _scenes.find(*_pending);
-    _pending.reset();
-    _current = &*it->second;
+    _current = _pending;
+    _pending = nullptr;
 
     _current->on_enter();
   }

@@ -126,7 +126,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
   storage.sheet.count = static_cast<uint8_t>(storage.sequences.size());
   storage.sheet.initial = initial;
 
-  auto* result = &_pool.try_emplace(std::string{kind}, std::move(storage)).first->second.sheet;
+  auto* result = &_pool.emplace(kind, std::move(storage)).first->second.sheet;
   lua_pop(state, 1);
 
   return result;

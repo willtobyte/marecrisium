@@ -223,10 +223,10 @@ void objects::bind(object& object, dirty& dirty, std::string_view name, std::str
   const auto filename = std::string_view{chunk}.substr(1);
   const auto source = io::read(filename);
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
-    propagate();
+    throw std::runtime_error{lua_tostring(L, -1)};
 
   if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]
-    propagate();
+    throw std::runtime_error{lua_tostring(L, -1)};
 
   prototype blueprint;
   blueprint.table = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -252,7 +252,7 @@ void objects::bind(object& object, dirty& dirty, std::string_view name, std::str
 
   lua_pop(L, 1);
 
-  object.script.blueprint = &prototypes.try_emplace(std::string{kind}, std::move(blueprint)).first->second;
+  object.script.blueprint = &prototypes.emplace(kind, std::move(blueprint)).first->second;
   auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));
   luaL_getmetatable(L, "Object");
   lua_setmetatable(L, -2);

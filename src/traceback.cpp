@@ -189,10 +189,3 @@ int pcall(lua_State* state, int args, int results) {
 
   return status;
 }
-
-[[noreturn]] void propagate() {
-  std::size_t length;
-  const auto* str = lua_tolstring(L, -1, &length);
-
-  throw std::runtime_error{std::string{str, length}};
-}

@@ -11,7 +11,12 @@ particleemitter* particlesystem::add(std::string_view name, std::string_view kin
     _indices.insert(_indices.end(), {base, base + 1, base + 2, base, base + 2, base + 3});
   }
 
-  auto* result = &_particles.try_emplace(std::string{name}, *cfg, *texture, x, y, active).first->second;
+  auto* result = &_particles.emplace(
+    std::piecewise_construct,
+    std::forward_as_tuple(name),
+    std::forward_as_tuple(*cfg, *texture, x, y, active)
+  ).first->second;
+
   _order.emplace_back(result);
 
   return result;

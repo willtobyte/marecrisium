@@ -1,10 +1,10 @@
 engine::engine() {
   const auto buffer = io::read("scripts/main.lua");
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(buffer.data()), buffer.size(), "@main.lua") != LUA_OK) [[unlikely]]
-    propagate();
+    throw std::runtime_error{lua_tostring(L, -1)};
 
   if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]
-    propagate();
+    throw std::runtime_error{lua_tostring(L, -1)};
 
   lua_getfield(L, -1, "width");
   const auto width = static_cast<int>(lua_tonumber(L, -1));
@@ -76,7 +76,7 @@ engine::engine() {
 
   lua_getfield(L, -1, "on_begin");
   if (pcall(L, 0, 0) != LUA_OK) [[unlikely]]
-    propagate();
+    throw std::runtime_error{lua_tostring(L, -1)};
 
   lua_pop(L, 1);
 }
