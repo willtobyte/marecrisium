@@ -11,14 +11,14 @@ class Game(ConanFile):
     def requirements(self):
         api = cast(Any, self)
         for package in [
-            "miniaudio/0.11.22",
-            "mimalloc/3.3.2",
+            "miniaudio/0.11.25",
+            "mimalloc/3.5.1",
             "sdl/3.4.14",
             "sentry-native/0.14.2",
             "simde/0.8.4-rc3",
             "stb/cci.20240531",
             "sqlite3/3.53.4",
-            "luajit/2.1-20260903",
+            "luajit/2.1-20260908",
             "yyjson/0.12.0",
             "zstd/1.5.7",
         ]:
