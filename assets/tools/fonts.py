@@ -72,6 +72,7 @@ for path in sorted((root / "assets/fonts").glob("*/config.toml")):
         for value in ((255, 255, 0, 255), (255, 0, 255, 255), (0, 255, 255, 255))
         if value not in (color, shade)
     )
+
     cell += shadow
     width = 1 + (cell + 1) * len(glyphs)
     height = max(1, ascent + descent) + shadow
