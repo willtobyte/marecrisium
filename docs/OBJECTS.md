@@ -82,7 +82,7 @@ The callback receives the object and animation name. It runs at the end of each 
 Run the generator from the repository root:
 
 ```shell
-uv run assets/objects/generate.py
+uv run assets/tools/objects.py
 ```
 
 The command generates all objects with a `frames` directory. It skips unchanged inputs. It writes these files for each object:

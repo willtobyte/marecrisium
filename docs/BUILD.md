@@ -16,10 +16,11 @@ make run # for debug builds
 make conan build buildtype=Release && ./build/carimbo # for release
 ```
 
-Generate all objects:
+Generate all fonts and objects:
 
 ```shell
-uv run assets/objects/generate.py
+uv run assets/tools/fonts.py
+uv run assets/tools/objects.py
 ```
 
 See [Objects](OBJECTS.md) for the object source format.

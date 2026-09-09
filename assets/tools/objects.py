@@ -18,7 +18,7 @@ jinja2 = importlib.import_module("jinja2")
 oxipng = importlib.import_module("oxipng")
 rpack = importlib.import_module("rpack")
 
-objects = Path(__file__).resolve().parent
+objects = Path(__file__).resolve().parents[1] / "objects"
 root = objects.parents[1]
 pattern = re.compile(r"^(\d+)_(\d+)_(?:(end)_)?([a-z][a-z0-9.]*)\.png$")
 
@@ -240,3 +240,5 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     )
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_bytes(signature(directory, shared, scratch))
+
+    print(f"{name} ({len(groups)} animations, {len(images)} frames)")

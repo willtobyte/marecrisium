@@ -52,7 +52,8 @@ build: ## Builds the project
 
 run: build ## Builds and runs the project
 	rm -f cartridge.rom
-	uv run assets/objects/generate.py
+	uv run assets/tools/fonts.py
+	uv run assets/tools/objects.py
 	uv run tools/pack.py
 	WINDOWED=1 ./build/carimbo
 

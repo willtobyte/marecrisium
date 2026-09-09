@@ -68,4 +68,5 @@ repos:
     rev: v0.16.6
     hooks:
       - id: ruff-check
+        args: ["--fix"]
       - id: ruff-format

@@ -1,0 +1,7 @@
+name = "arcade8"
+font = "regular.ttf"
+size = 8
+color = "#000000ff"
+shadow = true
+shadow_color = "#00000040"
+glyphs = ''' abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,:;!?"'`()[]{}<>_-+*/=\|@#$%&^~'''
