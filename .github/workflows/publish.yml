@@ -235,7 +235,12 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v10.0.1
         with:
-          cache-dependency-glob: tools/pack.py
+          cache-dependency-glob: |
+            tools/pack.py
+            assets/tools/*.py
+
+      - name: Generate assets
+        run: uv run assets/tools/run.py
 
       - name: Package cartridge
         run: uv run tools/pack.py cartridge
