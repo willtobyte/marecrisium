@@ -123,6 +123,10 @@ The factions fighting for control of AUR are:
 * Ghouls have lost consciousness and are aggressive.
 * Xenoforms are mysterious organisms capable of imitating the appearance and behavior of other beings.
 
+## Demons
+
+* Leonard - <https://the-demonic-paradise.fandom.com/wiki/Leonard>
+
 ## The Boss
 
 My name is Legion, for we are many.
