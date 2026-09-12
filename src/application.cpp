@@ -27,7 +27,13 @@ int application::run() {
     char id[21]{};
     std::to_chars(id, id + sizeof id - 1, steamid);
 
-    sentry_set_user(sentry_value_new_user(id, nullptr, nullptr, nullptr));
+    static constexpr char prefix[] = "https://steamcommunity.com/profiles/";
+    char url[sizeof prefix + 20]{};
+    std::snprintf(url, sizeof url, "%s%s", prefix, id);
+
+    const auto user = sentry_value_new_user(id, nullptr, nullptr, nullptr);
+    sentry_value_set_by_key(user, "profile_url", sentry_value_new_string(url));
+    sentry_set_user(user);
   }
 
   try {
