@@ -23,8 +23,12 @@ int application::run() {
   sentry_init(options);
   std::atexit(+[]{ sentry_close(); });
 
-  if (const auto* name = GetPersonaName(); *name)
-    sentry_set_user(sentry_value_new_user(nullptr, name, nullptr, nullptr));
+  if (const auto steamid = GetSteamID(); steamid) {
+    char id[21]{};
+    std::to_chars(id, id + sizeof id - 1, steamid);
+
+    sentry_set_user(sentry_value_new_user(id, nullptr, nullptr, nullptr));
+  }
 
   try {
     io::mount("cartridge.rom");

@@ -1,6 +1,8 @@
 using SteamAPI_InitSafe_t = bool(S_CALLTYPE*)();
 using SteamAPI_Shutdown_t = void(S_CALLTYPE*)();
 using SteamAPI_RunCallbacks_t = void(S_CALLTYPE*)();
+using SteamUser_t = void*(S_CALLTYPE*)();
+using GetSteamID_t = uint64_t(S_CALLTYPE*)(void*);
 using SteamUserStats_t = void*(S_CALLTYPE*)();
 using GetAchievement_t = bool(S_CALLTYPE*)(void*, const char*, bool*);
 using SetAchievement_t = bool(S_CALLTYPE*)(void*, const char*);
@@ -19,6 +21,8 @@ static DYNLIB_HANDLE hSteamApi = DYNLIB_LOAD(STEAM_LIB_NAME);
 static const auto pSteamAPI_InitSafe = LOAD_SYMBOL(SteamAPI_InitSafe_t, "SteamAPI_InitSafe");
 static const auto pSteamAPI_Shutdown = LOAD_SYMBOL(SteamAPI_Shutdown_t, "SteamAPI_Shutdown");
 static const auto pSteamAPI_RunCallbacks = LOAD_SYMBOL(SteamAPI_RunCallbacks_t, "SteamAPI_RunCallbacks");
+static const auto pSteamUser = LOAD_SYMBOL(SteamUser_t, "SteamAPI_SteamUser_v023");
+static const auto pGetSteamID = LOAD_SYMBOL(GetSteamID_t, "SteamAPI_ISteamUser_GetSteamID");
 static const auto pSteamUserStats = LOAD_SYMBOL(SteamUserStats_t, "SteamAPI_SteamUserStats_v013");
 static const auto pGetAchievement = LOAD_SYMBOL(GetAchievement_t, "SteamAPI_ISteamUserStats_GetAchievement");
 static const auto pSetAchievement = LOAD_SYMBOL(SetAchievement_t, "SteamAPI_ISteamUserStats_SetAchievement");
@@ -47,6 +51,14 @@ void SteamAPI_RunCallbacks() {
   if (pSteamAPI_RunCallbacks) {
     pSteamAPI_RunCallbacks();
   }
+}
+
+uint64_t GetSteamID() {
+  if (pSteamUser && pGetSteamID)
+    if (auto user = pSteamUser())
+      return pGetSteamID(user);
+
+  return 0;
 }
 
 void* SteamUserStats() {
