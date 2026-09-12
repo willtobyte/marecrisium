@@ -63,7 +63,7 @@ jobs:
             -DCMAKE_C_FLAGS_RELEASE="-O2 -g -DNDEBUG" \
             -DCMAKE_CXX_FLAGS_RELEASE="-O2 -g -DNDEBUG" \
             -DCMAKE_SKIP_RPATH=ON \
-            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-Wl,-no_exported_symbols"
+            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-Wl,-no_exported_symbols -Wl,-object_path_lto,${{ github.workspace }}/build/carimbo.lto.o"
           cmake --build build --config Release --verbose
 
       - name: Generate symbols
