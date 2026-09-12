@@ -64,6 +64,14 @@ class LuajitConan(ConanFile):
 
     def _patch_sources(self):
         if is_msvc(self):
+            # Keep debug records inside static-library objects, not a compiler PDB.
+            replace_in_file(
+                self,
+                os.path.join(str(self.source_folder), "src", "msvcbuild.bat"),
+                "@set LJCOMPILETARGET=/Zi",
+                "@set LJCOMPILETARGET=/Z7 /MT",
+            )
+
             return
         source_folder = cast(str, self.source_folder)
         makefile = os.path.join(source_folder, "src", "Makefile")

@@ -1,0 +1,14 @@
+include(default)
+
+[settings]
+build_type=Release
+compiler.cppstd=23
+compiler.runtime=static
+
+[options]
+*:shared=False
+
+[conf]
+tools.build:cflags=["/Z7"]
+tools.build:cxxflags=["/Z7"]
+tools.info.package_id:confs=["tools.build:cflags", "tools.build:cxxflags"]

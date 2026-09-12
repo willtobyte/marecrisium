@@ -43,7 +43,7 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('conanfile.py', 'recipes/**') }}
+          key: conan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('conanfile.py', 'recipes/**', '.github/conan/**') }}
           restore-keys: |
             conan-${{ runner.os }}-${{ runner.arch }}-
 
@@ -52,7 +52,7 @@ jobs:
           uv tool run conan export recipes/luajit --version=2.1-20260908
 
       - name: Install dependencies
-        run: uv tool run conan install . --output-folder=build --build=missing --settings build_type=Release
+        run: uv tool run conan install . --output-folder=build --build=missing --profile:host=.github/conan/macos
 
       - name: Build
         run: |
@@ -66,8 +66,10 @@ jobs:
             -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-Wl,-no_exported_symbols -Wl,-object_path_lto,${{ github.workspace }}/build/carimbo.lto.o"
           cmake --build build --config Release --verbose
 
-      - name: Generate symbols
-        run: dsymutil build/carimbo -o build/carimbo.dSYM
+      - name: Generate symbols and strip binary
+        run: |
+          dsymutil build/carimbo -o build/carimbo.dSYM
+          strip build/carimbo
 
       - name: Upload symbols
         uses: actions/upload-artifact@v7
@@ -75,9 +77,6 @@ jobs:
           name: macos-symbols
           path: build/carimbo.dSYM
           if-no-files-found: error
-
-      - name: Strip binary
-        run: strip build/carimbo
 
       - name: Collect artifacts
         run: |
@@ -132,7 +131,7 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('conanfile.py', 'recipes/**') }}
+          key: conan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('conanfile.py', 'recipes/**', '.github/conan/**') }}
           restore-keys: |
             conan-${{ runner.os }}-${{ runner.arch }}-
 
@@ -141,7 +140,7 @@ jobs:
           uv tool run conan export recipes/luajit --version=2.1-20260908
 
       - name: Install dependencies
-        run: uv tool run conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release --settings compiler.runtime=static
+        run: uv tool run conan install . --output-folder=build --build=missing --profile:host=.github/conan/windows
 
       - name: Build
         run: |
@@ -149,9 +148,9 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=Release \
             -DVERSION="${{ github.ref_name }}" \
-            -DCMAKE_C_FLAGS_RELEASE="/O2 /Zi /DNDEBUG" \
-            -DCMAKE_CXX_FLAGS_RELEASE="/O2 /Zi /DNDEBUG" \
-            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG:FULL /OPT:REF /OPT:ICF"
+            -DCMAKE_C_FLAGS_RELEASE="/O2 /Z7 /DNDEBUG" \
+            -DCMAKE_CXX_FLAGS_RELEASE="/O2 /Z7 /DNDEBUG" \
+            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG:FULL /OPT:REF /OPT:ICF /INCREMENTAL:NO /PDBALTPATH:carimbo.pdb"
           cmake --build build --config Release --verbose
 
       - name: Upload symbols
@@ -196,7 +195,7 @@ jobs:
           version: "3.7.0"
 
       - name: Send symbols to Sentry
-        run: sentry-cli debug-files upload symbols
+        run: sentry-cli debug-files upload --wait symbols
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}

@@ -6,6 +6,10 @@ on:
       - main
     paths:
       - src/**
+      - CMakeLists.txt
+      - conanfile.py
+      - recipes/**
+      - .github/**
 
 jobs:
   build:
@@ -51,7 +55,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('conanfile.py', 'recipes/**') }}
+          key: conan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('conanfile.py', 'recipes/**', '.github/conan/**') }}
           restore-keys: |
             conan-${{ runner.os }}-${{ runner.arch }}-
 
@@ -60,12 +64,25 @@ jobs:
           uv tool run conan export recipes/luajit --version=2.1-20260908
 
       - name: Install dependencies
-        run: uv tool run conan install . --output-folder=build --build=missing --settings compiler.cppstd=23 --settings build_type=Release --settings compiler.runtime=static
+        run: uv tool run conan install . --output-folder=build --build=missing --profile:host=.github/conan/windows
 
       - name: Build
         run: |
-          cmake -Bbuild -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+          cmake -Bbuild \
+            -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DVERSION="${{ github.sha }}" \
+            -DCMAKE_C_FLAGS_RELEASE="/O2 /Z7 /DNDEBUG" \
+            -DCMAKE_CXX_FLAGS_RELEASE="/O2 /Z7 /DNDEBUG" \
+            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG:FULL /OPT:REF /OPT:ICF /INCREMENTAL:NO /PDBALTPATH:carimbo.pdb"
           cmake --build build --config Release --verbose
+
+      - name: Upload symbols
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-symbols
+          path: build/Release/carimbo.pdb
+          if-no-files-found: error
 
       - name: Generate assets
         run: uv run assets/tools/run.py

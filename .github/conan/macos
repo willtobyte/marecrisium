@@ -1,0 +1,13 @@
+include(default)
+
+[settings]
+build_type=Release
+compiler.cppstd=23
+
+[options]
+*:shared=False
+
+[conf]
+tools.build:cflags=["-g"]
+tools.build:cxxflags=["-g"]
+tools.info.package_id:confs=["tools.build:cflags", "tools.build:cxxflags"]
