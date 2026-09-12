@@ -17,6 +17,7 @@ jobs:
 
     env:
       CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+      MSYS_NO_PATHCONV: 1
 
     defaults:
       run:
