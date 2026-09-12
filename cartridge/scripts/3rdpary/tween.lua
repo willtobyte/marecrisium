@@ -32,12 +32,11 @@ local tween = {
 
 -- Adapted from https://github.com/EmmanuelOga/easing. See LICENSE.txt for credits.
 -- For all easing functions:
--- t = time == how much time has to pass for the tweening to complete
--- b = begin == starting property value
--- c = change == ending - beginning
--- d = duration == running time. How much time has passed *right now*
+-- t = elapsed time, b = initial value, c = change, d = duration
 
 local pow, sin, cos, pi, sqrt, abs, asin = math.pow, math.sin, math.cos, math.pi, math.sqrt, math.abs, math.asin
+
+local new = require("table.new")
 
 -- linear
 local function linear(t, b, c, d)
@@ -219,7 +218,7 @@ local function outInCirc(t, b, c, d)
 end
 
 -- elastic
-local function calculatePAS(p, a, c, d)
+local function elastic(p, a, c, d)
 	p, a = p or d * 0.3, a or 0
 	if a < abs(c) then
 		return p, c, p / 4
@@ -236,7 +235,7 @@ local function inElastic(t, b, c, d, a, p)
 	if t == 1 then
 		return b + c
 	end
-	p, a, s = calculatePAS(p, a, c, d)
+	p, a, s = elastic(p, a, c, d)
 	t = t - 1
 
 	return -(a * pow(2, 10 * t) * sin((t * d - s) * (2 * pi) / p)) + b
@@ -250,7 +249,7 @@ local function outElastic(t, b, c, d, a, p)
 	if t == 1 then
 		return b + c
 	end
-	p, a, s = calculatePAS(p, a, c, d)
+	p, a, s = elastic(p, a, c, d)
 
 	return a * pow(2, -10 * t) * sin((t * d - s) * (2 * pi) / p) + c + b
 end
@@ -263,7 +262,7 @@ local function inOutElastic(t, b, c, d, a, p)
 	if t == 2 then
 		return b + c
 	end
-	p, a, s = calculatePAS(p, a, c, d)
+	p, a, s = elastic(p, a, c, d)
 	t = t - 1
 	if t < 0 then
 		return -0.5 * (a * pow(2, 10 * t) * sin((t * d - s) * (2 * pi) / p)) + b
@@ -391,104 +390,93 @@ tween.easing = {
 	outInBounce = outInBounce,
 }
 
--- private stuff
-
-local function copyTables(destination, keysTable, valuesTable)
-	valuesTable = valuesTable or keysTable
-	local mt = getmetatable(keysTable)
-	if mt and getmetatable(destination) == nil then
-		setmetatable(destination, mt)
+-- Snapshot and endpoint copies intentionally replace nested tables.
+local function copy(dst, shape, src)
+	src = src or shape
+	local mt = getmetatable(shape)
+	if mt and getmetatable(dst) == nil then
+		setmetatable(dst, mt)
 	end
-	for k, v in pairs(keysTable) do
-		if type(v) == "table" then
-			destination[k] = copyTables({}, v, valuesTable[k])
-		else
-			destination[k] = valuesTable[k]
-		end
-	end
-
-	return destination
-end
-
-local function getEasingFunction(easing)
-	easing = easing or "linear"
-	if type(easing) == "string" then
-		local name = easing
-		easing = tween.easing[name]
-		if type(easing) ~= "function" then
-			error("The easing function name '" .. name .. "' is invalid")
-		end
-	end
-
-	return easing
-end
-
-local function compile(target, initial, path, paths, starts)
-	for key, value in pairs(target) do
-		local length = #path + 1
-		path[length] = key
-
+	for key, value in pairs(shape) do
 		if type(value) == "table" then
-			compile(value, initial[key], path, paths, starts)
+			dst[key] = copy({}, value, src[key])
 		else
-			local keys = {}
-			for i = 1, length do
+			dst[key] = src[key]
+		end
+	end
+
+	return dst
+end
+
+local function compile(target, initial, path, paths, starts, depth, count)
+	for key, value in pairs(target) do
+		path[depth] = key
+		if type(value) == "table" then
+			count = compile(value, initial[key], path, paths, starts, depth + 1, count)
+		else
+			local keys = new(depth, 0)
+			for i = 1, depth do
 				keys[i] = path[i]
 			end
-
-			local index = #paths + 1
-			paths[index] = keys
-			starts[index] = initial[key]
+			count = count + 1
+			paths[count] = keys
+			starts[count] = initial[key]
 		end
-
-		path[length] = nil
 	end
+
+	return count
 end
 
--- Tween methods
-
 local Tween = {}
-local Tween_mt = { __index = Tween }
+local mt = { __index = Tween }
 
 function Tween:set(clock)
 	if not self.initial then
-		local initial = copyTables({}, self.target, self.subject)
-		local keys = {}
-		local starts = {}
-		local paths
-		local flat = true
-
-		for key, value in pairs(self.target) do
-			if type(value) == "table" then
-				flat = false
-				break
+		local target = self.target
+		local initial, keys, starts
+		local paths = false
+		local key, value = next(target)
+		if
+			key ~= nil
+			and type(value) ~= "table"
+			and getmetatable(target) == nil
+			and getmetatable(self.subject) == nil
+			and next(target, key) == nil
+		then
+			initial = { [key] = self.subject[key] }
+			keys = { key }
+			starts = { initial[key] }
+		else
+			initial = copy({}, self.target, self.subject)
+			target = self.target
+			keys, starts = {}, {}
+			local count = 0
+			for key, value in pairs(target) do
+				if type(value) == "table" then
+					paths = {}
+					compile(self.target, initial, {}, paths, starts, 1, 0)
+					break
+				end
+				count = count + 1
+				keys[count] = key
+				starts[count] = initial[key]
 			end
-
-			local index = #keys + 1
-			keys[index] = key
-			starts[index] = initial[key]
 		end
-
-		if not flat then
-			paths = {}
-			compile(self.target, initial, {}, paths, starts)
-		end
-
 		self.initial = initial
-		self.paths = paths or false
+		self.paths = paths
 		self.starts = starts
 		self.keys = keys
-		self.flat = flat
+		self.flat = not paths
 	end
 
 	self.clock = clock
 
 	if self.clock <= 0 then
 		self.clock = 0
-		copyTables(self.subject, self.initial)
+		copy(self.subject, self.initial)
 	elseif self.clock >= self.duration then -- the tween has expired
 		self.clock = self.duration
-		copyTables(self.subject, self.target)
+		copy(self.subject, self.target)
 	else
 		local starts = self.starts
 		local easing = self.easing
@@ -527,26 +515,33 @@ function Tween:set(clock)
 	return self.clock >= self.duration
 end
 
-function Tween:reset()
-	return self:set(0)
-end
-
 function Tween:update(dt)
 	return self:set(self.clock + dt)
 end
 
--- Public interface
+function Tween:reset()
+	return self:set(0)
+end
 
 function tween.new(duration, subject, target, easing)
-	easing = getEasingFunction(easing)
+	easing = easing or "linear"
+	if type(easing) == "string" then
+		local name = easing
+		easing = tween.easing[name]
+		if type(easing) ~= "function" then
+			error("The easing function name '" .. name .. "' is invalid")
+		end
+	end
 
-	return setmetatable({
-		duration = duration,
-		subject = subject,
-		target = target,
-		easing = easing,
-		clock = 0,
-	}, Tween_mt)
+	-- Reserve the five fields populated lazily by set() as well.
+	local item = new(0, 10)
+	item.duration = duration
+	item.subject = subject
+	item.target = target
+	item.easing = easing
+	item.clock = 0
+
+	return setmetatable(item, mt)
 end
 
 return tween
