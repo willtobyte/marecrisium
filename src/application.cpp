@@ -23,6 +23,9 @@ int application::run() {
   sentry_init(options);
   std::atexit(+[]{ sentry_close(); });
 
+  if (const auto* name = GetPersonaName(); *name)
+    sentry_set_user(sentry_value_new_user(nullptr, name, nullptr, nullptr));
+
   try {
     io::mount("cartridge.rom");
 
