@@ -8,9 +8,9 @@ from conan.tools.cmake import CMakeDeps, CMakeToolchain
 class Game(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
 
-    def requirements(self):
-        api = cast(Any, self)
-        for package in [
+    def requirements(self) -> None:
+        recipe = cast(Any, self)
+        for package in (
             "miniaudio/0.11.25",
             "mimalloc/3.5.1",
             "sdl/3.4.14",
@@ -21,55 +21,65 @@ class Game(ConanFile):
             "luajit/2.1-20260908",
             "yyjson/0.12.0",
             "zstd/1.5.7",
-        ]:
-            api.requires(package)
+        ):
+            recipe.requires(package)
 
-    def configure(self):
-        api = cast(Any, self)
-        api.options["miniaudio"].header_only = True
+    def configure(self) -> None:
+        recipe = cast(Any, self)
+        options = recipe.options
+        options["miniaudio"].header_only = True
 
-        api.options["sentry-native"].backend = "inproc"
-        api.options["sentry-native"].shared = False
+        options["sentry-native"].backend = "inproc"
+        options["sentry-native"].shared = False
 
-        api.options["mimalloc"].shared = False
-        api.options["mimalloc"].secure = False
-        api.options["mimalloc"].override = True
-        api.options["mimalloc"].single_object = api.settings.os != "Windows"
+        options["mimalloc"].shared = False
+        options["mimalloc"].secure = False
+        options["mimalloc"].override = True
+        options["mimalloc"].single_object = recipe.settings.os != "Windows"
 
-    def generate(self):
-        api = cast(Any, self)
-        license_output = Path(api.build_folder) / "LICENSES"
-        with license_output.open("w", encoding="utf-8") as out:
-            for dep in api.dependencies.values():
-                if dep.is_build_context or not dep.package_folder:
+    def generate(self) -> None:
+        recipe = cast(Any, self)
+        destination = Path(recipe.build_folder) / "LICENSES"
+        with destination.open("w", encoding="utf-8") as output:
+            for dependency in recipe.dependencies.values():
+                if dependency.is_build_context or not dependency.package_folder:
                     continue
 
-                ref = f"{dep.ref.name}/{dep.ref.version}"
-                licenses: set[str] = set()
-                for file in Path(dep.package_folder).rglob("*"):
-                    if not file.is_file():
+                reference = f"{dependency.ref.name}/{dependency.ref.version}"
+                seen: set[str] = set()
+                for f in Path(dependency.package_folder).rglob("*"):
+                    if not f.is_file():
                         continue
 
-                    name = file.name.lower()
+                    name = f.name.lower()
                     if not name.startswith(("license", "copying", "copyright")):
                         continue
 
-                    license = file.read_text("utf-8", errors="ignore").strip()
-                    if license in licenses:
+                    text = f.read_text("utf-8", errors="ignore").strip()
+                    if text in seen:
                         continue
 
-                    licenses.add(license)
-                    out.write(f"{ref}\n{license}\n\n")
+                    seen.add(text)
+                    output.write(f"{reference}\n{text}\n\n")
+
+            fonts = Path(recipe.recipe_folder) / "assets" / "fonts"
+            for f in sorted(fonts.rglob("LICENSE")):
+                if not f.is_file():
+                    continue
+
+                reference = f"fonts/{f.parent.relative_to(fonts).as_posix()}"
+                text = f.read_text("utf-8", errors="ignore").strip()
+                output.write(f"{reference}\n{text}\n\n")
 
         toolchain = CMakeToolchain(self)
-        for definition in [
+        for definition in (
             "STBI_NO_LINEAR",
             "STBI_NO_STDIO",
             "STBI_ONLY_PNG",
             "STB_VORBIS_NO_INTEGER_CONVERSION",
             "STB_VORBIS_NO_PUSHDATA_API",
             "STB_VORBIS_NO_STDIO",
-        ]:
+        ):
             toolchain.preprocessor_definitions[definition] = None
         toolchain.generate()
         CMakeDeps(self).generate()
