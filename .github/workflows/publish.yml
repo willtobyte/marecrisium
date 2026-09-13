@@ -60,7 +60,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-Wl,-object_path_lto,${{ github.workspace }}/build/carimbo.lto.o" \
             -DVERSION="${{ github.ref_name }}"
-          cmake --build build --config Release --verbose
+          cmake --build build --config Release --parallel "$(uv run --no-project python -c 'import os; print(os.cpu_count())')" --verbose
 
       - name: Setup Sentry CLI
         run: npm install --global @sentry/cli@latest
@@ -141,7 +141,7 @@ jobs:
           --conf:all="tools.build:cflags=$COMPILE_FLAGS"
           --conf:all="tools.build:cxxflags=$COMPILE_FLAGS"
           --conf:all='tools.build:exelinkflags=["/DEBUG:FULL", "/OPT:REF", "/OPT:NOICF", "/INCREMENTAL:NO", "/LTCG"]'
-          --conf:all='tools.cmake.cmaketoolchain:extra_variables={"CMAKE_C_FLAGS_RELEASE": "/DNDEBUG", "CMAKE_CXX_FLAGS_RELEASE": "/DNDEBUG", "CMAKE_MSVC_DEBUG_INFORMATION_FORMAT": "ProgramDatabase"}'
+          --conf:all='tools.cmake.cmaketoolchain:extra_variables={"CMAKE_MSVC_DEBUG_INFORMATION_FORMAT": "ProgramDatabase"}'
 
       - name: Build
         run: |
@@ -149,7 +149,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=Release \
             -DVERSION="${{ github.ref_name }}"
-          cmake --build build --config Release --verbose
+          cmake --build build --config Release --parallel "$(uv run --no-project python -c 'import os; print(os.cpu_count())')" --verbose
 
       - name: Setup Sentry CLI
         run: npm install --global @sentry/cli@latest
