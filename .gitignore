@@ -16,6 +16,7 @@ CMakeUserPresets.json
 # Carimbo
 cartridge.rom
 cassette.tape*
+/logs/
 stderr.txt
 stdout.txt
 

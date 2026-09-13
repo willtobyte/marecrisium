@@ -41,22 +41,11 @@ jobs:
           uv tool install conan
           uv tool run conan profile detect --force
 
-      - name: Configure tools & CMake
-        run: |
-          cat <<'EOF' >> ~/.conan2/profiles/default
-          [replace_tool_requires]
-          meson/*: meson/[*]
-          pkgconf/*: pkgconf/[*]
-
-          [tool_requires]
-          !cmake/*: cmake/[>=4 <5]
-          EOF
-
       - name: Cache Conan packages
         uses: actions/cache@v6
         with:
           path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('conanfile.py', 'recipes/**', '.github/conan/**') }}
+          key: conan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('conanfile.py', 'src/**') }}
           restore-keys: |
             conan-${{ runner.os }}-${{ runner.arch }}-
 
@@ -65,24 +54,40 @@ jobs:
           uv tool run conan export recipes/luajit --version=2.1-20260908
 
       - name: Install dependencies
-        run: uv tool run conan install . --output-folder=build --build="*" --profile:host=.github/conan/windows
+        env:
+          COMPILE_FLAGS: '["/O2", "/Zi", "/GL"]'
+        run: >-
+          uv tool run conan install . --output-folder=build --build="*"
+          --profile:all=.github/conan/windows
+          --conf:all="tools.build:cflags=$COMPILE_FLAGS"
+          --conf:all="tools.build:cxxflags=$COMPILE_FLAGS"
+          --conf:all='tools.build:exelinkflags=["/DEBUG:FULL", "/OPT:REF", "/OPT:NOICF", "/INCREMENTAL:NO", "/LTCG"]'
+          --conf:all='tools.cmake.cmaketoolchain:extra_variables={"CMAKE_C_FLAGS_RELEASE": "/DNDEBUG", "CMAKE_CXX_FLAGS_RELEASE": "/DNDEBUG", "CMAKE_MSVC_DEBUG_INFORMATION_FORMAT": "ProgramDatabase"}'
 
       - name: Build
         run: |
           cmake -Bbuild \
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=Release \
-            -DVERSION="${{ github.sha }}" \
-            -DCMAKE_C_FLAGS_RELEASE="/O2 /Z7 /DNDEBUG" \
-            -DCMAKE_CXX_FLAGS_RELEASE="/O2 /Z7 /DNDEBUG" \
-            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG:FULL /OPT:REF /OPT:ICF /INCREMENTAL:NO /PDBALTPATH:carimbo.pdb"
+            -DVERSION="${{ github.sha }}"
           cmake --build build --config Release --verbose
+
+      - name: Setup Sentry CLI
+        run: npm install --global @sentry/cli@latest
+
+      - name: Bundle symbol sources
+        run: |
+          sentry-cli debug-files bundle-sources build/Release/carimbo.pdb --output build/Release
+          test -s build/Release/carimbo.src.zip
+          uv tool run conan cache clean "*" --build --temp
 
       - name: Upload symbols
         uses: actions/upload-artifact@v7
         with:
           name: windows-symbols
-          path: build/Release/carimbo.pdb
+          path: |
+            build/Release/carimbo.pdb
+            build/Release/carimbo.src.zip
           if-no-files-found: error
 
       - name: Generate assets

@@ -1,7 +1,10 @@
 include(default)
 
 [settings]
+os=Windows
+arch=x86_64
 build_type=Release
+compiler=msvc
 compiler.cppstd=23
 compiler.runtime=static
 
@@ -9,6 +12,11 @@ compiler.runtime=static
 *:shared=False
 
 [conf]
-tools.build:cflags=["/Z7"]
-tools.build:cxxflags=["/Z7"]
-tools.info.package_id:confs=["tools.build:cflags", "tools.build:cxxflags"]
+tools.info.package_id:confs=["tools.build:cflags", "tools.build:cxxflags", "tools.build:exelinkflags", "tools.cmake.cmaketoolchain:extra_variables"]
+
+[replace_tool_requires]
+meson/*: meson/[*]
+pkgconf/*: pkgconf/[*]
+
+[tool_requires]
+!cmake/*: cmake/[>=4 <5]

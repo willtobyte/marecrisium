@@ -8,7 +8,7 @@ from conan.tools.apple import is_apple_os
 from conan.tools.files import chdir, copy, get, replace_in_file, rmdir
 from conan.tools.gnu import Autotools, AutotoolsToolchain
 from conan.tools.layout import basic_layout
-from conan.tools.microsoft import VCVars, is_msvc, unix_path
+from conan.tools.microsoft import NMakeToolchain, is_msvc, unix_path
 from conan.tools.scm import Version
 
 required_conan_version = ">=2.0"
@@ -54,7 +54,7 @@ class LuajitConan(ConanFile):
 
     def generate(self):
         if is_msvc(self):
-            VCVars(self).generate()
+            NMakeToolchain(self).generate()
         else:
             tc = AutotoolsToolchain(self)
             tc.make_args.append(
@@ -64,17 +64,30 @@ class LuajitConan(ConanFile):
 
     def _patch_sources(self):
         if is_msvc(self):
-            # Keep debug records inside static-library objects, not a compiler PDB.
+            batch = os.path.join(str(self.source_folder), "src", "msvcbuild.bat")
+            replace_in_file(self, batch, "cl /nologo /c /O2", "cl /nologo /c")
             replace_in_file(
                 self,
-                os.path.join(str(self.source_folder), "src", "msvcbuild.bat"),
+                batch,
                 "@set LJCOMPILETARGET=/Zi",
-                "@set LJCOMPILETARGET=/Z7 /MT",
+                "@set LJCOMPILETARGET=",
+            )
+            replace_in_file(
+                self,
+                batch,
+                "%LJLIB% /OUT:%LJLIBNAME% lj_*.obj lib_*.obj",
+                r'%LJLIB% /OUT:%LJLIBNAME% "%CD%\lj_*.obj" "%CD%\lib_*.obj"',
             )
 
             return
         source_folder = cast(str, self.source_folder)
         makefile = os.path.join(source_folder, "src", "Makefile")
+        replace_in_file(
+            self,
+            makefile,
+            "ASOPTIONS= $(CCOPT) $(CCWARN) $(XCFLAGS) $(CFLAGS)",
+            "ASOPTIONS= $(CCOPT) $(CCWARN) $(XCFLAGS) $(CPPFLAGS) $(CFLAGS)",
+        )
         replace_in_file(self, makefile, "BUILDMODE= mixed", "BUILDMODE= static")
         replace_in_file(
             self,

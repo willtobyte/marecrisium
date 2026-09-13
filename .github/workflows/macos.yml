@@ -36,22 +36,11 @@ jobs:
           uv tool install conan
           uv tool run conan profile detect --force
 
-      - name: Configure tools & CMake
-        run: |
-          cat <<'EOF' >> ~/.conan2/profiles/default
-          [replace_tool_requires]
-          meson/*: meson/[*]
-          pkgconf/*: pkgconf/[*]
-
-          [tool_requires]
-          !cmake/*: cmake/[>=4 <5]
-          EOF
-
       - name: Cache Conan packages
         uses: actions/cache@v6
         with:
           path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('conanfile.py', 'recipes/**', '.github/conan/**') }}
+          key: conan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('conanfile.py', 'src/**') }}
           restore-keys: |
             conan-${{ runner.os }}-${{ runner.arch }}-
 
@@ -60,28 +49,44 @@ jobs:
           uv tool run conan export recipes/luajit --version=2.1-20260908
 
       - name: Install dependencies
-        run: uv tool run conan install . --output-folder=build --build="*" --profile:host=.github/conan/macos
+        env:
+          COMPILE_FLAGS: '["-O2", "-g", "-mcpu=apple-m1", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls", "-flto=thin"]'
+        run: >-
+          uv tool run conan install . --output-folder=build --build="*"
+          --profile:all=.github/conan/macos
+          --conf:all="tools.build:cflags=$COMPILE_FLAGS"
+          --conf:all="tools.build:cxxflags=$COMPILE_FLAGS"
+          --conf:all="libcurl/*:tools.build:cflags=${COMPILE_FLAGS/-flto=thin/-fno-lto}"
+          --conf:all="libcurl/*:tools.build:cxxflags=${COMPILE_FLAGS/-flto=thin/-fno-lto}"
+          --conf:all='tools.build:exelinkflags=["-flto=thin"]'
+          --conf:all='tools.cmake.cmaketoolchain:extra_variables={"CMAKE_C_FLAGS_RELEASE": "-DNDEBUG", "CMAKE_CXX_FLAGS_RELEASE": "-DNDEBUG", "CMAKE_OBJC_FLAGS_RELEASE": "-DNDEBUG", "CMAKE_OBJCXX_FLAGS_RELEASE": "-DNDEBUG"}'
 
       - name: Build
         run: |
           cmake -Bbuild \
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=Release \
-            -DVERSION="${{ github.sha }}" \
-            -DCMAKE_C_FLAGS_RELEASE="-O2 -g -DNDEBUG" \
-            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -g -DNDEBUG" \
-            -DCMAKE_SKIP_RPATH=ON \
-            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-Wl,-no_exported_symbols -Wl,-object_path_lto,${{ github.workspace }}/build/carimbo.lto.o"
+            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-Wl,-object_path_lto,${{ github.workspace }}/build/carimbo.lto.o" \
+            -DVERSION="${{ github.sha }}"
           cmake --build build --config Release --verbose
 
+      - name: Setup Sentry CLI
+        run: npm install --global @sentry/cli@latest
+
       - name: Generate symbols
-        run: dsymutil build/carimbo -o build/carimbo.dSYM
+        run: |
+          dsymutil --verify build/carimbo -o build/carimbo.dSYM
+          sentry-cli debug-files bundle-sources build/carimbo.dSYM --output build
+          test -s build/carimbo.src.zip
+          uv tool run conan cache clean "*" --build --temp
 
       - name: Upload symbols
         uses: actions/upload-artifact@v7
         with:
           name: macos-symbols
-          path: build/carimbo.dSYM
+          path: |
+            build/carimbo.dSYM
+            build/carimbo.src.zip
           if-no-files-found: error
 
       - name: Generate assets

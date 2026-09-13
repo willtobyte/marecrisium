@@ -26,3 +26,4 @@
 - **Always review the order of struct and class members to improve memory layout and cache efficiency.**
 - **Intern LuaJIT strings that are pushed frequently, such as those used in every loop iteration or every mouse move event. One-off strings do not need to be interned.**
 - **Use the object's `patch.lua.j2` for object changes. Do not edit its generated file in `cartridge/objects/` directly.**
+- **Use the remote `DOCKER_HOST` via SSH at `92.112.178.107` (amd64) for experiments, tests, and any task that needs Windows x64 (via Wine). Avoid the local Docker (OrbStack) unless you need Linux ARM64. Before you run any Docker command, remove all unused Docker data.**
