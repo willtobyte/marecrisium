@@ -241,26 +241,27 @@ void scene::update(float delta) {
       throw std::runtime_error{lua_tostring(L, -1)};
   }
 
-  for (auto it = _objects.rbegin(); it != _objects.rend(); ++it) {
-    auto& object = *it;
-    const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
-    const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
+  for (auto& object : std::views::reverse(_objects)) {
+    auto& motion = object.motion;
+    const auto& sequence = object.sprite.sheet->sequences[motion.active];
+    const auto& frame = object.sprite.sheet->frames[sequence.offset + motion.current];
 
-    if ((object.motion.elapsed += delta) < frame.duration) [[likely]]
+    motion.elapsed += delta;
+    if (motion.elapsed < frame.duration) [[likely]]
       continue;
 
-    object.motion.elapsed -= frame.duration;
-    if (++object.motion.current < sequence.count)
+    motion.elapsed -= frame.duration;
+    if (++motion.current < sequence.count)
       continue;
 
     if (sequence.loop)
-      object.motion.current = 0;
+      motion.current = 0;
     else {
-      object.motion.current = sequence.count - 1;
-      object.motion.elapsed = stopped;
+      motion.current = sequence.count - 1;
+      motion.elapsed = stopped;
     }
 
-    if (!object.motion.ending)
+    if (!motion.ending)
       continue;
 
     lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.on_end);

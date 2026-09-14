@@ -26,6 +26,7 @@
 #include <optional>
 #include <print>
 #include <random>
+#include <ranges>
 #include <span>
 #include <stdexcept>
 #include <string>
