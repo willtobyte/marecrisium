@@ -121,9 +121,18 @@ void engine::loop() {
     }
   }
 
-  const auto now = SDL_GetPerformanceCounter();
-  static auto prior = now;
+  static auto prior = SDL_GetPerformanceCounter();
+
+  if (!SDL_GetKeyboardFocus()) {
+    SDL_WaitEventTimeout(nullptr, 20);
+    SteamAPI_RunCallbacks();
+    prior = SDL_GetPerformanceCounter();
+
+    return;
+  }
+
   static const auto frequency = static_cast<double>(SDL_GetPerformanceFrequency());
+  const auto now = SDL_GetPerformanceCounter();
   const auto delta = std::min(static_cast<float>((now - prior) / frequency), 1.f / 30.f);
   prior = now;
 
