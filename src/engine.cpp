@@ -123,9 +123,10 @@ void engine::loop() {
 
   static auto prior = SDL_GetPerformanceCounter();
 
+  SteamAPI_RunCallbacks();
+
   if (!SDL_GetKeyboardFocus()) {
     SDL_WaitEventTimeout(nullptr, 20);
-    SteamAPI_RunCallbacks();
     prior = SDL_GetPerformanceCounter();
 
     return;
@@ -157,6 +158,4 @@ void engine::loop() {
   _director.draw();
 
   SDL_RenderPresent(renderer);
-
-  SteamAPI_RunCallbacks();
 }
