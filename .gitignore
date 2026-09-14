@@ -16,15 +16,12 @@ CMakeUserPresets.json
 # Carimbo
 cartridge.rom
 cassette.tape*
-/logs/
 stderr.txt
 stdout.txt
+/logs/
 
 # Python
 .venv
 
 # Sentry
 .sentry/
-
-# Fuzz
-fuzz/corpus/
