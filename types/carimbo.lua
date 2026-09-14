@@ -129,6 +129,7 @@ gamepad = nil
 
 ---Persistent JSON-compatible Lua storage. Numbers must be finite. String values
 ---and table string keys must be valid UTF-8. Writes persist immediately; nil deletes.
+---Dense sequences are stored as arrays; sparse and mixed tables preserve every key.
 ---Nested writes persist. Each root reuses live nested proxies. Proxies support `#`, `pairs`, and `ipairs`.
 ---@class Cassette
 ---@field [string] CassetteValue|nil

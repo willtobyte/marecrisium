@@ -1,13 +1,25 @@
 namespace {
-static bool is_sequence(lua_State *state, int table) {
+static bool is_array(lua_State *state, int table) {
   const auto length = lua_objlen(state, table);
   if (length == 0) return false;
 
-  lua_rawgeti(state, table, static_cast<int>(length) + 1);
-  const auto ok = lua_isnil(state, -1);
-  lua_pop(state, 1);
+  auto count = 0uz;
+  lua_pushnil(state);
+  while (lua_next(state, table)) {
+    const auto key = lua_tonumber(state, -2);
+    const auto valid = lua_type(state, -2) == LUA_TNUMBER &&
+      key >= 1 && key <= length && std::trunc(key) == key;
+    lua_pop(state, 1);
+    if (!valid) {
+      lua_pop(state, 1);
 
-  return ok;
+      return false;
+    }
+
+    ++count;
+  }
+
+  return count == length;
 }
 }
 
@@ -134,7 +146,7 @@ yyjson_mut_val *marshal::encode(lua_State *state, int index, yyjson_mut_doc *doc
     }
 
     case LUA_TTABLE: {
-      if (is_sequence(state, source)) [[likely]] {
+      if (is_array(state, source)) [[likely]] {
         auto *array = yyjson_mut_arr(document);
         const auto size = static_cast<int>(lua_objlen(state, source));
         for (auto slot = 1; slot <= size; ++slot) {
