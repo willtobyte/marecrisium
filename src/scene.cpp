@@ -223,17 +223,6 @@ void scene::update(float delta) {
   _playback.update();
   _scheduler.update(delta);
 
-  if (_dirty.order) [[unlikely]] {
-    std::sort(_order.begin(), _order.end(), [this](const auto left, const auto right) {
-      const auto& lhs = _objects[left].sprite;
-      const auto& rhs = _objects[right].sprite;
-
-      return lhs.z != rhs.z ? lhs.z < rhs.z : left < right;
-    });
-
-    _dirty.order = false;
-  }
-
   if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
@@ -282,6 +271,17 @@ void scene::update(float delta) {
   }
 
   _overlay.update(delta);
+
+  if (_dirty.order) [[unlikely]] {
+    std::sort(_order.begin(), _order.end(), [this](const auto left, const auto right) {
+      const auto& lhs = _objects[left].sprite;
+      const auto& rhs = _objects[right].sprite;
+
+      return lhs.z != rhs.z ? lhs.z < rhs.z : left < right;
+    });
+
+    _dirty.order = false;
+  }
 }
 
 void scene::draw() {
