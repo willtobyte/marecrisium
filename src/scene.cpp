@@ -254,9 +254,9 @@ void scene::update(float delta) {
     if (++motion.current < sequence.count)
       continue;
 
-    if (sequence.loop)
+    if (sequence.loop) {
       motion.current = 0;
-    else {
+    } else {
       motion.current = sequence.count - 1;
       motion.elapsed = stopped;
     }
