@@ -106,8 +106,8 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
                 if "A" in mask.getbands():
                     box = mask.getbbox(alpha_only=True)
                 else:
-                    with mask.convert("RGBA") as image:
-                        box = image.getbbox(alpha_only=True)
+                    with mask.convert("RGBA") as converted:
+                        box = converted.getbbox(alpha_only=True)
 
             cx, cy, right, bottom = box
             collider = (cx, cy, right - cx, bottom - cy)
