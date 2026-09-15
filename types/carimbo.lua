@@ -451,8 +451,8 @@ function TimerHandle:pause() end
 ---@return TimerHandle self
 function TimerHandle:resume() end
 
----Timers are checked once per frame and pause with the scene.
----Late repeating timers run once and restart. Handles expire with the scene.
+---The scene owns its timers. Timers are checked once per frame and pause with the scene.
+---Late repeating timers run once and restart. Handle collection does not cancel timers. Handles expire with the scene.
 ---@class Timer
 local Timer = {}
 
