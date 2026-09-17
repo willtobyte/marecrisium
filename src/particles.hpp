@@ -62,3 +62,29 @@ private:
   std::pair<float, float> _velocity_x_range, _velocity_y_range, _gravity_x_range, _gravity_y_range;
   std::pair<float, float> _scale_range, _life_range, _rotation_force_range, _rotation_velocity_range;
 };
+
+class particlepool final {
+public:
+  config* get(std::string_view kind);
+
+  void clear();
+
+private:
+  std::unordered_map<std::string, config, transparent_string_hash, std::equal_to<>> _pool;
+};
+
+class particlesystem final {
+public:
+  particleemitter* add(std::string_view name, std::string_view kind, float x, float y, bool active);
+
+  void update(float delta);
+
+  void draw();
+
+  void clear();
+
+private:
+  std::unordered_map<std::string, particleemitter, transparent_string_hash, std::equal_to<>> _particles;
+  std::vector<particleemitter*> _order;
+  std::vector<int> _indices;
+};

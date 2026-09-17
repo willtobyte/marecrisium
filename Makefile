@@ -7,12 +7,13 @@ PROJECT := carimbo
 BUILD   := build
 LOGS    := logs
 CARTRIDGE := cartridge.rom
+BINARY    := $(BUILD)/$(PROJECT)
+TOOLCHAIN := $(BUILD)/conan_toolchain.cmake
+PACKAGES  := "$$(conan config home)/p"
 
 PROFILE ?= $(or $(profile),.github/conan/macos)
 JOBS    ?= $(shell sysctl -n hw.ncpu 2>/dev/null | awk '{print $$1 - 1}')
 
-BINARY    := $(BUILD)/$(PROJECT)
-TOOLCHAIN := $(BUILD)/conan_toolchain.cmake
 LOG       := $(LOGS)/$(PROJECT)-$$(date +%Y-%m-%d_%H-%M-%S_%z)-$$$$.log
 MODE      := Debug
 
@@ -46,24 +47,24 @@ LLDB := lldb --batch \
 .PHONY: build clean conan help run
 
 clean: ## Cleans build artifacts
-	rm -rf $(BUILD)
+	rm -rf $(BUILD) $(PACKAGES)
 
-conan: ## Installs dependencies
+conan: clean ## Installs dependencies
 	conan export recipes/luajit --version=2.1-20260908
 	conan install . \
 		--output-folder=$(BUILD) \
 		--build="*" \
 		--profile:all=$(PROFILE) \
 		--settings:all build_type=$(MODE) \
-		--conf:all="tools.build:jobs=$(JOBS)" \
-		--conf:all="tools.build:cflags=[$(foreach flag,$(CFLAGS),'$(flag)',)]" \
-		--conf:all="tools.build:cxxflags=[$(foreach flag,$(CFLAGS),'$(flag)',)]" \
-		--conf:all="tools.build:exelinkflags=[$(foreach flag,$(LDFLAGS),'$(flag)',)]"
+		--conf:all="tools.build:jobs=$(JOBS)"
 
 build: ## Builds the project
 	cmake --fresh -S . -B $(BUILD) \
 		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN) \
 		-DCMAKE_BUILD_TYPE=$(MODE) \
+		-DCMAKE_C_FLAGS="$(CFLAGS)" \
+		-DCMAKE_CXX_FLAGS="$(CFLAGS)" \
+		-DCMAKE_EXE_LINKER_FLAGS="$(LDFLAGS)" \
 		$(EXTRA_FLAGS)
 	cmake --build $(BUILD) \
 		--parallel $(JOBS) \
