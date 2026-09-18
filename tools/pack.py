@@ -1,5 +1,5 @@
 # /// script
-# requires-python = ">=3.14"
+# requires-python = ">=3.13"
 # dependencies = ["zstandard"]
 # ///
 
@@ -144,9 +144,9 @@ def main() -> int:
             continue
 
         path = relative.as_posix()
-        if current.info.is_dir():
+        if current.is_dir():
             sources.append(Source(path, b"", True))
-        elif current.info.is_file():
+        elif current.is_file():
             sources.append(
                 Source(path, current.read_bytes(), False, algorithm=ALGO_ZSTD_DICT)
             )
