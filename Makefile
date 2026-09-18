@@ -5,7 +5,6 @@ SHELL := /usr/bin/env bash
 
 PROJECT := carimbo
 BUILD   := build
-LOGS    := logs
 CARTRIDGE := cartridge.rom
 BINARY    := $(BUILD)/$(PROJECT)
 TOOLCHAIN := $(BUILD)/conan_toolchain.cmake
@@ -14,7 +13,6 @@ PACKAGES  := "$$(conan config home)/p"
 PROFILE ?= $(or $(profile),.github/conan/macos)
 JOBS    ?= $(shell sysctl -n hw.ncpu 2>/dev/null | awk '{print $$1 - 1}')
 
-LOG       := $(LOGS)/$(PROJECT)-$$(date +%Y-%m-%d_%H-%M-%S_%z)-$$$$.log
 MODE      := Debug
 
 SANITIZERS := \
@@ -75,9 +73,7 @@ run: build ## Builds and runs the project
 	rm -f $(CARTRIDGE)
 	uv run assets/tools/run.py
 	uv run tools/pack.py
-	mkdir -p $(LOGS)
-	rm -rf $(LOGS)/*
-	set -o pipefail; WINDOWED=1 ASAN_OPTIONS="handle_abort=1$${ASAN_OPTIONS:+:$${ASAN_OPTIONS}}" UBSAN_OPTIONS="print_stacktrace=1$${UBSAN_OPTIONS:+:$${UBSAN_OPTIONS}}" $(LLDB) $(BINARY) 2>&1 | tee $(LOG)
+	WINDOWED=1 ASAN_OPTIONS="handle_abort=1$${ASAN_OPTIONS:+:$${ASAN_OPTIONS}}" UBSAN_OPTIONS="print_stacktrace=1$${UBSAN_OPTIONS:+:$${UBSAN_OPTIONS}}" $(LLDB) $(BINARY)
 
 help: ## Shows available commands
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
