@@ -82,7 +82,7 @@ run: build ## Builds and runs the project
 	rm -f $(ROM)
 	uv run assets/tools/run.py
 	uv run tools/pack.py
-	WINDOWED=1 ASAN_OPTIONS="handle_abort=1$${ASAN_OPTIONS:+:$${ASAN_OPTIONS}}" UBSAN_OPTIONS="print_stacktrace=1$${UBSAN_OPTIONS:+:$${UBSAN_OPTIONS}}" $(LLDB) $(BINARY)
+	WINDOWED=1 ASAN_OPTIONS="handle_abort=1" UBSAN_OPTIONS="print_stacktrace=1" $(LLDB) $(BINARY)
 
 help: ## Shows available commands
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
