@@ -5,7 +5,7 @@ SHELL := /usr/bin/env bash
 
 PROJECT := carimbo
 BUILD   := build
-CARTRIDGE := cartridge.rom
+ROM 		:= cartridge.rom
 BINARY    := $(BUILD)/$(PROJECT)
 TOOLCHAIN := $(BUILD)/conan_toolchain.cmake
 PACKAGES  := "$$(conan config home)/p"
@@ -70,7 +70,7 @@ build: ## Builds the project
 		--verbose
 
 run: build ## Builds and runs the project
-	rm -f $(CARTRIDGE)
+	rm -f $(ROM)
 	uv run assets/tools/run.py
 	uv run tools/pack.py
 	WINDOWED=1 ASAN_OPTIONS="handle_abort=1$${ASAN_OPTIONS:+:$${ASAN_OPTIONS}}" UBSAN_OPTIONS="print_stacktrace=1$${UBSAN_OPTIONS:+:$${UBSAN_OPTIONS}}" $(LLDB) $(BINARY)
