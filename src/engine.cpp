@@ -60,7 +60,7 @@ engine::engine() {
   SDL_PumpEvents();
 
   SDL_RaiseWindow(window);
-  SDL_FlashWindow(window, SDL_FLASH_UNTIL_FOCUSED);
+  // SDL_FlashWindow(window, SDL_FLASH_UNTIL_FOCUSED);
 
 
   lua_createtable(L, 0, 3);
@@ -125,12 +125,12 @@ void engine::loop() {
 
   SteamAPI_RunCallbacks();
 
-  if (!SDL_GetKeyboardFocus()) {
-    SDL_WaitEventTimeout(nullptr, 20);
-    prior = SDL_GetPerformanceCounter();
-
-    return;
-  }
+  // if (!SDL_GetKeyboardFocus()) {
+  //  SDL_WaitEventTimeout(nullptr, 20);
+  //  prior = SDL_GetPerformanceCounter();
+  //
+  //  return;
+  // }
 
   static const auto frequency = static_cast<double>(SDL_GetPerformanceFrequency());
   const auto now = SDL_GetPerformanceCounter();
