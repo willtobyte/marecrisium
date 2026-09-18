@@ -55,7 +55,7 @@ LLDB := lldb --batch \
 clean: ## Cleans build artifacts
 	rm -rf $(BUILD) # $(PACKAGES)
 
-conan: clean ## Installs dependencies
+conan: ## Installs dependencies
 	conan export recipes/luajit --version=2.1-20260908
 	conan install . \
 		--output-folder=$(BUILD) \
