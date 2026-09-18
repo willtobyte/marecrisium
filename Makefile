@@ -59,7 +59,7 @@ conan: clean ## Installs dependencies
 		--conf:all="tools.build:jobs=$(JOBS)"
 
 build: ## Builds the project
-	cmake --fresh -S . -B $(BUILD) \
+	cmake -S . -B $(BUILD) \
 		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN) \
 		-DCMAKE_BUILD_TYPE=$(MODE) \
 		-DCMAKE_C_FLAGS="$(CFLAGS)" \
@@ -76,6 +76,7 @@ run: build ## Builds and runs the project
 	uv run assets/tools/run.py
 	uv run tools/pack.py
 	mkdir -p $(LOGS)
+	rm -rf $(LOGS)/*
 	set -o pipefail; WINDOWED=1 ASAN_OPTIONS="handle_abort=1$${ASAN_OPTIONS:+:$${ASAN_OPTIONS}}" UBSAN_OPTIONS="print_stacktrace=1$${UBSAN_OPTIONS:+:$${UBSAN_OPTIONS}}" $(LLDB) $(BINARY) 2>&1 | tee $(LOG)
 
 help: ## Shows available commands
