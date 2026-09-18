@@ -11,9 +11,7 @@ make conan
 Build and run:
 
 ```shell
-make run # for debug builds
-# or
-make conan build buildtype=Release && ./build/carimbo # for release
+make conan build MODE={Release|Debug} && ./build/carimbo
 ```
 
 Generate all fonts and objects:

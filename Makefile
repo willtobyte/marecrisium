@@ -13,24 +13,32 @@ PACKAGES  := "$$(conan config home)/p"
 PROFILE ?= $(or $(profile),.github/conan/macos)
 JOBS    ?= $(shell sysctl -n hw.ncpu 2>/dev/null | awk '{print $$1 - 1}')
 
-MODE      := Debug
+MODE      ?= Debug
 
 SANITIZERS := \
 	-fsanitize=address,undefined,nullability,implicit-conversion,float-divide-by-zero,local-bounds \
 	-fsanitize-address-use-after-scope \
 	-fno-omit-frame-pointer
 
-CFLAGS := \
+CFLAGS_Debug := \
 	-g3 -O0 \
 	-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 	$(SANITIZERS) \
 	-fstack-protector-strong \
 	-ftrivial-auto-var-init=pattern
 
-LDFLAGS := \
+LDFLAGS_Debug := \
 	-g3 \
 	-fno-optimize-sibling-calls \
 	$(SANITIZERS)
+
+CMAKE_FLAGS_Release := \
+	-DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
+	-DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG"
+
+CFLAGS := $(CFLAGS_$(MODE))
+LDFLAGS := $(LDFLAGS_$(MODE))
+CMAKE_FLAGS := $(CMAKE_FLAGS_$(MODE))
 
 LLDB := lldb --batch \
 	-o version \
@@ -45,7 +53,7 @@ LLDB := lldb --batch \
 .PHONY: build clean conan help run
 
 clean: ## Cleans build artifacts
-	rm -rf $(BUILD) $(PACKAGES)
+	rm -rf $(BUILD) # $(PACKAGES)
 
 conan: clean ## Installs dependencies
 	conan export recipes/luajit --version=2.1-20260908
@@ -63,6 +71,7 @@ build: ## Builds the project
 		-DCMAKE_C_FLAGS="$(CFLAGS)" \
 		-DCMAKE_CXX_FLAGS="$(CFLAGS)" \
 		-DCMAKE_EXE_LINKER_FLAGS="$(LDFLAGS)" \
+		$(CMAKE_FLAGS) \
 		$(EXTRA_FLAGS)
 	cmake --build $(BUILD) \
 		--parallel $(JOBS) \
