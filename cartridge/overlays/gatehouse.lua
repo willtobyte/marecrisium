@@ -45,7 +45,7 @@ return {
 	end,
 
 	on_paint = function()
-		pool.pixel:draw(title, (viewport.width - 96) / 2, (viewport.height - 17) / 2, effects)
-		pool.arcade8:draw("Rodrigo Delduca 0123456789 +|-", 3, 3)
+		-- pool.pixel:draw(title, (viewport.width - 96) / 2, (viewport.height - 17) / 2, effects)
+		-- pool.arcade8:draw("Rodrigo Delduca 0123456789 +|-", 3, 3)
 	end,
 }
