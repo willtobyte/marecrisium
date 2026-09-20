@@ -4,6 +4,11 @@ local title = _("Mare Crisium")
 local length = #title
 local effects = {}
 local elapsed = 0
+local a
+local b
+local c
+local d
+local t
 
 for i = 1, length do
 	effects[i] = {}
@@ -31,6 +36,14 @@ end
 return {
 	fonts = { "pixel", "arcade8" },
 
+	on_appear = function()
+		a = Label.new("pixel", 10, 10, 200, 60)
+		b = Label.new("pixel", 10, 80, 200, 60)
+		c = Label.new("pixel", 10, 150, 200, 50)
+		d = Label.new("arcade8", 230, 10, 220, 100)
+		t = Label.new("pixel", 192, 213, 250, 24)
+	end,
+
 	on_loop = function(_, delta)
 		elapsed = elapsed + delta
 
@@ -45,7 +58,10 @@ return {
 	end,
 
 	on_paint = function()
-		-- pool.pixel:draw(title, (viewport.width - 96) / 2, (viewport.height - 17) / 2, effects)
-		-- pool.arcade8:draw("Rodrigo Delduca 0123456789 +|-", 3, 3)
+		a:draw("Mare Crisium log: long text wraps by word, never splits and never leaks.")
+		b:draw("supercalifragilisticexpialidocious breaks mid-word only when wider than w.")
+		c:draw("Short h cuts extra lines clean. This tail stays out. Extra words out.")
+		d:draw("Direct box: Label.new(arcade8, 230, 10, 220, 100) wraps too.")
+		t:draw(title, effects)
 	end,
 }

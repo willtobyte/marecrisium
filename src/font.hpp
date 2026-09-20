@@ -20,14 +20,26 @@ class font final {
 public:
   explicit font(std::string_view family);
 
-  static void wire();
-
   void draw(std::string_view text, float x, float y) const;
 
   void draw(std::string_view text, float x, float y, std::span<const glypheffect> effects) const;
 
   template <bool sparse>
   void draw(std::string_view text, float x, float y, std::span<const glypheffect> effects, std::span<const uint64_t> active) const;
+
+  void draw(std::string_view text, float x, float y, float w, float h) const;
+
+  void draw(std::string_view text, float x, float y, float w, float h, std::span<const glypheffect> effects) const;
+
+  template <bool sparse>
+  void draw(
+    std::string_view text,
+    float x,
+    float y,
+    float w,
+    float h,
+    std::span<const glypheffect> effects,
+    std::span<const uint64_t> active) const;
 
 private:
   std::array<glyphprops, 256> _props{};

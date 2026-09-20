@@ -46,64 +46,6 @@ static consteval auto triangulate() {
 static constexpr auto indices = triangulate();
 }
 
-static int draw_callback(lua_State *state) {
-  auto *self = *static_cast<font **>(luaL_checkudata(state, 1, "Font"));
-  std::size_t length;
-  const auto *data = luaL_checklstring(state, 2, &length);
-  const auto text = std::string_view{data, length};
-  const auto x = static_cast<float>(luaL_checknumber(state, 3));
-  const auto y = static_cast<float>(luaL_checknumber(state, 4));
-
-  if (!lua_istable(state, 5)) [[likely]] {
-    self->draw(text, x, y);
-
-    return 0;
-  }
-
-  static std::array<glypheffect, 256> effects;
-  std::array<uint64_t, 4> active{};
-  auto count = 0uz;
-
-  for (lua_pushnil(state); lua_next(state, 5) != 0; lua_pop(state, 1)) {
-    const auto raw = lua_tointeger(state, -2);
-    const auto valid = raw > 0 && raw <= static_cast<lua_Integer>(effects.size());
-    assert(valid && "glyph effect index must be valid");
-    [[assume(valid)]];
-
-    const auto index = static_cast<std::size_t>(raw) - 1;
-
-    active[index / 64] |= uint64_t{1} << (index % 64);
-
-    auto &effect = effects[index];
-    number(state, -1, "x_offset", effect.x_offset, .0f);
-    number(state, -1, "y_offset", effect.y_offset, .0f);
-    number(state, -1, "scale", effect.scale, 1.f);
-    number(state, -1, "angle", effect.angle, .0f);
-    number(state, -1, "alpha", effect.alpha, 1.f, .0f, 1.f);
-    number(state, -1, "r", effect.r, 1.f, .0f, 1.f);
-    number(state, -1, "g", effect.g, 1.f, .0f, 1.f);
-    number(state, -1, "b", effect.b, 1.f, .0f, 1.f);
-
-    count = std::max(count, index + 1);
-  }
-
-  self->draw<true>(text, x, y, std::span{effects.data(), count}, active);
-
-  return 0;
-}
-
-void font::wire() {
-  lua_createtable(L, 0, 3);
-  lua_pushliteral(L, "Font");
-  lua_setfield(L, -2, "__name");
-
-  lua_pushcfunction(L, draw_callback);
-  lua_setfield(L, -2, "draw");
-  lua_pushvalue(L, -1);
-  lua_setfield(L, -2, "__index");
-  lua_setfield(L, LUA_REGISTRYINDEX, "Font");
-}
-
 static constexpr SDL_FPoint rotate(float x, float y, float middle_x, float middle_y, float cosine, float sine) {
   const auto dx = x - middle_x;
   const auto dy = y - middle_y;
@@ -203,6 +145,205 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
   draw<false>(text, x, y, effects, {});
 }
 
+void font::draw(std::string_view text, float x, float y, float w, float h) const {
+  draw(text, x, y, w, h, {});
+}
+
+void font::draw(
+  std::string_view text,
+  float x,
+  float y,
+  float w,
+  float h,
+  std::span<const glypheffect> effects) const {
+  draw<false>(text, x, y, w, h, effects, {});
+}
+
+template <bool sparse>
+void font::draw(
+  std::string_view text,
+  float x,
+  float y,
+  float w,
+  float h,
+  std::span<const glypheffect> effects,
+  std::span<const uint64_t> active) const {
+  if (w <= .0f) [[unlikely]] return;
+
+  const auto *mask = active.data();
+  if constexpr (sparse) {
+    const auto size = active.size();
+
+    assert(size == 4 && "glyph effect mask must have four words");
+    [[assume(size == 4)]];
+  }
+
+  const auto right = x + w;
+  const auto bottom = y + h;
+  const auto line = _fontheight + _leading;
+  const auto space = _props[static_cast<uint8_t>(' ')].width;
+  const auto n = text.size();
+  auto p = 0uz;
+  auto src = 0uz;
+  auto drawn = 0uz;
+  auto cx = x;
+  auto cy = y;
+
+  while (p < n) {
+    const auto c = text[p];
+
+    if (c == '\n') {
+      cx = x;
+      cy += line;
+      ++p;
+
+      if (cy + _fontheight > bottom) break;
+
+      continue;
+    }
+
+    if (c == ' ') {
+      if (cx == x) {
+        ++p;
+        ++src;
+
+        continue;
+      }
+
+      auto q = p;
+      while (q < n && text[q] == ' ') ++q;
+
+      auto r = q;
+      while (r < n && text[r] != ' ' && text[r] != '\n') ++r;
+
+      auto gap = .0f;
+      for (auto k = p; k < q; ++k) gap += space + _spacing;
+
+      auto word = .0f;
+      if (r > q) {
+        for (auto k = q; k < r; ++k) word += _props[static_cast<uint8_t>(text[k])].width + _spacing;
+        word -= _spacing;
+      }
+
+      if (r > q && cx + gap + word > right) {
+        cx = x;
+        cy += line;
+
+        if (cy + _fontheight > bottom) break;
+
+        src += q - p;
+        p = q;
+
+        continue;
+      }
+
+      if (cx + space > right) {
+        cx = x;
+        cy += line;
+
+        if (cy + _fontheight > bottom) break;
+
+        src += q - p;
+        p = q;
+
+        continue;
+      }
+
+      if (cy + _fontheight > bottom) break;
+    } else {
+      auto s = p;
+      while (s > 0 && text[s - 1] != ' ' && text[s - 1] != '\n') --s;
+
+      auto e = p;
+      while (e < n && text[e] != ' ' && text[e] != '\n') ++e;
+
+      auto word = .0f;
+      for (auto k = s; k < e; ++k) word += _props[static_cast<uint8_t>(text[k])].width + _spacing;
+      word -= _spacing;
+
+      if (cx != x && p == s && cx + word > right) {
+        cx = x;
+        cy += line;
+
+        if (cy + _fontheight > bottom) break;
+
+        continue;
+      }
+
+      const auto width = _props[static_cast<uint8_t>(c)].width;
+
+      if (cx + width > right && cx != x) {
+        cx = x;
+        cy += line;
+
+        if (cy + _fontheight > bottom) break;
+
+        continue;
+      }
+
+      if (cy + _fontheight > bottom) break;
+    }
+
+    if (drawn == _props.size()) [[unlikely]] break;
+
+    const auto &glyph = _props[static_cast<uint8_t>(c)];
+    auto gx = cx;
+    auto gy = cy;
+    auto sw = glyph.width;
+    auto sh = glyph.height;
+    auto color = SDL_FColor{1.f, 1.f, 1.f, 1.f};
+    auto angle = .0f;
+
+    if (src < effects.size() &&
+        (!sparse || mask[src / 64] & (uint64_t{1} << (src % 64)))) {
+      const auto &effect = effects[src];
+
+      gx += effect.x_offset;
+      gy += effect.y_offset;
+      sw *= effect.scale;
+      sh *= effect.scale;
+      angle = effect.angle;
+      color = {effect.r, effect.g, effect.b, effect.alpha};
+    }
+
+    auto *out = vertices.data() + drawn * 4;
+
+    if (angle == .0f) [[likely]] {
+      out[0] = SDL_Vertex{{gx, gy}, color, {glyph.u0, glyph.v0}};
+      out[1] = SDL_Vertex{{gx + sw, gy}, color, {glyph.u1, glyph.v0}};
+      out[2] = SDL_Vertex{{gx + sw, gy + sh}, color, {glyph.u1, glyph.v1}};
+      out[3] = SDL_Vertex{{gx, gy + sh}, color, {glyph.u0, glyph.v1}};
+    } else {
+      const auto midx = gx + sw * .5f;
+      const auto midy = gy + sh * .5f;
+
+      float sine, cosine;
+      sincos(angle * (std::numbers::pi_v<float> / 180.f), sine, cosine);
+
+      out[0] = SDL_Vertex{rotate(gx, gy, midx, midy, cosine, sine), color, {glyph.u0, glyph.v0}};
+      out[1] = SDL_Vertex{rotate(gx + sw, gy, midx, midy, cosine, sine), color, {glyph.u1, glyph.v0}};
+      out[2] = SDL_Vertex{rotate(gx + sw, gy + sh, midx, midy, cosine, sine), color, {glyph.u1, glyph.v1}};
+      out[3] = SDL_Vertex{rotate(gx, gy + sh, midx, midy, cosine, sine), color, {glyph.u0, glyph.v1}};
+    }
+
+    cx += glyph.width + _spacing;
+    ++p;
+    ++src;
+    ++drawn;
+  }
+
+  if (drawn == 0) [[unlikely]] return;
+
+  SDL_RenderGeometry(
+    renderer,
+    _texture.get(),
+    vertices.data(),
+    static_cast<int>(drawn * 4),
+    indices.data(),
+    static_cast<int>(drawn * 6)
+  );
+}
+
 template <bool sparse>
 void font::draw(std::string_view text, float x, float y, std::span<const glypheffect> effects, std::span<const uint64_t> active) const {
   if (text.empty()) [[unlikely]] return;
@@ -282,3 +423,12 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
     static_cast<int>(count * 6)
   );
 }
+
+template void font::draw<true>(
+  std::string_view,
+  float,
+  float,
+  float,
+  float,
+  std::span<const glypheffect>,
+  std::span<const uint64_t>) const;

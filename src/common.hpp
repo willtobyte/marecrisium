@@ -94,6 +94,7 @@ extern mcg64 prng;
 #include "gamepad.hpp"
 #include "io.hpp"
 #include "keyboard.hpp"
+#include "label.hpp"
 #include "locales.hpp"
 #include "marshal.hpp"
 #include "mirror.hpp"

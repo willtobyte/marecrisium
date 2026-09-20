@@ -237,16 +237,24 @@ director = nil
 ---@field b? number Blue channel, 0.0-1.0; defaults to 1.
 ---@field alpha? number Opacity, 0.0-1.0; defaults to 1.
 
----@class Font
-local Font = {}
+---@class Label
+local Label = {}
 
----Draw up to 256 non-newline bytes. Effects do not change glyph layout and use 1-based byte indices;
----newlines do not consume an index.
----@param text string
+---Create a windowed text label. The text never leaks the window; words wrap
+---without splitting, overlong words split mid-word, and lines beyond the height are cut.
+---@param font string Font family name from the overlay `fonts` list.
 ---@param x number
 ---@param y number
+---@param w number
+---@param h number
+---@return Label
+function Label.new(font, x, y, w, h) end
+
+---Draw up to 256 bytes inside the window. Auto breaks do not consume an effect index.
+---Call only inside `on_paint`.
+---@param text string
 ---@param effects? table<integer, GlyphEffect> Indices must be from 1 to 256.
-function Font:draw(text, x, y, effects) end
+function Label:draw(text, effects) end
 
 ---Script-owned callbacks and custom state.
 ---@class Overlay
@@ -369,7 +377,6 @@ mirror = nil
 ---Mutable table shared by the active scene, its objects, and its overlay.
 ---Replacing a resource entry does not destroy or rename the engine resource.
 ---@class Pool
----@field pixel Font
 ---@field [string] any
 
 ---Available during callbacks of the active scene, its objects, and its overlay.

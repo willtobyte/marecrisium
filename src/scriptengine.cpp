@@ -44,7 +44,7 @@ void scriptengine::run() {
   achievement::wire();
   cassette::wire();
   mirror::wire();
-  font::wire();
+  label::wire();
   gamepad::wire();
   keyboard::wire();
   locales::wire();
