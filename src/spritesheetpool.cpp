@@ -17,6 +17,7 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
     }
     lua_pop(state, 1);
   }
+
   storage.sequences.reserve(sequences);
   storage.frames.reserve(frames);
   storage.sheet.pixmap = depot->get<pixmap>(std::format("objects/{}", kind));
