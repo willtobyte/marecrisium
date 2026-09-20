@@ -21,12 +21,12 @@ assets/objects/radio/
 Use this format for each frame name:
 
 ```text
-<order>_<duration>_[end_]<animation>.png
+<order>_<duration>_[once_]<animation>.png
 ```
 
 - `order`: Frame position. Start at `00` for each animation.
-- `duration`: Frame duration in milliseconds. Each frame can have a different duration.
-- `end`: Optional marker for the last frame only. It prevents the animation from looping.
+- `duration`: Frame duration in milliseconds. Each frame can have a different duration. Use `-1` to hold the frame forever. The hold frame must be last and must omit `once`.
+- `once`: Optional marker for the last frame only. It prevents the animation from looping.
 - `animation`: Animation name. Use `default` for the initial animation.
 
 ## Add mouse colliders

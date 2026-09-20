@@ -276,10 +276,10 @@ viewport = nil
 ---@field [string] AnimationClip|string
 
 ---Non-empty frame array.
----Frame files use `index_delay_[end_]animation.png`.
+---Frame files use `index_duration_[once_]animation.png`. Duration `-1` holds the frame forever.
 ---@class AnimationClip
 ---@field loop? boolean Repeats by default. `false` stops on the last frame.
----@field [integer] AnimationFrame `{atlas_x, atlas_y, width, height, offset_x, offset_y, source_width, source_height, duration_ms[, collider_x, collider_y, collider_width, collider_height]}`.
+---@field [integer] AnimationFrame `{atlas_x, atlas_y, width, height, offset_x, offset_y, source_width, source_height, duration_ms[, collider_x, collider_y, collider_width, collider_height]}`. `duration_ms` is `-1` for a hold frame.
 
 ---Spawn configuration and shared custom behavior. The engine dispatches the
 ---reserved callbacks from references cached at load time. A write to a reserved

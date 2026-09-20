@@ -246,6 +246,9 @@ void scene::update(float delta) {
     const auto& sequence = object.sprite.sheet->sequences[motion.active];
     const auto& frame = object.sprite.sheet->frames[sequence.offset + motion.current];
 
+    if (std::isinf(frame.duration)) [[unlikely]]
+      continue;
+
     motion.elapsed += delta;
     if (motion.elapsed < frame.duration) [[likely]]
       continue;

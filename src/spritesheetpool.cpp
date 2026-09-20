@@ -90,7 +90,8 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       storage.sheet.source.height = static_cast<uint16_t>(lua_tointeger(state, -1));
 
       lua_rawgeti(state, -9, 9);
-      frame.duration = static_cast<float>(lua_tonumber(state, -1)) / 1000.f;
+      const auto milliseconds = lua_tonumber(state, -1);
+      frame.duration = milliseconds < 0 ? std::numeric_limits<float>::infinity() : static_cast<float>(milliseconds) / 1000.f;
 
       frame.u0 = x * iw;
       frame.v0 = y * ih;

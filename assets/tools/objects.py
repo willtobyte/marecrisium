@@ -20,7 +20,7 @@ rpack = importlib.import_module("rpack")
 
 objects = Path(__file__).resolve().parents[1] / "objects"
 root = objects.parents[1]
-pattern = re.compile(r"^(\d+)_(\d+)_(?:(end)_)?([a-z][a-z0-9.]*)\.png$")
+pattern = re.compile(r"^(\d+)_(-?\d+)_(?:(once)_)?([a-z][a-z0-9.]*)\.png$")
 
 
 def signature(directory: Path, shared: list[Path], buffer: bytearray) -> bytes:
@@ -81,14 +81,19 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     for filename in filenames:
         match = pattern.fullmatch(filename.name)
 
-        order, duration, end, animation = match.groups()
+        order, duration, once, animation = match.groups()
         order = int(order)
         duration = int(duration)
+        assert duration == -1 or duration >= 0, (
+            "frame duration must be -1 or non-negative"
+        )
+        assert not (duration == -1 and once), "hold frame must omit once marker"
+        hold = once or duration == -1
         group = groups.get(animation)
         if group is None:
-            groups[animation] = (order if end else None, [])
+            groups[animation] = (order if hold else None, [])
         else:
-            if end:
+            if hold:
                 groups[animation] = (order, group[1])
 
         source = Image.open(filename)
@@ -195,15 +200,22 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     assert len(groups) <= 255, "object must have at most 255 animations"
     assert len(images) <= 65535, "object must have at most 65535 frames"
 
+    lasts = {}
+    for _, animation, order, _, _, _ in images:
+        lasts[animation] = max(order, lasts.get(animation, -1))
+    for _, animation, order, duration, _, _ in images:
+        if duration == -1:
+            assert order == lasts[animation], "hold frame must be last"
+
     clips = []
-    for animation, (end, frames) in sorted(groups.items()):
+    for animation, (stop, frames) in sorted(groups.items()):
         frames.sort(key=lambda item: item[0])
         assert len(frames) <= 255, "animation must have at most 255 frames"
 
         clips.append(
             {
                 "name": animation,
-                "loop": end is None,
+                "loop": stop is None,
                 "frames": [frame for _, frame in frames],
             }
         )
