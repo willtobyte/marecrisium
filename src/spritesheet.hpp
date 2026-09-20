@@ -12,4 +12,5 @@ struct spritesheet final {
   } source;
   uint8_t count{};
   uint8_t initial{};
+  const std::unordered_map<std::string_view, uint8_t, transparent_string_hash, std::equal_to<>>* lookup{};
 };

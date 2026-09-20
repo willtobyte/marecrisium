@@ -6,18 +6,18 @@ local interact
 return {
 	objects = {
 		{ name = "paperpiece", kind = "paperpiece", x = 0, y = 0 },
-		{ name = "walkie", kind = "walkietalkie", x = 0, y = 0 },
+		{ name = "walkietalkie", kind = "walkietalkie", x = 0, y = 0 },
 	},
 
 	on_enter = function()
-		navigator = navigation.new({ pool.walkie })
-		interact = interaction.new({ pool.walkie })
+		navigator = navigation.new({ pool.walkietalkie })
+		interact = interaction.new({ pool.walkietalkie })
 
-		pool.walkie.on_hover = function(object)
+		pool.walkietalkie.on_hover = function(object)
 			navigation.select(object)
 		end
 
-		pool.walkie.on_unhover = function(object)
+		pool.walkietalkie.on_unhover = function(object)
 			navigation.unselect(object)
 		end
 	end,

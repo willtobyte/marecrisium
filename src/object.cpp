@@ -196,26 +196,17 @@ static int newindex(lua_State* state) {
   if (key == "animation") {
     std::size_t length;
     const auto* data = luaL_checklstring(state, 3, &length);
-    const std::string_view target{data, length};
-
     const auto* sheet = object.sprite.sheet;
-    for (uint8_t i = 0; i < sheet->count; ++i) {
-      lua_rawgeti(state, LUA_REGISTRYINDEX, sheet->sequences[i].name);
-      std::size_t size;
-      const auto* name = lua_tolstring(state, -1, &size);
-      const bool match = size == target.size() && std::memcmp(name, target.data(), size) == 0;
-      lua_pop(state, 1);
+    const auto it = sheet->lookup->find(std::string_view{data, length});
+    const bool known = it != sheet->lookup->end();
+    assert(known && "unknown animation");
+    [[assume(known)]];
 
-      if (match) {
-        object.motion.active = i;
-        object.motion.current = 0;
-        object.motion.elapsed = 0;
+    object.motion.active = it->second;
+    object.motion.current = 0;
+    object.motion.elapsed = 0;
 
-        return 0;
-      }
-    }
-
-    luaL_error(state, "unknown animation");
+    return 0;
   }
 
   lua_getfenv(state, 1);

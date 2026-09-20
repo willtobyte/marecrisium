@@ -126,10 +126,20 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
   storage.sheet.count = static_cast<uint8_t>(storage.sequences.size());
   storage.sheet.initial = initial;
 
-  auto* result = &_pool.emplace(kind, std::move(storage)).first->second.sheet;
+  uint8_t i = 0;
+  for (const auto& sequence : storage.sequences) {
+    lua_rawgeti(state, LUA_REGISTRYINDEX, sequence.name);
+    std::size_t length;
+    const auto* data = lua_tolstring(state, -1, &length);
+    storage.lookup.emplace(std::string_view{data, length}, i++);
+    lua_pop(state, 1);
+  }
+
+  auto& stored = _pool.emplace(kind, std::move(storage)).first->second;
+  stored.sheet.lookup = &stored.lookup;
   lua_pop(state, 1);
 
-  return result;
+  return &stored.sheet;
 }
 
 spritesheetpool::~spritesheetpool() {
