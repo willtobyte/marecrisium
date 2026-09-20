@@ -1,29 +1,71 @@
-# Rules
+# Project instructions
 
-- **Rule Number 0: Always design with simplicity and performance in mind.**
-- **Support only little-endian systems**.
-- **Target idiomatic & modern C++23. Prefer C++ features such as `auto`, `constexpr`, `const`, and `final` whenever appropriate.**
-- **Minimize allocations, copies, and runtime overhead.**
-- **Prefer O(1), SIMD-friendly, branchless, and cache-friendly implementations whenever practical.**
-- **Every C++ change to the Lua API must also update `types/carimbo.lua`.**
-- **LuaJIT only. Keep Lua code LuaJIT-friendly and performance-oriented.**
-- **Use `lua_createtable` for all explicit Lua table creation in C++. Pass known array and hash sizes to avoid extra allocations as tables grow. Use zero for unknown sizes.**
-- **Always use the project `pcall()` wrapper to call Lua functions. Never call `lua_pcall()` or `lua_call()` directly. Check each status and propagate each Lua error to the `catch` block in `src/application.cpp`.**
-- **Every performance-related change requires empirical benchmarking. Always measure and compare the before and after results, and present the evidence demonstrating the impact.**
-- **Measure benchmarks with a high-precision clock, never with FPS. Vsync locks FPS and hides real gains and losses.**
-- **Run release performance measurements with `NOVSYNC=1` and fullscreen enabled. Do not use `WINDOWED=1`.**
-- **Use `assert` and `[[assume(...)]]` only for critical conditions that protect memory, resource lifetime, or data integrity. Do not use them for routine checks of trusted inputs. Every `assert` must include a short, clear error message in English.**
-- **Always assume the happy path. Treat all inputs as safe and trusted.**
-- **Run all benchmarks, profiling, sanitizers, fuzzing, memory-leak detection, allocation tracking, and other instrumentation on macOS 27 using Xcode Instruments and Apple Clang.**
-- **All `#include` directives, of any kind, must be placed exclusively in `common.hpp` (see the current implementation), except `#include <SDL3/SDL_main.h>` in `main.cpp` and the single-header implementations in `miniaudio.cpp` and `stb.cpp`. Keep them grouped by category and sorted alphabetically. We use a precompiled header (PCH).**
-- **Only create functions, methods, or abstractions if they will be used more than once. Prefer linear code whenever possible, as it is easier to read, understand, and maintain.**
-- **Add a blank line before each `return` if another statement comes before it in the same block. Do not add a blank line if `return` is the first statement in the block or file.**
-- **All instrumentation-related code, tests, benchmarks, profiling tools, and similar artifacts must never be placed inside the project directory.**
-- **Git: Never create branches or make commits.**
-- **Prefer single-word variable names whenever they are unambiguous. For local-scope variables, abbreviations or acronyms are preferred over multi-word names whenever they remain clear and unambiguous.**
-- **Must use [SIMDe](https://github.com/simd-everywhere/simde) for all explicit SIMD operations. The code must be fully compatible with Apple Silicon, starting with the M1, as well as ARM64 and Intel CPUs released within the last 10 years.**
-- **Validate all newly created code using fuzzing, while always assuming the happy path.**
-- **Always review the order of struct and class members to improve memory layout and cache efficiency.**
-- **Intern LuaJIT strings that are pushed frequently, such as those used in every loop iteration or every mouse move event. One-off strings do not need to be interned.**
-- **Use the object's `patch.lua.j2` for object changes. Do not edit its generated file in `cartridge/objects/` directly.**
-- **Use the remote `DOCKER_HOST` via SSH at `92.112.178.107` (amd64) for experiments, tests, and any task that needs Windows x64 (via Wine). Avoid the local Docker (OrbStack) unless you need Linux ARM64. Before you run any Docker command, remove all unused Docker data.**
+## General
+
+- Support little-endian systems only.
+- Assume the happy path. Treat inputs as safe and trusted.
+- Always write code that is simple for humans to understand.
+- Never create Git branches or commits.
+
+## C++ and SIMD
+
+- Use modern, idiomatic C++23.
+- Prefer `auto`, `constexpr`, `const`, and `final` when appropriate.
+- Create functions, methods, and abstractions only when they have more than one use.
+- Use single-word variable names when they are clear.
+- Prefer clear abbreviations for local variables when they remain unambiguous.
+- Add a blank line before `return` when another statement precedes it in the same block.
+- Do not add a blank line when `return` is the first statement in a block or file.
+- Minimize allocations, copies, and runtime overhead.
+- Prefer O(1), SIMD-friendly, branchless, and cache-friendly implementations when practical.
+- Use [SIMDe](https://github.com/simd-everywhere/simde) for all explicit SIMD operations.
+- Keep the code compatible with Apple Silicon from M1 onward, ARM64, and Intel CPUs released within the last 10 years.
+- Review struct and class member order for memory layout and cache efficiency.
+- Place all `#include` directives in `common.hpp`.
+- Allow `#include <SDL3/SDL_main.h>` only in `main.cpp`.
+- Allow single-header implementation includes only in `miniaudio.cpp` and `stb.cpp`.
+- Group includes by category and sort them alphabetically.
+- Use the project precompiled header.
+
+## Lua and LuaJIT
+
+- Support LuaJIT only.
+- Keep Lua code LuaJIT-friendly and performance-oriented.
+- Update `types/carimbo.lua` with every C++ change to the Lua API.
+- Use `lua_createtable` for every explicit Lua table created in C++.
+- Pass known array and hash sizes to `lua_createtable`.
+- Pass zero for unknown array or hash sizes.
+- Use the project `pcall()` wrapper for all Lua function calls.
+- Never call `lua_pcall()` or `lua_call()` directly.
+- Check every Lua call status.
+- Propagate every Lua error to the `catch` block in `src/application.cpp`.
+- Intern LuaJIT strings that are pushed frequently, such as strings used in every loop iteration or mouse-move event.
+- Do not intern one-off strings.
+- Use the object's `patch.lua.j2` for object changes.
+- Do not edit generated files in `cartridge/objects/` directly.
+
+## Assertions and validation
+
+- Use `assert` and `[[assume(...)]]` only when necessary to protect memory, resource lifetime, or data integrity.
+- Do not use them on the happy path or for routine checks of trusted inputs.
+- Include a short, clear English error message in every `assert`.
+- Validate all newly created code with fuzzing.
+- Keep instrumentation code, tests, benchmarks, profiling tools, and similar artifacts outside the project directory.
+- Run benchmarks, profiling, sanitizers, fuzzing, memory-leak detection, allocation tracking, and other instrumentation on macOS 27 with Xcode Instruments and Apple Clang.
+
+## Performance
+
+- Benchmark every performance-related change.
+- Measure before and after each meaningful performance change.
+- Reject performance regressions unless they are marginal.
+- Report the measurements and comparison.
+- Use a high-precision clock for benchmarks.
+- Never use FPS as a benchmark metric.
+- Run release performance measurements with `NOVSYNC=1` and fullscreen enabled.
+- Do not use `WINDOWED=1`.
+
+## Docker
+
+- Use the remote Docker host at `92.112.178.107` through SSH and `DOCKER_HOST` for all Linux AMD64 and Windows AMD64 tests, with Windows tests running under Wine64 in Linux containers.
+- Use local Docker through OrbStack only when Linux ARM64 is required or the remote host is unavailable.
+- Before every Docker command, remove all unused Docker data.
