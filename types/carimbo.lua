@@ -303,6 +303,7 @@ viewport = nil
 ---@field name string Instance name (read-only).
 ---@field kind string Prototype kind (read-only).
 ---@field z integer Render order (read/write); defaults to the declaration index in `objects` and higher values draw on top.
+---@field animation string Active animation name (read/write); assigning a sequence name switches to it from the first frame.
 ---@field [string] any Per-object field or dispatched prototype method.
 local Object = {}
 

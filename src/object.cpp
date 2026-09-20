@@ -115,6 +115,13 @@ static int index(lua_State* state) {
     return 1;
   }
 
+  if (key == "animation") {
+    const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
+    lua_rawgeti(state, LUA_REGISTRYINDEX, sequence.name);
+
+    return 1;
+  }
+
   lua_getfenv(state, 1);
   lua_pushvalue(state, 2);
   lua_gettable(state, -2);
@@ -184,6 +191,31 @@ static int newindex(lua_State* state) {
     object.sprite.shown = lua_toboolean(state, 3) != 0;
 
     return 0;
+  }
+
+  if (key == "animation") {
+    std::size_t length;
+    const auto* data = luaL_checklstring(state, 3, &length);
+    const std::string_view target{data, length};
+
+    const auto* sheet = object.sprite.sheet;
+    for (uint8_t i = 0; i < sheet->count; ++i) {
+      lua_rawgeti(state, LUA_REGISTRYINDEX, sheet->sequences[i].name);
+      std::size_t size;
+      const auto* name = lua_tolstring(state, -1, &size);
+      const bool match = size == target.size() && std::memcmp(name, target.data(), size) == 0;
+      lua_pop(state, 1);
+
+      if (match) {
+        object.motion.active = i;
+        object.motion.current = 0;
+        object.motion.elapsed = 0;
+
+        return 0;
+      }
+    }
+
+    luaL_error(state, "unknown animation");
   }
 
   lua_getfenv(state, 1);
