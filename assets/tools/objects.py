@@ -253,4 +253,7 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_bytes(signature(directory, shared, scratch))
 
-    print(f"{name} ({len(groups)} animations, {len(images)} frames)")
+    print(
+        f"{name} ({len(groups)} animations) "
+        + " ".join(f"{clip['name']}={len(clip['frames'])}" for clip in clips)
+    )
