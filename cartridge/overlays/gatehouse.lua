@@ -58,10 +58,10 @@ return {
 	end,
 
 	on_paint = function()
-		a:draw("Mare Crisium log: long text wraps by word, never splits and never leaks.")
-		b:draw("supercalifragilisticexpialidocious breaks mid-word only when wider than w.")
-		c:draw("Short h cuts extra lines clean. This tail stays out. Extra words out.")
-		d:draw("Direct box: Label.new(arcade8, 230, 10, 220, 100) wraps too.")
-		t:draw(title, effects)
+		-- a:draw("Mare Crisium log: long text wraps by word, never splits and never leaks.")
+		-- b:draw("supercalifragilisticexpialidocious breaks mid-word only when wider than w.")
+		-- c:draw("Short h cuts extra lines clean. This tail stays out. Extra words out.")
+		-- d:draw("Direct box: Label.new(arcade8, 230, 10, 220, 100) wraps too.")
+		-- t:draw(title, effects)
 	end,
 }

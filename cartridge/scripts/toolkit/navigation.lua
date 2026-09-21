@@ -72,15 +72,17 @@ function navigator:update()
 	local objects = self.objects
 	local current = self.current or objects[1]
 
-	local x = current.x
-	local y = current.y
+	local cx, cy, cw, ch = current:collider()
+	local x = cx + cw * 0.5
+	local y = cy + ch * 0.5
 	local winner
 	local nearest
 
 	for i = 1, #objects do
 		local object = objects[i]
-		local ox = object.x - x
-		local oy = object.y - y
+		local ox, oy, w, h = object:collider()
+		ox = ox + w * 0.5 - x
+		oy = oy + h * 0.5 - y
 
 		if ox * dx + oy * dy > 0 then
 			local distance = ox * ox + oy * oy
