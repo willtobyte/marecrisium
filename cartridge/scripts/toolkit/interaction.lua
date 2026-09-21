@@ -3,6 +3,19 @@ local interaction = {}
 
 interaction.__index = interaction
 
+local function collider(object)
+	local scale = object.scale
+	if scale == 1 then
+		return object:collider()
+	end
+
+	object.scale = 1
+	local ox, oy, width, height = object:collider()
+	object.scale = scale
+
+	return ox, oy, width, height
+end
+
 function interaction.new(objects)
 	return setmetatable({
 		objects = objects,
@@ -28,7 +41,7 @@ function interaction:update()
 		if object.shown then
 			local z = object.z
 			if not current or z > depth then
-				local ox, oy, width, height = object:collider()
+				local ox, oy, width, height = collider(object)
 				if
 					x >= ox
 					and x < ox + width

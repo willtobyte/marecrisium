@@ -1,5 +1,4 @@
 local tween = require("3rdpary/tween")
-local selected = 1.05
 local breathing = {
 	duration = 0.8,
 	target = { scale = 1.1 },
@@ -23,7 +22,6 @@ return {
 
 	select = function(self)
 		self.animation = "hover"
-		self.scale = selected
 		self.breath = self.breath or {}
 		self.breath.clock = 0
 		local release = self.breath.release
@@ -33,7 +31,13 @@ return {
 			self.breath.tween = self.breath.tween or tween.new(breathing.duration, self, breathing.target, "inOutSine")
 		end
 
-		self.breath.tween:reset()
+		local active = self.breath.tween
+		if active.initial then
+			active.initial.scale = self.scale
+			active.starts[1] = self.scale
+		end
+
+		active:reset()
 	end,
 
 	unselect = function(self)
