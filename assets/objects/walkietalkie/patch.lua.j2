@@ -1,14 +1,4 @@
-{% extends "template.lua.j2" %}
+{% extends "traits/breathing.lua.j2" %}
 {% block animation %}
 		default = "default",
-{% endblock %}
-{% block behaviors %}
-
-	select = function(self)
-		self.animation = "hover"
-	end,
-
-	unselect = function(self)
-		self.animation = "default"
-	end,
 {% endblock %}

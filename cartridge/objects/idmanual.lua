@@ -1,15 +1,25 @@
-{% extends "template.lua.j2" %}
-{% block header %}
 local tween = require("3rdpary/tween")
-local selected = {% block breathing_selected_scale %}1.05{% endblock %}
+local selected = 1.05
 local breathing = {
-	duration = {% block breathing_duration %}0.8{% endblock %},
-	target = { scale = {% block breathing_target_scale %}1.1{% endblock %} },
+	duration = 0.8,
+	target = { scale = 1.1 },
 }
 
 breathing.cycle = breathing.duration * 2
-{% endblock %}
-{% block behaviors %}
+
+return {
+	animation = {
+		default = "default",
+
+		["default"] = {
+			loop = false,
+			{ 0, 0, 56, 51, 277, 178, 480, 270, -1, 0, 0, 56, 51 },
+		},
+		["hover"] = {
+			loop = false,
+			{ 56, 0, 56, 51, 277, 178, 480, 270, -1, 0, 0, 56, 51 },
+		},
+	},
 
 	select = function(self)
 		self.animation = "hover"
@@ -73,4 +83,5 @@ breathing.cycle = breathing.duration * 2
 		breath.clock = phase
 		local clock = phase <= breathing.duration and phase or cycle - phase
 		breath.tween:set(clock)
-	end,{% endblock %}
+	end,
+}
