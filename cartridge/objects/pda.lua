@@ -1,7 +1,7 @@
 local tween = require("3rdpary/tween")
 local breathing = {
 	duration = 0.8,
-	target = { scale = 1.1 },
+	target = { scale = 1.02 },
 }
 
 breathing.cycle = breathing.duration * 2

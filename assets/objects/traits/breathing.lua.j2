@@ -2,8 +2,8 @@
 {% block header %}
 local tween = require("3rdpary/tween")
 local breathing = {
-	duration = {% block breathing_duration %}0.8{% endblock %},
-	target = { scale = {% block breathing_target_scale %}1.1{% endblock %} },
+	duration = 0.8,
+	target = { scale = 1.02 },
 }
 
 breathing.cycle = breathing.duration * 2
