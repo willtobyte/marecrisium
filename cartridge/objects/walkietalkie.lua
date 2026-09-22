@@ -75,13 +75,13 @@ end
 
 return {
 	animation = {
-		default = "default",
+		default = "normal",
 
-		["default"] = {
+		["hover"] = {
 			loop = false,
 			{ 0, 0, 47, 108, 46, 136, 480, 270, -1, 0, 0, 47, 108 },
 		},
-		["hover"] = {
+		["normal"] = {
 			loop = false,
 			{ 47, 0, 47, 108, 46, 136, 480, 270, -1, 0, 0, 47, 108 },
 		},
@@ -93,7 +93,7 @@ return {
 	end,
 
 	unselect = function(self)
-		self.animation = "default"
+		self.animation = "normal"
 		breathing.stop(self)
 	end,
 

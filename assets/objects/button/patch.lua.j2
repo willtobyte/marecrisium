@@ -4,7 +4,7 @@
 local controls = require("helpers/controls")
 {% endblock %}
 {% block animation %}
-		default = "default",
+		default = "normal",
 {% endblock %}
 {% block behaviors %}
 
@@ -18,7 +18,7 @@ local controls = require("helpers/controls")
 	unselect = function(self)
 		self.selected = false
 		self.action = false
-		self.animation = "default"
+		self.animation = "normal"
 		breathing.stop(self)
 	end,
 

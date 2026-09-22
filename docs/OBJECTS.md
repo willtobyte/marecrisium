@@ -9,12 +9,12 @@ Create an object directory with a `frames` subdirectory:
 ```text
 assets/objects/radio/
 ├── colliders/
-│   ├── 00_100_default.png
-│   ├── 01_250_default.png
+│   ├── 00_100_normal.png
+│   ├── 01_250_normal.png
 │   └── 00_150_active.png
 └── frames/
-    ├── 00_100_default.png
-    ├── 01_250_default.png
+    ├── 00_100_normal.png
+    ├── 01_250_normal.png
     └── 00_150_active.png
 ```
 
@@ -27,7 +27,7 @@ Use this format for each frame name:
 - `order`: Frame position. Start at `00` for each animation.
 - `duration`: Frame duration in milliseconds. Each frame can have a different duration. Use `-1` to hold the frame forever. The hold frame must be last and must omit `once`.
 - `once`: Optional marker for the last frame only. It prevents the animation from looping.
-- `animation`: Animation name. Use `default` for the initial animation.
+- `animation`: Animation name. Use `normal` for the initial animation and set `default = "normal"` in the patch. Never name an animation `default`: that key holds the initial-animation marker and a clip with the same name erases it. The engine refuses to load objects with multiple animations and no readable marker.
 
 ## Add mouse colliders
 

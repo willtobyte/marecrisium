@@ -10,6 +10,7 @@ return {
 		{ name = "pda", kind = "pda", x = 0, y = 0 },
 		{ name = "idmanual", kind = "idmanual", x = 0, y = 0 },
 		{ name = "button", kind = "button", x = 0, y = 0 },
+		{ name = "alarmlight", kind = "alarmlight", x = 0, y = 0 },
 	},
 
 	on_enter = function()

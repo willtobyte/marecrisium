@@ -1,6 +1,6 @@
 return {
 	animation = {
-		["default"] = {
+		["normal"] = {
 			loop = false,
 			{ 0, 0, 15, 26, 155, 53, 480, 270, -1 },
 		},

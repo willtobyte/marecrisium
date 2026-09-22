@@ -77,13 +77,13 @@ local controls = require("helpers/controls")
 
 return {
 	animation = {
-		default = "default",
+		default = "normal",
 
-		["default"] = {
+		["hover"] = {
 			loop = false,
 			{ 36, 14, 40, 76, 335, 100, 480, 270, -1, 0, 0, 40, 76 },
 		},
-		["hover"] = {
+		["normal"] = {
 			loop = false,
 			{ 76, 14, 40, 76, 335, 100, 480, 270, -1, 0, 0, 40, 76 },
 		},
@@ -103,7 +103,7 @@ return {
 	unselect = function(self)
 		self.selected = false
 		self.action = false
-		self.animation = "default"
+		self.animation = "normal"
 		breathing.stop(self)
 	end,
 
