@@ -21,13 +21,12 @@ assets/objects/radio/
 Use this format for each frame name:
 
 ```text
-<order>_<duration>_[once_]<animation>.png
+<order>_<duration>_<animation>.png
 ```
 
 - `order`: Frame position. Start at `00` for each animation.
-- `duration`: Frame duration in milliseconds. Each frame can have a different duration. Use `-1` to hold the frame forever. The hold frame must be last and must omit `once`.
-- `once`: Optional marker for the last frame only. It prevents the animation from looping.
-- `animation`: Animation name. Use `normal` for the initial animation and set `default = "normal"` in the patch. Never name an animation `default`: that key holds the initial-animation marker and a clip with the same name erases it. The engine refuses to load objects with multiple animations and no readable marker.
+- `duration`: Frame duration in milliseconds. Each frame can have a different duration. Use `-1` to hold the frame forever. The hold frame must be last.
+- `animation`: Animation name. Use `normal` for the initial animation and set `default = "normal"` in the patch. Never name an animation `default`: that key holds the initial-animation marker and a clip with the same name erases it.
 
 ## Add mouse colliders
 
@@ -75,7 +74,7 @@ on_enter = function()
 end,
 ```
 
-The callback receives the object and animation name. It runs at the end of each repeating cycle, or once for a non-repeating animation. Each `on_end` call replaces the previous callback.
+The callback receives the object and animation name. It runs at the end of each repeating cycle. Each `on_end` call replaces the previous callback.
 
 ## Generate the objects
 

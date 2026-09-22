@@ -20,7 +20,7 @@ rpack = importlib.import_module("rpack")
 
 objects = Path(__file__).resolve().parents[1] / "objects"
 root = objects.parents[1]
-pattern = re.compile(r"^(\d+)_(-?\d+)_(?:(once)_)?([a-z][a-z0-9.]*)\.png$")
+pattern = re.compile(r"^(\d+)_(-?\d+)_([a-z][a-z0-9.]*)\.png$")
 
 
 def signature(directory: Path, shared: list[Path], buffer: bytearray) -> bytes:
@@ -81,20 +81,15 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     for filename in filenames:
         match = pattern.fullmatch(filename.name)
 
-        order, duration, once, animation = match.groups()
+        order, duration, animation = match.groups()
         order = int(order)
         duration = int(duration)
         assert duration == -1 or duration >= 0, (
             "frame duration must be -1 or non-negative"
         )
-        assert not (duration == -1 and once), "hold frame must omit once marker"
-        hold = once or duration == -1
         group = groups.get(animation)
         if group is None:
-            groups[animation] = (order if hold else None, [])
-        else:
-            if hold:
-                groups[animation] = (order, group[1])
+            groups[animation] = []
 
         source = Image.open(filename)
         image = source if source.mode == "RGBA" else source.convert("RGBA")
@@ -194,7 +189,7 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         if collider:
             frame += ", " + ", ".join(map(str, collider))
 
-        groups[animation][1].append((order, frame))
+        groups[animation].append((order, frame))
         image.close()
 
     assert len(groups) <= 255, "object must have at most 255 animations"
@@ -208,14 +203,13 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
             assert order == lasts[animation], "hold frame must be last"
 
     clips = []
-    for animation, (stop, frames) in sorted(groups.items()):
+    for animation, frames in sorted(groups.items()):
         frames.sort(key=lambda item: item[0])
         assert len(frames) <= 255, "animation must have at most 255 frames"
 
         clips.append(
             {
                 "name": animation,
-                "loop": stop is None,
                 "frames": [frame for _, frame in frames],
             }
         )

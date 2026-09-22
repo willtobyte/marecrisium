@@ -28,7 +28,6 @@ struct sequence final {
   int name{LUA_NOREF};
   uint16_t offset{};
   uint8_t count{};
-  bool loop{true};
 };
 
 struct prototype final {

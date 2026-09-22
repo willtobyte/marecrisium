@@ -1,7 +1,3 @@
-namespace {
-constexpr auto stopped = -std::numeric_limits<float>::infinity();
-}
-
 scene::scene(std::string_view key)
     : _overlay(key),
       _background(std::format("blobs/scenes/{}/background.png", key)) {
@@ -257,12 +253,7 @@ void scene::update(float delta) {
     if (++motion.current < sequence.count)
       continue;
 
-    if (sequence.loop) {
-      motion.current = 0;
-    } else {
-      motion.current = sequence.count - 1;
-      motion.elapsed = stopped;
-    }
+    motion.current = 0;
 
     if (!motion.ending)
       continue;
