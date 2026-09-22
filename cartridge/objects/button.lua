@@ -73,31 +73,53 @@ function breathing.step(self, delta)
 	breath.tween:set(clock)
 end
 
+local controls = require("helpers/controls")
+
 return {
 	animation = {
 		default = "default",
 
 		["default"] = {
 			loop = false,
-			{ 0, 0, 56, 51, 277, 178, 480, 270, -1, 0, 0, 56, 51 },
+			{ 36, 14, 40, 76, 335, 100, 480, 270, -1, 0, 0, 40, 76 },
 		},
 		["hover"] = {
 			loop = false,
-			{ 56, 0, 56, 51, 277, 178, 480, 270, -1, 0, 0, 56, 51 },
+			{ 76, 14, 40, 76, 335, 100, 480, 270, -1, 0, 0, 40, 76 },
+		},
+		["open"] = {
+			loop = false,
+			{ 0, 0, 36, 90, 335, 86, 480, 270, -1, 0, 0, 36, 90 },
 		},
 	},
 
 	select = function(self)
+		self.selected = true
+		self.action = controls.action
 		self.animation = "hover"
 		breathing.start(self)
 	end,
 
 	unselect = function(self)
+		self.selected = false
+		self.action = false
 		self.animation = "default"
 		breathing.stop(self)
 	end,
 
+	on_click = function(self)
+		if self.selected then
+			self.animation = "open"
+		end
+	end,
+
 	on_loop = function(self, delta)
 		breathing.step(self, delta)
+		local action = controls.action
+		if self.selected and action and not self.action then
+			self.animation = "open"
+		end
+
+		self.action = action
 	end,
 }

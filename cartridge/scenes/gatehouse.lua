@@ -9,11 +9,12 @@ return {
 		{ name = "walkietalkie", kind = "walkietalkie", x = 0, y = 0 },
 		{ name = "pda", kind = "pda", x = 0, y = 0 },
 		{ name = "idmanual", kind = "idmanual", x = 0, y = 0 },
+		{ name = "button", kind = "button", x = 0, y = 0 },
 	},
 
 	on_enter = function()
-		navigator = navigation.new({ pool.walkietalkie, pool.pda, pool.idmanual })
-		interact = interaction.new({ pool.walkietalkie, pool.pda, pool.idmanual })
+		navigator = navigation.new({ pool.walkietalkie, pool.pda, pool.idmanual, pool.button })
+		interact = interaction.new({ pool.walkietalkie, pool.pda, pool.idmanual, pool.button })
 
 		pool.walkietalkie.on_hover = function(object)
 			print("ON HOVER")
@@ -38,6 +39,14 @@ return {
 		end
 
 		pool.idmanual.on_unhover = function(object)
+			navigation.unselect(object)
+		end
+
+		pool.button.on_hover = function(object)
+			navigation.select(object)
+		end
+
+		pool.button.on_unhover = function(object)
 			navigation.unselect(object)
 		end
 	end,

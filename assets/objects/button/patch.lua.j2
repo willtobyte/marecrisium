@@ -1,0 +1,39 @@
+{% extends "traits/breathing.lua.j2" %}
+{% block header %}
+{{ super() }}
+local controls = require("helpers/controls")
+{% endblock %}
+{% block animation %}
+		default = "default",
+{% endblock %}
+{% block behaviors %}
+
+	select = function(self)
+		self.selected = true
+		self.action = controls.action
+		self.animation = "hover"
+		breathing.start(self)
+	end,
+
+	unselect = function(self)
+		self.selected = false
+		self.action = false
+		self.animation = "default"
+		breathing.stop(self)
+	end,
+
+	on_click = function(self)
+		if self.selected then
+			self.animation = "open"
+		end
+	end,
+
+	on_loop = function(self, delta)
+		breathing.step(self, delta)
+		local action = controls.action
+		if self.selected and action and not self.action then
+			self.animation = "open"
+		end
+
+		self.action = action
+	end,{% endblock %}
