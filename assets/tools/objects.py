@@ -4,14 +4,11 @@
 # dependencies = ["jinja2", "pillow", "pyoxipng", "rectangle-packer"]
 # ///
 
-import hashlib
 import importlib
 import io
 import math
 import re
 from pathlib import Path
-
-BUFFER_SIZE = 64 * 1024
 
 Image = importlib.import_module("PIL.Image")
 jinja2 = importlib.import_module("jinja2")
@@ -23,57 +20,14 @@ root = objects.parents[1]
 pattern = re.compile(r"^(\d+)_(-?\d+)_([a-z][a-z0-9.]*)\.png$")
 
 
-def signature(directory: Path, shared: list[Path], buffer: bytearray) -> bytes:
-    digest = hashlib.blake2b(digest_size=32)
-    view = memoryview(buffer)
-    for current in sorted(directory.rglob("*")):
-        if current.is_file():
-            digest.update(current.relative_to(directory).as_posix().encode())
-            with current.open("rb", buffering=0) as stream:
-                while size := stream.readinto(buffer):
-                    digest.update(view[:size])
-    for current in shared:
-        digest.update(current.relative_to(objects).as_posix().encode())
-        with current.open("rb", buffering=0) as stream:
-            while size := stream.readinto(buffer):
-                digest.update(view[:size])
-
-    return digest.digest()
-
-
-objects_root = [
-    entry
-    for entry in objects.iterdir()
-    if entry.is_dir() and (entry / "frames").is_dir()
-]
-shared = [
-    current
-    for current in sorted(objects.rglob("*.j2"))
-    if current.is_file()
-    and not any(current.is_relative_to(entry) for entry in objects_root)
-]
-
-scratch = None
-
 for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     filenames = sorted((directory / "frames").glob("*.png"))
     if not filenames:
         continue
 
-    if scratch is None:
-        scratch = bytearray(BUFFER_SIZE)
-
     name = directory.name
     output = root / "cartridge" / "objects" / f"{name}.lua"
     atlas = root / "cartridge" / "blobs" / "objects" / f"{name}.png"
-    cache = root / "build" / ".cache" / "objects" / f"{name}.hash"
-    if (
-        output.is_file()
-        and atlas.is_file()
-        and cache.is_file()
-        and cache.read_bytes() == signature(directory, shared, scratch)
-    ):
-        continue
 
     groups = {}
     images = []
@@ -244,8 +198,6 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         re.sub(r"\n{3,}", "\n\n", re.sub(r"\n\n(?=})", "\n", rendered)).rstrip("\n")
         + "\n"
     )
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    cache.write_bytes(signature(directory, shared, scratch))
 
     print(
         f"{name} ({len(groups)} animations) "
