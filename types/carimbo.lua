@@ -416,8 +416,8 @@ user = nil
 ---@type Platform
 platform = nil
 
----Clipboard text (read/write).
----@type string
+---Clipboard text, nil when empty (read/write).
+---@type string|nil
 clipboard = nil
 
 ---Ask the operating system to open a URL or URI.

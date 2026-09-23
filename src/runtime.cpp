@@ -3,7 +3,10 @@ static int index(lua_State *state) {
     return 0;
 
   const auto text = std::unique_ptr<char, SDL_Deleter>{SDL_GetClipboardText()};
-  lua_pushstring(state, text.get());
+  if (text && *text.get())
+    lua_pushstring(state, text.get());
+  else
+    lua_pushnil(state);
 
   return 1;
 }
