@@ -1,0 +1,95 @@
+{% extends "template.lua.j2" %}
+{% block header %}
+local tween = require("3rdpary/tween")
+local vibration = {
+	duration = 0.5,
+	amplitude = 1,
+	rounds = 1,
+}
+
+vibration.cycle = vibration.duration * 2
+vibration.total = vibration.cycle * vibration.rounds
+vibration.wave = math.pi / vibration.duration
+
+function vibration.start(self)
+	self.vibe = self.vibe or {}
+	self.vibe.clock = 0
+	self.vibe.tween = nil
+	self.angle = 0
+end
+
+function vibration.stop(self)
+	local vibe = self.vibe
+	if not vibe or not vibe.clock then
+		self.angle = 0
+
+		return
+	end
+
+	local release = vibe.release
+	if not release then
+		release = {
+			tween = tween.new(vibration.duration, self, { angle = 0 }, "inOutSine"),
+		}
+
+		release.set = function(_, clock)
+			if vibe.clock >= vibration.duration then
+				vibe.clock = false
+				self.angle = 0
+
+				return
+			end
+
+			release.tween:set(clock)
+		end
+		vibe.release = release
+	else
+		release.tween.initial.angle = self.angle
+		release.tween.starts[1] = self.angle
+	end
+
+	vibe.clock = 0
+	vibe.tween = release
+	release.tween:reset()
+end
+
+function vibration.step(self, delta)
+	local vibe = self.vibe
+	local phase = vibe and vibe.clock
+	if not phase then
+		return
+	end
+
+	phase = phase + delta
+	if phase >= vibration.total then
+		vibe.clock = false
+		self.angle = 0
+
+		return
+	end
+
+	vibe.clock = phase
+	if vibe.tween then
+		vibe.tween:set(phase)
+
+		return
+	end
+
+	self.angle = vibration.amplitude * math.sin(phase * vibration.wave)
+end
+{% endblock %}
+{% block behaviors %}
+
+	select = function(self)
+		self.animation = "hover"
+		vibration.start(self)
+	end,
+
+	unselect = function(self)
+		self.animation = "normal"
+		vibration.stop(self)
+	end,
+
+	on_loop = function(self, delta)
+		vibration.step(self, delta)
+	end,{% endblock %}
