@@ -1,6 +1,6 @@
 return {
 	animation = {
-		default = "normal",
+		default = "on",
 
 		["normal"] = {
 			{ 46, 25, 30, 25, 336, 60, 480, 270, -1 },
