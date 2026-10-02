@@ -51,6 +51,7 @@ void scriptengine::run() {
   mouse::wire();
   objects::wire();
   particleemitter::wire();
+  platform::wire();
   runtime::wire();
   sound::wire();
   user::wire();

@@ -140,9 +140,11 @@ int sound::on_end_callback(lua_State* state) {
   auto* instance = get(state);
   luaL_checktype(state, 2, LUA_TFUNCTION);
 
+  luaL_unref(state, LUA_REGISTRYINDEX, instance->_callback);
   lua_pushvalue(state, 2);
   instance->_callback = luaL_ref(state, LUA_REGISTRYINDEX);
 
+  luaL_unref(state, LUA_REGISTRYINDEX, instance->_self);
   lua_pushvalue(state, 1);
   instance->_self = luaL_ref(state, LUA_REGISTRYINDEX);
 
