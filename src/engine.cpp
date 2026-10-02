@@ -111,6 +111,11 @@ void engine::loop() {
         }
         break;
 
+      case SDL_EVENT_WINDOW_FOCUS_LOST:
+      case SDL_EVENT_WINDOW_FOCUS_GAINED:
+        _paused = event.type == SDL_EVENT_WINDOW_FOCUS_LOST;
+        break;
+
       case SDL_EVENT_QUIT:
         _running = false;
 
@@ -125,12 +130,13 @@ void engine::loop() {
 
   SteamAPI_RunCallbacks();
 
-  // if (!SDL_GetKeyboardFocus()) {
-  //  SDL_WaitEventTimeout(nullptr, 20);
-  //  prior = SDL_GetPerformanceCounter();
-  //
-  //  return;
-  // }
+  if (_paused) {
+    SDL_WaitEventTimeout(nullptr, 20);
+    prior = SDL_GetPerformanceCounter();
+
+    std::println("[paused]");
+    return;
+  }
 
   static const auto frequency = static_cast<double>(SDL_GetPerformanceFrequency());
   const auto now = SDL_GetPerformanceCounter();

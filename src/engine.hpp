@@ -10,4 +10,5 @@ public:
 private:
   director _director;
   bool _running{true};
+  bool _paused{false};
 };
