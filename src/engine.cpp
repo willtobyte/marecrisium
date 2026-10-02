@@ -129,12 +129,15 @@ void engine::loop() {
   }
 
   static auto prior = SDL_GetPerformanceCounter();
+  static auto tick{prior};
+  static auto frames{0};
 
   SteamAPI_RunCallbacks();
 
   if (background) {
     SDL_WaitEventTimeout(nullptr, 20);
-    prior = SDL_GetPerformanceCounter();
+    prior = tick = SDL_GetPerformanceCounter();
+    frames = 0;
 
     return;
   }
@@ -144,8 +147,6 @@ void engine::loop() {
   const auto delta = std::min(static_cast<float>((now - prior) / frequency), 1.f / 30.f);
   prior = now;
 
-  static auto tick = now;
-  static auto frames = 0;
   ++frames;
   const auto elapsed = static_cast<double>(now - tick) / frequency;
 
