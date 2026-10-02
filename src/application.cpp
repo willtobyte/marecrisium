@@ -4,9 +4,9 @@ int application::run() {
   {
     char buffer[256]{};
 
-    if (auto* const f = std::fopen("sentry.dsn", "r")) {
-      std::fgets(buffer, sizeof buffer, f);
-      std::fclose(f);
+    if (auto* const file = std::fopen("sentry.dsn", "r")) {
+      std::fgets(buffer, sizeof buffer, file);
+      std::fclose(file);
     }
 
     buffer[std::strcspn(buffer, "\r\n")] = '\0';
