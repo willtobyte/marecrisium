@@ -39,7 +39,7 @@ int application::run() {
   try {
     io::mount("cartridge.rom");
 
-    scriptengine se;
+    scriptengine se{};
     se.run();
   } catch (const std::exception& exception) {
     const auto message = exception.what();
