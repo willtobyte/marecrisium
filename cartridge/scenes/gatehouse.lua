@@ -18,12 +18,10 @@ return {
 		interact = interaction.new({ pool.walkietalkie, pool.datapad, pool.handbook, pool.panicbutton })
 
 		pool.walkietalkie.on_hover = function(object)
-			print("ON HOVER")
 			navigation.select(object)
 		end
 
 		pool.walkietalkie.on_unhover = function(object)
-			print("ON UNNNNHOVER")
 			navigation.unselect(object)
 		end
 
