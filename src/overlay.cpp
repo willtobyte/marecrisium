@@ -50,8 +50,6 @@ overlay::~overlay() {
 }
 
 void overlay::appear() {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
-
   if (_on_appear != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_appear);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
