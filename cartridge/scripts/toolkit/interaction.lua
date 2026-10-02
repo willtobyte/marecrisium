@@ -17,10 +17,12 @@ local function collider(object)
 end
 
 function interaction.new(objects)
+	local _, _, left = snapshot()
+
 	return setmetatable({
 		objects = objects,
 		current = false,
-		left = mouse.left,
+		left = left,
 	}, interaction)
 end
 

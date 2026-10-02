@@ -61,15 +61,9 @@ keyboard = nil
 
 -- Mouse
 
----Read-only position and button state; `shown` is read/write.
+---Mouse state; `shown` is read/write.
 ---@class Mouse
----@field x number World X coordinate (read-only).
----@field y number World Y coordinate (read-only).
----@field xy fun(): number, number Returns world x and y. Does not create a table.
----@field snapshot fun(): number, number, boolean, boolean Returns world x, y, and left and right button states. Does not create a table.
----@field left boolean Left button state (read-only).
----@field middle boolean Middle button state (read-only).
----@field right boolean Right button state (read-only).
+---@field snapshot fun(): number, number, boolean Returns world x, y, and left button state. Does not create a table.
 ---@field shown boolean Cursor visibility (read/write).
 
 ---@type Mouse
