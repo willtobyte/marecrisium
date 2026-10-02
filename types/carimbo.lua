@@ -1,6 +1,5 @@
 ---@meta
 
----@alias Vector2 [number, number]
 ---@alias ParticleRange [number, number]
 ---@alias AnimationFrame [number, number, number, number, number, number, number, number, number]|[number, number, number, number, number, number, number, number, number, number, number, number, number]
 ---@alias MouseButton "left"|"middle"|"right"
