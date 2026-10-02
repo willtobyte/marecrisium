@@ -95,6 +95,8 @@ void engine::run() {
 }
 
 void engine::loop() {
+  static bool background{false};
+
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
@@ -113,7 +115,7 @@ void engine::loop() {
 
       case SDL_EVENT_WINDOW_FOCUS_LOST:
       case SDL_EVENT_WINDOW_FOCUS_GAINED:
-        _paused = event.type == SDL_EVENT_WINDOW_FOCUS_LOST;
+        background = event.type == SDL_EVENT_WINDOW_FOCUS_LOST;
         break;
 
       case SDL_EVENT_QUIT:
@@ -130,7 +132,7 @@ void engine::loop() {
 
   SteamAPI_RunCallbacks();
 
-  if (_paused) {
+  if (background) {
     SDL_WaitEventTimeout(nullptr, 20);
     prior = SDL_GetPerformanceCounter();
 
