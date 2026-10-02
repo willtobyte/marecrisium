@@ -93,6 +93,7 @@ return {
 	select = function(self)
 		self.selected = true
 		self.action = controls.action
+		self.dismiss = controls.dismiss
 		self.animation = "hover"
 		breathing.start(self)
 	end,
@@ -100,6 +101,7 @@ return {
 	unselect = function(self)
 		self.selected = false
 		self.action = false
+		self.dismiss = false
 		self.animation = "normal"
 		breathing.stop(self)
 	end,
@@ -113,10 +115,14 @@ return {
 	on_loop = function(self, delta)
 		breathing.step(self, delta)
 		local action = controls.action
+		local dismiss = controls.dismiss
 		if self.selected and action and not self.action then
 			self.animation = "open"
+		elseif self.selected and dismiss and not self.dismiss then
+			self.animation = "hover"
 		end
 
 		self.action = action
+		self.dismiss = dismiss
 	end,
 }
