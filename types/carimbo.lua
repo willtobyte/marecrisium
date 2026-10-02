@@ -63,7 +63,7 @@ keyboard = nil
 
 ---Mouse state; `shown` is read/write.
 ---@class Mouse
----@field snapshot fun(): number, number, boolean Returns world x, y, and left button state. Does not create a table.
+---@field snapshot fun(): number, number, boolean Returns world x, y, and left button state.
 ---@field shown boolean Cursor visibility (read/write).
 
 ---@type Mouse
