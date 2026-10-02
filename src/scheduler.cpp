@@ -54,7 +54,7 @@ scheduler::handle scheduler::add(double milliseconds, bool repeat, callback call
   else
     _live &= static_cast<std::uint16_t>(~bit);
 
-  return handle{
+  return {
     .life = _life,
     .owner = this,
     .slot = static_cast<std::uint32_t>(index),
@@ -153,7 +153,7 @@ void scheduler::update(float delta) {
 }
 
 void scheduler::clear() noexcept {
-  auto bits = std::exchange(_used, std::uint16_t{});
+  auto bits = std::exchange(_used, {});
   _live = 0;
   _hold = 0;
   _repeat = 0;

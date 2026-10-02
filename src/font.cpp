@@ -309,10 +309,10 @@ void font::draw(
     auto *out = vertices.data() + drawn * 4;
 
     if (angle == .0f) [[likely]] {
-      out[0] = SDL_Vertex{{gx, gy}, color, {glyph.u0, glyph.v0}};
-      out[1] = SDL_Vertex{{gx + sw, gy}, color, {glyph.u1, glyph.v0}};
-      out[2] = SDL_Vertex{{gx + sw, gy + sh}, color, {glyph.u1, glyph.v1}};
-      out[3] = SDL_Vertex{{gx, gy + sh}, color, {glyph.u0, glyph.v1}};
+      out[0] = {{gx, gy}, color, {glyph.u0, glyph.v0}};
+      out[1] = {{gx + sw, gy}, color, {glyph.u1, glyph.v0}};
+      out[2] = {{gx + sw, gy + sh}, color, {glyph.u1, glyph.v1}};
+      out[3] = {{gx, gy + sh}, color, {glyph.u0, glyph.v1}};
     } else {
       const auto midx = gx + sw * .5f;
       const auto midy = gy + sh * .5f;
@@ -320,10 +320,10 @@ void font::draw(
       float sine, cosine;
       sincos(angle * (std::numbers::pi_v<float> / 180.f), sine, cosine);
 
-      out[0] = SDL_Vertex{rotate(gx, gy, midx, midy, cosine, sine), color, {glyph.u0, glyph.v0}};
-      out[1] = SDL_Vertex{rotate(gx + sw, gy, midx, midy, cosine, sine), color, {glyph.u1, glyph.v0}};
-      out[2] = SDL_Vertex{rotate(gx + sw, gy + sh, midx, midy, cosine, sine), color, {glyph.u1, glyph.v1}};
-      out[3] = SDL_Vertex{rotate(gx, gy + sh, midx, midy, cosine, sine), color, {glyph.u0, glyph.v1}};
+      out[0] = {rotate(gx, gy, midx, midy, cosine, sine), color, {glyph.u0, glyph.v0}};
+      out[1] = {rotate(gx + sw, gy, midx, midy, cosine, sine), color, {glyph.u1, glyph.v0}};
+      out[2] = {rotate(gx + sw, gy + sh, midx, midy, cosine, sine), color, {glyph.u1, glyph.v1}};
+      out[3] = {rotate(gx, gy + sh, midx, midy, cosine, sine), color, {glyph.u0, glyph.v1}};
     }
 
     cx += glyph.width + _spacing;
@@ -391,10 +391,10 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
 
     auto *out = vertices.data() + count * 4;
     if (angle == .0f) [[likely]] {
-      out[0] = SDL_Vertex{{gx, gy}, color, {glyph.u0, glyph.v0}};
-      out[1] = SDL_Vertex{{gx + sw, gy}, color, {glyph.u1, glyph.v0}};
-      out[2] = SDL_Vertex{{gx + sw, gy + sh}, color, {glyph.u1, glyph.v1}};
-      out[3] = SDL_Vertex{{gx, gy + sh}, color, {glyph.u0, glyph.v1}};
+      out[0] = {{gx, gy}, color, {glyph.u0, glyph.v0}};
+      out[1] = {{gx + sw, gy}, color, {glyph.u1, glyph.v0}};
+      out[2] = {{gx + sw, gy + sh}, color, {glyph.u1, glyph.v1}};
+      out[3] = {{gx, gy + sh}, color, {glyph.u0, glyph.v1}};
     } else {
       const auto midx = gx + sw * .5f;
       const auto midy = gy + sh * .5f;
@@ -402,10 +402,10 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
       float sine, cosine;
       sincos(angle * (std::numbers::pi_v<float> / 180.f), sine, cosine);
 
-      out[0] = SDL_Vertex{rotate(gx, gy, midx, midy, cosine, sine), color, {glyph.u0, glyph.v0}};
-      out[1] = SDL_Vertex{rotate(gx + sw, gy, midx, midy, cosine, sine), color, {glyph.u1, glyph.v0}};
-      out[2] = SDL_Vertex{rotate(gx + sw, gy + sh, midx, midy, cosine, sine), color, {glyph.u1, glyph.v1}};
-      out[3] = SDL_Vertex{rotate(gx, gy + sh, midx, midy, cosine, sine), color, {glyph.u0, glyph.v1}};
+      out[0] = {rotate(gx, gy, midx, midy, cosine, sine), color, {glyph.u0, glyph.v0}};
+      out[1] = {rotate(gx + sw, gy, midx, midy, cosine, sine), color, {glyph.u1, glyph.v0}};
+      out[2] = {rotate(gx + sw, gy + sh, midx, midy, cosine, sine), color, {glyph.u1, glyph.v1}};
+      out[3] = {rotate(gx, gy + sh, midx, midy, cosine, sine), color, {glyph.u0, glyph.v1}};
     }
 
     cx += glyph.width + _spacing;

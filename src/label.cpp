@@ -79,7 +79,7 @@ int paint(lua_State *state) {
     count = std::max(count, slot + 1);
   }
 
-  self->draw<true>(text, std::span{effects.data(), count}, active);
+  self->draw<true>(text, {effects.data(), count}, active);
 
   return 0;
 }

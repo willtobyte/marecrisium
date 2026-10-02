@@ -197,7 +197,7 @@ static int newindex(lua_State* state) {
     std::size_t length;
     const auto* data = luaL_checklstring(state, 3, &length);
     const auto* sheet = object.sprite.sheet;
-    const auto it = sheet->lookup->find(std::string_view{data, length});
+    const auto it = sheet->lookup->find({data, length});
     const bool known = it != sheet->lookup->end();
     assert(known && "unknown animation");
     [[assume(known)]];
@@ -234,7 +234,7 @@ void objects::bind(object& object, dirty& dirty, std::string_view name, std::str
     lua_setfenv(L, -2);
 
     object.script.instance = luaL_ref(L, LUA_REGISTRYINDEX);
-    *memory = proxy{
+    *memory = {
       .object = &object,
       .dirty = &dirty,
     };
@@ -285,7 +285,7 @@ void objects::bind(object& object, dirty& dirty, std::string_view name, std::str
   lua_setfenv(L, -2);
 
   object.script.instance = luaL_ref(L, LUA_REGISTRYINDEX);
-  *memory = proxy{
+  *memory = {
     .object = &object,
     .dirty = &dirty,
   };

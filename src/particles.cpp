@@ -120,10 +120,10 @@ particleemitter::particleemitter(const config& config, const pixmap& texture, fl
 
   for (auto i = 0uz; i < count; ++i) {
     auto *vertices = _vertices.get() + i * 4;
-    vertices[0] = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {.0f, .0f}};
-    vertices[1] = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {1.f, .0f}};
-    vertices[2] = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {1.f, 1.f}};
-    vertices[3] = SDL_Vertex{{}, {1.f, 1.f, 1.f, .0f}, {.0f, 1.f}};
+    vertices[0] = {{}, {1.f, 1.f, 1.f, .0f}, {.0f, .0f}};
+    vertices[1] = {{}, {1.f, 1.f, 1.f, .0f}, {1.f, .0f}};
+    vertices[2] = {{}, {1.f, 1.f, 1.f, .0f}, {1.f, 1.f}};
+    vertices[3] = {{}, {1.f, 1.f, 1.f, .0f}, {.0f, 1.f}};
   }
 }
 
