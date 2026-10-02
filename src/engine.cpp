@@ -136,7 +136,6 @@ void engine::loop() {
     SDL_WaitEventTimeout(nullptr, 20);
     prior = SDL_GetPerformanceCounter();
 
-    std::println("[paused]");
     return;
   }
 
