@@ -1,7 +1,8 @@
 namespace {
 template <typename T>
-void number(lua_State *state, int table, const char *field, T &value, T fallback = {}) {
-  lua_getfield(state, table, field);
+void number(lua_State *state, int key, T &value, T fallback = {}) {
+  lua_pushvalue(state, lua_upvalueindex(key));
+  lua_rawget(state, -2);
 
   int valid;
   const auto result = lua_tonumberx(state, -1, &valid);
@@ -12,8 +13,9 @@ void number(lua_State *state, int table, const char *field, T &value, T fallback
 }
 
 template <typename T>
-void number(lua_State *state, int table, const char *field, T &value, T fallback, T minimum, T maximum) {
-  lua_getfield(state, table, field);
+void number(lua_State *state, int key, T &value, T fallback, T minimum, T maximum) {
+  lua_pushvalue(state, lua_upvalueindex(key));
+  lua_rawget(state, -2);
 
   int valid;
   const auto result = lua_tonumberx(state, -1, &valid);
@@ -67,14 +69,14 @@ int paint(lua_State *state) {
     active[slot / 64] |= uint64_t{1} << (slot % 64);
 
     auto &effect = effects[slot];
-    number(state, -1, "x_offset", effect.x_offset, .0f);
-    number(state, -1, "y_offset", effect.y_offset, .0f);
-    number(state, -1, "scale", effect.scale, 1.f);
-    number(state, -1, "angle", effect.angle, .0f);
-    number(state, -1, "alpha", effect.alpha, 1.f, .0f, 1.f);
-    number(state, -1, "r", effect.r, 1.f, .0f, 1.f);
-    number(state, -1, "g", effect.g, 1.f, .0f, 1.f);
-    number(state, -1, "b", effect.b, 1.f, .0f, 1.f);
+    number(state, 1, effect.x_offset, .0f);
+    number(state, 2, effect.y_offset, .0f);
+    number(state, 3, effect.scale, 1.f);
+    number(state, 4, effect.angle, .0f);
+    number(state, 5, effect.alpha, 1.f, .0f, 1.f);
+    number(state, 6, effect.r, 1.f, .0f, 1.f);
+    number(state, 7, effect.g, 1.f, .0f, 1.f);
+    number(state, 8, effect.b, 1.f, .0f, 1.f);
 
     count = std::max(count, slot + 1);
   }
@@ -92,7 +94,9 @@ void label::wire() {
   lua_createtable(L, 0, 2);
   lua_pushliteral(L, "Label");
   lua_setfield(L, -2, "__name");
-  lua_pushcfunction(L, paint);
+  for (const auto *key : {"x_offset", "y_offset", "scale", "angle", "alpha", "r", "g", "b"})
+    lua_pushstring(L, key);
+  lua_pushcclosure(L, paint, 8);
   lua_setfield(L, -2, "draw");
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
