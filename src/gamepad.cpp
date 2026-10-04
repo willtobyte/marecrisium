@@ -1,33 +1,28 @@
-static SDL_GamepadAxis axis(std::string_view key) {
-  if (key == "left_x") return SDL_GAMEPAD_AXIS_LEFTX;
-  if (key == "left_y") return SDL_GAMEPAD_AXIS_LEFTY;
-  if (key == "right_x") return SDL_GAMEPAD_AXIS_RIGHTX;
-  if (key == "right_y") return SDL_GAMEPAD_AXIS_RIGHTY;
-  if (key == "trigger_left") return SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
-  if (key == "trigger_right") return SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
-
-  return SDL_GAMEPAD_AXIS_INVALID;
-}
-
-static SDL_GamepadButton button(std::string_view key) {
-  if (key == "south") return SDL_GAMEPAD_BUTTON_SOUTH;
-  if (key == "east") return SDL_GAMEPAD_BUTTON_EAST;
-  if (key == "west") return SDL_GAMEPAD_BUTTON_WEST;
-  if (key == "north") return SDL_GAMEPAD_BUTTON_NORTH;
-  if (key == "back") return SDL_GAMEPAD_BUTTON_BACK;
-  if (key == "guide") return SDL_GAMEPAD_BUTTON_GUIDE;
-  if (key == "start") return SDL_GAMEPAD_BUTTON_START;
-  if (key == "shoulder_left") return SDL_GAMEPAD_BUTTON_LEFT_SHOULDER;
-  if (key == "shoulder_right") return SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER;
-  if (key == "stick_left") return SDL_GAMEPAD_BUTTON_LEFT_STICK;
-  if (key == "stick_right") return SDL_GAMEPAD_BUTTON_RIGHT_STICK;
-  if (key == "up") return SDL_GAMEPAD_BUTTON_DPAD_UP;
-  if (key == "down") return SDL_GAMEPAD_BUTTON_DPAD_DOWN;
-  if (key == "left") return SDL_GAMEPAD_BUTTON_DPAD_LEFT;
-  if (key == "right") return SDL_GAMEPAD_BUTTON_DPAD_RIGHT;
-
-  return SDL_GAMEPAD_BUTTON_INVALID;
-}
+static keyring<
+  "left_x",
+  "left_y",
+  "right_x",
+  "right_y",
+  "trigger_left",
+  "trigger_right",
+  "south",
+  "east",
+  "west",
+  "north",
+  "back",
+  "guide",
+  "start",
+  "shoulder_left",
+  "shoulder_right",
+  "stick_left",
+  "stick_right",
+  "up",
+  "down",
+  "left",
+  "right",
+  "connected",
+  "name"
+> keys;
 
 static constexpr auto threshold = .1f;
 
@@ -130,44 +125,68 @@ static int led_callback(lua_State *state) {
   return 1;
 }
 
+static int axis(lua_State *state, SDL_Gamepad *gamepad, SDL_GamepadAxis value) {
+  lua_pushnumber(state, gamepad
+    ? static_cast<lua_Number>(deadzone(SDL_GetGamepadAxis(gamepad, value)))
+    : lua_Number{});
+
+  return 1;
+}
+
+static int button(lua_State *state, SDL_Gamepad *gamepad, SDL_GamepadButton value) {
+  lua_pushboolean(state, gamepad && SDL_GetGamepadButton(gamepad, value));
+
+  return 1;
+}
+
 static int index(lua_State *state) {
-  std::size_t length;
-  const auto* data = luaL_checklstring(state, 2, &length);
-  const std::string_view key{data, length};
   auto *const gamepad = ptr.load();
 
-  if (const auto value = axis(key); value != SDL_GAMEPAD_AXIS_INVALID) [[likely]] {
-    lua_pushnumber(state, gamepad
-      ? static_cast<lua_Number>(deadzone(SDL_GetGamepadAxis(gamepad, value)))
-      : lua_Number{});
+  switch (keys.find(lua_tostring(state, 2))) {
+  case keys.id<"left_x">(): return axis(state, gamepad, SDL_GAMEPAD_AXIS_LEFTX);
+  case keys.id<"left_y">(): return axis(state, gamepad, SDL_GAMEPAD_AXIS_LEFTY);
+  case keys.id<"right_x">(): return axis(state, gamepad, SDL_GAMEPAD_AXIS_RIGHTX);
+  case keys.id<"right_y">(): return axis(state, gamepad, SDL_GAMEPAD_AXIS_RIGHTY);
+  case keys.id<"trigger_left">(): return axis(state, gamepad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
+  case keys.id<"trigger_right">(): return axis(state, gamepad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
+  case keys.id<"south">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_SOUTH);
+  case keys.id<"east">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_EAST);
+  case keys.id<"west">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_WEST);
+  case keys.id<"north">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_NORTH);
+  case keys.id<"back">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_BACK);
+  case keys.id<"guide">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_GUIDE);
+  case keys.id<"start">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_START);
+  case keys.id<"shoulder_left">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER);
+  case keys.id<"shoulder_right">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER);
+  case keys.id<"stick_left">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_LEFT_STICK);
+  case keys.id<"stick_right">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_RIGHT_STICK);
+  case keys.id<"up">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_DPAD_UP);
+  case keys.id<"down">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN);
+  case keys.id<"left">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT);
+  case keys.id<"right">(): return button(state, gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
 
-    return 1;
-  }
-
-  if (const auto value = button(key); value != SDL_GAMEPAD_BUTTON_INVALID) [[likely]] {
-    lua_pushboolean(state, gamepad && SDL_GetGamepadButton(gamepad, value));
-
-    return 1;
-  }
-
-  if (key == "connected") {
+  case keys.id<"connected">():
     lua_pushboolean(state, gamepad != nullptr);
 
     return 1;
-  }
-  if (key == "name") {
+
+  case keys.id<"name">(): {
     const auto *value = gamepad ? SDL_GetGamepadName(gamepad) : nullptr;
     lua_pushstring(state, value ? value : "");
 
     return 1;
   }
 
-  lua_pushnil(state);
+  default:
+    lua_pushnil(state);
 
-  return 1;
+    return 1;
+  }
 }
 
 void gamepad::wire() {
+  keys.intern();
+
   SDL_AddEventWatch(on_event, nullptr);
   connect();
 

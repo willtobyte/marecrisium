@@ -1,4 +1,9 @@
 namespace {
+keyring<
+  "snapshot",
+  "shown"
+> keys;
+
 static int snapshot(lua_State* state) {
   float x, y;
   const auto button = SDL_GetMouseState(&x, &y);
@@ -15,23 +20,20 @@ static int snapshot(lua_State* state) {
 }
 
 static int index(lua_State *state) {
-  std::size_t length;
-  const auto* data = luaL_checklstring(state, 2, &length);
-  const std::string_view key{data, length};
-
-  if (key == "snapshot") {
+  switch (keys.find(lua_tostring(state, 2))) {
+  case keys.id<"snapshot">():
     lua_pushvalue(state, lua_upvalueindex(1));
 
     return 1;
-  }
 
-  if (key == "shown") [[unlikely]] {
+  case keys.id<"shown">():
     lua_pushboolean(state, SDL_CursorVisible());
 
     return 1;
-  }
 
-  return lua_pushnil(state), 1;
+  default:
+    return lua_pushnil(state), 1;
+  }
 }
 
 static int newindex(lua_State *state) {
@@ -43,6 +45,8 @@ static int newindex(lua_State *state) {
 }
 
 void mouse::wire() {
+  keys.intern();
+
   lua_createtable(L, 0, 3);
   lua_pushliteral(L, "Mouse");
   lua_setfield(L, -2, "__name");

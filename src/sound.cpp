@@ -59,6 +59,12 @@ namespace {
     .onGetLength = length,
   };
 
+  keyring<
+    "volume",
+    "pan",
+    "playing"
+  > keys;
+
   static sound* get(lua_State* state) {
     return *static_cast<sound**>(lua_touserdata(state, 1));
   }
@@ -92,26 +98,25 @@ namespace {
 
   static int index(lua_State* state) {
     auto* instance = get(state);
-    std::size_t length;
-    const auto* data = luaL_checklstring(state, 2, &length);
-    const std::string_view key{data, length};
 
-    if (key == "volume") {
+    switch (keys.find(lua_tostring(state, 2))) {
+    case keys.id<"volume">():
       lua_pushnumber(state, static_cast<lua_Number>(instance->volume()));
 
       return 1;
-    }
 
-    if (key == "pan") {
+    case keys.id<"pan">():
       lua_pushnumber(state, static_cast<lua_Number>(instance->pan()));
 
       return 1;
-    }
 
-    if (key == "playing") {
+    case keys.id<"playing">():
       lua_pushboolean(state, instance->playing());
 
       return 1;
+
+    default:
+      break;
     }
 
     lua_getmetatable(state, 1);
@@ -123,14 +128,19 @@ namespace {
 
   static int newindex(lua_State* state) {
     auto* instance = get(state);
-    std::size_t length;
-    const auto* data = luaL_checklstring(state, 2, &length);
-    const std::string_view key{data, length};
 
-    if (key == "volume")
+    switch (keys.find(lua_tostring(state, 2))) {
+    case keys.id<"volume">():
       instance->set_volume(static_cast<float>(luaL_checknumber(state, 3)));
-    else if (key == "pan")
+      break;
+
+    case keys.id<"pan">():
       instance->set_pan(static_cast<float>(luaL_checknumber(state, 3)));
+      break;
+
+    default:
+      break;
+    }
 
     return 0;
   }
@@ -259,6 +269,8 @@ void sound::fade(float from, float to, uint64_t ms) {
 }
 
 void sound::wire() {
+  keys.intern();
+
   lua_createtable(L, 0, 7);
   lua_pushliteral(L, "Sound");
   lua_setfield(L, -2, "__name");

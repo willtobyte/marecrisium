@@ -27,6 +27,7 @@ int main(int, char**) {
   L = luaL_newstate();
   luaL_openlibs(L);
   lua_pushcfunction(L, traceback);
+  lua_pushvalue(L, -1);
   lua_rawseti(L, LUA_REGISTRYINDEX, slot);
   std::atexit(+[]{ lua_close(L); });
 

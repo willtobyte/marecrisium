@@ -181,6 +181,9 @@ int traceback(lua_State* state) {
 }
 
 int pcall(lua_State* state, int args, int results) {
+  if (lua_tocfunction(state, 1) == traceback) [[likely]]
+    return lua_pcall(state, args, results, 1);
+
   const auto handler = lua_gettop(state) - args;
   lua_rawgeti(state, LUA_REGISTRYINDEX, slot);
   lua_insert(state, handler);

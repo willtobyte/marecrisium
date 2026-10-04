@@ -208,7 +208,7 @@ static int index(lua_State *state) {
   const auto* name = luaL_checklstring(state, 2, &size);
   const auto key = std::string_view{name, size};
 
-  if (key == "clear") {
+  if (lua_rawequal(state, 2, lua_upvalueindex(2))) {
     lua_pushvalue(state, lua_upvalueindex(1));
 
     return 1;
@@ -286,7 +286,8 @@ void cassette::wire() {
   lua_createtable(L, 0, 0);
   lua_createtable(L, 0, 2);
   lua_pushcfunction(L, clear_callback);
-  lua_pushcclosure(L, index, 1);
+  lua_pushliteral(L, "clear");
+  lua_pushcclosure(L, index, 2);
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, newindex);
   lua_setfield(L, -2, "__newindex");

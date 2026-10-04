@@ -187,6 +187,13 @@ struct handle final {
   scheduler::handle value{};
 };
 
+keyring<
+  "active",
+  "cancel",
+  "pause",
+  "resume"
+> keys;
+
 void invoke(std::uint64_t data) {
   lua_rawgeti(L, LUA_REGISTRYINDEX, static_cast<int>(data));
   if (pcall(L, 0, 0) != LUA_OK) [[unlikely]]
@@ -227,24 +234,28 @@ int resume_callback(lua_State* state) {
 
 int index(lua_State* state) {
   auto* const value = check(state);
-  std::size_t length;
-  const auto* const data = luaL_checklstring(state, 2, &length);
-  const std::string_view key{data, length};
 
-  if (key == "active") {
+  switch (keys.find(lua_tostring(state, 2))) {
+  case keys.id<"active">():
     lua_pushboolean(state, scheduler::active(value->value));
+    break;
 
-    return 1;
-  }
-
-  if (key == "cancel")
+  case keys.id<"cancel">():
     lua_pushvalue(state, lua_upvalueindex(1));
-  else if (key == "pause")
+    break;
+
+  case keys.id<"pause">():
     lua_pushvalue(state, lua_upvalueindex(2));
-  else if (key == "resume")
+    break;
+
+  case keys.id<"resume">():
     lua_pushvalue(state, lua_upvalueindex(3));
-  else
+    break;
+
+  default:
     lua_pushnil(state);
+    break;
+  }
 
   return 1;
 }
@@ -289,6 +300,8 @@ int clear_callback(lua_State* state) {
 
 void scheduler::wire() {
   if (!registered) {
+    keys.intern();
+
     lua_createtable(L, 0, 3);
     lua_pushstring(L, name);
     lua_setfield(L, -2, "__name");

@@ -26,45 +26,55 @@ static T* column(T* values, size_t count) noexcept {
   return range.first == range.second ? range.first : prng(range);
 }
 
+static keyring<
+  "active",
+  "x",
+  "y"
+> keys;
+
 static int index(lua_State* state) {
   const auto* self = *static_cast<particleemitter**>(lua_touserdata(state, 1));
-  std::size_t length;
-  const auto* data = luaL_checklstring(state, 2, &length);
-  const std::string_view key{data, length};
 
-  if (key == "active") {
+  switch (keys.find(lua_tostring(state, 2))) {
+  case keys.id<"active">():
     lua_pushboolean(state, self->active());
 
     return 1;
-  }
 
-  if (key == "x") {
+  case keys.id<"x">():
     lua_pushnumber(state, static_cast<lua_Number>(self->x()));
 
     return 1;
-  }
 
-  if (key == "y") {
+  case keys.id<"y">():
     lua_pushnumber(state, static_cast<lua_Number>(self->y()));
 
     return 1;
-  }
 
-  return lua_pushnil(state), 1;
+  default:
+    return lua_pushnil(state), 1;
+  }
 }
 
 static int newindex(lua_State* state) {
   auto* self = *static_cast<particleemitter**>(lua_touserdata(state, 1));
-  std::size_t length;
-  const auto* data = luaL_checklstring(state, 2, &length);
-  const std::string_view key{data, length};
 
-  if (key == "active")
+  switch (keys.find(lua_tostring(state, 2))) {
+  case keys.id<"active">():
     self->set_active(lua_toboolean(state, 3) != 0);
-  else if (key == "x")
+    break;
+
+  case keys.id<"x">():
     self->set_x(static_cast<float>(luaL_checknumber(state, 3)));
-  else if (key == "y")
+    break;
+
+  case keys.id<"y">():
     self->set_y(static_cast<float>(luaL_checknumber(state, 3)));
+    break;
+
+  default:
+    break;
+  }
 
   return 0;
 }
@@ -325,6 +335,8 @@ void particleemitter::draw(const int* indices) {
 }
 
 void particleemitter::wire() {
+  keys.intern();
+
   lua_createtable(L, 0, 3);
   lua_pushliteral(L, "ParticleEmitter");
   lua_setfield(L, -2, "__name");

@@ -1,6 +1,22 @@
 namespace {
 std::unordered_map<std::string, prototype, transparent_string_hash, std::equal_to<>> prototypes;
 
+keyring<
+  "on_end",
+  "collider",
+  "x",
+  "y",
+  "z",
+  "mirror",
+  "shown",
+  "scale",
+  "angle",
+  "alpha",
+  "name",
+  "kind",
+  "animation"
+> keys;
+
 static int collider(lua_State* state) {
   const auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
   const auto alive = self->object != nullptr;
@@ -37,89 +53,90 @@ static int on_end_callback(lua_State* state) {
 
 static int index(lua_State* state) {
   const auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
-  std::size_t length;
-  const auto* data = lua_tolstring(state, 2, &length);
-  const std::string_view key{data, length};
+  const auto& object = *self->object;
 
-  if (key == "on_end") {
+  switch (keys.find(lua_tostring(state, 2))) {
+  case keys.id<"on_end">(): {
     lua_pushvalue(state, lua_upvalueindex(1));
 
     return 1;
   }
 
-  if (key == "collider") {
+  case keys.id<"collider">(): {
     lua_pushvalue(state, lua_upvalueindex(2));
 
     return 1;
   }
 
-  const auto& object = *self->object;
-
-  if (key == "x") {
+  case keys.id<"x">(): {
     lua_pushnumber(state, static_cast<lua_Number>(object.sprite.x));
 
     return 1;
   }
 
-  if (key == "y") {
+  case keys.id<"y">(): {
     lua_pushnumber(state, static_cast<lua_Number>(object.sprite.y));
 
     return 1;
   }
 
-  if (key == "z") {
+  case keys.id<"z">(): {
     lua_pushinteger(state, static_cast<lua_Integer>(object.sprite.z));
 
     return 1;
   }
 
-  if (key == "mirror") {
+  case keys.id<"mirror">(): {
     lua_pushinteger(state, std::to_underlying(object.sprite.mirror));
 
     return 1;
   }
 
-  if (key == "shown") {
+  case keys.id<"shown">(): {
     lua_pushboolean(state, object.sprite.shown);
 
     return 1;
   }
 
-  if (key == "scale") {
+  case keys.id<"scale">(): {
     lua_pushnumber(state, static_cast<lua_Number>(object.sprite.scale));
 
     return 1;
   }
 
-  if (key == "angle") {
+  case keys.id<"angle">(): {
     lua_pushnumber(state, static_cast<lua_Number>(object.sprite.angle));
 
     return 1;
   }
 
-  if (key == "alpha") {
+  case keys.id<"alpha">(): {
     lua_pushnumber(state, static_cast<lua_Number>(object.sprite.alpha));
 
     return 1;
   }
 
-  if (key == "name") {
+  case keys.id<"name">(): {
     lua_rawgeti(state, LUA_REGISTRYINDEX, object.script.label);
 
     return 1;
   }
 
-  if (key == "kind") {
+  case keys.id<"kind">(): {
     lua_rawgeti(state, LUA_REGISTRYINDEX, object.script.blueprint->kind);
 
     return 1;
   }
 
-  if (key == "animation") {
+  case keys.id<"animation">(): {
     const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
     lua_rawgeti(state, LUA_REGISTRYINDEX, sequence.name);
 
     return 1;
+  }
+
+  default:
+    break;
   }
 
   lua_getfenv(state, 1);
@@ -132,25 +149,22 @@ static int index(lua_State* state) {
 
 static int newindex(lua_State* state) {
   auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
-  std::size_t length;
-  const auto* data = lua_tolstring(state, 2, &length);
-  const std::string_view key{data, length};
-
   auto& object = *self->object;
 
-  if (key == "x") {
+  switch (keys.find(lua_tostring(state, 2))) {
+  case keys.id<"x">(): {
     object.sprite.x = static_cast<float>(luaL_checknumber(state, 3));
 
     return 0;
   }
 
-  if (key == "y") {
+  case keys.id<"y">(): {
     object.sprite.y = static_cast<float>(luaL_checknumber(state, 3));
 
     return 0;
   }
 
-  if (key == "z") {
+  case keys.id<"z">(): {
     const auto value = static_cast<int>(luaL_checkinteger(state, 3));
     if (object.sprite.z != value) {
       object.sprite.z = value;
@@ -160,14 +174,14 @@ static int newindex(lua_State* state) {
     return 0;
   }
 
-  if (key == "mirror") {
+  case keys.id<"mirror">(): {
     const auto value = std::clamp(luaL_checkinteger(state, 3), lua_Integer{}, lua_Integer{3});
     object.sprite.mirror = static_cast<mirror::value>(value);
 
     return 0;
   }
 
-  if (key == "scale") {
+  case keys.id<"scale">(): {
     const auto* sheet = object.sprite.sheet;
     const auto& source = sheet->source;
     object.sprite.resize(source.width, source.height, static_cast<float>(luaL_checknumber(state, 3)));
@@ -175,25 +189,25 @@ static int newindex(lua_State* state) {
     return 0;
   }
 
-  if (key == "angle") {
+  case keys.id<"angle">(): {
     object.sprite.angle = static_cast<float>(luaL_checknumber(state, 3));
 
     return 0;
   }
 
-  if (key == "alpha") {
+  case keys.id<"alpha">(): {
     object.sprite.alpha = static_cast<uint8_t>(std::clamp(luaL_checknumber(state, 3), lua_Number{}, static_cast<lua_Number>(255)));
 
     return 0;
   }
 
-  if (key == "shown") {
+  case keys.id<"shown">(): {
     object.sprite.shown = lua_toboolean(state, 3) != 0;
 
     return 0;
   }
 
-  if (key == "animation") {
+  case keys.id<"animation">(): {
     std::size_t length;
     const auto* data = luaL_checklstring(state, 3, &length);
     const auto* sheet = object.sprite.sheet;
@@ -207,6 +221,10 @@ static int newindex(lua_State* state) {
     object.motion.elapsed = 0;
 
     return 0;
+  }
+
+  default:
+    break;
   }
 
   lua_getfenv(state, 1);
@@ -295,6 +313,8 @@ void objects::wire() {
   lua_createtable(L, 0, 3);
   lua_pushliteral(L, "Object");
   lua_setfield(L, -2, "__name");
+
+  keys.intern();
 
   lua_pushcfunction(L, on_end_callback);
   lua_pushcfunction(L, collider);
