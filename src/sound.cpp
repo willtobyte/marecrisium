@@ -60,7 +60,7 @@ namespace {
   };
 
   static sound* get(lua_State* state) {
-    return *static_cast<sound**>(luaL_checkudata(state, 1, "Sound"));
+    return *static_cast<sound**>(lua_touserdata(state, 1));
   }
 
   static int play_callback(lua_State* state) {

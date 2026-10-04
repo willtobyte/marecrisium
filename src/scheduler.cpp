@@ -198,7 +198,7 @@ void release(std::uint64_t data) noexcept {
 }
 
 handle* check(lua_State* state) {
-  return static_cast<handle *>(luaL_checkudata(state, 1, name));
+  return static_cast<handle *>(lua_touserdata(state, 1));
 }
 
 int cancel_callback(lua_State* state) {

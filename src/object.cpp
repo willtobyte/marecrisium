@@ -21,7 +21,7 @@ static int collider(lua_State* state) {
 }
 
 static int on_end_callback(lua_State* state) {
-  auto* self = static_cast<proxy*>(luaL_checkudata(state, 1, "Object"));
+  auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
   luaL_checktype(state, 2, LUA_TFUNCTION);
 
   auto& reference = self->object->script.on_end;

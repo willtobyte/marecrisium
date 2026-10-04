@@ -27,7 +27,7 @@ static T* column(T* values, size_t count) noexcept {
 }
 
 static int index(lua_State* state) {
-  const auto* self = *static_cast<particleemitter**>(luaL_checkudata(state, 1, "ParticleEmitter"));
+  const auto* self = *static_cast<particleemitter**>(lua_touserdata(state, 1));
   std::size_t length;
   const auto* data = luaL_checklstring(state, 2, &length);
   const std::string_view key{data, length};
@@ -54,7 +54,7 @@ static int index(lua_State* state) {
 }
 
 static int newindex(lua_State* state) {
-  auto* self = *static_cast<particleemitter**>(luaL_checkudata(state, 1, "ParticleEmitter"));
+  auto* self = *static_cast<particleemitter**>(lua_touserdata(state, 1));
   std::size_t length;
   const auto* data = luaL_checklstring(state, 2, &length);
   const std::string_view key{data, length};
