@@ -251,23 +251,22 @@ void font::draw(
 
       if (cy + _fontheight > bottom) break;
     } else {
-      auto s = p;
-      while (s > 0 && text[s - 1] != ' ' && text[s - 1] != '\n') --s;
+      if (cx != x && (p == 0 || text[p - 1] == ' ' || text[p - 1] == '\n')) {
+        auto e = p;
+        while (e < n && text[e] != ' ' && text[e] != '\n') ++e;
 
-      auto e = p;
-      while (e < n && text[e] != ' ' && text[e] != '\n') ++e;
+        auto word = .0f;
+        for (auto k = p; k < e; ++k) word += _props[static_cast<uint8_t>(text[k])].width + _spacing;
+        word -= _spacing;
 
-      auto word = .0f;
-      for (auto k = s; k < e; ++k) word += _props[static_cast<uint8_t>(text[k])].width + _spacing;
-      word -= _spacing;
+        if (cx + word > right) {
+          cx = x;
+          cy += line;
 
-      if (cx != x && p == s && cx + word > right) {
-        cx = x;
-        cy += line;
+          if (cy + _fontheight > bottom) break;
 
-        if (cy + _fontheight > bottom) break;
-
-        continue;
+          continue;
+        }
       }
 
       const auto width = _props[static_cast<uint8_t>(c)].width;
