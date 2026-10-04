@@ -2,7 +2,7 @@ namespace {
 std::unordered_map<std::string, prototype, transparent_string_hash, std::equal_to<>> prototypes;
 
 static int collider(lua_State* state) {
-  const auto* self = static_cast<proxy*>(luaL_checkudata(state, 1, "Object"));
+  const auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
   const auto alive = self->object != nullptr;
   assert(alive && "object must be alive when its collider is read");
 

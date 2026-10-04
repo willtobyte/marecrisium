@@ -43,7 +43,7 @@ int create(lua_State *state) {
 }
 
 int paint(lua_State *state) {
-  auto *self = static_cast<class label *>(luaL_checkudata(state, 1, "Label"));
+  auto *self = static_cast<class label *>(lua_touserdata(state, 1));
   std::size_t length;
   const auto *data = luaL_checklstring(state, 2, &length);
   const auto text = std::string_view{data, length};
