@@ -65,6 +65,9 @@ jobs:
           --conf:all='tools.cmake.cmaketoolchain:extra_variables={"CMAKE_MSVC_DEBUG_INFORMATION_FORMAT": "ProgramDatabase"}'
 
       - name: Build
+        env:
+          # Lua errors unwind through C++ frames; cl.exe appends _CL_ after CMake's /EHsc so destructors run.
+          _CL_: /EHc-
         run: |
           cmake -Bbuild \
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
