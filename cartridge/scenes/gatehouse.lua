@@ -1,7 +1,5 @@
 local navigation = require("toolkit/navigation")
-local interaction = require("toolkit/interaction")
 local navigator
-local interact
 
 return {
 	objects = {
@@ -14,51 +12,21 @@ return {
 	},
 
 	on_enter = function()
-		navigator = navigation.new({ pool.walkietalkie, pool.datapad, pool.handbook, pool.panicbutton })
-		interact = interaction.new({ pool.walkietalkie, pool.datapad, pool.handbook, pool.panicbutton })
+		local objects = { pool.walkietalkie, pool.datapad, pool.handbook, pool.panicbutton }
+		navigator = navigation.new(objects)
 
-		pool.walkietalkie.on_hover = function(object)
-			navigation.select(object)
-		end
-
-		pool.walkietalkie.on_unhover = function(object)
-			navigation.unselect(object)
-		end
-
-		pool.datapad.on_hover = function(object)
-			navigation.select(object)
-		end
-
-		pool.datapad.on_unhover = function(object)
-			navigation.unselect(object)
-		end
-
-		pool.handbook.on_hover = function(object)
-			navigation.select(object)
-		end
-
-		pool.handbook.on_unhover = function(object)
-			navigation.unselect(object)
-		end
-
-		pool.panicbutton.on_hover = function(object)
-			navigation.select(object)
-		end
-
-		pool.panicbutton.on_unhover = function(object)
-			navigation.unselect(object)
+		for _, object in ipairs(objects) do
+			object:on_hover(navigation.select)
+			object:on_unhover(navigation.unselect)
 		end
 	end,
 
 	on_leave = function()
-		interact:clear()
 		navigator:clear()
 		navigator = nil
-		interact = nil
 	end,
 
 	on_loop = function()
 		navigator:update()
-		interact:update()
 	end,
 }

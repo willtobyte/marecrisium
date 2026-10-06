@@ -1,3 +1,35 @@
+static void dispatch(int callback, int instance) {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, instance);
+  if (pcall(L, 1, 0) != LUA_OK) [[unlikely]]
+    throw std::runtime_error{lua_tostring(L, -1)};
+}
+
+bool scene::on_event(void* userdata, SDL_Event* event) {
+  auto& pointer = static_cast<scene*>(userdata)->_pointer;
+
+  switch (event->type) {
+    case SDL_EVENT_MOUSE_MOTION:
+      pointer.x = event->motion.x;
+      pointer.y = event->motion.y;
+      break;
+
+    case SDL_EVENT_MOUSE_BUTTON_DOWN:
+      if (event->button.button != SDL_BUTTON_LEFT)
+        break;
+
+      pointer.x = event->button.x;
+      pointer.y = event->button.y;
+      pointer.pressed = true;
+      break;
+
+    default:
+      break;
+  }
+
+  return true;
+}
+
 scene::scene(std::string_view key)
     : _overlay(key),
       _background(std::format("blobs/scenes/{}/background.png", key)) {
@@ -97,6 +129,16 @@ scene::scene(std::string_view key)
       const auto& source = sheet->source;
       object.sprite.resize(source.width, source.height, object.sprite.scale);
 
+      constexpr std::array events{"on_hover", "on_unhover", "on_click"};
+
+      std::ranges::transform(events, object.script.mouse.begin(), [](const char* name) {
+        lua_getfield(L, -2, name);
+
+        return lua_isfunction(L, -1)
+          ? luaL_ref(L, LUA_REGISTRYINDEX)
+          : (lua_pop(L, 1), LUA_NOREF);
+      });
+
       lua_pop(L, 2);
 
       lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
@@ -176,6 +218,8 @@ scene::scene(std::string_view key)
 }
 
 scene::~scene() {
+  SDL_RemoveEventWatch(on_event, this);
+
   for (auto& object : _objects) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
     auto* instance = static_cast<proxy*>(lua_touserdata(L, -1));
@@ -186,6 +230,9 @@ scene::~scene() {
     luaL_unref(L, LUA_REGISTRYINDEX, object.script.label);
     luaL_unref(L, LUA_REGISTRYINDEX, object.script.instance);
     luaL_unref(L, LUA_REGISTRYINDEX, object.script.on_end);
+
+    for (const auto reference : object.script.mouse)
+      luaL_unref(L, LUA_REGISTRYINDEX, reference);
   }
 
   luaL_unref(L, LUA_REGISTRYINDEX, _on_leave);
@@ -207,6 +254,10 @@ void scene::on_enter() {
 
   _overlay.appear();
 
+  SDL_GetMouseState(&_pointer.x, &_pointer.y);
+  _pointer.pressed = false;
+  SDL_AddEventWatch(on_event, this);
+
   if (_on_enter != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_enter);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
@@ -218,6 +269,43 @@ void scene::on_enter() {
 void scene::update(float delta) {
   _playback.update();
   _scheduler.update(delta);
+
+  {
+    SDL_FPoint point;
+    SDL_RenderCoordinatesFromWindow(renderer, _pointer.x, _pointer.y, &point.x, &point.y);
+
+    const auto order = std::views::reverse(_order);
+    const auto it = std::ranges::find_if(order, [&](const auto id) {
+      const auto& object = _objects[id];
+      if (!object.sprite.shown || std::ranges::all_of(object.script.mouse, [](const int reference) { return reference == LUA_NOREF; }))
+        return false;
+
+      const auto& sprite = object.sprite;
+      const auto& sequence = sprite.sheet->sequences[object.motion.active];
+      const auto& frame = sprite.sheet->frames[sequence.offset + object.motion.current];
+      const auto& collider = frame.collider;
+      const SDL_FRect rect{
+        std::floor(sprite.x) + frame.offset.x + collider.offset.x,
+        std::floor(sprite.y) + frame.offset.y + collider.offset.y,
+        collider.width,
+        collider.height,
+      };
+
+      return SDL_PointInRectFloat(&point, &rect);
+    });
+
+    if (const auto* target = it != order.end() ? &_objects[*it] : nullptr; target != _hover) {
+      const auto* prior = std::exchange(_hover, target);
+      if (prior && prior->script.mouse[mouse::unhover] != LUA_NOREF)
+        dispatch(prior->script.mouse[mouse::unhover], prior->script.instance);
+
+      if (target && target->script.mouse[mouse::hover] != LUA_NOREF)
+        dispatch(target->script.mouse[mouse::hover], target->script.instance);
+    }
+
+    if (std::exchange(_pointer.pressed, false) && _hover && _hover->script.mouse[mouse::click] != LUA_NOREF)
+      dispatch(_hover->script.mouse[mouse::click], _hover->script.instance);
+  }
 
   if (_on_loop != LUA_NOREF) [[likely]] {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_loop);
@@ -371,11 +459,19 @@ void scene::draw() {
 }
 
 void scene::on_leave() {
+  SDL_RemoveEventWatch(on_event, this);
+
   lua_rawgeti(L, LUA_REGISTRYINDEX, _scheduler._table);
   lua_setglobal(L, "timer");
 
   auto result = LUA_OK;
-  if (_on_leave != LUA_NOREF) {
+  if (const auto* hover = std::exchange(_hover, nullptr); hover && hover->script.mouse[mouse::unhover] != LUA_NOREF) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, hover->script.mouse[mouse::unhover]);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, hover->script.instance);
+    result = pcall(L, 1, 0);
+  }
+
+  if (result == LUA_OK && _on_leave != LUA_NOREF) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, _on_leave);
     lua_rawgeti(L, LUA_REGISTRYINDEX, _table);
     result = pcall(L, 1, 0);

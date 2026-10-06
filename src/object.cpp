@@ -3,6 +3,9 @@ std::unordered_map<std::string, prototype, transparent_string_hash, std::equal_t
 
 keyring<
   "on_end",
+  "on_hover",
+  "on_unhover",
+  "on_click",
   "collider",
   "x",
   "y",
@@ -51,6 +54,21 @@ static int on_end_callback(lua_State* state) {
   return 0;
 }
 
+template <mouse::event Event>
+static int on_mouse_callback(lua_State* state) {
+  auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
+  luaL_checktype(state, 2, LUA_TFUNCTION);
+
+  auto& reference = self->object->script.mouse[Event];
+  if (reference != LUA_NOREF)
+    luaL_unref(state, LUA_REGISTRYINDEX, reference);
+
+  lua_pushvalue(state, 2);
+  reference = luaL_ref(state, LUA_REGISTRYINDEX);
+
+  return 0;
+}
+
 static int index(lua_State* state) {
   const auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
   const auto& object = *self->object;
@@ -64,6 +82,24 @@ static int index(lua_State* state) {
 
   case keys.id<"collider">(): {
     lua_pushvalue(state, lua_upvalueindex(2));
+
+    return 1;
+  }
+
+  case keys.id<"on_hover">(): {
+    lua_pushvalue(state, lua_upvalueindex(3));
+
+    return 1;
+  }
+
+  case keys.id<"on_unhover">(): {
+    lua_pushvalue(state, lua_upvalueindex(4));
+
+    return 1;
+  }
+
+  case keys.id<"on_click">(): {
+    lua_pushvalue(state, lua_upvalueindex(5));
 
     return 1;
   }
@@ -318,7 +354,10 @@ void objects::wire() {
 
   lua_pushcfunction(L, on_end_callback);
   lua_pushcfunction(L, collider);
-  lua_pushcclosure(L, index, 2);
+  lua_pushcfunction(L, on_mouse_callback<mouse::hover>);
+  lua_pushcfunction(L, on_mouse_callback<mouse::unhover>);
+  lua_pushcfunction(L, on_mouse_callback<mouse::click>);
+  lua_pushcclosure(L, index, 5);
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, newindex);
   lua_setfield(L, -2, "__newindex");

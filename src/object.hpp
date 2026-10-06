@@ -71,6 +71,7 @@ struct object final {
     int instance{LUA_NOREF};
     int label{LUA_NOREF};
     int on_end{LUA_NOREF};
+    std::array<int, 3> mouse{LUA_NOREF, LUA_NOREF, LUA_NOREF};
   } script;
 
   struct motion final {

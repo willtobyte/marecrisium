@@ -288,6 +288,9 @@ viewport = nil
 ---@field animation? AnimationConfig Spawn-only animation definitions.
 ---@field on_spawn? fun(self: Object) Called once after the object is complete and available in `pool`.
 ---@field on_loop? fun(self: Object, delta: number) Called every active frame; delta is in seconds.
+---@field on_hover? fun(self: Object) Called when the cursor enters the collider.
+---@field on_unhover? fun(self: Object) Called when the cursor leaves the collider.
+---@field on_click? fun(self: Object) Called for each left button press over the hovered object.
 ---@field [string] any Custom fields and methods shared by every object of this kind.
 
 ---Each object stores custom writes independently and reads missing fields from
@@ -316,6 +319,21 @@ function Object:collider() end
 ---Set the callback for each animation end.
 ---@param callback fun(self: Object, animation: string)
 function Object:on_end(callback) end
+
+---Replace the prototype `on_hover` for this object. Only the topmost
+---shown object with a hover or click callback receives pointer events. The
+---collider ignores scale.
+---@param callback fun(self: Object)
+function Object:on_hover(callback) end
+
+---Replace the prototype `on_unhover` for this object. Also called when the
+---object loses the top position or the scene leaves.
+---@param callback fun(self: Object)
+function Object:on_unhover(callback) end
+
+---Replace the prototype `on_click` for this object.
+---@param callback fun(self: Object)
+function Object:on_click(callback) end
 
 -- Sound
 
