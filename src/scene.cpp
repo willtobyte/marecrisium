@@ -284,11 +284,12 @@ void scene::update(float delta) {
       const auto& sequence = sprite.sheet->sequences[object.motion.active];
       const auto& frame = sprite.sheet->frames[sequence.offset + object.motion.current];
       const auto& collider = frame.collider;
+      const auto& bounds = sprite.bounds;
       const SDL_FRect rect{
-        std::floor(sprite.x) + frame.offset.x + collider.offset.x,
-        std::floor(sprite.y) + frame.offset.y + collider.offset.y,
-        collider.width,
-        collider.height,
+        std::floor(sprite.x) + bounds.x + (frame.offset.x + collider.offset.x) * sprite.scale,
+        std::floor(sprite.y) + bounds.y + (frame.offset.y + collider.offset.y) * sprite.scale,
+        collider.width * sprite.scale,
+        collider.height * sprite.scale,
       };
 
       return SDL_PointInRectFloat(&point, &rect);
