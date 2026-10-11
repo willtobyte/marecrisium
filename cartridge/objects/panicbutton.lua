@@ -95,6 +95,7 @@ return {
 		self.action = controls.action
 		self.dismiss = controls.dismiss
 		self.animation = "hover"
+		pool.alarmlight.animation = "normal"
 		breathing.start(self)
 	end,
 
@@ -103,12 +104,14 @@ return {
 		self.action = false
 		self.dismiss = false
 		self.animation = "normal"
+		pool.alarmlight.animation = "normal"
 		breathing.stop(self)
 	end,
 
 	on_click = function(self)
 		if self.selected then
 			self.animation = "open"
+			pool.alarmlight.animation = "on"
 		end
 	end,
 
@@ -118,8 +121,10 @@ return {
 		local dismiss = controls.dismiss
 		if self.selected and action and not self.action then
 			self.animation = "open"
+			pool.alarmlight.animation = "on"
 		elseif self.selected and dismiss and not self.dismiss then
 			self.animation = "hover"
+			pool.alarmlight.animation = "normal"
 		end
 
 		self.action = action
