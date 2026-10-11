@@ -58,10 +58,7 @@ engine::engine() {
 
   SDL_RenderPresent(renderer);
   SDL_SyncWindow(window);
-
   SDL_RaiseWindow(window);
-  // SDL_FlashWindow(window, SDL_FLASH_UNTIL_FOCUSED);
-
 
   lua_createtable(L, 0, 3);
   lua_pushnumber(L, static_cast<lua_Number>(viewport.width));
