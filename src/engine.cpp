@@ -57,7 +57,7 @@ engine::engine() {
   splash.draw(0, 0, width / scale, height / scale);
 
   SDL_RenderPresent(renderer);
-  SDL_PumpEvents();
+  SDL_SyncWindow(window);
 
   SDL_RaiseWindow(window);
   // SDL_FlashWindow(window, SDL_FLASH_UNTIL_FOCUSED);

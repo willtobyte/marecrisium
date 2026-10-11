@@ -64,7 +64,7 @@ conan: ## Installs dependencies
 		--settings:all build_type=$(MODE) \
 		--conf:all="tools.build:jobs=$(JOBS)"
 
-build: ## Builds the project
+build: $(filter conan,$(MAKECMDGOALS)) ## Builds the project
 	cmake -S . -B $(BUILD) \
 		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN) \
 		-DCMAKE_BUILD_TYPE=$(MODE) \
@@ -82,7 +82,7 @@ run: build ## Builds and runs the project
 	rm -f $(ROM)
 	uv run assets/tools/run.py
 	uv run tools/pack.py
-	WINDOWED=1 ASAN_OPTIONS="handle_abort=1" UBSAN_OPTIONS="print_stacktrace=1" $(LLDB) $(BINARY)
+	WINDOWED=$(if $(filter Release,$(MODE)),0,1) ASAN_OPTIONS="handle_abort=1$${ASAN_OPTIONS:+:$${ASAN_OPTIONS}}" UBSAN_OPTIONS="print_stacktrace=1$${UBSAN_OPTIONS:+:$${UBSAN_OPTIONS}}" $(LLDB) $(BINARY)
 
 help: ## Shows available commands
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
