@@ -74,7 +74,7 @@ on_enter = function()
 end,
 ```
 
-The callback receives the object and animation name. It runs at the end of each repeating cycle. Each `on_end` call replaces the previous callback.
+The callback receives the object and animation name. It runs at the end of each repeating cycle. Each `on_end` call replaces the previous callback. Call `on_end(nil)` to remove the callback.
 
 ## Call an object handler
 

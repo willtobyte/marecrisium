@@ -41,15 +41,20 @@ static int collider(lua_State* state) {
 
 static int on_end_callback(lua_State* state) {
   auto* self = static_cast<proxy*>(lua_touserdata(state, 1));
-  luaL_checktype(state, 2, LUA_TFUNCTION);
+  const auto active = !lua_isnil(state, 2);
+  if (active)
+    luaL_checktype(state, 2, LUA_TFUNCTION);
 
   auto& reference = self->object->script.on_end;
   if (reference != LUA_NOREF)
     luaL_unref(state, LUA_REGISTRYINDEX, reference);
 
-  lua_pushvalue(state, 2);
-  reference = luaL_ref(state, LUA_REGISTRYINDEX);
-  self->object->motion.ending = true;
+  reference = LUA_NOREF;
+  self->object->motion.ending = active;
+  if (active) {
+    lua_pushvalue(state, 2);
+    reference = luaL_ref(state, LUA_REGISTRYINDEX);
+  }
 
   return 0;
 }
@@ -60,7 +65,7 @@ static int on_mouse_callback(lua_State* state) {
   luaL_checktype(state, 2, LUA_TFUNCTION);
 
   auto& reference = self->object->script.mouse[Event];
-  if (reference != LUA_NOREF)
+  if (reference != self->object->script.blueprint->mouse[Event])
     luaL_unref(state, LUA_REGISTRYINDEX, reference);
 
   lua_pushvalue(state, 2);
@@ -345,6 +350,16 @@ void objects::bind(object& object, dirty& dirty, std::string_view name, std::str
       ? luaL_ref(L, LUA_REGISTRYINDEX)
       : (lua_pop(L, 1), LUA_NOREF);
   }
+
+  constexpr std::array events{"on_hover", "on_unhover", "on_click"};
+
+  std::ranges::transform(events, blueprint.mouse.begin(), [](const char* name) {
+    lua_getfield(L, -1, name);
+
+    return lua_isfunction(L, -1)
+      ? luaL_ref(L, LUA_REGISTRYINDEX)
+      : (lua_pop(L, 1), LUA_NOREF);
+  });
 
   lua_pop(L, 1);
 

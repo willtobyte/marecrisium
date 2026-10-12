@@ -129,15 +129,7 @@ scene::scene(std::string_view key)
       const auto& source = sheet->source;
       object.sprite.resize(source.width, source.height, object.sprite.scale);
 
-      constexpr std::array events{"on_hover", "on_unhover", "on_click"};
-
-      std::ranges::transform(events, object.script.mouse.begin(), [](const char* name) {
-        lua_getfield(L, -2, name);
-
-        return lua_isfunction(L, -1)
-          ? luaL_ref(L, LUA_REGISTRYINDEX)
-          : (lua_pop(L, 1), LUA_NOREF);
-      });
+      object.script.mouse = object.script.blueprint->mouse;
 
       lua_pop(L, 2);
 
@@ -227,8 +219,9 @@ scene::~scene() {
     luaL_unref(L, LUA_REGISTRYINDEX, object.script.instance);
     luaL_unref(L, LUA_REGISTRYINDEX, object.script.on_end);
 
-    for (const auto reference : object.script.mouse)
-      luaL_unref(L, LUA_REGISTRYINDEX, reference);
+    for (const auto [reference, shared] : std::views::zip(object.script.mouse, object.script.blueprint->mouse))
+      if (reference != shared)
+        luaL_unref(L, LUA_REGISTRYINDEX, reference);
   }
 
   luaL_unref(L, LUA_REGISTRYINDEX, _on_leave);

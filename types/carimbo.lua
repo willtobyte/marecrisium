@@ -318,13 +318,12 @@ local Object = {}
 ---@return number height Scaled collider height. Zero when the frame has no collider.
 function Object:collider() end
 
----Set the callback for each animation end.
----@param callback fun(self: Object, animation: string)
+---Set the callback for each animation end. Pass `nil` to remove it.
+---@param callback fun(self: Object, animation: string)?
 function Object:on_end(callback) end
 
 ---Replace the prototype `on_hover` for this object. Only the topmost
----shown object with a hover or click callback receives pointer events. The
----collider ignores scale.
+---shown object with a hover or click callback receives pointer events.
 ---@param callback fun(self: Object)
 function Object:on_hover(callback) end
 
@@ -333,7 +332,8 @@ function Object:on_hover(callback) end
 ---@param callback fun(self: Object)
 function Object:on_unhover(callback) end
 
----Replace the prototype `on_click` for this object.
+---Replace the prototype `on_click` for this object. To call the click
+---callback from Lua, use `object:click()`.
 ---@param callback fun(self: Object)
 function Object:on_click(callback) end
 

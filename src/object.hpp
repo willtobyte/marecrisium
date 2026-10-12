@@ -35,6 +35,7 @@ struct prototype final {
   int kind{LUA_NOREF};
   int on_loop{LUA_NOREF};
   int on_spawn{LUA_NOREF};
+  std::array<int, 3> mouse{LUA_NOREF, LUA_NOREF, LUA_NOREF};
 };
 
 struct object final {
