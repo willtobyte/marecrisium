@@ -183,11 +183,7 @@ scene::scene(std::string_view key)
       lua_pushvalue(L, -3);
       lua_pushvalue(L, -3);
       lua_rawset(L, -3);
-      lua_pop(L, 1);
-
-      lua_pop(L, 1);
-
-      lua_pop(L, 2);
+      lua_pop(L, 4);
     }
 
     lua_pop(L, 1);

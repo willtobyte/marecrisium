@@ -400,8 +400,7 @@ config* particlepool::get(std::string_view kind) {
     instance.rotation.velocity = read_range(L, "velocity");
   }
 
-  lua_pop(L, 1);
-  lua_pop(L, 1);
+  lua_pop(L, 2);
 
   auto* result = &_pool.emplace(kind, std::move(instance)).first->second;
 
