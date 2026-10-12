@@ -284,6 +284,8 @@ viewport = nil
 ---Spawn configuration and shared custom behavior. The engine dispatches the
 ---reserved callbacks from references cached at load time. A write to a reserved
 ---callback through `Object` does not change the engine dispatch.
+---At load, each `on_<name>` field is also set as `<name>`, so `pool.target:hit()`
+---calls `on_hit`. It replaces an existing `<name>`. Top-level keys must be strings.
 ---@class ObjectPrototype
 ---@field animation? AnimationConfig Spawn-only animation definitions.
 ---@field on_spawn? fun(self: Object) Called once after the object is complete and available in `pool`.

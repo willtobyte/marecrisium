@@ -315,6 +315,25 @@ void objects::bind(object& object, dirty& dirty, std::string_view name, std::str
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
 
+  const auto top = lua_gettop(L);
+  lua_pushnil(L);
+  while (lua_next(L, top)) {
+    std::size_t length;
+    const auto* data = lua_tolstring(L, -2, &length);
+    if (std::string_view{data, length}.starts_with("on_")) {
+      lua_checkstack(L, 2);
+      lua_pushlstring(L, data + 3, length - 3);
+      lua_insert(L, -3);
+      lua_insert(L, -2);
+      continue;
+    }
+
+    lua_pop(L, 1);
+  }
+
+  while (lua_gettop(L) > top)
+    lua_rawset(L, top);
+
   constexpr std::array fields{
     std::pair{"on_loop", &prototype::on_loop},
     std::pair{"on_spawn", &prototype::on_spawn},

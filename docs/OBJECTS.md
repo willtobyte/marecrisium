@@ -76,6 +76,24 @@ end,
 
 The callback receives the object and animation name. It runs at the end of each repeating cycle. Each `on_end` call replaces the previous callback.
 
+## Call an object handler
+
+When the engine loads an object kind, it also sets each `on_<name>` patch field as `<name>`. In a patch:
+
+```lua
+on_hit = function(self, damage)
+	self.animation = "hurt"
+end,
+```
+
+In a scene or another object:
+
+```lua
+pool.objectname:hit(10)
+```
+
+The call has the same cost as a call to `on_hit`. A `<name>` field in the patch is replaced. Only fields that exist at load get a second name. Top-level patch keys must be strings.
+
 ## Generate the objects
 
 Run the generator from the repository root:
