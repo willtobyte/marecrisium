@@ -1,7 +1,6 @@
 {# vim: set filetype=lua: #}
-{% extends "traits/breathing.lua.j2" %}
+{% extends "template.lua.j2" %}
 {% block header %}
-{{ super() }}
 local controls = require("helpers/controls")
 {% endblock %}
 {% block animation %}
@@ -15,7 +14,6 @@ local controls = require("helpers/controls")
 		self.dismiss = controls.dismiss
 		self.animation = "hover"
 		pool.alarmlight.animation = "normal"
-		breathing.start(self)
 	end,
 
 	unselect = function(self)
@@ -24,7 +22,6 @@ local controls = require("helpers/controls")
 		self.dismiss = false
 		self.animation = "normal"
 		pool.alarmlight.animation = "normal"
-		breathing.stop(self)
 	end,
 
 	on_click = function(self)
@@ -35,7 +32,6 @@ local controls = require("helpers/controls")
 	end,
 
 	on_loop = function(self, delta)
-		breathing.step(self, delta)
 		local action = controls.action
 		local dismiss = controls.dismiss
 		if self.selected and action and not self.action then
