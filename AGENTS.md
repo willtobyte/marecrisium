@@ -12,7 +12,7 @@
 * Intern frequently pushed LuaJIT strings, but not one-off strings.
 * Use assert and [[assume(...)]] only when necessary to protect memory, resource lifetime, or data integrity—not for routine checks of trusted inputs. Every assert must include a short, clear English error message.
 * Fuzz all newly written code.
-* Benchmark every performance-related change. Measure before and after, report the comparison, and reject non-marginal regressions.
+* Benchmark every performance-related change. Measure time, memory allocations, and copies before and after. Report the comparison and reject non-marginal regressions in each metric.
 * Use a high-precision clock for benchmarks, never FPS. Measure release builds with NOVSYNC=1 and fullscreen enabled; never use WINDOWED=1.
 * Run all benchmarks, profiling, sanitizers, fuzzing, leak detection, allocation tracking, and other instrumentation on macOS 27 with Xcode Instruments and Apple Clang.
 * Run Linux AMD64 and Windows AMD64 tests on the remote Docker host at 92.112.178.107 using SSH and DOCKER_HOST. Run Windows tests under Wine64 in Linux containers.
@@ -27,4 +27,3 @@
 * Create functions, methods, and abstractions only when used more than once.
 * Prefer clear single-word variable names and unambiguous local abbreviations.
 * Add a blank line before return only when another statement precedes it in the same block; never when return is the first statement in a block or file.
-* Reject performance regressions, unless they are marginal.
