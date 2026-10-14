@@ -26,16 +26,14 @@ void number(lua_State *state, int key, T &value, T fallback, T minimum, T maximu
 }
 
 int create(lua_State *state) {
-  std::size_t length;
-  const auto *data = luaL_checklstring(state, 1, &length);
-  const auto family = std::string_view{data, length};
+  auto *font = static_cast<class font *>(lua_touserdata(state, 1));
   const auto x = static_cast<float>(luaL_checknumber(state, 2));
   const auto y = static_cast<float>(luaL_checknumber(state, 3));
   const auto w = static_cast<float>(luaL_checknumber(state, 4));
   const auto h = static_cast<float>(luaL_checknumber(state, 5));
   auto *memory = static_cast<class label *>(lua_newuserdata(state, sizeof(class label)));
 
-  new (memory) label(depot->get<font>(family), x, y, w, h);
+  new (memory) label(font, x, y, w, h);
   luaL_getmetatable(state, "Label");
   lua_setmetatable(state, -2);
 

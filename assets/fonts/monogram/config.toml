@@ -1,6 +1,6 @@
-name = "arcade8"
+name = "monogram"
 font = "regular.ttf"
-size = 8
+size = 16
 color = "#000000ff"
 shadow = true
 shadow_color = "#00000040"
