@@ -34,15 +34,9 @@ local function hue2rgb(hue)
 end
 
 return {
-	fonts = { "pixel", "arcade8" },
+	-- fonts = { "pixel", "monogram" },
 
-	on_appear = function()
-		a = Label.new("pixel", 10, 10, 200, 60)
-		b = Label.new("pixel", 10, 80, 200, 60)
-		c = Label.new("pixel", 10, 150, 200, 50)
-		d = Label.new("arcade8", 230, 10, 220, 100)
-		t = Label.new("pixel", 192, 213, 250, 24)
-	end,
+	on_appear = function() end,
 
 	on_loop = function(_, delta)
 		elapsed = elapsed + delta
@@ -57,11 +51,5 @@ return {
 		end
 	end,
 
-	on_paint = function()
-		-- a:draw("Mare Crisium log: long text wraps by word, never splits and never leaks.")
-		-- b:draw("supercalifragilisticexpialidocious breaks mid-word only when wider than w.")
-		-- c:draw("Short h cuts extra lines clean. This tail stays out. Extra words out.")
-		-- d:draw("Direct box: Label.new(arcade8, 230, 10, 220, 100) wraps too.")
-		-- t:draw(title, effects)
-	end,
+	on_paint = function() end,
 }

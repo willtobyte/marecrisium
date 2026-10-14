@@ -14,6 +14,8 @@ public:
   int disappear();
 
 private:
+  friend class scene;
+
   int _table{LUA_NOREF};
   int _on_loop{LUA_NOREF};
   int _on_paint{LUA_NOREF};

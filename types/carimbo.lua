@@ -230,12 +230,15 @@ director = nil
 ---@field b? number Blue channel, 0.0-1.0; defaults to 1.
 ---@field alpha? number Opacity, 0.0-1.0; defaults to 1.
 
+---Font loaded from the overlay `fonts` list. Get it from `pool.<family>`.
+---@class Font
+
 ---@class Label
 local Label = {}
 
 ---Create a windowed text label. The text never leaks the window; words wrap
 ---without splitting, overlong words split mid-word, and lines beyond the height are cut.
----@param font string Font family name from the overlay `fonts` list.
+---@param font Font
 ---@param x number
 ---@param y number
 ---@param w number
@@ -388,6 +391,7 @@ mirror = nil
 
 ---Mutable table shared by the active scene, its objects, and its overlay.
 ---Replacing a resource entry does not destroy or rename the engine resource.
+---Object, sound, and font names never collide.
 ---@class Pool
 ---@field [string] any
 

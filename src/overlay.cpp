@@ -5,22 +5,8 @@ overlay::overlay(std::string_view name) {
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
 
-  const auto top = lua_gettop(L);
   if (pcall(L, 0, 1) != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
-
-  lua_getfield(L, top, "fonts");
-  const auto length = static_cast<int>(lua_objlen(L, -1));
-
-  for (auto i = 1; i <= length; ++i) {
-    lua_rawgeti(L, -1, i);
-    std::size_t size;
-    const auto *family = luaL_checklstring(L, -1, &size);
-    depot->get<font>(std::string_view{family, size});
-    lua_pop(L, 1);
-  }
-
-  lua_pop(L, 1);
 
   _table = luaL_ref(L, LUA_REGISTRYINDEX);
 

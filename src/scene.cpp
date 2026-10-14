@@ -72,11 +72,33 @@ scene::scene(std::string_view key)
   capacity += static_cast<int>(lua_objlen(L, -1));
   lua_pop(L, 1);
 
+  lua_rawgeti(L, LUA_REGISTRYINDEX, _overlay._table);
+  lua_getfield(L, -1, "fonts");
+  capacity += static_cast<int>(lua_objlen(L, -1));
+  lua_pop(L, 2);
+
   lua_createtable(L, 0, capacity);
   _pool = luaL_ref(L, LUA_REGISTRYINDEX);
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
   lua_setglobal(L, "pool");
+
+  {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _pool);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, _overlay._table);
+    lua_getfield(L, -1, "fonts");
+    const auto length = static_cast<int>(lua_objlen(L, -1));
+
+    for (auto i = 1; i <= length; ++i) {
+      lua_rawgeti(L, -1, i);
+      std::size_t size;
+      const auto* family = luaL_checklstring(L, -1, &size);
+      lua_pushlightuserdata(L, depot->get<font>(std::string_view{family, size}));
+      lua_rawset(L, -5);
+    }
+
+    lua_pop(L, 3);
+  }
 
   {
     lua_getfield(L, -1, "objects");
