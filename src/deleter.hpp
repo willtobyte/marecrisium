@@ -15,8 +15,8 @@ struct SDL_Deleter {
   void operator()(SDL_Texture *ptr) const noexcept { SDL_DestroyTexture(ptr); }
 };
 
+using OggOpusFile_Deleter = Deleter<op_free>;
 using STBI_Deleter = Deleter<stbi_image_free>;
-using STB_Vorbis_Deleter = Deleter<stb_vorbis_close>;
 using SQLite_Database_Deleter = Deleter<sqlite3_close>;
 using SQLite_Statement_Deleter = Deleter<sqlite3_finalize>;
 using YYJSON_Doc_Deleter = Deleter<yyjson_doc_free>;

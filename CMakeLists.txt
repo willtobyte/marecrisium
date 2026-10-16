@@ -53,6 +53,7 @@ find_package(simde CONFIG REQUIRED)
 find_package(stb CONFIG REQUIRED)
 find_package(luajit CONFIG REQUIRED)
 find_package(miniaudio CONFIG REQUIRED)
+find_package(opusfile CONFIG REQUIRED)
 find_package(SQLite3 CONFIG REQUIRED)
 find_package(yyjson CONFIG REQUIRED)
 find_package(zstd CONFIG REQUIRED)
@@ -65,6 +66,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   simde::simde
   stb::stb
   miniaudio::miniaudio
+  opusfile::opusfile
   luajit::luajit
   SQLite::SQLite3
   yyjson::yyjson

@@ -1,28 +1,19 @@
 namespace {
   static ma_result read(ma_data_source* source, void* frames, ma_uint64 count, ma_uint64* decoded) {
     auto* stream = reinterpret_cast<struct stream*>(source);
-    const auto limit = static_cast<ma_uint64>(std::numeric_limits<int>::max() / stream->channels);
-    auto total = ma_uint64{};
+    const auto result = op_read_float(
+      stream->opus.get(),
+      static_cast<float*>(frames),
+      static_cast<int>(count * stream->channels),
+      nullptr
+    );
 
-    while (total < count) {
-      const auto size = std::min(count - total, limit);
-      const auto result = stb_vorbis_get_samples_float_interleaved(
-        stream->vorbis.get(),
-        static_cast<int>(stream->channels),
-        static_cast<float*>(frames) + total * stream->channels,
-        static_cast<int>(size * stream->channels)
-      );
-      total += static_cast<ma_uint64>(result);
-      if (result < size)
-        break;
-    }
-
-    *decoded = total;
-    return total == 0 ? MA_AT_END : MA_SUCCESS;
+    *decoded = static_cast<ma_uint64>(result);
+    return result == 0 ? MA_AT_END : MA_SUCCESS;
   }
 
   static ma_result seek(ma_data_source* source, ma_uint64 frame) {
-    stb_vorbis_seek(reinterpret_cast<stream*>(source)->vorbis.get(), static_cast<unsigned int>(frame));
+    op_pcm_seek(reinterpret_cast<stream*>(source)->opus.get(), static_cast<ogg_int64_t>(frame));
 
     return MA_SUCCESS;
   }
@@ -34,7 +25,7 @@ namespace {
     if (channels)
       *channels = stream->channels;
     if (rate)
-      *rate = stream->rate;
+      *rate = 48'000;
     if (map)
       ma_channel_map_init_standard(ma_standard_channel_map_vorbis, map, capacity, stream->channels);
 
@@ -42,7 +33,7 @@ namespace {
   }
 
   static ma_result cursor(ma_data_source* source, ma_uint64* frame) {
-    *frame = static_cast<ma_uint64>(stb_vorbis_get_sample_offset(reinterpret_cast<stream*>(source)->vorbis.get()));
+    *frame = static_cast<ma_uint64>(op_pcm_tell(reinterpret_cast<stream*>(source)->opus.get()));
     return MA_SUCCESS;
   }
 
@@ -182,12 +173,10 @@ clip::clip(std::string_view filename) {
 
 sound::sound(const clip& data, std::atomic_uint16_t& completed, std::uint16_t bit)
     : _completed{&completed}, _bit{bit} {
-  _source.vorbis.reset(stb_vorbis_open_memory(data.encoded.data(), static_cast<int>(data.encoded.size()), nullptr, nullptr));
+  _source.opus.reset(op_open_memory(data.encoded.data(), data.encoded.size(), nullptr));
 
-  const auto info = stb_vorbis_get_info(_source.vorbis.get());
-  _source.length = stb_vorbis_stream_length_in_samples(_source.vorbis.get());
-  _source.channels = static_cast<ma_uint32>(info.channels);
-  _source.rate = info.sample_rate;
+  _source.length = static_cast<ma_uint64>(op_pcm_total(_source.opus.get(), -1));
+  _source.channels = static_cast<ma_uint32>(op_channel_count(_source.opus.get(), -1));
 
   auto config = ma_data_source_config_init();
   config.vtable = &vtable;
