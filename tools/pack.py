@@ -183,7 +183,17 @@ def main() -> int:
 
     trained = dictionary.as_bytes()
 
-    encoder = zstandard.ZstdCompressor(level=LEVEL, dict_data=dictionary, threads=-1)
+    parameters = zstandard.ZstdCompressionParameters.from_level(
+        LEVEL,
+        min_match=4,
+        threads=-1,
+    )
+
+    encoder = zstandard.ZstdCompressor(
+        compression_params=parameters,
+        dict_data=dictionary,
+    )
+
     for current in sources:
         if current.directory or current.algorithm == ALGO_STORED:
             continue
