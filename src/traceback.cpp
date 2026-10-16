@@ -137,15 +137,21 @@ void format(lua_State *state, std::string &text, int index, trail &path) {
 }
 
 int traceback(lua_State* state) {
+  std::string trace;
+  trail path;
+  if (!lua_isstring(state, 1)) {
+    format(state, trace, 1, path);
+    trace += '\n';
+  }
+
   luaL_traceback(state, state, lua_tostring(state, 1), 1);
 
   std::size_t length;
   const auto* data = lua_tolstring(state, -1, &length);
-  std::string trace{data, length};
+  trace.append(data, length);
   lua_pop(state, 1);
   trace.reserve(trace.size() + 256);
 
-  trail path;
   auto out = std::back_inserter(trace);
   lua_Debug frame;
   for (int level = 1; lua_getstack(state, level, &frame); ++level) {

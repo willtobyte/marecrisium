@@ -147,7 +147,12 @@ void scheduler::update(float delta) {
     _hold &= static_cast<std::uint16_t>(~bit);
     _repeat &= static_cast<std::uint16_t>(~bit);
     current = {.generation = generation};
-    call(data);
+    try {
+      call(data);
+    } catch (...) {
+      release(data);
+      throw;
+    }
     release(data);
   }
 }

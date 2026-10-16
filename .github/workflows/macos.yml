@@ -56,6 +56,7 @@ jobs:
           --profile:all=.github/conan/macos
           --conf:all="tools.build:cflags=$COMPILE_FLAGS"
           --conf:all="tools.build:cxxflags=$COMPILE_FLAGS"
+          --conf:all="luajit/*:tools.build:cflags=${COMPILE_FLAGS%]}, \"-fexceptions\"]"
           --conf:all="libcurl/*:tools.build:cflags=${COMPILE_FLAGS/-flto=thin/-fno-lto}"
           --conf:all="libcurl/*:tools.build:cxxflags=${COMPILE_FLAGS/-flto=thin/-fno-lto}"
           --conf:all='tools.build:exelinkflags=["-flto=thin"]'

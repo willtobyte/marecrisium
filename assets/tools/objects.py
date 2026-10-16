@@ -108,7 +108,14 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
             (left, top),
         )
 
-    sizes = [image.size for image, _, _, _, _, _ in images]
+    slots = {}
+    indices = []
+    for image, _, _, _, _, _ in images:
+        key = (image.size, image.tobytes())
+        indices.append(slots.setdefault(key, (len(slots), image))[0])
+
+    uniques = [image for _, image in slots.values()]
+    sizes = [image.size for image in uniques]
     area = sum(w * h for w, h in sizes)
     side = max(max(max(size) for size in sizes), math.isqrt(area - 1) + 1)
     side = 1 << (side - 1).bit_length()
@@ -124,6 +131,9 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     height = max(y + h for (_, y), (_, h) in zip(positions, sizes))
     sheet = Image.new("RGBA", (width, height), (0, 0, 0, 0))
 
+    for image, (x, bottom) in zip(uniques, positions):
+        sheet.paste(image, (x, height - bottom - image.height))
+
     for (
         image,
         animation,
@@ -131,13 +141,13 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         duration,
         collider,
         offset,
-    ), (x, bottom) in zip(
+    ), index in zip(
         images,
-        positions,
+        indices,
     ):
         w, h = image.size
+        x, bottom = positions[index]
         y = height - bottom - h
-        sheet.paste(image, (x, y))
         left, top = offset
         frame = f"{x}, {y}, {w}, {h}, {left}, {top}, {size[0]}, {size[1]}, {duration}"
         if collider:
