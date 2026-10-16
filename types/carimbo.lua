@@ -102,7 +102,7 @@ local Gamepad = {}
 ---Vibrate the gamepad. Intensities are clamped to 0.0-1.0.
 ---@param low number
 ---@param high number
----@param duration integer Milliseconds, from 0 to 4294967295.
+---@param duration integer Milliseconds, as a uint32.
 ---@return boolean
 function Gamepad:rumble(low, high, duration) end
 
@@ -483,8 +483,9 @@ local Timer = {}
 ---Add a repeating timer.
 ---@param milliseconds number Must be positive and finite.
 ---@param callback fun()
+---@param count? integer Total calls, as a positive uint32. Omit to repeat without a limit. Pause keeps the remaining count.
 ---@return TimerHandle
-function Timer:add(milliseconds, callback) end
+function Timer:add(milliseconds, callback, count) end
 
 ---Add a timer that fires once.
 ---@param milliseconds number Must be positive and finite.

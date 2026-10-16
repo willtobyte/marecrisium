@@ -14,7 +14,10 @@
 * Fuzz all newly written code.
 * Benchmark every performance-related change. Measure time, memory allocations, and copies before and after. Report the comparison and reject non-marginal regressions in each metric.
 * Use a high-precision clock for benchmarks, never FPS. Measure release builds with NOVSYNC=1 and fullscreen enabled; never use WINDOWED=1.
-* Run all benchmarks, profiling, sanitizers, fuzzing, leak detection, allocation tracking, and other instrumentation on macOS 27 Apple Silicon with Xcode Instruments and Apple Clang.
+* For macOS binaries, run benchmarks, profiling, sanitizers, fuzzing, leak detection, allocation tracking, and other instrumentation natively on macOS 27 Apple Silicon with Apple Clang and Xcode Instruments.
+* For Windows AMD64 binaries, run benchmarks only in the `Sandbox` CrossOver bottle on macOS 27 Apple Silicon. Build with Microsoft Visual C++ (MSVC), Windows SDK, CMake, Ninja, and Conan. Measure time with `QueryPerformanceCounter` and `QueryPerformanceFrequency`. Measure allocations in separate builds with mimalloc compiled with `MI_STAT=2` and a LuaJIT allocator wrapper set with `lua_setallocf`. Count copies and moves in test builds outside the project directory.
+* For Windows profiling, use Tracy Profiler 0.14.1 with `TRACY_ENABLE`, `TRACY_NO_SYSTEM_TRACING`, and `TRACY_TIMER_QPC`. Use `tracy-capture` to save traces and `tracy-csvexport` to inspect the recorded data. Record CPU zones and memory allocations in instrumented builds outside the project directory. Use `TracyAlloc` and `TracyFree` to track allocations and releases.
+* Run Windows instrumentation only in the `Sandbox` CrossOver bottle. Verify that each tool can collect valid data in CrossOver before using its results. Report unsupported tools and unavailable measurements.
 * Build and run macOS Apple Silicon binaries natively with Apple Clang.
 * Use only the `Sandbox` CrossOver bottle to build Windows AMD64 binaries from source and run them. If `Sandbox` does not exist, create it and install the required build and runtime tools. Never create or use other bottles.
 * Use modern, idiomatic C++23, preferring auto, constexpr, const, and final where appropriate.
