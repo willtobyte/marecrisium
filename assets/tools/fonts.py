@@ -106,7 +106,7 @@ for path in sorted((root / "assets/fonts").glob("*/config.toml")):
         image.create_optimized_png(
             level=6,
             strip=oxipng.StripChunks.all(),
-            deflate=oxipng.Deflaters.zopfli(15),
+            deflate=oxipng.Deflaters.libdeflater(12),
         )
     )
     escaped = glyphs.replace("\\", "\\\\").replace('"', '\\"')
