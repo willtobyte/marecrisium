@@ -12,6 +12,8 @@ class Game(ConanFile):
         recipe = cast(Any, self)
         for package in (
             "miniaudio/0.11.25",
+            "opus/1.6.1",
+            "opusfile/0.12",
             "mimalloc/3.5.1",
             "sdl/3.4.14",
             "sentry-native/0.14.2",
@@ -28,6 +30,10 @@ class Game(ConanFile):
         recipe = cast(Any, self)
         options = recipe.options
         options["miniaudio"].header_only = True
+
+        options["opus"].stack_protector = False
+
+        options["opusfile"].http = False
 
         options["sentry-native"].backend = "inproc"
         options["sentry-native"].shared = False

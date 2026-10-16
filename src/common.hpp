@@ -53,13 +53,12 @@
 #include <lua.hpp>
 #include <luajit.h>
 #include <miniaudio.h>
+#include <opusfile.h>
 #include <SDL3/SDL.h>
 #include <sentry.h>
 #include <simde/x86/sse2.h>
 #include <sqlite3.h>
 #include <stb_image.h>
-#define STB_VORBIS_HEADER_ONLY
-#include <stb_vorbis.c>
 #include <yyjson.h>
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>

@@ -13,6 +13,7 @@ compiler.runtime=static
 
 [conf]
 tools.info.package_id:confs=["tools.build:cflags", "tools.build:cxxflags", "tools.build:exelinkflags", "tools.cmake.cmaketoolchain:extra_variables"]
+opus/*:tools.cmake.cmaketoolchain:extra_variables={"OPUS_HARDENING": {"value": "OFF", "cache": True, "type": "BOOL"}}
 
 [replace_tool_requires]
 meson/*: meson/[*]

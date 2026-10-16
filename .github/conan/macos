@@ -13,6 +13,7 @@ compiler.libcxx=libc++
 
 [conf]
 tools.info.package_id:confs=["tools.build:cflags", "tools.build:cxxflags", "tools.build:exelinkflags", "tools.cmake.cmaketoolchain:extra_variables"]
+opus/*:tools.cmake.cmaketoolchain:extra_variables={"OPUS_PRESUME_NEON": {"value": "ON", "cache": True, "type": "BOOL"}, "OPUS_HARDENING": {"value": "OFF", "cache": True, "type": "BOOL"}, "OPUS_FORTIFY_SOURCE": {"value": "OFF", "cache": True, "type": "BOOL"}}
 
 [replace_tool_requires]
 meson/*: meson/[*]

@@ -8,10 +8,9 @@ struct clip final {
 
 struct stream final {
   ma_data_source_base source{};
-  std::unique_ptr<stb_vorbis, STB_Vorbis_Deleter> vorbis;
+  std::unique_ptr<OggOpusFile, OggOpusFile_Deleter> opus;
   ma_uint64 length{};
   ma_uint32 channels{};
-  ma_uint32 rate{};
 };
 
 class sound final {
