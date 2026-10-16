@@ -55,7 +55,7 @@ jobs:
 
       - name: Install dependencies
         env:
-          COMPILE_FLAGS: '["/O2", "/Zi", "/GL"]'
+          COMPILE_FLAGS: '["/O2", "/Zi", "/GL", "/GS-"]'
         run: >-
           uv tool run conan install . --output-folder=build --build="*"
           --profile:all=.github/conan/windows
@@ -69,7 +69,7 @@ jobs:
           cmake -Bbuild \
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /EHs" \
+            -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /EHs /GS-" \
             -DVERSION="${{ github.sha }}"
           cmake --build build --config Release --parallel "$(uv run --no-project python -c 'import os; print(os.cpu_count())')" --verbose
 

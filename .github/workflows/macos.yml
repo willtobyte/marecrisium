@@ -50,7 +50,7 @@ jobs:
 
       - name: Install dependencies
         env:
-          COMPILE_FLAGS: '["-O2", "-g", "-mcpu=apple-m1", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls", "-flto=thin"]'
+          COMPILE_FLAGS: '["-O2", "-g", "-mcpu=apple-m1", "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls", "-fno-stack-protector", "-D_FORTIFY_SOURCE=0", "-flto=thin"]'
         run: >-
           uv tool run conan install . --output-folder=build --build="*"
           --profile:all=.github/conan/macos
