@@ -48,6 +48,7 @@ jobs:
           --profile:all=.github/conan/macos
           --conf:all="tools.build:cflags=$COMPILE_FLAGS"
           --conf:all="tools.build:cxxflags=$COMPILE_FLAGS"
+          --conf:all="luajit/*:tools.build:cflags=${COMPILE_FLAGS%]}, \"-fexceptions\"]"
           --conf:all="libcurl/*:tools.build:cflags=${COMPILE_FLAGS/-flto=thin/-fno-lto}"
           --conf:all="libcurl/*:tools.build:cxxflags=${COMPILE_FLAGS/-flto=thin/-fno-lto}"
           --conf:all='tools.build:exelinkflags=["-flto=thin"]'
@@ -148,6 +149,7 @@ jobs:
           cmake -Bbuild \
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /EHs" \
             -DVERSION="${{ github.ref_name }}"
           cmake --build build --config Release --parallel "$(uv run --no-project python -c 'import os; print(os.cpu_count())')" --verbose
 

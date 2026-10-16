@@ -65,13 +65,11 @@ jobs:
           --conf:all='tools.cmake.cmaketoolchain:extra_variables={"CMAKE_MSVC_DEBUG_INFORMATION_FORMAT": "ProgramDatabase"}'
 
       - name: Build
-        env:
-          # Lua errors unwind through C++ frames; cl.exe appends _CL_ after CMake's /EHsc so destructors run.
-          _CL_: /EHc-
         run: |
           cmake -Bbuild \
             -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /EHs" \
             -DVERSION="${{ github.sha }}"
           cmake --build build --config Release --parallel "$(uv run --no-project python -c 'import os; print(os.cpu_count())')" --verbose
 
