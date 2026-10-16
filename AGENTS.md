@@ -21,7 +21,8 @@
 * Build and run macOS Apple Silicon binaries natively with Apple Clang.
 * Use only the `Sandbox` CrossOver bottle to build Windows AMD64 binaries from source and run them. If `Sandbox` does not exist, create it and install the required build and runtime tools. Never create or use other bottles.
 * Use modern, idiomatic C++23, preferring auto, constexpr, const, and final where appropriate.
-* Minimize allocations, copies, and runtime overhead. Prefer O(1), SIMD-friendly, branchless, and cache-friendly implementations when practical.
+* Minimize allocations, copies, and runtime overhead. Prefer O(1) and branchless implementations when practical.
+* All code must be both SIMD-friendly and cache-friendly. Both requirements are mandatory.
 * Use SIMDe for all explicit SIMD operations.
 * Review struct and class member order for efficient memory layout and cache use.
 * Use the project precompiled header. Keep all #include directives in common.hpp, except SDL3/SDL_main.h in main.cpp and single-header implementation includes in miniaudio.cpp and stb.cpp.
