@@ -14,7 +14,7 @@ public:
   scheduler() = default;
   ~scheduler() noexcept;
 
-  handle add(double milliseconds, bool repeat, callback call, callback release, std::uint64_t data);
+  handle add(double milliseconds, bool repeat, callback call, callback release, std::uint64_t data, std::uint32_t count = 0);
 
   static void cancel(const handle& value) noexcept;
   static void pause(const handle& value) noexcept;
@@ -33,6 +33,7 @@ private:
     double deadline{};
     double period{};
     std::uint32_t generation{};
+    std::uint32_t remaining{};
   };
 
   static entry* find(const handle& value) noexcept;
@@ -48,7 +49,6 @@ private:
   std::uint16_t _used{};
   std::uint16_t _live{};
   std::uint16_t _hold{};
-  std::uint16_t _repeat{};
   bool _active{};
   double _now{};
   std::shared_ptr<void> _life{};

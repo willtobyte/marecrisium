@@ -19,7 +19,7 @@ scheduler::entry* scheduler::find(const handle& value) noexcept {
   return &current;
 }
 
-scheduler::handle scheduler::add(double milliseconds, bool repeat, callback call, callback release, std::uint64_t data) {
+scheduler::handle scheduler::add(double milliseconds, bool repeat, callback call, callback release, std::uint64_t data, std::uint32_t count) {
   if (!_life) [[unlikely]]
     _life = std::make_shared_for_overwrite<std::byte>();
 
@@ -41,18 +41,12 @@ scheduler::handle scheduler::add(double milliseconds, bool repeat, callback call
     .deadline = _now + milliseconds,
     .period = milliseconds,
     .generation = generation,
+    .remaining = repeat ? count : 1,
   };
 
   _used |= bit;
-  _hold &= static_cast<std::uint16_t>(~bit);
-  if (repeat)
-    _repeat |= bit;
-  else
-    _repeat &= static_cast<std::uint16_t>(~bit);
   if (_active)
     _live |= bit;
-  else
-    _live &= static_cast<std::uint16_t>(~bit);
 
   return {
     .life = _life,
@@ -71,12 +65,9 @@ void scheduler::cancel(const handle& value) noexcept {
   const auto bit = static_cast<std::uint16_t>(1u << value.slot);
   const auto release = current->release;
   const auto data = current->data;
-  const auto generation = current->generation;
   owner->_used &= static_cast<std::uint16_t>(~bit);
   owner->_live &= static_cast<std::uint16_t>(~bit);
   owner->_hold &= static_cast<std::uint16_t>(~bit);
-  owner->_repeat &= static_cast<std::uint16_t>(~bit);
-  *current = {.generation = generation};
   release(data);
 }
 
@@ -133,20 +124,16 @@ void scheduler::update(float delta) {
       continue;
 
     const auto call = current.call;
-    const auto release = current.release;
     const auto data = current.data;
-    if ((_repeat & bit) != 0) {
+    if (current.remaining == 0 || --current.remaining != 0) {
       current.deadline = _now + current.period;
       call(data);
       continue;
     }
 
-    const auto generation = current.generation;
+    const auto release = current.release;
     _used &= static_cast<std::uint16_t>(~bit);
     _live &= static_cast<std::uint16_t>(~bit);
-    _hold &= static_cast<std::uint16_t>(~bit);
-    _repeat &= static_cast<std::uint16_t>(~bit);
-    current = {.generation = generation};
     try {
       call(data);
     } catch (...) {
@@ -161,15 +148,12 @@ void scheduler::clear() noexcept {
   auto bits = std::exchange(_used, {});
   _live = 0;
   _hold = 0;
-  _repeat = 0;
   while (bits) {
     const auto index = static_cast<std::size_t>(std::countr_zero(bits));
     bits &= static_cast<std::uint16_t>(bits - 1);
     auto& current = _entries[index];
     const auto release = current.release;
     const auto data = current.data;
-    const auto generation = current.generation;
-    current = {.generation = generation};
     release(data);
   }
 }
@@ -188,9 +172,7 @@ namespace {
 constexpr auto name = "TimerHandle";
 bool registered{};
 
-struct handle final {
-  scheduler::handle value{};
-};
+using handle = scheduler::handle;
 
 keyring<
   "active",
@@ -215,7 +197,7 @@ handle* check(lua_State* state) {
 
 int cancel_callback(lua_State* state) {
   auto* const value = check(state);
-  scheduler::cancel(value->value);
+  scheduler::cancel(*value);
   lua_settop(state, 1);
 
   return 1;
@@ -223,7 +205,7 @@ int cancel_callback(lua_State* state) {
 
 int pause_callback(lua_State* state) {
   auto* const value = check(state);
-  scheduler::pause(value->value);
+  scheduler::pause(*value);
   lua_settop(state, 1);
 
   return 1;
@@ -231,7 +213,7 @@ int pause_callback(lua_State* state) {
 
 int resume_callback(lua_State* state) {
   auto* const value = check(state);
-  scheduler::resume(value->value);
+  scheduler::resume(*value);
   lua_settop(state, 1);
 
   return 1;
@@ -242,7 +224,7 @@ int index(lua_State* state) {
 
   switch (keys.find(lua_tostring(state, 2))) {
   case keys.id<"active">():
-    lua_pushboolean(state, scheduler::active(value->value));
+    lua_pushboolean(state, scheduler::active(*value));
     break;
 
   case keys.id<"cancel">():
@@ -274,12 +256,12 @@ int gc(lua_State* state) {
 
 int schedule(lua_State* state, bool repeat) {
   auto* const current = static_cast<scheduler *>(lua_touserdata(state, lua_upvalueindex(1)));
-  const auto milliseconds = static_cast<double>(luaL_checknumber(state, 2));
+  const auto milliseconds = static_cast<double>(lua_tonumber(state, 2));
+  const auto count = static_cast<std::uint32_t>(lua_tonumber(state, 4));
 
   lua_pushvalue(state, 3);
   const auto callback = luaL_ref(state, LUA_REGISTRYINDEX);
-  auto* const memory = new (lua_newuserdata(state, sizeof(handle))) handle{};
-  memory->value = current->add(milliseconds, repeat, invoke, release, static_cast<std::uint64_t>(callback));
+  new (lua_newuserdata(state, sizeof(handle))) handle{current->add(milliseconds, repeat, invoke, release, static_cast<std::uint64_t>(callback), count)};
 
   luaL_getmetatable(state, name);
   lua_setmetatable(state, -2);
