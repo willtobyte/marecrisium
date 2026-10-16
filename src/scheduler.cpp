@@ -24,16 +24,21 @@ scheduler::handle scheduler::add(double milliseconds, bool repeat, callback call
     _life = std::make_shared_for_overwrite<std::byte>();
 
   const auto free = static_cast<std::uint16_t>(~_used);
+
   const auto available = free != 0;
   assert(available && "scene must not exceed 16 timers");
   [[assume(available)]];
+
   const auto index = static_cast<std::size_t>(std::countr_zero(free));
   const auto bit = static_cast<std::uint16_t>(1u << index);
   auto& current = _entries[index];
+
   const auto room = current.generation < std::numeric_limits<std::uint32_t>::max();
   assert(room && "timer handle generation must remain available");
   [[assume(room)]];
+
   const auto generation = current.generation + 1;
+
   current = {
     .call = call,
     .release = release,
@@ -65,9 +70,11 @@ void scheduler::cancel(const handle& value) noexcept {
   const auto bit = static_cast<std::uint16_t>(1u << value.slot);
   const auto release = current->release;
   const auto data = current->data;
+
   owner->_used &= static_cast<std::uint16_t>(~bit);
   owner->_live &= static_cast<std::uint16_t>(~bit);
   owner->_hold &= static_cast<std::uint16_t>(~bit);
+
   release(data);
 }
 
@@ -134,6 +141,7 @@ void scheduler::update(float delta) {
     const auto release = current.release;
     _used &= static_cast<std::uint16_t>(~bit);
     _live &= static_cast<std::uint16_t>(~bit);
+
     try {
       call(data);
     } catch (...) {
@@ -148,12 +156,17 @@ void scheduler::clear() noexcept {
   auto bits = std::exchange(_used, {});
   _live = 0;
   _hold = 0;
+
   while (bits) {
     const auto index = static_cast<std::size_t>(std::countr_zero(bits));
+
     bits &= static_cast<std::uint16_t>(bits - 1);
+
     auto& current = _entries[index];
+
     const auto release = current.release;
     const auto data = current.data;
+
     release(data);
   }
 }
