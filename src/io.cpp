@@ -107,7 +107,6 @@ struct archive final {
   dictionary_t dictionary;
   std::unique_ptr<uint8_t[]> arena;
   const uint8_t *records{};
-  const uint8_t *strings{};
   size_t mask{};
 
   explicit archive(std::string_view filename)
@@ -123,7 +122,7 @@ struct archive final {
 
     const auto *data = source.data;
     records = data + header;
-    strings = records + static_cast<size_t>(slots) * stride;
+    const auto *strings = records + static_cast<size_t>(slots) * stride;
     const auto *trained = strings + textsize;
 
     arena = std::make_unique_for_overwrite<uint8_t[]>(arenasize);
@@ -133,28 +132,6 @@ struct archive final {
 };
 
 std::optional<archive> content;
-
-[[nodiscard]] inline uint64_t hashfn(std::string_view name) noexcept {
-  const auto *cursor = reinterpret_cast<const uint8_t *>(name.data());
-
-  auto remaining = name.size();
-  uint64_t digest = remaining;
-
-  while (remaining >= 8) {
-    uint64_t chunk;
-    std::memcpy(&chunk, cursor, 8);
-    digest = mix(digest ^ chunk, prime);
-    cursor += 8;
-    remaining -= 8;
-  }
-
-  const auto tail = remaining;
-  uint64_t value = 0;
-  for (unsigned shift = 0; remaining > 0; shift += 8, --remaining)
-    value |= static_cast<uint64_t>(*cursor++) << shift;
-
-  return tail == 0 ? digest : mix(digest ^ value, prime);
-}
 
 [[nodiscard]] std::span<const uint8_t> decode(archive *cartridge, const record& current) {
   const auto size = static_cast<size_t>(current.uncompressed);
@@ -181,7 +158,40 @@ void io::mount(std::string_view filename) {
 std::optional<std::span<const uint8_t>> io::try_read(std::string_view filename) {
   auto *cartridge = &*content;
 
-  const auto digest = hashfn(filename);
+  const auto *cursor = reinterpret_cast<const uint8_t *>(filename.data());
+  auto remaining = filename.size();
+  uint64_t digest = remaining;
+
+  while (remaining >= 8) {
+    uint64_t chunk;
+    std::memcpy(&chunk, cursor, 8);
+    digest = mix(digest ^ chunk, prime);
+    cursor += 8;
+    remaining -= 8;
+  }
+
+  uint64_t value = 0;
+  unsigned shift = 0;
+  if (remaining & 4) {
+    uint32_t chunk;
+    std::memcpy(&chunk, cursor, 4);
+    value = chunk;
+    cursor += 4;
+    shift = 32;
+  }
+  if (remaining & 2) {
+    uint16_t chunk;
+    std::memcpy(&chunk, cursor, 2);
+    value |= static_cast<uint64_t>(chunk) << shift;
+    cursor += 2;
+    shift += 16;
+  }
+  if (remaining & 1)
+    value |= static_cast<uint64_t>(*cursor) << shift;
+
+  if (remaining != 0)
+    digest = mix(digest ^ value, prime);
+
   const auto first = static_cast<size_t>(digest) & cartridge->mask;
   const auto *address = cartridge->records + first * stride;
 
@@ -209,7 +219,40 @@ std::optional<std::span<const uint8_t>> io::try_read(std::string_view filename) 
 std::span<const uint8_t> io::read(std::string_view filename) {
   auto *cartridge = &*content;
 
-  const auto digest = hashfn(filename);
+  const auto *cursor = reinterpret_cast<const uint8_t *>(filename.data());
+  auto remaining = filename.size();
+  uint64_t digest = remaining;
+
+  while (remaining >= 8) {
+    uint64_t chunk;
+    std::memcpy(&chunk, cursor, 8);
+    digest = mix(digest ^ chunk, prime);
+    cursor += 8;
+    remaining -= 8;
+  }
+
+  uint64_t value = 0;
+  unsigned shift = 0;
+  if (remaining & 4) {
+    uint32_t chunk;
+    std::memcpy(&chunk, cursor, 4);
+    value = chunk;
+    cursor += 4;
+    shift = 32;
+  }
+  if (remaining & 2) {
+    uint16_t chunk;
+    std::memcpy(&chunk, cursor, 2);
+    value |= static_cast<uint64_t>(chunk) << shift;
+    cursor += 2;
+    shift += 16;
+  }
+  if (remaining & 1)
+    value |= static_cast<uint64_t>(*cursor) << shift;
+
+  if (remaining != 0)
+    digest = mix(digest ^ value, prime);
+
   const auto first = static_cast<size_t>(digest) & cartridge->mask;
 
   record current;
