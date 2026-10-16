@@ -102,7 +102,7 @@ Run the generator from the repository root:
 uv run assets/tools/objects.py
 ```
 
-The command generates all objects with a `frames` directory. It skips unchanged inputs. It writes these files for each object:
+The command generates all objects with a `frames` directory on each run. It writes these files for each object:
 
 ```text
 cartridge/blobs/objects/<name>.png

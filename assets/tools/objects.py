@@ -188,7 +188,7 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
             buffer.getvalue(),
             level=6,
             strip=oxipng.StripChunks.all(),
-            deflate=oxipng.Deflaters.zopfli(15),
+            deflate=oxipng.Deflaters.libdeflater(12),
             force=True,
         )
     )
