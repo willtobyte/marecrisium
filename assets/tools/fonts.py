@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.13,<3.14"
-# dependencies = ["pillow", "pyoxipng"]
+# dependencies = ["pillow", "pyoxipng==9.1.1"]
 # ///
 
 import argparse

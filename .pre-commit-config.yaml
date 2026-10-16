@@ -42,10 +42,10 @@ repos:
       - id: rumdl-fmt
 
   - repo: https://github.com/oxipng/oxipng
-    rev: v10.2.1
+    rev: v9.1.5
     hooks:
       - id: oxipng
-        args: ["--opt", "max", "--strip", "all", "-Z"]
+        args: ["--opt", "6", "--strip", "all", "--zc", "12"]
 
   - repo: local
     hooks:
