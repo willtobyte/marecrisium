@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.13,<3.14"
-# dependencies = ["jinja2", "pillow", "pyoxipng", "rectangle-packer"]
+# dependencies = ["jinja2", "pillow", "pyoxipng==9.1.1", "rectangle-packer"]
 # ///
 
 import importlib
