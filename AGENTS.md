@@ -4,7 +4,14 @@
 
 * Never create Git branches or commits.
 * Never edit generated files in cartridge/objects/ directly; use the object's patch.lua.j2.
-* The engine has one developer, who knows its contracts and controls its code, scripts, and data. Fully trust all content in `cartridge.rom`, including file names and the existence of referenced files. Always assume the happy path: correct use, valid inputs, and initialized state. Write simple, readable code. Do not add defensive checks or fallback paths for hypothetical misuse.
+* The engine has one developer, who knows its contracts and controls its code, scripts, and data. Fully trust all content in `cartridge.rom`, including file names and the existence of referenced files.
+* Always assume the happy path. Always assume that all input is correct and that all state is initialized. Do not add defensive checks, validation, or fallback paths for hypothetical misuse.
+* **Always use the happy path.** Use it to make the code:
+  * **Branchless:** remove all branches, checks, and error paths that the happy path makes unnecessary.
+  * **Allocation-free:** decrease memory allocations to the minimum. Prefer zero allocations on hot paths.
+  * **Copy-free:** decrease copies to the minimum. Prefer views, references, and in-place operations.
+  * **Fast:** decrease runtime overhead, instructions, and cache misses.
+  * **Simple:** write the shortest and most direct code that works for correct input.
 
 ## Platforms
 
