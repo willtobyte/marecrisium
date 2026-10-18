@@ -157,9 +157,6 @@ void engine::loop() {
 
   _director.update(delta);
 
-  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-  SDL_RenderClear(renderer);
-
   _director.draw();
 
   SDL_RenderPresent(renderer);
