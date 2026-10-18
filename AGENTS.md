@@ -17,6 +17,7 @@
 
 * Support only Windows AMD64 and macOS Apple Silicon (M1 or later). Use little-endian systems only. For Windows, target AMD64 CPUs released within the last 10 years.
 * Build and run macOS Apple Silicon binaries natively with Apple Clang.
+* On macOS, run everything in the background. Run in the foreground only when the user asks for it.
 * Use only the `Sandbox` CrossOver bottle to build Windows AMD64 binaries from source and run them. If `Sandbox` does not exist, create it and install the required build and runtime tools. Never create or use other bottles.
 
 ## Steam
@@ -56,8 +57,9 @@
 
 ## Benchmarks
 
+* Run all benchmarks on release builds only, on all platforms. Never benchmark debug builds.
 * Benchmark every performance-related change. Measure time, memory allocations, and copies before and after. Report the comparison and reject non-marginal regressions in each metric.
-* Use a high-precision clock for benchmarks, never FPS. Measure release builds with NOVSYNC=1 and fullscreen enabled; never use WINDOWED=1.
+* Never use frames per second (FPS) or any metric derived from it. Do not measure the whole frame. Measure only the code that the change affects, with high-precision clocks, to prevent noise from unrelated work. Report the median, p99, and maximum time, not only the average.
 
 ### Linux AMD64
 
