@@ -79,12 +79,10 @@ class Game(ConanFile):
 
         toolchain = CMakeToolchain(self)
         for definition in (
+            "STBI_NO_FAILURE_STRINGS",
             "STBI_NO_LINEAR",
             "STBI_NO_STDIO",
             "STBI_ONLY_PNG",
-            "STB_VORBIS_NO_INTEGER_CONVERSION",
-            "STB_VORBIS_NO_PUSHDATA_API",
-            "STB_VORBIS_NO_STDIO",
         ):
             toolchain.preprocessor_definitions[definition] = None
         toolchain.generate()
