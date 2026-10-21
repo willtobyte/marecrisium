@@ -38,7 +38,7 @@ jobs:
 
       - name: Export local recipes
         run: |
-          uv tool run conan export recipes/luajit --version=2.1-20260908
+          uv tool run conan export recipes/luajit --version=2.1-20261020
 
       - name: Install dependencies
         env:
@@ -131,7 +131,7 @@ jobs:
 
       - name: Export local recipes
         run: |
-          uv tool run conan export recipes/luajit --version=2.1-20260908
+          uv tool run conan export recipes/luajit --version=2.1-20261020
 
       - name: Install dependencies
         env:

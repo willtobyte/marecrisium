@@ -1,4 +1,4 @@
 sources:
-  "2.1-20260908":
-    url: "https://github.com/LuaJIT/LuaJIT/archive/c6ffc141a8762b41703f9287d63d93622a13dd8f.tar.gz"
-    sha256: "6e5fec07750add912e7c3eae0c194d24cd6d023714e1f04a0298a5b4819e4457"
+  "2.1-20261020":
+    url: "https://github.com/LuaJIT/LuaJIT/archive/95f931cb1ee7ab14f249d61fb3734803429025f8.tar.gz"
+    sha256: "284b59730849d399dfd6137c3d492e3d21ee6e32ee0f00d2dce7898ab54b270e"
