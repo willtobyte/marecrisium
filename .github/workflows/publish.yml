@@ -262,7 +262,7 @@ jobs:
           cp steamworks/redistributable_bin/win64/steam_api64.dll output/windows/
 
       - name: Upload to Steam
-        uses: skhaz/steam-deploy@b6f1b249306458335ac8a44ae270f24fef4090fe
+        uses: game-ci/steam-deploy@87f8a362c6a8a7dbde08099e4c05da88877f7113
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
