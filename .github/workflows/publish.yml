@@ -203,7 +203,7 @@ jobs:
           SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
 
   publish:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: [macos, windows, symbols]
 
     env:
@@ -262,7 +262,9 @@ jobs:
           cp steamworks/redistributable_bin/win64/steam_api64.dll output/windows/
 
       - name: Upload to Steam
-        uses: game-ci/steam-deploy@v3
+        uses: skhaz/steam-deploy@e38fd38968c07bf2f4260f29de7b306c98c22c50
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           username: ${{ secrets.STEAM_USERNAME }}
           configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
