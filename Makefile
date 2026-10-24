@@ -56,7 +56,6 @@ clean: ## Cleans build artifacts
 	rm -rf $(BUILD) # $(PACKAGES)
 
 conan: ## Installs dependencies
-	conan export recipes/luajit --version=2.1-20261020
 	conan install . \
 		--output-folder=$(BUILD) \
 		--build="*" \

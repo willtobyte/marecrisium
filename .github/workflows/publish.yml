@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@v10
         with:
           cache-dependency-glob: tools/pack.py
 
@@ -35,10 +35,6 @@ jobs:
           key: conan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('conanfile.py', 'src/**') }}
           restore-keys: |
             conan-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Export local recipes
-        run: |
-          uv tool run conan export recipes/luajit --version=2.1-20261020
 
       - name: Install dependencies
         env:
@@ -112,7 +108,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@v10
         with:
           cache-dependency-glob: tools/pack.py
 
@@ -128,10 +124,6 @@ jobs:
           key: conan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('conanfile.py', 'src/**') }}
           restore-keys: |
             conan-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Export local recipes
-        run: |
-          uv tool run conan export recipes/luajit --version=2.1-20261020
 
       - name: Install dependencies
         env:
@@ -241,7 +233,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@v10
         with:
           cache-dependency-glob: |
             tools/pack.py

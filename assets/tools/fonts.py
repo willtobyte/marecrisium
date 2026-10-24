@@ -7,9 +7,8 @@ import argparse
 import importlib
 import math
 import re
-from pathlib import Path
-
 import tomllib
+from pathlib import Path
 
 Image = importlib.import_module("PIL.Image")
 ImageColor = importlib.import_module("PIL.ImageColor")
