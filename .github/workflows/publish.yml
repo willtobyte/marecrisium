@@ -203,7 +203,7 @@ jobs:
           SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
 
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [macos, windows, symbols]
 
     env:
