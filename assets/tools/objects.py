@@ -193,14 +193,14 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         )
     )
 
-    patch = directory / "patch.lua.j2"
+    script = directory / "object.lua.j2"
     environment = jinja2.Environment(
         loader=jinja2.FileSystemLoader([directory, objects]),
         keep_trailing_newline=True,
     )
 
     template = environment.get_template(
-        patch.name if patch.is_file() else "template.lua.j2"
+        script.name if script.is_file() else "template.lua.j2"
     )
 
     rendered = template.render(clips=clips).lstrip("\n")

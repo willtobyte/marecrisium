@@ -26,7 +26,7 @@ Use this format for each frame name:
 
 - `order`: Frame position. Start at `00` for each animation.
 - `duration`: Frame duration in milliseconds. Each frame can have a different duration. Use `-1` to hold the frame forever. The hold frame must be last.
-- `animation`: Animation name. Use `normal` for the initial animation and set `default = "normal"` in the patch. Never name an animation `default`: that key holds the initial-animation marker and a clip with the same name erases it.
+- `animation`: Animation name. Use `normal` for the initial animation and set `default = "normal"` in `object.lua.j2`. Never name an animation `default`: that key holds the initial-animation marker and a clip with the same name erases it.
 
 ## Add mouse colliders
 
@@ -44,7 +44,7 @@ The engine does not call mouse handlers. Use the Lua interaction module in the s
 
 ## Add object behavior
 
-Add `patch.lua.j2` to the object directory only when it needs behavior. Objects with only animations need no patch. Use `assets/objects/template.lua.j2` as the base.
+Add `object.lua.j2` to the object directory only when it needs behavior. Objects with only animations need no `object.lua.j2`. Use `assets/objects/template.lua.j2` as the base.
 
 For an object that must breathe, extend the breathing trait:
 
@@ -54,7 +54,7 @@ For an object that must breathe, extend the breathing trait:
 
 ## Handle an animation end
 
-Call `on_end` to set an object's animation-end callback. In a patch, use `on_spawn`:
+Call `on_end` to set an object's animation-end callback. In `object.lua.j2`, use `on_spawn`:
 
 ```lua
 on_spawn = function(self)
@@ -78,7 +78,7 @@ The callback receives the object and animation name. It runs at the end of each 
 
 ## Call an object handler
 
-When the engine loads an object kind, it also sets each `on_<name>` patch field as `<name>`. In a patch:
+When the engine loads an object kind, it also sets each `on_<name>` field of `object.lua.j2` as `<name>`. In `object.lua.j2`:
 
 ```lua
 on_hit = function(self, damage)
@@ -92,7 +92,7 @@ In a scene or another object:
 pool.objectname:hit(10)
 ```
 
-The call has the same cost as a call to `on_hit`. A `<name>` field in the patch is replaced. Only fields that exist at load get a second name. Top-level patch keys must be strings.
+The call has the same cost as a call to `on_hit`. A `<name>` field in `object.lua.j2` is replaced. Only fields that exist at load get a second name. Top-level keys of `object.lua.j2` must be strings.
 
 ## Generate the objects
 
@@ -115,5 +115,5 @@ Do not edit these generated files.
 
 1. Add, replace, rename, or remove source files in the object's `frames` directory.
 2. Apply the same changes to each frame's mask in `colliders`, if present.
-3. Update `patch.lua.j2` when behavior changes.
+3. Update `object.lua.j2` when behavior changes.
 4. Run the generator again to update `cartridge`.

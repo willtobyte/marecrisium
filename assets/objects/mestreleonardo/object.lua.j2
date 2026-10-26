@@ -3,7 +3,8 @@
 {% block header %}
 local controls = require("helpers/controls")
 
-local animations = { {% for clip in clips %}"{{ clip.name }}", {% endfor %}}
+local animations =
+	{ {% for clip in clips %}"{{ clip.name }}"{% if not loop.last %}, {% endif %}{% endfor %} }
 local index = 1
 {% endblock %}
 {% block animation %}

@@ -3,7 +3,7 @@
 ## General
 
 * Never create Git branches or commits.
-* Never edit generated files in cartridge/objects/ directly; use the object's patch.lua.j2.
+* Never edit generated files in cartridge/objects/ directly; use the object's object.lua.j2.
 * The engine has one developer, who knows its contracts and controls its code, scripts, and data. Fully trust all content in `cartridge.rom`, including file names and the existence of referenced files.
 * Always assume the happy path. Always assume that all input is correct and that all state is initialized. Do not add defensive checks, validation, or fallback paths for hypothetical misuse.
 * **Always use the happy path.** Use it to make the code:
