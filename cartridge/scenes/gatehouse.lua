@@ -10,10 +10,12 @@ return {
 		{ name = "panicbutton", kind = "panicbutton", x = 0, y = 0 },
 		{ name = "alarmlight", kind = "alarmlight", x = 0, y = 0 },
 		{ name = "rope", kind = "rope", x = 0, y = 0 },
+		{ name = "mestreleonardo", kind = "mestreleonardo", x = 0, y = 0 },
 	},
 
 	on_enter = function()
-		local objects = { pool.walkietalkie, pool.datapad, pool.handbook, pool.panicbutton, pool.rope }
+		local objects =
+			{ pool.walkietalkie, pool.datapad, pool.handbook, pool.panicbutton, pool.rope, pool.mestreleonardo }
 		navigator = navigation.new(objects)
 
 		for _, object in ipairs(objects) do

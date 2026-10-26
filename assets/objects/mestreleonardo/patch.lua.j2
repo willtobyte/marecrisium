@@ -1,0 +1,39 @@
+{# vim: set filetype=lua: #}
+{% extends "template.lua.j2" %}
+{% block header %}
+local controls = require("helpers/controls")
+
+local animations = { {% for clip in clips %}"{{ clip.name }}", {% endfor %}}
+local index = 1
+{% endblock %}
+{% block animation %}
+		default = "normal",
+{% endblock %}
+{% block behaviors %}
+
+	select = function(self)
+		self.selected = true
+		self.action = controls.action
+	end,
+
+	unselect = function(self)
+		self.selected = false
+		self.action = false
+	end,
+
+	on_click = function(self)
+		if self.selected then
+			index = index % #animations + 1
+			self.animation = animations[index]
+		end
+	end,
+
+	on_loop = function(self, delta)
+		local action = controls.action
+		if self.selected and action and not self.action then
+			index = index % #animations + 1
+			self.animation = animations[index]
+		end
+
+		self.action = action
+	end,{% endblock %}
