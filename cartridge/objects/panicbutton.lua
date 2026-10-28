@@ -1,5 +1,27 @@
 local controls = require("helpers/controls")
 
+local press = function(self)
+	if self.busy then
+		return
+	end
+
+	if self.animation ~= "open" then
+		self.animation = "open"
+		pool.alarmlight.animation = "on"
+
+		return
+	end
+
+	self.busy = true
+	timer:singleshot(200, function()
+		pool.handslam:slam(function()
+			self.busy = false
+			self.animation = self.selected and "hover" or "normal"
+			pool.alarmlight.animation = "normal"
+		end)
+	end)
+end
+
 return {
 	animation = {
 		default = "normal",
@@ -33,8 +55,7 @@ return {
 
 	on_click = function(self)
 		if self.selected then
-			self.animation = "open"
-			pool.alarmlight.animation = "on"
+			press(self)
 		end
 	end,
 
@@ -42,8 +63,7 @@ return {
 		local action = controls.action
 		local dismiss = controls.dismiss
 		if self.selected and action and not self.action then
-			self.animation = "open"
-			pool.alarmlight.animation = "on"
+			press(self)
 		elseif self.selected and dismiss and not self.dismiss then
 			self.animation = "hover"
 			pool.alarmlight.animation = "normal"

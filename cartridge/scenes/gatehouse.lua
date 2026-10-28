@@ -11,6 +11,7 @@ return {
 		{ name = "alarmlight", kind = "alarmlight", x = 0, y = 0 },
 		{ name = "rope", kind = "rope", x = 0, y = 0 },
 		{ name = "mestreleonardo", kind = "mestreleonardo", x = 0, y = 0 },
+		{ name = "handslam", kind = "handslam", x = 0, y = 0 },
 	},
 
 	on_enter = function()
