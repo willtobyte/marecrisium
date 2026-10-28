@@ -8,6 +8,7 @@ import importlib
 import io
 import math
 import re
+import sys
 from pathlib import Path
 
 Image = importlib.import_module("PIL.Image")
@@ -18,6 +19,32 @@ rpack = importlib.import_module("rpack")
 objects = Path(__file__).resolve().parents[1] / "objects"
 root = objects.parents[1]
 pattern = re.compile(r"^(\d+)_(-?\d+)_([a-z][a-z0-9.]*)\.png$")
+identifier = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+keywords = frozenset(
+    (
+        "and",
+        "break",
+        "do",
+        "else",
+        "elseif",
+        "end",
+        "false",
+        "for",
+        "function",
+        "if",
+        "in",
+        "local",
+        "nil",
+        "not",
+        "or",
+        "repeat",
+        "return",
+        "then",
+        "true",
+        "until",
+        "while",
+    )
+)
 
 
 for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
@@ -36,6 +63,13 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         match = pattern.fullmatch(filename.name)
 
         order, duration, animation = match.groups()
+        if animation == "default":
+            sys.exit(
+                f"objects/{name}/{filename.name}: 'default' holds the initial animation"
+            )
+        if animation in keywords:
+            sys.exit(f"objects/{name}/{filename.name}: {animation!r} is a Lua keyword")
+
         order = int(order)
         duration = int(duration)
         assert duration == -1 or duration >= 0, (
@@ -174,6 +208,9 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
         clips.append(
             {
                 "name": animation,
+                "key": animation
+                if identifier.fullmatch(animation)
+                else f'["{animation}"]',
                 "frames": [frame for _, frame in frames],
             }
         )
@@ -204,10 +241,9 @@ for directory in sorted(entry for entry in objects.iterdir() if entry.is_dir()):
     )
 
     rendered = template.render(clips=clips).lstrip("\n")
-    output.write_text(
-        re.sub(r"\n{3,}", "\n\n", re.sub(r"\n\n(?=})", "\n", rendered)).rstrip("\n")
-        + "\n"
-    )
+    rendered = re.sub(r"\n\n(?=})", "\n", rendered)
+    rendered = re.sub(r'(default = "[^"]*",)\n{2,}', r"\1\n", rendered)
+    output.write_text(re.sub(r"\n{3,}", "\n\n", rendered).rstrip("\n") + "\n")
 
     print(
         f"{name} ({len(groups)} animations) "

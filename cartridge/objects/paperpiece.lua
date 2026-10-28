@@ -1,6 +1,6 @@
 return {
 	animation = {
-		["normal"] = {
+		normal = {
 			{ 0, 0, 15, 27, 155, 53, 480, 270, -1 },
 		},
 	},

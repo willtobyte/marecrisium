@@ -4,7 +4,7 @@ return {
 	animation = {
 {%- block animation %}{% endblock %}
 {%- for clip in clips %}
-		["{{ clip.name }}"] = {
+		{{ clip.key }} = {
 {%- for frame in clip.frames %}
 			{ {{ frame }} },
 {%- endfor %}
