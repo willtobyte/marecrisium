@@ -49,20 +49,16 @@ repos:
 
   - repo: local
     hooks:
-      - id: optivorbis
-        name: optivorbis
+      - id: opus
+        name: opus
         entry: |-
           bash -c 'set -euo pipefail
           for path; do
-            dir=$(mktemp -d "${path}.XXXXXX")
-            trap "rm -rf -- \"$dir\"" EXIT
-            optivorbis --remuxer_option randomize_stream_serials=false "$path" "$dir/file.ogg"
-            mv "$dir/file.ogg" "$path"
-            rm -rf -- "$dir"
-            trap - EXIT
+            ffmpeg -nostdin -loglevel error -y -i "$path" -map 0:a -c copy -map_metadata -1 -map_chapters -1 -fflags +bitexact -page_duration 100000000 -f opus "$path.tmp"
+            mv "$path.tmp" "$path"
           done' --
         language: system
-        files: \.ogg$
+        files: \.opus$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.17.2
