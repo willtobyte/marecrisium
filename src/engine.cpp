@@ -51,6 +51,7 @@ engine::engine() {
 
   SDL_SetRenderLogicalPresentation(renderer, width, height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
   SDL_SetRenderScale(renderer, scale, scale);
+  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
   const pixmap splash{"blobs/splashes/default.png"};
 

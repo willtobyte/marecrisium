@@ -1,4 +1,6 @@
 namespace {
+constexpr auto margin = 4.f;
+
 template <typename T>
 void number(lua_State *state, int key, T &value, T fallback = {}) {
   lua_pushvalue(state, lua_upvalueindex(key));
@@ -85,7 +87,7 @@ int paint(lua_State *state) {
 }
 }
 
-label::label(font *font, float x, float y, float w, float h) : _font(font), _x(x), _y(y), _w(w), _h(h) {
+label::label(font *font, float x, float y, float w, float h) : _font(font), _rect{x, y, w, h}, _text{x + margin, y + margin, w - margin * 2.f, h - margin * 2.f} {
 }
 
 void label::wire() {
@@ -107,7 +109,10 @@ void label::wire() {
 }
 
 void label::draw(std::string_view text) const {
-  _font->draw(text, _x, _y, _w, _h);
+  SDL_SetRenderDrawColorFloat(renderer, .0f, .0f, .0f, .5f);
+  SDL_RenderFillRect(renderer, &_rect);
+
+  _font->draw(text, _text);
 }
 
 void label::draw(std::string_view text, std::span<const glypheffect> effects) const {
@@ -116,9 +121,12 @@ void label::draw(std::string_view text, std::span<const glypheffect> effects) co
 
 template <bool sparse>
 void label::draw(std::string_view text, std::span<const glypheffect> effects, std::span<const uint64_t> active) const {
+  SDL_SetRenderDrawColorFloat(renderer, .0f, .0f, .0f, .5f);
+  SDL_RenderFillRect(renderer, &_rect);
+
   if constexpr (sparse) {
-    _font->draw<true>(text, _x, _y, _w, _h, effects, active);
+    _font->draw<true>(text, _text, effects, active);
   } else {
-    _font->draw<false>(text, _x, _y, _w, _h, effects, active);
+    _font->draw<false>(text, _text, effects, active);
   }
 }

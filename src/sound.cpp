@@ -206,6 +206,7 @@ void sound::play() {
   if (_phase.load(std::memory_order_acquire) == phase::idle &&
       (_completed->load(std::memory_order_relaxed) & _bit) == 0) [[likely]] {
     _phase.store(phase::armed, std::memory_order_release);
+
     ma_sound_seek_to_pcm_frame(&_sound, 0);
     ma_sound_start(&_sound);
 
@@ -213,14 +214,18 @@ void sound::play() {
   }
 
   stop();
+
   _phase.store(phase::armed, std::memory_order_release);
+
   ma_sound_seek_to_pcm_frame(&_sound, 0);
   ma_sound_start(&_sound);
 }
 
 void sound::stop() {
   const auto active = _phase.load(std::memory_order_acquire) != phase::idle;
+
   ma_sound_stop(&_sound);
+
   if (active) {
     ma_node_detach_output_bus(&_sound, 0);
 

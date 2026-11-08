@@ -15,8 +15,6 @@ public:
 
 private:
   font *_font;
-  float _x;
-  float _y;
-  float _w;
-  float _h;
+  SDL_FRect _rect;
+  SDL_FRect _text;
 };

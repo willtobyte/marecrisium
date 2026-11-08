@@ -145,29 +145,25 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
   draw<false>(text, x, y, effects, {});
 }
 
-void font::draw(std::string_view text, float x, float y, float w, float h) const {
-  draw(text, x, y, w, h, {});
+void font::draw(std::string_view text, const SDL_FRect &rect) const {
+  draw(text, rect, {});
 }
 
 void font::draw(
   std::string_view text,
-  float x,
-  float y,
-  float w,
-  float h,
+  const SDL_FRect &rect,
   std::span<const glypheffect> effects) const {
-  draw<false>(text, x, y, w, h, effects, {});
+  draw<false>(text, rect, effects, {});
 }
 
 template <bool sparse>
 void font::draw(
   std::string_view text,
-  float x,
-  float y,
-  float w,
-  float h,
+  const SDL_FRect &rect,
   std::span<const glypheffect> effects,
   std::span<const uint64_t> active) const {
+  const auto [x, y, w, h] = rect;
+
   if (w <= .0f) [[unlikely]] return;
 
   const auto *mask = active.data();
@@ -425,9 +421,6 @@ void font::draw(std::string_view text, float x, float y, std::span<const glyphef
 
 template void font::draw<true>(
   std::string_view,
-  float,
-  float,
-  float,
-  float,
+  const SDL_FRect &,
   std::span<const glypheffect>,
   std::span<const uint64_t>) const;

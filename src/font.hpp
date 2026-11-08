@@ -27,17 +27,14 @@ public:
   template <bool sparse>
   void draw(std::string_view text, float x, float y, std::span<const glypheffect> effects, std::span<const uint64_t> active) const;
 
-  void draw(std::string_view text, float x, float y, float w, float h) const;
+  void draw(std::string_view text, const SDL_FRect &rect) const;
 
-  void draw(std::string_view text, float x, float y, float w, float h, std::span<const glypheffect> effects) const;
+  void draw(std::string_view text, const SDL_FRect &rect, std::span<const glypheffect> effects) const;
 
   template <bool sparse>
   void draw(
     std::string_view text,
-    float x,
-    float y,
-    float w,
-    float h,
+    const SDL_FRect &rect,
     std::span<const glypheffect> effects,
     std::span<const uint64_t> active) const;
 
