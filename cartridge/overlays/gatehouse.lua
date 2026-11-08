@@ -34,9 +34,11 @@ local function hue2rgb(hue)
 end
 
 return {
-	-- fonts = { "pixel", "monogram" },
+	fonts = { "pixel" },
 
-	on_appear = function() end,
+	on_appear = function()
+		a = Label.new(pool.pixel, floor((viewport.width - 90) / 2), floor((viewport.height - 25) / 2), 90, 25)
+	end,
 
 	on_loop = function(_, delta)
 		elapsed = elapsed + delta
@@ -51,5 +53,7 @@ return {
 		end
 	end,
 
-	on_paint = function() end,
+	on_paint = function()
+		a:draw("Hello World")
+	end,
 }

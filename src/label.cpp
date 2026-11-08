@@ -109,7 +109,7 @@ void label::wire() {
 }
 
 void label::draw(std::string_view text) const {
-  SDL_SetRenderDrawColorFloat(renderer, .0f, .0f, .0f, .5f);
+  SDL_SetRenderDrawColorFloat(renderer, .0f, .0f, .0f, .7f);
   SDL_RenderFillRect(renderer, &_rect);
 
   _font->draw(text, _text);
@@ -121,7 +121,7 @@ void label::draw(std::string_view text, std::span<const glypheffect> effects) co
 
 template <bool sparse>
 void label::draw(std::string_view text, std::span<const glypheffect> effects, std::span<const uint64_t> active) const {
-  SDL_SetRenderDrawColorFloat(renderer, .0f, .0f, .0f, .5f);
+  SDL_SetRenderDrawColorFloat(renderer, .0f, .0f, .0f, .7f);
   SDL_RenderFillRect(renderer, &_rect);
 
   if constexpr (sparse) {
