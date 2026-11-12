@@ -329,8 +329,7 @@ void scene::update(float delta) {
 
   for (auto it = _loops.rbegin(); it != _loops.rend(); ++it) {
     const auto& object = _objects[*it];
-    const auto callback = object.script.blueprint->on_loop;
-    lua_rawgeti(L, LUA_REGISTRYINDEX, callback);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.blueprint->on_loop);
     lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.instance);
     lua_pushnumber(L, static_cast<lua_Number>(delta));
     if (pcall(L, 2, 0) != LUA_OK) [[unlikely]]
