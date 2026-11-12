@@ -2,7 +2,7 @@ int application::run() {
   auto* const options = sentry_options_new();
 
   {
-    char buffer[256]{};
+    char buffer[2048]{};
 
     if (auto* const file = std::fopen("sentry.dsn", "r")) {
       std::fgets(buffer, sizeof buffer, file);
