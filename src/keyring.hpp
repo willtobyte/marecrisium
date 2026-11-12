@@ -28,58 +28,42 @@ public:
   }
 
   void intern() {
-    std::array<const char*, size> pointers;
-    std::ranges::transform(std::array{Names.data.data()...}, pointers.begin(), [](const char* name) {
-      lua_pushstring(L, name);
-      const auto* pointer = lua_tostring(L, -1);
-      luaL_ref(L, LUA_REGISTRYINDEX);
+    std::array<std::uint64_t, size> entries;
+    auto i = 0uz;
+    ((lua_pushstring(L, Names.data.data()), entries[i] = std::bit_cast<std::uint64_t>(lua_tostring(L, -1)) | i << 56, ++i, luaL_ref(L, LUA_REGISTRYINDEX)), ...);
 
-      return pointer;
-    });
+    const auto place = [this](std::uint64_t entry) {
+      auto& slot = _slots[hash(entry & mask)];
 
-    const auto perfect = [&](std::uint64_t seed) {
-      std::array<std::size_t, size> slots;
-      std::ranges::transform(pointers, slots.begin(), [seed](const char* pointer) { return hash(pointer, seed); });
-      std::ranges::sort(slots);
-
-      return std::ranges::adjacent_find(slots) == slots.end();
+      return slot == empty && (slot = entry, true);
     };
 
-    const auto seeds = std::views::iota(1ull, 4096ull)
-      | std::views::transform([](std::uint64_t n) { return n * 0x9E3779B97F4A7C15ull | 1; });
-    const auto it = std::ranges::find_if(seeds, perfect);
-    assert(it != seeds.end() && "keyring must find a perfect hash");
-    _seed = *it;
-
-    for (auto i = 0uz; i < size; ++i) {
-      const auto slot = hash(pointers[i], _seed);
-      _keys[slot] = pointers[i];
-      _values[slot] = static_cast<std::uint8_t>(i);
-    }
+    auto n = 0ull;
+    do {
+      _seed = ++n * golden | 1;
+      _slots.fill(empty);
+    } while (!std::ranges::all_of(entries, place));
   }
 
   [[nodiscard]] std::size_t find(const char* key) const noexcept {
-    const auto slot = hash(key, _seed);
+    const auto slot = _slots[hash(std::bit_cast<std::uint64_t>(key))];
 
-    return _keys[slot] == key ? _values[slot] : size;
+    return (slot & mask) == std::bit_cast<std::uint64_t>(key) ? slot >> 56 : size;
   }
 
 private:
-  static_assert(size < std::numeric_limits<std::uint8_t>::max(), "keyring must hold fewer than 255 keys");
+  static_assert(size <= 48, "keyring must hold at most 48 keys to find a perfect hash quickly");
 
-  static constexpr auto capacity = std::bit_ceil(size * 8);
+  static constexpr auto capacity = std::bit_ceil(size * 4);
   static constexpr auto shift = 64 - std::countr_zero(capacity);
+  static constexpr auto mask = (1ull << 56) - 1;
+  static constexpr auto empty = std::uint64_t{size} << 56;
+  static constexpr auto golden = 0x9E3779B97F4A7C15ull;
 
-  [[nodiscard]] static std::size_t hash(const char* key, std::uint64_t seed) noexcept {
-    return static_cast<std::size_t>((std::bit_cast<std::uint64_t>(key) * seed) >> shift);
+  [[nodiscard]] std::size_t hash(std::uint64_t key) const noexcept {
+    return static_cast<std::size_t>((key * _seed) >> shift);
   }
 
   std::uint64_t _seed{};
-  std::array<const char*, capacity> _keys{};
-  std::array<std::uint8_t, capacity> _values = [] {
-    std::array<std::uint8_t, capacity> values;
-    values.fill(size);
-
-    return values;
-  }();
+  std::array<std::uint64_t, capacity> _slots{};
 };
