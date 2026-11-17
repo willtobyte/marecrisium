@@ -24,11 +24,15 @@ struct frame final {
   } offset;
 };
 
+static_assert(std::is_trivially_copyable_v<frame>, "frame must be trivially copyable");
+
 struct sequence final {
   int name{LUA_NOREF};
   uint16_t offset{};
   uint8_t count{};
 };
+
+static_assert(std::is_trivially_copyable_v<sequence>, "sequence must be trivially copyable");
 
 struct prototype final {
   int table{LUA_NOREF};
@@ -37,6 +41,8 @@ struct prototype final {
   int on_spawn{LUA_NOREF};
   std::array<int, 3> mouse{LUA_NOREF, LUA_NOREF, LUA_NOREF};
 };
+
+static_assert(std::is_trivially_copyable_v<prototype>, "prototype must be trivially copyable");
 
 struct object final {
   struct sprite final {
@@ -83,9 +89,13 @@ struct object final {
   } motion;
 };
 
+static_assert(std::is_trivially_copyable_v<object>, "object must be trivially copyable");
+
 struct dirty final {
   bool order{true};
 };
+
+static_assert(std::is_trivially_copyable_v<dirty>, "dirty must be trivially copyable");
 
 struct proxy final {
   object* object{};
