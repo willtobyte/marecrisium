@@ -37,23 +37,23 @@ return {
 	fonts = { "pixel" },
 
 	on_appear = function()
-		a = Label.new(pool.pixel, floor((viewport.width - 90) / 2), floor((viewport.height - 25) / 2), 90, 25)
+		-- a = Label.new(pool.pixel, floor((viewport.width - 90) / 2), floor((viewport.height - 25) / 2), 90, 25)
 	end,
 
 	on_loop = function(_, delta)
-		elapsed = elapsed + delta
-
-		for i = 1, length do
-			local offset = i - 1
-			local effect = effects[i]
-
-			effect.r, effect.g, effect.b = hue2rgb((offset / length + elapsed * 0.1) % 1)
-			effect.y_offset = sin(elapsed * 3 + offset * 0.7) * 2
-			effect.angle = sin(elapsed * 2 + offset * 0.5) * 20
-		end
+		-- elapsed = elapsed + delta
+		--
+		-- for i = 1, length do
+		-- 	local offset = i - 1
+		-- 	local effect = effects[i]
+		--
+		-- 	effect.r, effect.g, effect.b = hue2rgb((offset / length + elapsed * 0.1) % 1)
+		-- 	effect.y_offset = sin(elapsed * 3 + offset * 0.7) * 2
+		-- 	effect.angle = sin(elapsed * 2 + offset * 0.5) * 20
+		-- end
 	end,
 
 	on_paint = function()
-		a:draw("Hello World")
+		-- a:draw("Hello World")
 	end,
 }
