@@ -60,6 +60,7 @@ struct object final {
     int z{};
     uint8_t alpha{255};
     bool shown{true};
+    bool clickable{};
     mirror::value mirror{mirror::value::none};
 
     void resize(const float width, const float height, const float value) {
@@ -80,6 +81,7 @@ struct object final {
   } script;
 
   struct motion final {
+    const ::frame* frame{};
     float elapsed{};
     uint8_t active{};
     uint8_t current{};

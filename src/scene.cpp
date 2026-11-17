@@ -149,10 +149,12 @@ scene::scene(std::string_view key)
       const auto* sheet = depot->get<spritesheet>(kind, L, -1);
       object.sprite.sheet = sheet;
       object.motion.active = sheet->initial;
+      object.motion.frame = sheet->frames + sheet->sequences[sheet->initial].offset;
       const auto& source = sheet->source;
       object.sprite.resize(source.width, source.height, object.sprite.scale);
 
       object.script.mouse = object.script.blueprint->mouse;
+      object.sprite.clickable = std::ranges::any_of(object.script.mouse, [](const int reference) { return reference != LUA_NOREF; });
 
       lua_pop(L, 2);
 
@@ -289,12 +291,11 @@ void scene::update(float delta) {
     const auto order = std::views::reverse(_order);
     const auto it = std::ranges::find_if(order, [&](const auto id) {
       const auto& object = _objects[id];
-      if (!object.sprite.shown || std::ranges::all_of(object.script.mouse, [](const int reference) { return reference == LUA_NOREF; }))
+      if (!object.sprite.shown || !object.sprite.clickable)
         return false;
 
       const auto& sprite = object.sprite;
-      const auto& sequence = sprite.sheet->sequences[object.motion.active];
-      const auto& frame = sprite.sheet->frames[sequence.offset + object.motion.current];
+      const auto& frame = *object.motion.frame;
       const auto& collider = frame.collider;
       const auto& bounds = sprite.bounds;
       const SDL_FRect rectangle{
@@ -339,21 +340,23 @@ void scene::update(float delta) {
 
   for (auto& object : std::views::reverse(_objects)) {
     auto& motion = object.motion;
-    const auto& sequence = object.sprite.sheet->sequences[motion.active];
-    const auto& frame = object.sprite.sheet->frames[sequence.offset + motion.current];
 
-    if (std::isinf(frame.duration)) [[unlikely]]
-      continue;
+    const auto& frame = *motion.frame;
 
     motion.elapsed += delta;
     if (motion.elapsed < frame.duration) [[likely]]
       continue;
 
     motion.elapsed -= frame.duration;
-    if (++motion.current < sequence.count)
+    const auto& sequence = object.sprite.sheet->sequences[motion.active];
+    if (++motion.current < sequence.count) {
+      ++motion.frame;
+
       continue;
+    }
 
     motion.current = 0;
+    motion.frame = object.sprite.sheet->frames + sequence.offset;
 
     if (!motion.ending)
       continue;
@@ -387,8 +390,7 @@ void scene::draw() {
     if (!object.sprite.shown) [[unlikely]]
       continue;
 
-    const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
-    const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
+    const auto& frame = *object.motion.frame;
     const auto* sheet = object.sprite.sheet->pixmap;
     const auto& sprite = object.sprite;
     const auto& source = sprite.sheet->source;
@@ -447,8 +449,7 @@ void scene::draw() {
     if (!object.sprite.shown) [[unlikely]]
       continue;
 
-    const auto& sequence = object.sprite.sheet->sequences[object.motion.active];
-    const auto& frame = object.sprite.sheet->frames[sequence.offset + object.motion.current];
+    const auto& frame = *object.motion.frame;
     const auto& bounds = object.sprite.bounds;
     const auto& collider = frame.collider;
     if (collider.width == .0f || collider.height == .0f)

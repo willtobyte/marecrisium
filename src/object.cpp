@@ -27,8 +27,7 @@ static int collider(lua_State* state) {
 
   const auto& object = *self->object;
   const auto& sprite = object.sprite;
-  const auto& sequence = sprite.sheet->sequences[object.motion.active];
-  const auto& frame = sprite.sheet->frames[sequence.offset + object.motion.current];
+  const auto& frame = *object.motion.frame;
   const auto& bounds = sprite.bounds;
 
   lua_pushnumber(state, std::floor(sprite.x) + bounds.x + (frame.offset.x + frame.collider.offset.x) * sprite.scale);
@@ -71,6 +70,7 @@ static int on_mouse_callback(lua_State* state) {
 
   lua_pushvalue(state, 2);
   reference = luaL_ref(state, LUA_REGISTRYINDEX);
+  self->object->sprite.clickable = true;
 
   return 0;
 }
@@ -260,6 +260,7 @@ static int newindex(lua_State* state) {
 
     object.motion.active = it->second;
     object.motion.current = 0;
+    object.motion.frame = sheet->frames + sheet->sequences[it->second].offset;
     object.motion.elapsed = 0;
 
     return 0;
