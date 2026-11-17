@@ -36,13 +36,15 @@ scene::scene(std::string_view key)
   struct prior final {
     int pool;
     int timer;
-  };
+  } prior;
 
   lua_getglobal(L, "pool");
   const auto pool = luaL_ref(L, LUA_REGISTRYINDEX);
+
   lua_getglobal(L, "timer");
   const auto timer = luaL_ref(L, LUA_REGISTRYINDEX);
-  const prior prior{.pool = pool, .timer = timer};
+
+  prior = {.pool = pool, .timer = timer};
 
   _scheduler.wire();
   lua_rawgeti(L, LUA_REGISTRYINDEX, _scheduler._table);
@@ -53,7 +55,6 @@ scene::scene(std::string_view key)
   const auto chunk = std::format("@scenes/{}.lua", key);
   const auto filename = std::string_view{chunk}.substr(1);
   const auto source = io::read(filename);
-
   if (luaL_loadbuffer(L, reinterpret_cast<const char*>(source.data()), source.size(), chunk.c_str()) != LUA_OK) [[unlikely]]
     throw std::runtime_error{lua_tostring(L, -1)};
 
