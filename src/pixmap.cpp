@@ -22,7 +22,9 @@ void pixmap::draw(
   const SDL_FRect source{sx, sy, sw, sh};
   const SDL_FRect destination{dx, dy, dw, dh};
 
-  SDL_SetTextureAlphaMod(_texture.get(), alpha);
+  if (std::exchange(_alpha, alpha) != alpha) [[unlikely]]
+    SDL_SetTextureAlphaMod(_texture.get(), alpha);
+
   SDL_RenderTextureRotated(renderer, _texture.get(), &source, &destination, angle, nullptr, static_cast<SDL_FlipMode>(mirror));
 }
 

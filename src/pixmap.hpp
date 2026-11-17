@@ -22,5 +22,7 @@ private:
   int _width;
   int _height;
 
+  mutable uint8_t _alpha{255};
+
   std::unique_ptr<SDL_Texture, SDL_Deleter> _texture;
 };
