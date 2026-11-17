@@ -426,8 +426,8 @@ void scene::draw() {
     }
 
     sheet->draw(
-      frame.u0 * sheet->width(),
-      frame.v0 * sheet->height(),
+      frame.x,
+      frame.y,
       frame.width,
       frame.height,
       x,

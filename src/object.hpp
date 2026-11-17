@@ -3,24 +3,22 @@
 struct spritesheet;
 
 struct frame final {
-  float u0{};
-  float v0{};
-  float u1{};
-  float v1{};
-  float width{};
-  float height{};
+  float x;
+  float y;
+  float width;
+  float height;
   struct {
     struct {
-      float x{};
-      float y{};
+      float x;
+      float y;
     } offset;
-    float width{};
-    float height{};
+    float width;
+    float height;
   } collider;
-  float duration{};
+  float duration;
   struct {
-    uint16_t x{};
-    uint16_t y{};
+    uint16_t x;
+    uint16_t y;
   } offset;
 };
 

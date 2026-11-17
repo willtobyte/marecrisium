@@ -22,9 +22,6 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
   storage.frames.reserve(frames);
   storage.sheet.pixmap = depot->get<pixmap>(std::format("objects/{}", kind));
 
-  const auto iw = 1.f / static_cast<float>(storage.sheet.pixmap->width());
-  const auto ih = 1.f / static_cast<float>(storage.sheet.pixmap->height());
-
   std::string_view primary;
   lua_getfield(state, top, "default");
   if (lua_isstring(state, -1)) {
@@ -61,10 +58,10 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       auto& frame = storage.frames.emplace_back();
 
       lua_rawgeti(state, -1, 1);
-      const auto x = static_cast<float>(lua_tonumber(state, -1));
+      frame.x = static_cast<float>(lua_tonumber(state, -1));
 
       lua_rawgeti(state, -2, 2);
-      const auto y = static_cast<float>(lua_tonumber(state, -1));
+      frame.y = static_cast<float>(lua_tonumber(state, -1));
 
       lua_rawgeti(state, -3, 3);
       frame.width = static_cast<float>(lua_tonumber(state, -1));
@@ -87,11 +84,6 @@ const spritesheet* spritesheetpool::get(std::string_view kind, lua_State* state,
       lua_rawgeti(state, -9, 9);
       const auto milliseconds = lua_tonumber(state, -1);
       frame.duration = milliseconds < 0 ? std::numeric_limits<float>::infinity() : static_cast<float>(milliseconds) / 1000.f;
-
-      frame.u0 = x * iw;
-      frame.v0 = y * ih;
-      frame.u1 = (x + frame.width) * iw;
-      frame.v1 = (y + frame.height) * ih;
 
       lua_rawgeti(state, -10, 10);
       frame.collider.offset.x = static_cast<float>(lua_tonumber(state, -1));
