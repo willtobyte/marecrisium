@@ -53,6 +53,7 @@ static int on_end_callback(lua_State* state) {
   self->object->motion.ending = active;
   if (active) {
     lua_pushvalue(state, 2);
+
     reference = luaL_ref(state, LUA_REGISTRYINDEX);
   }
 
@@ -321,15 +322,19 @@ void objects::bind(object& object, dirty& dirty, std::string_view name, std::str
   lua_setfield(L, -2, "__index");
 
   const auto top = lua_gettop(L);
+
   lua_pushnil(L);
+
   while (lua_next(L, top)) {
     std::size_t length;
     const auto* data = lua_tolstring(L, -2, &length);
+
     if (std::string_view{data, length}.starts_with("on_")) {
       lua_checkstack(L, 2);
       lua_pushlstring(L, data + 3, length - 3);
       lua_insert(L, -3);
       lua_insert(L, -2);
+
       continue;
     }
 
@@ -364,8 +369,11 @@ void objects::bind(object& object, dirty& dirty, std::string_view name, std::str
   lua_pop(L, 1);
 
   object.script.blueprint = &prototypes.emplace(kind, std::move(blueprint)).first->second;
+
   auto* memory = static_cast<proxy*>(lua_newuserdata(L, sizeof(proxy)));
+
   luaL_getmetatable(L, "Object");
+
   lua_setmetatable(L, -2);
   lua_createtable(L, 0, 0);
   lua_rawgeti(L, LUA_REGISTRYINDEX, object.script.blueprint->table);
