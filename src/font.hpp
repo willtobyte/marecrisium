@@ -41,8 +41,8 @@ public:
 private:
   std::array<glyphprops, 256> _props{};
   std::unique_ptr<SDL_Texture, SDL_Deleter> _texture;
-  float _fontheight{.0f};
-  float _scale{1.f};
-  int16_t _spacing{0};
-  int16_t _leading{0};
+  float _fontheight;
+  float _scale;
+  int16_t _spacing;
+  int16_t _leading;
 };
