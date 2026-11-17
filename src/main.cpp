@@ -13,6 +13,7 @@ int main(int, char**) {
   }
 #endif
 
+  SDL_SetHint(SDL_HINT_INVALID_PARAM_CHECKS, "1");
   SDL_SetHint(SDL_HINT_MAC_PRESS_AND_HOLD, "0");
   SDL_Init(SDL_INIT_GAMEPAD | SDL_INIT_VIDEO);
   std::atexit(+[]{ SDL_Quit(); });
