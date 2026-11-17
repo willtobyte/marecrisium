@@ -283,8 +283,8 @@ void scene::update(float delta) {
   _scheduler.update(delta);
 
   {
-    SDL_FPoint point;
-    SDL_RenderCoordinatesFromWindow(renderer, _pointer.x, _pointer.y, &point.x, &point.y);
+    SDL_FPoint pointer;
+    SDL_RenderCoordinatesFromWindow(renderer, _pointer.x, _pointer.y, &pointer.x, &pointer.y);
 
     const auto order = std::views::reverse(_order);
     const auto it = std::ranges::find_if(order, [&](const auto id) {
@@ -297,14 +297,14 @@ void scene::update(float delta) {
       const auto& frame = sprite.sheet->frames[sequence.offset + object.motion.current];
       const auto& collider = frame.collider;
       const auto& bounds = sprite.bounds;
-      const SDL_FRect rect{
+      const SDL_FRect rectangle{
         std::floor(sprite.x) + bounds.x + (frame.offset.x + collider.offset.x) * sprite.scale,
         std::floor(sprite.y) + bounds.y + (frame.offset.y + collider.offset.y) * sprite.scale,
         collider.width * sprite.scale,
         collider.height * sprite.scale,
       };
 
-      return SDL_PointInRectFloat(&point, &rect);
+      return SDL_PointInRectFloat(&pointer, &rectangle);
     });
 
     if (const auto* target = it != order.end() ? &_objects[*it] : nullptr; target != _hover) {
